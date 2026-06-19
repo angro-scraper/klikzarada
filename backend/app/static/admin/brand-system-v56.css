@@ -872,3 +872,110 @@ body.sh-admin-shell .card.admin-hub-panel-v103 .admin-module-grid-v103 small{
     min-height:96px!important;
   }
 }
+
+/* V108 full-width live layout hardening */
+:root{
+  --sh-page-width-v108:calc(100% - 48px);
+}
+
+body.sh-admin-shell .sh-admin-topbar-v103,
+body.sh-admin-shell .admin-hero,
+body.sh-admin-shell .finance-hero-v30,
+body.sh-admin-shell .compact-hero-v35,
+body.sh-admin-shell .ai-admin-hero,
+body.sh-admin-shell main,
+body.sh-admin-shell .admin-grid,
+body.sh-admin-shell .finance-main-v30,
+body.sh-admin-shell .ops-main-v35,
+body.sh-admin-shell .ai-admin-shell,
+body.ai-admin-body .ai-admin-shell,
+body.buyer-v21 .buyer-shell,
+body.buyer-v21 main.buyer-layout-v21,
+body.sh55-ticket .ticket-shell-v26,
+body.sh55-ticket .checkout-shell-v29,
+body.sh55-customer .sh55-main,
+body.sh55-customer main,
+body.sh55-seller main,
+.sh55-topbar,
+.sh56-topbar,
+.sh56-page-identity,
+.sh55-hero,
+.sh56-hero,
+.sh56-values,
+.sh55-brand-values,
+.sh55-brand-trust,
+.sh55-trustbar,
+.sh56-trust{
+  width:var(--sh-page-width-v108)!important;
+  max-width:none!important;
+}
+
+body.sh-admin-shell main,
+body.sh-admin-shell .ai-admin-shell,
+body.ai-admin-body .ai-admin-shell{
+  padding-left:0!important;
+  padding-right:0!important;
+}
+
+body.ai-admin-body .ai-admin-grid{
+  width:100%!important;
+  max-width:none!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+}
+
+body.ai-admin-body .seller-discovery-card-v104,
+body.sh-admin-shell .seller-discovery-card-v104{
+  grid-column:1/-1!important;
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+}
+
+body.ai-admin-body #sellerDiscoveryResult,
+body.ai-admin-body .seller-discovery-table-v104,
+body.sh-admin-shell #sellerDiscoveryResult,
+body.sh-admin-shell .seller-discovery-table-v104{
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+
+body.ai-admin-body #sellerDiscoveryResult{
+  min-height:220px!important;
+}
+
+body.ai-admin-body .seller-discovery-table-v104 table,
+body.sh-admin-shell .seller-discovery-table-v104 table{
+  width:100%!important;
+}
+
+body.buyer-v21 .buyer-content-v21,
+body.buyer-v21 .offer-card-v21,
+body.sh55-seller .seller-selector,
+body.sh-admin-shell .card,
+body.sh-admin-shell .ai-admin-card,
+body.sh-admin-shell .admin-hub-panel-v103,
+body.sh-admin-shell .settings-json-panel-v106,
+body.sh-admin-shell .table-wrap,
+body.sh-admin-shell table{
+  min-width:0!important;
+}
+
+body.buyer-v21 .offers-grid-v21{
+  width:100%!important;
+  max-width:none!important;
+}
+
+@media(max-width:1180px){
+  body.ai-admin-body .ai-admin-grid,
+  body.sh-admin-shell .ai-admin-grid{
+    grid-template-columns:1fr!important;
+  }
+}
+
+@media(max-width:720px){
+  :root{
+    --sh-page-width-v108:calc(100% - 24px);
+  }
+}
