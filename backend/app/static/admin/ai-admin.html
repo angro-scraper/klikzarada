@@ -83,15 +83,15 @@
 
       <div id="seller-discovery" class="ai-admin-card seller-discovery-card-v104">
         <h2>AI pretraga prodavaca</h2>
-        <p class="help-text">Zadaj grad, kategoriju i kriterijum. AI pronalazi postojeće prodavce iz baze, pravi leadove za kontaktiranje i po potrebi upisuje kandidate kao neverifikovane prodavce.</p>
+        <p class="help-text">Zadaj grad, kategoriju i kriterijum. AI pravi leadove za firme, lokale, male proizvođače i domaću radinost. Administrator ručno proverava kandidata pre slanja ponude za saradnju.</p>
         <form id="sellerDiscoveryForm" class="grid-form">
           <label>Grad <input name="city" value="Beograd" placeholder="Beograd, Novi Sad..."></label>
-          <label>Kategorija <input name="category" value="pekara" placeholder="pekara, restoran, market..."></label>
-          <label class="wide-field">Kriterijum <input name="query" placeholder="npr. centar, posle 18h, studentska zona, zdrava hrana"></label>
+          <label>Kategorija <input name="category" value="pekara" placeholder="pekara, restoran, market, domaća hrana, domaća radinost..."></label>
+          <label class="wide-field">Kriterijum <input name="query" placeholder="npr. centar, posle 18h, studentska zona, zimnica, kolači po porudžbini"></label>
           <label>Limit <input name="limit" type="number" value="12" min="1" max="50"></label>
           <label><input name="include_existing" type="checkbox" checked> Pretraži postojeću bazu</label>
           <label><input name="include_research_tasks" type="checkbox" checked> Dodaj istraživačke zadatke</label>
-          <label><input name="import_to_stores" type="checkbox"> Upiši kao prodavce</label>
+          <label><input name="import_to_stores" type="checkbox"> Upiši kao neverifikovane prodavce</label>
           <label><input name="web_search" type="checkbox"> Pokušaj web pretragu</label>
           <div class="ai-admin-actions wide-field">
             <button type="submit">AI pronađi prodavce</button>

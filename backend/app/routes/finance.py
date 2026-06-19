@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -9,6 +9,7 @@ from .. import models, schemas
 from ..database import get_db
 from ..services.pricing import apply_pricing_to_reservation, mark_paid
 from ..services.admin_auth import require_admin_session
+from ..services.seller_governance import enforce_seller_billing_rules, recompute_seller_loyalty
 from .reservations import _reservation_to_out
 
 router = APIRouter(prefix="/finance", tags=["finance"], dependencies=[Depends(require_admin_session)])
@@ -80,12 +81,21 @@ def seller_settlements(db: Session = Depends(get_db)):
         paid_payout = paid.filter(models.Reservation.seller_payout_status == "paid")
         blocked_payout = q.filter(models.Reservation.seller_payout_status == "blocked")
         commission_due = q.filter(models.Reservation.seller_payout_status == "commission_due")
+        invoice_sent = q.filter(models.Reservation.seller_payout_status == "invoice_sent")
         if q.count() == 0 and not store.verified:
             continue
+        governance = enforce_seller_billing_rules(db, store)
         result.append({
             "store_id": store.id,
             "store_name": store.name,
             "city": store.city,
+            "seller_type": store.seller_type,
+            "blocked": bool(store.blocked),
+            "blocked_reason": store.blocked_reason,
+            "late_payment_count": int(store.late_payment_count or 0),
+            "overdue_invoice_count": governance["overdue_invoice_count"],
+            "loyalty_points": int(store.loyalty_points or 0),
+            "loyalty_tier": store.loyalty_tier,
             "reservations_total": q.count(),
             "paid_count": paid.count(),
             "paid_turnover": _money(paid.with_entities(func.coalesce(func.sum(models.Reservation.payable_amount), 0)).scalar()),
@@ -98,7 +108,10 @@ def seller_settlements(db: Session = Depends(get_db)):
             "blocked_payout_count": blocked_payout.count(),
             "commission_due_count": commission_due.count(),
             "commission_due_total": _money(commission_due.with_entities(func.coalesce(func.sum(models.Reservation.platform_fee_amount), 0)).scalar()),
+            "invoice_sent_count": invoice_sent.count(),
+            "invoice_sent_total": _money(invoice_sent.with_entities(func.coalesce(func.sum(models.Reservation.platform_fee_amount), 0)).scalar()),
         })
+    db.commit()
     return result
 
 
@@ -190,12 +203,16 @@ def mark_store_commission_sent(store_id: int, reference: str | None = None, db: 
         models.Reservation.seller_payout_status == "commission_due",
     ).all()
     total = 0.0
+    now = datetime.utcnow()
+    due_at = now + timedelta(days=7)
     for reservation in reservations:
         total += float(reservation.platform_fee_amount or 0)
         reservation.seller_payout_status = "invoice_sent"
-        reservation.seller_payout_reference = reference or f"COMMISSION-{store_id}-{datetime.utcnow().strftime('%Y%m%d')}"
-        reservation.seller_payout_note = "Dnevni obračun provizije je poslat partneru."
-        reservation.updated_at = datetime.utcnow()
+        reservation.seller_payout_reference = reference or f"COMMISSION-{store_id}-{now.strftime('%Y%m%d')}"
+        reservation.seller_payout_note = "Dnevni obračun provizije je poslat partneru. Rok plaćanja je 7 dana od izdavanja fakture."
+        reservation.seller_invoice_due_at = due_at
+        reservation.updated_at = now
+    enforce_seller_billing_rules(db, store)
     db.commit()
     return {
         "ok": True,
@@ -203,7 +220,33 @@ def mark_store_commission_sent(store_id: int, reference: str | None = None, db: 
         "store_name": store.name,
         "updated_reservations": len(reservations),
         "commission_marked_sent": _money(total),
+        "invoice_due_at": due_at.isoformat() + "Z",
     }
+
+
+@router.post("/enforce-seller-blocks", response_model=dict)
+def enforce_seller_blocks(db: Session = Depends(get_db)):
+    rows = []
+    for store in db.query(models.Store).order_by(models.Store.name.asc()).all():
+        status = enforce_seller_billing_rules(db, store)
+        if status["blocked"] or status["overdue_invoice_count"] or status["late_payment_count"]:
+            rows.append({"store_id": store.id, "store_name": store.name, **status})
+    db.commit()
+    return {"ok": True, "checked": db.query(models.Store).count(), "flagged": rows}
+
+
+@router.patch("/stores/{store_id}/unblock", response_model=dict)
+def unblock_store(store_id: int, note: str | None = None, db: Session = Depends(get_db)):
+    store = db.get(models.Store, store_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="Partner nije pronađen")
+    store.blocked = False
+    store.blocked_at = None
+    store.blocked_reason = None
+    recompute_seller_loyalty(db, store)
+    db.commit()
+    db.refresh(store)
+    return {"ok": True, "store_id": store.id, "store_name": store.name, "blocked": store.blocked, "note": note or "Ručno odblokirano iz finansija/admina."}
 
 
 @router.get("/reservations", response_model=list[schemas.ReservationOut])
@@ -255,14 +298,26 @@ def update_seller_payout(reservation_code: str, payload: schemas.FinancePayoutUp
         raise HTTPException(status_code=404, detail="Rezervacija nije pronađena")
     if reservation.payment_status != "paid" and payload.seller_payout_status == "paid":
         raise HTTPException(status_code=400, detail="Ne može isplata prodavcu dok rezervacija nije plaćena")
+    old_status = reservation.seller_payout_status
+    was_late_invoice = (
+        old_status == "invoice_sent"
+        and payload.seller_payout_status == "commission_paid"
+        and reservation.seller_invoice_due_at is not None
+        and reservation.seller_invoice_due_at < datetime.utcnow()
+    )
     reservation.seller_payout_status = payload.seller_payout_status
     reservation.seller_payout_reference = payload.reference.strip() if payload.reference else reservation.seller_payout_reference
     reservation.seller_payout_note = payload.note.strip() if payload.note else reservation.seller_payout_note
-    if payload.seller_payout_status == "paid":
+    if payload.seller_payout_status in {"paid", "commission_paid"}:
         reservation.seller_payout_at = datetime.utcnow()
     elif payload.seller_payout_status in {"pending", "blocked", "not_ready", "commission_due", "invoice_sent"}:
         reservation.seller_payout_at = None
     reservation.updated_at = datetime.utcnow()
+    store = reservation.product.store if reservation.product else None
+    if store and was_late_invoice:
+        store.late_payment_count = int(store.late_payment_count or 0) + 1
+    if store:
+        enforce_seller_billing_rules(db, store)
     db.commit()
     db.refresh(reservation)
     return _reservation_to_out(reservation)

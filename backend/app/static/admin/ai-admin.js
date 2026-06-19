@@ -28,13 +28,15 @@ function setBusy(btn, on = true) {
 }
 
 function renderSellerDiscovery(data) {
-  const rows = (data.candidates || []).map((candidate) => `
+  const items = data.leads?.length ? data.leads : (data.candidates || []);
+  const rows = items.map((candidate) => `
     <tr>
       <td><strong>${escapeHtml(candidate.name)}</strong><br><small>${escapeHtml(candidate.note || candidate.ai_reason || '')}</small></td>
       <td>${escapeHtml(candidate.city || '')}<br><small>${escapeHtml(candidate.category || '')}</small></td>
       <td>${escapeHtml(candidate.contact || candidate.source_url || '-')}</td>
       <td><strong>${escapeHtml(candidate.score || 0)}</strong></td>
-      <td><span class="keywords">${escapeHtml(candidate.kind || candidate.status || 'lead')}</span></td>
+      <td><span class="keywords">${escapeHtml(candidate.status || candidate.kind || 'lead')}</span></td>
+      <td>${candidate.id ? `<button type="button" class="secondary" data-lead-contact="${escapeHtml(candidate.id)}">Odobri kontakt</button>` : '<span class="help-text">Nema lead ID</span>'}</td>
     </tr>
   `).join('');
   $('sellerDiscoveryResult').innerHTML = `
@@ -43,12 +45,21 @@ function renderSellerDiscovery(data) {
     <small>Leadovi: +${data.summary?.leads_created || 0} novih, ${data.summary?.leads_updated || 0} ažuriranih · Prodavci: +${data.summary?.created_stores || 0} · Izvori: +${data.summary?.created_sources || 0} · OpenAI: ${data.ai_used ? 'da' : 'ne'} · Web: ${data.web_search_enabled ? 'uključen' : 'isključen'}</small>
     <div class="table-wrap compact-table seller-discovery-table-v104">
       <table>
-        <thead><tr><th>Kandidat</th><th>Grad</th><th>Kontakt/izvor</th><th>Score</th><th>Tip</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="5">Nema kandidata za ove kriterijume.</td></tr>'}</tbody>
+        <thead><tr><th>Kandidat</th><th>Grad</th><th>Kontakt/izvor</th><th>Score</th><th>Status</th><th>Akcija</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="6">Nema kandidata za ove kriterijume.</td></tr>'}</tbody>
       </table>
     </div>
-    <p class="help-text">Predlozi za dalje ručno proveravanje: ${escapeHtml((data.search_queries || []).join(' · '))}</p>
+    <p class="help-text">Predlozi za ručno proveravanje: ${escapeHtml((data.search_queries || []).join(' · '))}. Domaća radinost i fizička lica se uvek proveravaju pre kontakta i registracije.</p>
   `;
+}
+
+async function approveLeadContact(leadId) {
+  const result = await request(`/scale-api/leads/${encodeURIComponent(leadId)}/approve-contact`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ channel: 'auto' }),
+  });
+  alert(result.message || 'Lead je odobren za kontakt.');
 }
 
 async function runSellerDiscovery(event) {
@@ -207,6 +218,18 @@ $('testChatBtn').addEventListener('click', () => testAI('/buyer-ai/chat'));
 $('testSearchBtn').addEventListener('click', () => testAI('/buyer-ai/parse'));
 $('sellerDiscoveryForm')?.addEventListener('submit', runSellerDiscovery);
 $('loadSellerDiscoveryRunsBtn')?.addEventListener('click', loadSellerDiscoveryRuns);
+$('sellerDiscoveryResult')?.addEventListener('click', async (event) => {
+  const btn = event.target.closest('[data-lead-contact]');
+  if (!btn) return;
+  setBusy(btn, true);
+  try {
+    await approveLeadContact(btn.dataset.leadContact);
+  } catch (err) {
+    alert(`Greška: ${err.message}`);
+  } finally {
+    setBusy(btn, false);
+  }
+});
 $('faqList').addEventListener('click', async (event) => {
   const btn = event.target.closest('[data-delete-faq]');
   if (!btn) return;

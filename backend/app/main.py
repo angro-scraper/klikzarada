@@ -35,6 +35,28 @@ try:
                 conn.execute(text("ALTER TABLE stores ADD COLUMN latitude FLOAT"))
             if "longitude" not in columns:
                 conn.execute(text("ALTER TABLE stores ADD COLUMN longitude FLOAT"))
+            store_additions = {
+                "seller_type": "VARCHAR(40) DEFAULT 'business'",
+                "agreement_accepted": "BOOLEAN DEFAULT 0",
+                "agreement_version": "VARCHAR(60)",
+                "agreement_accepted_at": "DATETIME",
+                "liability_accepted": "BOOLEAN DEFAULT 0",
+                "commission_terms_accepted": "BOOLEAN DEFAULT 0",
+                "blocked": "BOOLEAN DEFAULT 0",
+                "blocked_reason": "TEXT",
+                "blocked_at": "DATETIME",
+                "loyalty_points": "INTEGER DEFAULT 0",
+                "loyalty_tier": "VARCHAR(40) DEFAULT 'start'",
+                "late_payment_count": "INTEGER DEFAULT 0",
+            }
+            for col, definition in store_additions.items():
+                if col not in columns:
+                    conn.execute(text(f"ALTER TABLE stores ADD COLUMN {col} {definition}"))
+
+            product_rows = conn.execute(text("PRAGMA table_info(products)")).fetchall()
+            product_columns = {row[1] for row in product_rows}
+            if "description" not in product_columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN description TEXT"))
 
             reservation_rows = conn.execute(text("PRAGMA table_info(reservations)")).fetchall()
             reservation_columns = {row[1] for row in reservation_rows}
@@ -56,10 +78,30 @@ try:
                 "seller_payout_reference": "VARCHAR(160)",
                 "seller_payout_note": "TEXT",
                 "seller_payout_at": "DATETIME",
+                "seller_invoice_due_at": "DATETIME",
             }
             for col, definition in reservation_additions.items():
                 if col not in reservation_columns:
                     conn.execute(text(f"ALTER TABLE reservations ADD COLUMN {col} {definition}"))
+    else:
+        with engine.begin() as conn:
+            for statement in [
+                "ALTER TABLE stores ADD COLUMN IF NOT EXISTS seller_type VARCHAR(40) DEFAULT 'business'",
+                "ALTER TABLE stores ADD COLUMN IF NOT EXISTS agreement_accepted BOOLEAN DEFAULT false",
+                "ALTER TABLE stores ADD COLUMN IF NOT EXISTS agreement_version VARCHAR(60)",
+                "ALTER TABLE stores ADD COLUMN IF NOT EXISTS agreement_accepted_at TIMESTAMP",
+                "ALTER TABLE stores ADD COLUMN IF NOT EXISTS liability_accepted BOOLEAN DEFAULT false",
+                "ALTER TABLE stores ADD COLUMN IF NOT EXISTS commission_terms_accepted BOOLEAN DEFAULT false",
+                "ALTER TABLE stores ADD COLUMN IF NOT EXISTS blocked BOOLEAN DEFAULT false",
+                "ALTER TABLE stores ADD COLUMN IF NOT EXISTS blocked_reason TEXT",
+                "ALTER TABLE stores ADD COLUMN IF NOT EXISTS blocked_at TIMESTAMP",
+                "ALTER TABLE stores ADD COLUMN IF NOT EXISTS loyalty_points INTEGER DEFAULT 0",
+                "ALTER TABLE stores ADD COLUMN IF NOT EXISTS loyalty_tier VARCHAR(40) DEFAULT 'start'",
+                "ALTER TABLE stores ADD COLUMN IF NOT EXISTS late_payment_count INTEGER DEFAULT 0",
+                "ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT",
+                "ALTER TABLE reservations ADD COLUMN IF NOT EXISTS seller_invoice_due_at TIMESTAMP",
+            ]:
+                conn.execute(text(statement))
 except Exception:
     pass
 

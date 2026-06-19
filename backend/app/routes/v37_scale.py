@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
+import re
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -13,6 +14,7 @@ from .. import models
 from ..database import get_db
 from ..services.admin_auth import require_admin_session
 from ..services.json_store import read_json, write_json, append_json_row, update_json_row
+from ..services.notifications import send_sms
 from ..services.seller_discovery import discover_sellers
 
 router = APIRouter(prefix="/scale-api", tags=["v37-scale-suite"])
@@ -58,6 +60,10 @@ class CampaignCreate(BaseModel):
 class StatusPatch(BaseModel):
     status: str
     note: str | None = None
+
+class LeadContactRequest(BaseModel):
+    channel: str = Field(default="auto", pattern="^(auto|sms|email|manual)$")
+    message: str | None = Field(default=None, max_length=600)
 
 class DemandCreate(BaseModel):
     phone: str | None = None
@@ -262,6 +268,51 @@ def patch_lead(row_id: str, payload: StatusPatch, request: Request, _: bool = De
     if not row:
         raise HTTPException(status_code=404, detail="Lead nije pronađen")
     return {"ok": True, "lead": row}
+
+
+@router.post("/leads/{row_id}/approve-contact", response_model=dict)
+def approve_and_contact_lead(row_id: str, payload: LeadContactRequest, request: Request, _: bool = Depends(require_admin_session)):
+    rows = read_json("growth_leads.json", [])
+    lead = next((r for r in rows if str(r.get("id")) == str(row_id)), None)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead nije pronađen")
+    contact = str(lead.get("contact") or "").strip()
+    default_message = (
+        "Sačuvaj Hranu: poziv za saradnju. Platforma povezuje prodavce hrane sa kupcima za preuzimanje viška obroka. "
+        "Prijava: https://app.sacuvaj-hranu.rs/partner Kontakt: kontakt@sacuvaj-hranu.rs"
+    )
+    message = (payload.message or default_message).strip()
+    phone_match = re.search(r"(\+?\d[\d\s()./-]{6,}\d)", contact)
+    email_match = re.search(r"[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}", contact)
+    sent = False
+    channel = "manual"
+    error = None
+    if payload.channel in {"auto", "sms"} and phone_match:
+        channel = "sms"
+        try:
+            send_sms(phone_match.group(1), message, purpose="seller_lead_offer", metadata={"lead_id": row_id})
+            sent = True
+        except Exception as exc:
+            error = str(exc)
+    elif payload.channel in {"auto", "email"} and email_match:
+        channel = "email"
+        error = "Email je spreman za ručno slanje dok SMTP servis ne bude podešen."
+    updated = update_json_row("growth_leads.json", row_id, {
+        "status": "contacted" if sent else "approved_for_contact",
+        "last_contact_channel": channel,
+        "last_contact_message": message,
+        "last_contact_error": error,
+        "approved_at": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+    })
+    return {
+        "ok": True,
+        "lead": updated,
+        "sent": sent,
+        "channel": channel,
+        "manual_email_to": email_match.group(0) if email_match and not sent else None,
+        "message": "Lead je odobren. SMS je poslat." if sent else "Lead je odobren za kontakt; pošalji ručno ako nema SMS broja.",
+        "error": error,
+    }
 
 
 @router.get("/ai/next-actions", response_model=dict)

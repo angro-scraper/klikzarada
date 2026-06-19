@@ -7,24 +7,85 @@ from .products import product_to_public
 from .reservations import _reservation_to_out
 from ..services.pricing import mark_refunded_if_paid
 from ..services.customers import apply_reservation_status_transition
+from ..services.seller_governance import (
+    SELLER_AGREEMENT_VERSION,
+    SELLER_TYPES,
+    enforce_seller_billing_rules,
+    recompute_seller_loyalty,
+    require_product_quality,
+    require_seller_ready,
+)
 
 router = APIRouter(prefix="/seller-api", tags=["seller-api"])
 SELLER_PRODUCT_STATUSES = {"seller_verified", "near_expiry", "public_discount", "candidate", "hidden"}
 SELLER_RESERVATION_STATUSES = {"pending", "confirmed", "picked_up", "cancelled", "expired"}
 
 
-def verify_store(db: Session, store_id: int, pin: str) -> models.Store:
+def verify_store(db: Session, store_id: int, pin: str, allow_blocked: bool = False) -> models.Store:
     store = db.get(models.Store, store_id)
     if not store:
         raise HTTPException(status_code=404, detail="Prodavac nije pronađen")
     if str(store.seller_pin) != str(pin):
         raise HTTPException(status_code=401, detail="Pogrešan PIN za prodavca")
+    enforce_seller_billing_rules(db, store)
+    if store.blocked and not allow_blocked:
+        db.commit()
+        raise HTTPException(status_code=403, detail=store.blocked_reason or "Prodavac je blokiran")
     return store
 
 
 @router.post("/login", response_model=schemas.StoreOut)
 def seller_login(payload: schemas.SellerLoginRequest, db: Session = Depends(get_db)):
-    return verify_store(db, payload.store_id, payload.pin)
+    store = verify_store(db, payload.store_id, payload.pin)
+    recompute_seller_loyalty(db, store)
+    db.commit()
+    db.refresh(store)
+    return store
+
+
+@router.get("/governance", response_model=dict)
+def seller_governance_status(store_id: int, pin: str, db: Session = Depends(get_db)):
+    store = verify_store(db, store_id, pin, allow_blocked=True)
+    status = enforce_seller_billing_rules(db, store)
+    db.commit()
+    return {
+        "ok": True,
+        "store_id": store.id,
+        "seller_type": store.seller_type,
+        "agreement_accepted": bool(store.agreement_accepted),
+        "agreement_version": store.agreement_version,
+        "agreement_accepted_at": store.agreement_accepted_at,
+        "liability_accepted": bool(store.liability_accepted),
+        "commission_terms_accepted": bool(store.commission_terms_accepted),
+        "agreement_required": not (store.agreement_accepted and store.liability_accepted and store.commission_terms_accepted),
+        **status,
+    }
+
+
+@router.post("/agreement/accept", response_model=dict)
+def seller_accept_agreement(payload: schemas.SellerAgreementAccept, db: Session = Depends(get_db)):
+    store = verify_store(db, payload.store_id, payload.pin)
+    if payload.seller_type not in SELLER_TYPES:
+        raise HTTPException(status_code=400, detail="Nepoznat tip prodavca")
+    required = [
+        payload.agreement_accepted,
+        payload.liability_accepted,
+        payload.commission_terms_accepted,
+        payload.food_photo_required_accepted,
+        payload.invoice_terms_accepted,
+    ]
+    if not all(required):
+        raise HTTPException(status_code=400, detail="Svi uslovi moraju biti prihvaćeni pre prodaje.")
+    store.seller_type = payload.seller_type
+    store.agreement_accepted = True
+    store.liability_accepted = True
+    store.commission_terms_accepted = True
+    store.agreement_version = SELLER_AGREEMENT_VERSION
+    store.agreement_accepted_at = datetime.utcnow()
+    recompute_seller_loyalty(db, store)
+    db.commit()
+    db.refresh(store)
+    return {"ok": True, "store": schemas.StoreOut.model_validate(store).model_dump(), "message": "Uslovi prodavca su prihvaćeni."}
 
 
 
@@ -60,12 +121,15 @@ def seller_products(
 def seller_create_product(payload: schemas.SellerProductCreate, db: Session = Depends(get_db)):
     if payload.store_id is None:
         raise HTTPException(status_code=400, detail="store_id je obavezan")
-    verify_store(db, payload.store_id, payload.pin)
+    store = verify_store(db, payload.store_id, payload.pin)
+    require_seller_ready(db, store)
     data = payload.model_dump(exclude={"pin"})
     if data.get("status") not in SELLER_PRODUCT_STATUSES:
         raise HTTPException(status_code=400, detail="Prodavac ne može da postavi ovaj status")
+    require_product_quality(data, status=data.get("status"))
     product = models.Product(**data)
     db.add(product)
+    recompute_seller_loyalty(db, store)
     db.commit()
     db.refresh(product)
     return product
@@ -77,14 +141,17 @@ def seller_update_product_status(
     payload: schemas.SellerProductStatusUpdate,
     db: Session = Depends(get_db),
 ):
-    verify_store(db, payload.store_id, payload.pin)
+    store = verify_store(db, payload.store_id, payload.pin)
+    require_seller_ready(db, store)
     if payload.status not in SELLER_PRODUCT_STATUSES:
         raise HTTPException(status_code=400, detail="Prodavac ne može da postavi ovaj status")
     product = db.get(models.Product, product_id)
     if not product or product.store_id != payload.store_id:
         raise HTTPException(status_code=404, detail="Artikal nije pronađen za ovog prodavca")
+    require_product_quality(product, status=payload.status)
     product.status = payload.status
     product.updated_at = datetime.utcnow()
+    recompute_seller_loyalty(db, store)
     db.commit()
     db.refresh(product)
     return product

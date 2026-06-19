@@ -11,6 +11,7 @@ let sellerPin = '';
 let isLoggedIn = false;
 let products = [];
 let reservations = [];
+let sellerGovernance = null;
 let cameraStream = null;
 let capturedImageBlob = null;
 let capturedImagePreviewUrl = null;
@@ -146,6 +147,7 @@ function renderSellerInfo() {
   const store = selectedStore();
   if (!store) {
     $('sellerInfo').innerHTML = '<p class="help-text">Izaberi prodavca i unesi PIN da vidiš njegove artikle i rezervacije.</p>';
+    if ($('sellerGovernance')) $('sellerGovernance').innerHTML = '';
     setProtectedVisible(false);
     return;
   }
@@ -158,7 +160,83 @@ function renderSellerInfo() {
       <span class="status">${isLoggedIn ? 'PIN potvrđen' : 'Potrebna prijava'}</span>
     </div>
   `;
+  renderSellerGovernance();
   setProtectedVisible(isLoggedIn);
+}
+
+function renderSellerGovernance() {
+  const wrap = $('sellerGovernance');
+  if (!wrap) return;
+  if (!selectedStoreId || !isLoggedIn) {
+    wrap.innerHTML = '';
+    return;
+  }
+  const g = sellerGovernance || {};
+  const agreementOk = g.agreement_accepted && g.liability_accepted && g.commission_terms_accepted;
+  const blocked = Boolean(g.blocked);
+  wrap.innerHTML = `
+    <div class="seller-governance-card-v107 ${blocked ? 'danger' : ''}">
+      <div>
+        <strong>Ugovor i odgovornost</strong>
+        <p>${agreementOk ? 'Uslovi prodavca su prihvaćeni.' : 'Pre objave proizvoda moraš prihvatiti odgovornost za ponude, obavezne slike/rokove i proviziju.'}</p>
+      </div>
+      <div>
+        <strong>Loyalty</strong>
+        <p>${escapeHtml(g.loyalty_tier || 'start')} · ${Number(g.loyalty_points || 0)} poena · kašnjenja: ${Number(g.late_payment_count || 0)}</p>
+      </div>
+      <div>
+        <strong>Fakture</strong>
+        <p>${Number(g.overdue_invoice_count || 0)} kasnih faktura · otvoreno ${moneyPlain(g.open_invoice_total || 0)}</p>
+      </div>
+      ${blocked ? `<div class="seller-governance-alert-v107">${escapeHtml(g.blocked_reason || 'Prodavac je blokiran.')}</div>` : ''}
+      ${agreementOk ? '' : `
+        <div class="seller-agreement-actions-v107">
+          <select id="sellerTypeSelect">
+            <option value="business">Firma / registrovana delatnost</option>
+            <option value="home_producer">Domaća radinost</option>
+            <option value="individual">Fizičko lice</option>
+            <option value="farm">Gazdinstvo / mali proizvođač</option>
+            <option value="other">Drugo</option>
+          </select>
+          <button type="button" id="acceptSellerAgreementBtn">Prihvatam uslove prodavca</button>
+          <a class="secondary-link link-button" href="/terms" target="_blank">Uslovi</a>
+        </div>
+      `}
+    </div>
+  `;
+  if ($('sellerTypeSelect')) $('sellerTypeSelect').value = g.seller_type || 'business';
+}
+
+async function loadSellerGovernance() {
+  if (!selectedStoreId || !sellerPin || !isLoggedIn) {
+    sellerGovernance = null;
+    renderSellerGovernance();
+    return;
+  }
+  const params = new URLSearchParams({ store_id: String(selectedStoreId), pin: sellerPin });
+  sellerGovernance = await request(`${api.seller}/governance?${params.toString()}`);
+  renderSellerGovernance();
+}
+
+async function acceptSellerAgreement() {
+  if (!selectedStoreId || !sellerPin || !isLoggedIn) return toast('Prvo potvrdi PIN');
+  const sellerType = $('sellerTypeSelect')?.value || 'business';
+  await request(`${api.seller}/agreement/accept`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      store_id: selectedStoreId,
+      pin: sellerPin,
+      seller_type: sellerType,
+      agreement_accepted: true,
+      liability_accepted: true,
+      commission_terms_accepted: true,
+      food_photo_required_accepted: true,
+      invoice_terms_accepted: true,
+    }),
+  });
+  await loadSellerGovernance();
+  toast('Uslovi prodavca su prihvaćeni');
 }
 
 
@@ -296,10 +374,12 @@ function logoutSeller() {
   isLoggedIn = false;
   products = [];
   reservations = [];
+  sellerGovernance = null;
   renderSellerInfo();
   renderStoreLocationStatus();
   renderProducts();
   renderReservations();
+  renderSellerGovernance();
   toast('Odjavljen prodavac');
 }
 
@@ -591,7 +671,7 @@ async function scanQrImageFile(file) {
 }
 
 async function refreshSellerData() {
-  await Promise.all([loadProducts(), loadReservations()]);
+  await Promise.all([loadProducts(), loadReservations(), loadSellerGovernance()]);
   renderStats();
 }
 
@@ -686,9 +766,9 @@ function applySellerTemplate(templateName, openCamera = false) {
   const form = $('sellerProductForm');
   const today = new Date().toISOString().slice(0, 10);
   const templates = {
-    bakery: { name: 'Korpa peciva', category: 'pekara', original_price: 500, discounted_price: 250, quantity: 5, pickup_window: 'danas 18-21h', status: 'seller_verified', expiry_type: 'best_before' },
-    lunch: { name: 'Dnevni meni višak', category: 'gotova jela', original_price: 800, discounted_price: 450, quantity: 4, pickup_window: 'danas 16-18h', status: 'seller_verified', expiry_type: 'use_by' },
-    market: { name: 'Artikal kraćeg roka', category: 'market', original_price: 300, discounted_price: 180, quantity: 10, pickup_window: 'danas do 21h', status: 'near_expiry', expiry_type: 'best_before' },
+    bakery: { name: 'Korpa peciva', category: 'pekara', original_price: 500, discounted_price: 250, quantity: 5, pickup_window: 'danas 18-21h', status: 'seller_verified', expiry_type: 'best_before', description: 'Mešana korpa svežeg peciva iz današnje proizvodnje, spremna za preuzimanje u lokalu.' },
+    lunch: { name: 'Dnevni meni višak', category: 'gotova jela', original_price: 800, discounted_price: 450, quantity: 4, pickup_window: 'danas 16-18h', status: 'seller_verified', expiry_type: 'use_by', description: 'Porcija dnevnog kuvanog jela, upakovana za preuzimanje danas u naznačenom terminu.' },
+    market: { name: 'Artikal kraćeg roka', category: 'market', original_price: 300, discounted_price: 180, quantity: 10, pickup_window: 'danas do 21h', status: 'near_expiry', expiry_type: 'best_before', description: 'Proizvod sa kraćim rokom trajanja, ispravan i jasno označen za brzo preuzimanje.' },
   };
   const t = templates[templateName];
   if (!t) return;
@@ -698,6 +778,7 @@ function applySellerTemplate(templateName, openCamera = false) {
   form.discounted_price.value = t.discounted_price;
   form.quantity.value = t.quantity;
   form.pickup_window.value = t.pickup_window;
+  form.description.value = t.description;
   form.status.value = t.status;
   form.expiry_type.value = t.expiry_type;
   form.expiry_date.value = today;
@@ -814,6 +895,7 @@ function parseQuickCommand(rawText) {
     expiry_date: expiryDate,
     expiry_type: expiryDate ? expiryType : 'unknown',
     pickup_window: pickupWindow,
+    description: `Ponuda: ${inferNameFromCommand(text)}. Provereno za preuzimanje u terminu ${pickupWindow}.`,
     status: nearExpiryWords || expiryDate ? 'near_expiry' : 'seller_verified',
   };
 }
@@ -828,6 +910,7 @@ function fillFormFromParsed(parsed) {
   if (parsed.expiry_date) form.expiry_date.value = parsed.expiry_date;
   if (parsed.expiry_type) form.expiry_type.value = parsed.expiry_type;
   if (parsed.pickup_window) form.pickup_window.value = parsed.pickup_window;
+  if (parsed.description) form.description.value = parsed.description;
   if (parsed.status) form.status.value = parsed.status;
   calculateDiscount();
 }
@@ -953,6 +1036,12 @@ $('sellerProductForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!selectedStoreId || !sellerPin || !isLoggedIn) return toast('Prvo potvrdi PIN');
   const form = new FormData(event.target);
+  const description = valueOrNull(form.get('description'));
+  const hasUpload = Boolean(capturedImageBlob || form.get('product_image')?.name);
+  if (!description || description.length < 10) return toast('Unesi jasan opis proizvoda');
+  if (!valueOrNull(form.get('expiry_date'))) return toast('Unesi rok trajanja');
+  if (!valueOrNull(form.get('pickup_window'))) return toast('Unesi vreme preuzimanja');
+  if (!hasUpload) return toast('Dodaj sliku proizvoda pre objave');
   const body = {
     store_id: selectedStoreId,
     pin: sellerPin,
@@ -966,6 +1055,7 @@ $('sellerProductForm').addEventListener('submit', async (event) => {
     expiry_type: form.get('expiry_type') || 'unknown',
     quantity: numberOrNull(form.get('quantity')),
     pickup_window: valueOrNull(form.get('pickup_window')),
+    description,
     image_url: await uploadImageFromForm(form),
     source_url: null,
     confidence_score: 0.98,
@@ -995,6 +1085,19 @@ $('sellerProductsTable').addEventListener('click', async (event) => {
   });
   await refreshSellerData();
   toast(`Status artikla: ${btn.dataset.status}`);
+});
+
+$('sellerGovernance')?.addEventListener('click', async (event) => {
+  const btn = event.target.closest('#acceptSellerAgreementBtn');
+  if (!btn) return;
+  btn.disabled = true;
+  try {
+    await acceptSellerAgreement();
+  } catch (err) {
+    toast(`Greška: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 $('sellerReservationsTable').addEventListener('click', async (event) => {

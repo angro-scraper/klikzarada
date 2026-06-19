@@ -12,6 +12,18 @@ class StoreCreate(BaseModel):
     phone: str | None = None
     seller_pin: str | None = Field(default=None, min_length=4, max_length=20)
     verified: bool = False
+    seller_type: str = "business"
+    agreement_accepted: bool = False
+    agreement_version: str | None = None
+    agreement_accepted_at: datetime | None = None
+    liability_accepted: bool = False
+    commission_terms_accepted: bool = False
+    blocked: bool = False
+    blocked_reason: str | None = None
+    blocked_at: datetime | None = None
+    loyalty_points: int = 0
+    loyalty_tier: str = "start"
+    late_payment_count: int = 0
 
 
 class StorePublicOut(BaseModel):
@@ -24,6 +36,15 @@ class StorePublicOut(BaseModel):
     website: str | None = None
     phone: str | None = None
     verified: bool = False
+    seller_type: str = "business"
+    agreement_accepted: bool = False
+    liability_accepted: bool = False
+    commission_terms_accepted: bool = False
+    blocked: bool = False
+    blocked_reason: str | None = None
+    loyalty_points: int = 0
+    loyalty_tier: str = "start"
+    late_payment_count: int = 0
     created_at: datetime
 
     class Config:
@@ -46,6 +67,7 @@ class ProductCreate(BaseModel):
     expiry_type: str = "unknown"
     quantity: int | None = None
     pickup_window: str | None = None
+    description: str | None = None
     image_url: str | None = None
     source_url: str | None = None
     confidence_score: float = Field(default=0.5, ge=0, le=1)
@@ -136,6 +158,7 @@ class ReservationOut(BaseModel):
     seller_payout_reference: str | None = None
     seller_payout_note: str | None = None
     seller_payout_at: datetime | None = None
+    seller_invoice_due_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -190,6 +213,17 @@ class SellerProductStatusUpdate(BaseModel):
     store_id: int
     pin: str = Field(min_length=4, max_length=20)
     status: str
+
+
+class SellerAgreementAccept(BaseModel):
+    store_id: int
+    pin: str = Field(min_length=4, max_length=20)
+    seller_type: str = "business"
+    agreement_accepted: bool = True
+    liability_accepted: bool = True
+    commission_terms_accepted: bool = True
+    food_photo_required_accepted: bool = True
+    invoice_terms_accepted: bool = True
 
 
 class SellerReservationStatusUpdate(BaseModel):

@@ -69,6 +69,7 @@
         <button id="copySellerLinkBtn" class="secondary">Kopiraj link za prodavca</button>
       </div>
       <div id="sellerInfo" class="seller-info"></div>
+      <div id="sellerGovernance" class="seller-governance-v107"></div>
     </section>
 
 
@@ -93,7 +94,7 @@
 
     <section class="card" data-seller-protected>
       <h2>Dodaj novu ponudu</h2>
-      <p class="help-text">Za pekare i restorane možeš koristiti naziv tipa “Korpa iznenađenja” ili konkretan proizvod.</p>
+      <p class="help-text">Svaka ponuda mora imati sliku, opis, rok trajanja i vreme preuzimanja. Sistem neće objaviti artikal bez tih podataka.</p>
 
       <div class="quick-agent-panel wide-field">
         <h3>AI brzi unos prodavca</h3>
@@ -132,6 +133,7 @@
           </select>
         </label>
         <label>Preuzimanje<input name="pickup_window" placeholder="danas 18-21h" /></label>
+        <label class="wide-field">Jasan opis proizvoda<textarea name="description" rows="3" placeholder="Npr. Mešana korpa svežeg peciva: kifle, kroasani i slane pogačice. Čuvano u lokalu, preuzimanje danas."></textarea></label>
         <label>Slika ponude<input name="product_image" type="file" accept="image/*" capture="environment" /></label>
 
         <div class="wide-field camera-panel">

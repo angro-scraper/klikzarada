@@ -51,6 +51,7 @@ def _reservation_to_out(reservation: models.Reservation) -> dict:
         "seller_payout_reference": getattr(reservation, "seller_payout_reference", None),
         "seller_payout_note": getattr(reservation, "seller_payout_note", None),
         "seller_payout_at": getattr(reservation, "seller_payout_at", None),
+        "seller_invoice_due_at": getattr(reservation, "seller_invoice_due_at", None),
         "created_at": reservation.created_at,
         "updated_at": reservation.updated_at,
     }

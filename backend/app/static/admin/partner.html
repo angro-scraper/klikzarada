@@ -1,4 +1,95 @@
-<!doctype html><html lang="sr"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Sačuvaj Hranu — Postani partner</title><link rel="stylesheet" href="/admin-assets/styles.css"/>
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu - Postani partner</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
   <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
-</head><body class="buyer-v21"><header class="public-hero compact-hero-v35"><div><p class="eyebrow">Prodavci i lokali</p><h1>Postani Sačuvaj Hranu partner</h1><p class="subtitle">Dodaj pekaru, restoran, market ili drugi lokal. Nakon odobrenja dobijaš PIN za prodavac panel.</p></div><nav class="top-actions"><a class="link-button" href="/offers">Ponude</a><a class="link-button secondary-link" href="/seller">Prodavac panel</a></nav></header><main><section class="card wide"><form id="partnerForm" class="grid-form clean-form"><label>Naziv lokala<input name="business_name" required></label><label>Kategorija<select name="category"><option>pekara</option><option>restoran</option><option>market</option><option>voće i povrće</option><option>mesara</option><option>poslastice</option><option>gotova jela</option></select></label><label>Grad<input name="city" value="Beograd" required></label><label>Adresa<input name="address" required></label><label>Kontakt osoba<input name="contact_name" required></label><label>Telefon<input name="phone" required></label><label>Email<input name="email" type="email"></label><label>Website / Instagram<input name="website"></label><label>Latitude<input name="latitude" id="latInput" type="number" step="any"></label><label>Longitude<input name="longitude" id="lngInput" type="number" step="any"></label><button type="button" id="usePartnerGps" class="secondary">Uzmi GPS lokaciju</button><label class="wide-field">Napomena<textarea name="note" rows="4"></textarea></label><button type="submit">Pošalji prijavu</button></form><pre id="partnerResult" class="result compact-result">Spremno.</pre></section></main><script src="/admin-assets/partner.js"></script>  <script src="/admin-assets/brand-system-v56.js"></script>
-</body></html>
+</head>
+<body class="buyer-v21">
+  <nav class="sh55-topbar" aria-label="Navigacija">
+    <a class="sh55-brand" href="/app">
+      <span class="sh55-logo" aria-hidden="true"></span>
+      <span><strong>Sačuvaj Hranu</strong><small>Uštedi novac. Sačuvaj obrok. Smanji bacanje.</small></span>
+    </a>
+    <div class="sh55-navlinks">
+      <a href="/offers">Ponude</a>
+      <a href="/seller">Prodavac panel</a>
+      <a href="/terms">Uslovi</a>
+      <a href="/support">Pomoć</a>
+    </div>
+  </nav>
+
+  <header class="sh55-hero">
+    <div class="sh55-hero-copy">
+      <p class="sh55-kicker">Prodavci i domaća radinost</p>
+      <h1>Postani Sačuvaj Hranu partner.</h1>
+      <p class="sh55-slogan">Uštedi novac. Sačuvaj obrok. Smanji bacanje.</p>
+      <p class="sh55-lead">Primaćemo firme, lokale, gazdinstva i ljude koji spremaju hranu kod kuće, ali svako mora prihvatiti odgovornost za ponudu, rok, opis, sliku i proviziju.</p>
+    </div>
+    <div class="sh55-action-card">
+      <span class="sh55-logo large" aria-hidden="true"></span>
+      <h2>Jasna pravila</h2>
+      <p>Svaki proizvod mora imati sliku, opis, rok trajanja i vreme preuzimanja.</p>
+      <a class="link-button" href="mailto:kontakt@sacuvaj-hranu.rs">kontakt@sacuvaj-hranu.rs</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="card wide">
+      <h2>Prijava prodavca</h2>
+      <p class="help-text">Nakon odobrenja dobijaš PIN za prodavac panel. Admin proverava prijavu pre izlaska ponuda uživo.</p>
+      <form id="partnerForm" class="grid-form clean-form">
+        <label>Naziv prodavca / domaće radinosti<input name="business_name" required placeholder="npr. Domaća kuhinja Marija" /></label>
+        <label>Tip prodavca
+          <select name="seller_type" required>
+            <option value="business">Firma / registrovana delatnost</option>
+            <option value="home_producer">Domaća radinost</option>
+            <option value="individual">Fizičko lice</option>
+            <option value="farm">Gazdinstvo / mali proizvođač</option>
+            <option value="other">Drugo</option>
+          </select>
+        </label>
+        <label>Kategorija
+          <select name="category">
+            <option value="pekara">pekara</option>
+            <option value="restoran">restoran</option>
+            <option value="market">market</option>
+            <option value="domaca hrana">domaća hrana</option>
+            <option value="domaca radinost">domaća radinost</option>
+            <option value="voće i povrće">voće i povrće</option>
+            <option value="poslastice">poslastice</option>
+            <option value="gotova jela">gotova jela</option>
+          </select>
+        </label>
+        <label>Grad<input name="city" value="Beograd" required /></label>
+        <label>Adresa / zona preuzimanja<input name="address" required /></label>
+        <label>Kontakt osoba<input name="contact_name" required /></label>
+        <label>Telefon<input name="phone" required /></label>
+        <label>Email<input name="email" type="email" /></label>
+        <label>Website / Instagram / Facebook<input name="website" /></label>
+        <label>PIB / matični broj / napomena za identitet<input name="company_identifier" placeholder="opciono za domaću radinost" /></label>
+        <label>Latitude<input name="latitude" id="latInput" type="number" step="any" /></label>
+        <label>Longitude<input name="longitude" id="lngInput" type="number" step="any" /></label>
+        <button type="button" id="usePartnerGps" class="secondary">Uzmi GPS lokaciju</button>
+        <label class="wide-field">Šta najčešće nudiš?<textarea name="note" rows="4" placeholder="Npr. domaća kuvana jela, peciva, zimnica, kolači po porudžbini..."></textarea></label>
+
+        <div class="wide-field agreement-box-v107">
+          <label><input type="checkbox" name="agreement_accepted" required /> Prihvatam uslove korišćenja i ugovor prodavca.</label>
+          <label><input type="checkbox" name="liability_accepted" required /> Razumem da sam odgovoran/odgovorna za tačnost opisa, kvalitet, rok, alergene i bezbednost hrane koju nudim.</label>
+          <label><input type="checkbox" name="food_photo_required_accepted" required /> Razumem da svaki artikal mora imati stvarnu sliku, opis, rok trajanja i vreme preuzimanja.</label>
+          <label><input type="checkbox" name="commission_terms_accepted" required /> Prihvatam proviziju platforme za rezervacije i obračun kroz finansije.</label>
+          <label><input type="checkbox" name="invoice_terms_accepted" required /> Za plaćanje pri preuzimanju prihvatam da fakturu za proviziju platim u roku od 7 dana.</label>
+          <label><input type="checkbox" name="home_producer_acknowledged" /> Ako sam domaća radinost/fizičko lice, potvrđujem da preuzimam istu odgovornost kao i ostali prodavci.</label>
+          <p class="help-text">Neplaćanje 2 fakture ili 3 kašnjenja sa plaćanjem može dovesti do blokade prodavca.</p>
+        </div>
+        <button type="submit">Pošalji prijavu</button>
+      </form>
+      <pre id="partnerResult" class="result compact-result">Spremno.</pre>
+    </section>
+  </main>
+  <script src="/admin-assets/partner.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

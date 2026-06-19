@@ -5,6 +5,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
+from ..services.seller_governance import require_product_quality
 
 router = APIRouter(prefix="/products", tags=["products"])
 ACTIVE_RESERVATION_STATUSES = ["pending", "confirmed"]
@@ -142,6 +143,8 @@ def apply_sort(query, sort: str):
 def create_product(payload: schemas.ProductCreate, db: Session = Depends(get_db)):
     if payload.store_id and not db.get(models.Store, payload.store_id):
         raise HTTPException(status_code=404, detail="Prodavac nije pronađen")
+    if payload.status in VISIBLE_STATUSES:
+        require_product_quality(payload, status=payload.status)
     product = models.Product(**payload.model_dump())
     db.add(product)
     db.commit()
@@ -211,7 +214,13 @@ def list_products(
         only_active=only_active,
     )
     if public_only:
-        query = query.filter(models.Product.status.in_(VISIBLE_STATUSES))
+        query = query.filter(
+            models.Product.status.in_(VISIBLE_STATUSES),
+            models.Product.image_url.is_not(None),
+            models.Product.image_url != "",
+            models.Product.expiry_date.is_not(None),
+            models.Store.blocked == False,
+        )
     products = apply_sort(query, sort).limit(250).all()
     result = [product_to_public(db, product, lat=lat, lng=lng) for product in products]
     if lat is not None and lng is not None and radius_km is not None:
@@ -240,6 +249,8 @@ def update_product(product_id: int, payload: schemas.ProductCreate, db: Session 
         raise HTTPException(status_code=404, detail="Prodavac nije pronađen")
     for key, value in payload.model_dump().items():
         setattr(product, key, value)
+    if product.status in VISIBLE_STATUSES:
+        require_product_quality(product, status=product.status)
     db.commit()
     db.refresh(product)
     return product
@@ -250,6 +261,8 @@ def update_product_status(product_id: int, status: str, db: Session = Depends(ge
     product = db.get(models.Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Artikal nije pronađen")
+    if status in VISIBLE_STATUSES:
+        require_product_quality(product, status=status)
     product.status = status
     db.commit()
     db.refresh(product)

@@ -27,6 +27,10 @@ CATEGORY_ALIASES = {
     "market": ["market", "prodavnica", "prehrana", "mini market", "supermarket"],
     "poslastice": ["poslastice", "kolaci", "kolači", "torte", "slatko"],
     "zdrava hrana": ["zdrava hrana", "salate", "vege", "bio", "organic"],
+    "domaca hrana": ["domaca hrana", "domaća hrana", "domaca radinost", "domaća radinost", "kuvana jela", "porudzbine hrane"],
+    "domaca radinost": ["domaca radinost", "domaća radinost", "zimnica", "ajvar", "kolaci po porudzbini", "torte po porudzbini"],
+    "kucna kuhinja": ["kucna kuhinja", "kućna kuhinja", "domaca kuhinja", "domaća kuhinja", "rucak za poneti"],
+    "mali proizvodjaci": ["mali proizvodjaci hrane", "gazdinstvo", "OPG", "domaci proizvodi", "pijaca"],
 }
 
 
@@ -80,6 +84,9 @@ def build_search_queries(city: str | None, category: str | None, query: str | No
             f"{alias} {city} jelovnik",
             f"{alias} {city} radno vreme",
             f"{alias} {city} dostava",
+            f"{alias} {city} porudžbine",
+            f"{alias} {city} domaća radinost",
+            f"{alias} {city} facebook",
         ])
     if query:
         base_terms.insert(0, f"{category} {city} {query}")
@@ -161,9 +168,9 @@ def _research_task_candidates(city: str | None, category: str | None, query: str
             "contact": "",
             "source": "ai_research_task",
             "source_url": "",
-            "status": "research",
+            "status": "needs_review",
             "score": max(58, 78 - idx * 3),
-            "note": f"Zadatak za pronalazak realnih prodavaca. Pretrazi: {search}",
+            "note": f"Zadatak za pronalazak realnih prodavaca i domaće radinosti. Pretraži: {search}. Skupi kontakt, pa admin ručno odobrava slanje ponude.",
         }
         rows.append(row)
     return rows
@@ -304,7 +311,7 @@ def _upsert_leads(candidates: list[dict[str, Any]]) -> dict[str, Any]:
             "contact": _clean(candidate.get("contact") or candidate.get("source_url"), 500),
             "source": _clean(candidate.get("source") or candidate.get("kind") or "ai_seller_discovery", 80),
             "source_url": _clean(candidate.get("source_url"), 500),
-            "status": _clean(candidate.get("status"), 40) or "new",
+            "status": _clean(candidate.get("status"), 40) or "needs_review",
             "score": int(candidate.get("score") or 50),
             "note": _clean(candidate.get("ai_reason") or candidate.get("note"), 500),
             "kind": _clean(candidate.get("kind"), 80),
@@ -368,7 +375,7 @@ def _import_candidates_to_stores(db: Session, candidates: list[dict[str, Any]], 
                 changed = True
             updated_stores += 1 if changed else 0
         else:
-            store = models.Store(name=name, city=city, website=website if website and website.startswith("http") else None, phone=phone, verified=False)
+            store = models.Store(name=name, city=city, website=website if website and website.startswith("http") else None, phone=phone, verified=False, seller_type="home_producer" if "domac" in _ascii_key(candidate.get("category")) else "business")
             db.add(store)
             db.flush()
             created_stores += 1
