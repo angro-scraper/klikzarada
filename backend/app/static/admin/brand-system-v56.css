@@ -1891,6 +1891,7 @@ body.go-live-v113 .sh-admin-topbar-v103{
   box-sizing:border-box!important;
 }
 .go-live-v113 .go-live-shell-v113{
+  display:block!important;
   width:100%!important;
   max-width:none!important;
   margin:0!important;
