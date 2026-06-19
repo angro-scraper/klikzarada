@@ -410,3 +410,52 @@ body.sh-admin-shell .seller-discovery-table-v104 small{
     grid-template-columns:1fr!important;
   }
 }
+
+/* V105 admin hub contrast fix: labels must stay readable under icons. */
+body.sh-admin-shell .card.admin-hub-panel-v103{
+  background:linear-gradient(135deg,var(--sh-deep2),var(--sh-deep))!important;
+  color:#fff!important;
+  border-color:rgba(255,255,255,.16)!important;
+  box-shadow:0 24px 58px rgba(15,61,46,.22)!important;
+}
+body.sh-admin-shell .card.admin-hub-panel-v103 h2,
+body.sh-admin-shell .card.admin-hub-panel-v103 .section-kicker{
+  color:#fff!important;
+}
+body.sh-admin-shell .card.admin-hub-panel-v103 .help-text{
+  color:rgba(255,255,255,.82)!important;
+}
+body.sh-admin-shell .card.admin-hub-panel-v103 .secondary-link{
+  background:#fffdf7!important;
+  color:var(--sh-deep)!important;
+  border-color:rgba(255,255,255,.45)!important;
+}
+body.sh-admin-shell .card.admin-hub-panel-v103 .admin-module-grid-v103 a{
+  background:rgba(255,255,255,.14)!important;
+  border:1px solid rgba(255,255,255,.24)!important;
+  color:#fff!important;
+  box-shadow:0 12px 24px rgba(0,0,0,.10)!important;
+}
+body.sh-admin-shell .card.admin-hub-panel-v103 .admin-module-grid-v103 a:hover{
+  background:rgba(255,255,255,.21)!important;
+}
+body.sh-admin-shell .card.admin-hub-panel-v103 .admin-module-grid-v103 span{
+  display:block!important;
+  font-size:34px!important;
+  margin-bottom:6px!important;
+}
+body.sh-admin-shell .card.admin-hub-panel-v103 .admin-module-grid-v103 strong{
+  display:block!important;
+  color:#fff!important;
+  font-size:19px!important;
+  line-height:1.12!important;
+  text-shadow:0 1px 1px rgba(0,0,0,.18)!important;
+}
+body.sh-admin-shell .card.admin-hub-panel-v103 .admin-module-grid-v103 small{
+  display:block!important;
+  margin-top:6px!important;
+  color:rgba(255,255,255,.82)!important;
+  font-size:13px!important;
+  line-height:1.35!important;
+  font-weight:850!important;
+}
