@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — Kupci admin</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="admin-v20 customers-admin-v102">
+  <header class="admin-hero compact-hero-v35">
+    <div>
+      <p class="eyebrow">Admin · kupci</p>
+      <h1>Kupci i blokade</h1>
+      <p class="subtitle">Status korisnika, broj otkazivanja, automatska blokada i ručno odblokiranje.</p>
+    </div>
+    <nav class="top-actions">
+      <a class="link-button" href="/ops">Operativni centar</a>
+      <a class="link-button secondary-link" href="/customer">Moj nalog kupca</a>
+      <button class="secondary danger-link" data-admin-logout>Odjava</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="card wide">
+      <div class="table-header">
+        <div>
+          <h2>Pregled kupaca</h2>
+          <p class="help-text">Kupac se automatski blokira posle 3 otkazivanja rezervacije. Ovde vidiš rizik i možeš ručno da odblokiraš.</p>
+        </div>
+        <div class="actions">
+          <button id="rebuildCustomersBtn" class="secondary">Obnovi bazu</button>
+          <button id="refreshCustomersBtn">Osveži</button>
+        </div>
+      </div>
+      <div id="customersStats" class="stats-grid"></div>
+      <pre id="customersResult" class="result compact-result">Spremno.</pre>
+    </section>
+
+    <section class="card wide">
+      <div class="table-header">
+        <div>
+          <h2>Lista kupaca</h2>
+          <p class="help-text">Filtriraj blokirane korisnike i proveri broj otkazivanja pre podrške ili ručnog odblokiranja.</p>
+        </div>
+        <div class="filters">
+          <select id="statusFilter">
+            <option value="">Svi statusi</option>
+            <option value="active">Aktivni</option>
+            <option value="blocked">Blokirani</option>
+          </select>
+        </div>
+      </div>
+      <div id="customersWrap" class="table-wrap"></div>
+    </section>
+  </main>
+
+  <script src="/admin-assets/admin-auth.js"></script>
+  <script src="/admin-assets/customers-admin.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

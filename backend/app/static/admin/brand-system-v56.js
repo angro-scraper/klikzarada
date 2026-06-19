@@ -62,13 +62,13 @@
   }
   function ensureGlobalValues(){
     const main = document.querySelector('main') || document.body;
-    const important = location.pathname.match(/^\/(customer|seller|checkout|reservation|partner|support|offers|offer|finance|admin|ops|settings-admin|notifications-admin|partners-admin|seller-pro|customer-plus|refund|terms|privacy|food-safety|pilot|launch|expansion|market-ops|execution|real-data|ai-market|live-launch|scale|growth)$/);
+    const important = location.pathname.match(/^\/(customer|seller|checkout|reservation|partner|support|offers|offer|finance|admin|ops|settings-admin|notifications-admin|partners-admin|customers-admin|seller-pro|customer-plus|refund|terms|privacy|food-safety|pilot|launch|expansion|market-ops|execution|real-data|ai-market|live-launch|scale|growth)$/);
     if(!important || document.querySelector('[data-sh56="values"]')) return;
     main.insertAdjacentHTML('afterbegin', valueHTML(values, 'sh56-values three'));
   }
   function ensureTrust(){
     const main = document.querySelector('main') || document.body;
-    const important = location.pathname.match(/^\/(customer|seller|checkout|reservation|partner|support|offers|offer|finance|admin|ops|settings-admin|notifications-admin|partners-admin|seller-pro|customer-plus|refund|terms|privacy|food-safety|pilot|launch|expansion|market-ops|execution|real-data|ai-market|live-launch|scale|growth|app|u)$/);
+    const important = location.pathname.match(/^\/(customer|seller|checkout|reservation|partner|support|offers|offer|finance|admin|ops|settings-admin|notifications-admin|partners-admin|customers-admin|seller-pro|customer-plus|refund|terms|privacy|food-safety|pilot|launch|expansion|market-ops|execution|real-data|ai-market|live-launch|scale|growth|app|u)$/);
     if(!important || document.querySelector('[data-sh56="trust"],.sh55-trustbar,.sh55-brand-trust')) return;
     main.insertAdjacentHTML('beforeend', valueHTML(trust, 'sh56-trust'));
     const last = main.querySelector('.sh56-trust:last-of-type'); if(last) last.dataset.sh56='trust';

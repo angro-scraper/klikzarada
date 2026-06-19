@@ -108,6 +108,7 @@ def admin_guard_path(path: str) -> bool:
         "/excel-database",
         "/partners-admin",
         "/support-admin",
+        "/customers-admin",
         "/notifications-admin",
         "/settings-admin",
         "/ops",
@@ -321,6 +322,11 @@ def v59_page(request: Request):
 @app.get("/customer", include_in_schema=False)
 def customer_page():
     return FileResponse(STATIC_ADMIN_DIR / "customer.html")
+
+
+@app.get("/customers-admin", include_in_schema=False)
+def customers_admin_page(request: Request):
+    return protected_admin_page(request, "customers-admin.html")
 
 
 @app.get("/notifications-admin", include_in_schema=False)
