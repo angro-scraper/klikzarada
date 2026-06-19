@@ -13,6 +13,95 @@ async function request(url, options = {}) {
 
 function setStatus(text) { $('knowledgeStatus').textContent = text; }
 function escapeHtml(str) { return String(str ?? '').replace(/[&<>'"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+function formDataJson(form) { return Object.fromEntries(new FormData(form).entries()); }
+function checkbox(form, name) { return !!form.querySelector(`[name="${name}"]`)?.checked; }
+function setBusy(btn, on = true) {
+  if (!btn) return;
+  if (on) {
+    btn.dataset.oldText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Radim...';
+  } else {
+    btn.disabled = false;
+    btn.textContent = btn.dataset.oldText || btn.textContent;
+  }
+}
+
+function renderSellerDiscovery(data) {
+  const rows = (data.candidates || []).map((candidate) => `
+    <tr>
+      <td><strong>${escapeHtml(candidate.name)}</strong><br><small>${escapeHtml(candidate.note || candidate.ai_reason || '')}</small></td>
+      <td>${escapeHtml(candidate.city || '')}<br><small>${escapeHtml(candidate.category || '')}</small></td>
+      <td>${escapeHtml(candidate.contact || candidate.source_url || '-')}</td>
+      <td><strong>${escapeHtml(candidate.score || 0)}</strong></td>
+      <td><span class="keywords">${escapeHtml(candidate.kind || candidate.status || 'lead')}</span></td>
+    </tr>
+  `).join('');
+  $('sellerDiscoveryResult').innerHTML = `
+    <strong>${escapeHtml(data.message || 'AI pretraga prodavaca je završena.')}</strong>
+    <p>${escapeHtml(data.ai_summary || '')}</p>
+    <small>Leadovi: +${data.summary?.leads_created || 0} novih, ${data.summary?.leads_updated || 0} ažuriranih · Prodavci: +${data.summary?.created_stores || 0} · Izvori: +${data.summary?.created_sources || 0} · OpenAI: ${data.ai_used ? 'da' : 'ne'} · Web: ${data.web_search_enabled ? 'uključen' : 'isključen'}</small>
+    <div class="table-wrap compact-table seller-discovery-table-v104">
+      <table>
+        <thead><tr><th>Kandidat</th><th>Grad</th><th>Kontakt/izvor</th><th>Score</th><th>Tip</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5">Nema kandidata za ove kriterijume.</td></tr>'}</tbody>
+      </table>
+    </div>
+    <p class="help-text">Predlozi za dalje ručno proveravanje: ${escapeHtml((data.search_queries || []).join(' · '))}</p>
+  `;
+}
+
+async function runSellerDiscovery(event) {
+  event.preventDefault();
+  const form = event.target;
+  const btn = event.submitter;
+  const payload = formDataJson(form);
+  payload.limit = Number(payload.limit || 12);
+  payload.include_existing = checkbox(form, 'include_existing');
+  payload.include_research_tasks = checkbox(form, 'include_research_tasks');
+  payload.import_to_stores = checkbox(form, 'import_to_stores');
+  payload.web_search = checkbox(form, 'web_search');
+  $('sellerDiscoveryResult').textContent = 'AI traži prodavce i priprema leadove...';
+  try {
+    setBusy(btn, true);
+    const data = await request('/scale-api/seller-discovery/search', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    renderSellerDiscovery(data);
+  } catch (err) {
+    $('sellerDiscoveryResult').textContent = `Greška: ${err.message}`;
+  } finally {
+    setBusy(btn, false);
+  }
+}
+
+async function loadSellerDiscoveryRuns() {
+  $('sellerDiscoveryResult').textContent = 'Učitavam istoriju AI pretraga...';
+  try {
+    const rows = await request('/scale-api/seller-discovery/runs');
+    $('sellerDiscoveryResult').innerHTML = `
+      <strong>Istorija AI pretraga prodavaca</strong>
+      <div class="table-wrap compact-table seller-discovery-table-v104">
+        <table>
+          <thead><tr><th>Vreme</th><th>Kriterijumi</th><th>Kandidati</th><th>Leadovi</th><th>AI/Web</th></tr></thead>
+          <tbody>${(rows || []).map((row) => `
+            <tr>
+              <td>${escapeHtml(row.created_at || row.updated_at || '')}</td>
+              <td>${escapeHtml(row.criteria?.city || '')} · ${escapeHtml(row.criteria?.category || '')}<br><small>${escapeHtml(row.criteria?.query || '')}</small></td>
+              <td>${escapeHtml(row.candidates || 0)}</td>
+              <td>+${escapeHtml(row.leads_created || 0)} / ${escapeHtml(row.leads_updated || 0)} ažur.</td>
+              <td>AI: ${row.ai_used ? 'da' : 'ne'}<br>Web: ${row.web_search_enabled ? 'da' : 'ne'}</td>
+            </tr>
+          `).join('') || '<tr><td colspan="5">Još nema AI pretraga.</td></tr>'}</tbody>
+        </table>
+      </div>
+    `;
+  } catch (err) {
+    $('sellerDiscoveryResult').textContent = `Greška: ${err.message}`;
+  }
+}
 
 function renderForm() {
   $('assistantName').value = knowledge.assistant_name || 'Sačuvaj Hranu AI';
@@ -116,6 +205,8 @@ $('seedExpandedBtn').addEventListener('click', seedExpandedKnowledge);
 $('addFaqBtn').addEventListener('click', addFaq);
 $('testChatBtn').addEventListener('click', () => testAI('/buyer-ai/chat'));
 $('testSearchBtn').addEventListener('click', () => testAI('/buyer-ai/parse'));
+$('sellerDiscoveryForm')?.addEventListener('submit', runSellerDiscovery);
+$('loadSellerDiscoveryRunsBtn')?.addEventListener('click', loadSellerDiscoveryRuns);
 $('faqList').addEventListener('click', async (event) => {
   const btn = event.target.closest('[data-delete-faq]');
   if (!btn) return;
