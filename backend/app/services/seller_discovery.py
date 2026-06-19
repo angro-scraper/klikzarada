@@ -408,27 +408,57 @@ def discover_sellers(
         "query": _clean(query, 240),
         "limit": limit,
     }
+    warnings: list[str] = []
     candidates: list[dict[str, Any]] = []
     if include_existing:
-        candidates.extend(_existing_store_candidates(db, city, category, query, limit=limit))
+        try:
+            candidates.extend(_existing_store_candidates(db, city, category, query, limit=limit))
+        except Exception as exc:
+            db.rollback()
+            warnings.append(f"Postojeći prodavci nisu učitani: {exc}")
     if web_search:
-        candidates.extend(_web_search_candidates(city, category, query, limit=limit))
+        try:
+            candidates.extend(_web_search_candidates(city, category, query, limit=limit))
+        except Exception as exc:
+            warnings.append(f"Web pretraga nije završena: {exc}")
     if include_research_tasks and len(candidates) < limit:
-        candidates.extend(_research_task_candidates(city, category, query, limit=limit - len(candidates)))
+        try:
+            candidates.extend(_research_task_candidates(city, category, query, limit=limit - len(candidates)))
+        except Exception as exc:
+            warnings.append(f"Zadaci za ručnu pretragu nisu napravljeni: {exc}")
 
     deduped: dict[str, dict[str, Any]] = {}
     for candidate in candidates:
-        candidate["score"] = _score_candidate(candidate, city, category, query)
-        key = _canonical_lead_key(candidate)
-        if key not in deduped or int(candidate.get("score") or 0) > int(deduped[key].get("score") or 0):
-            deduped[key] = candidate
+        try:
+            candidate["score"] = _score_candidate(candidate, city, category, query)
+            key = _canonical_lead_key(candidate)
+            if key not in deduped or int(candidate.get("score") or 0) > int(deduped[key].get("score") or 0):
+                deduped[key] = candidate
+        except Exception as exc:
+            warnings.append(f"Jedan kandidat je preskočen pri bodovanju: {exc}")
     candidates = sorted(deduped.values(), key=lambda x: int(x.get("score") or 0), reverse=True)[:limit]
 
-    ai = _openai_rank_candidates(criteria, candidates)
+    try:
+        ai = _openai_rank_candidates(criteria, candidates)
+    except Exception as exc:
+        warnings.append(f"AI rangiranje nije uspelo: {exc}")
+        ai = {"used": False, "summary": "AI rangiranje nije uspelo; prikazani su lokalno rangirani kandidati.", "candidates": candidates}
     final_candidates = ai["candidates"][:limit]
-    lead_result = _upsert_leads(final_candidates)
-    import_result = _import_candidates_to_stores(db, final_candidates, create_sources=create_sources) if import_to_stores else {"created_stores": 0, "updated_stores": 0, "created_sources": 0}
-    run = append_json_row(RUNS_FILE, {
+    try:
+        lead_result = _upsert_leads(final_candidates)
+    except Exception as exc:
+        warnings.append(f"Leadovi nisu snimljeni: {exc}")
+        lead_result = {"created": 0, "updated": 0, "leads": []}
+    if import_to_stores:
+        try:
+            import_result = _import_candidates_to_stores(db, final_candidates, create_sources=create_sources)
+        except Exception as exc:
+            warnings.append(f"Import u prodavce nije uspeo: {exc}")
+            db.rollback()
+            import_result = {"created_stores": 0, "updated_stores": 0, "created_sources": 0}
+    else:
+        import_result = {"created_stores": 0, "updated_stores": 0, "created_sources": 0}
+    run_payload = {
         "criteria": criteria,
         "candidates": len(final_candidates),
         "leads_created": lead_result["created"],
@@ -439,9 +469,15 @@ def discover_sellers(
         "ai_used": ai["used"],
         "web_search_requested": bool(web_search),
         "web_search_enabled": os.getenv("SELLER_DISCOVERY_WEB_ENABLED", "false").lower() in {"1", "true", "yes", "da", "on"},
-    }, max_rows=500)
+        "warnings": warnings,
+    }
+    try:
+        run = append_json_row(RUNS_FILE, run_payload, max_rows=500)
+    except Exception as exc:
+        warnings.append(f"Istorija pretrage nije snimljena: {exc}")
+        run = {**run_payload, "id": None}
     return {
-        "ok": True,
+        "ok": not warnings,
         "criteria": criteria,
         "search_queries": build_search_queries(city, category, query),
         "ai_used": ai["used"],
@@ -453,8 +489,9 @@ def discover_sellers(
             "leads_updated": lead_result["updated"],
             **import_result,
         },
+        "warnings": warnings,
         "candidates": final_candidates,
         "leads": lead_result["leads"],
         "run_id": run["id"],
-        "message": "AI pretraga prodavaca je završena. Novi kandidati su leadovi; prodavci ostaju neverifikovani dok ih ručno ne odobrimo.",
+        "message": "AI pretraga prodavaca je završena. Novi kandidati su leadovi; prodavci ostaju neverifikovani dok ih ručno ne odobrimo." if not warnings else "AI pretraga je završena u sigurnom režimu. Pogledaj upozorenja, ali stranica više ne puca.",
     }

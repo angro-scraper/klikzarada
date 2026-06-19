@@ -29,6 +29,7 @@ function setBusy(btn, on = true) {
 
 function renderSellerDiscovery(data) {
   const items = data.leads?.length ? data.leads : (data.candidates || []);
+  const warnings = (data.warnings || []).map((warning) => `<li>${escapeHtml(warning)}</li>`).join('');
   const rows = items.map((candidate) => `
     <tr>
       <td><strong>${escapeHtml(candidate.name)}</strong><br><small>${escapeHtml(candidate.note || candidate.ai_reason || '')}</small></td>
@@ -42,6 +43,7 @@ function renderSellerDiscovery(data) {
   $('sellerDiscoveryResult').innerHTML = `
     <strong>${escapeHtml(data.message || 'AI pretraga prodavaca je završena.')}</strong>
     <p>${escapeHtml(data.ai_summary || '')}</p>
+    ${warnings ? `<div class="status-box warning"><strong>Upozorenja</strong><ul>${warnings}</ul></div>` : ''}
     <small>Leadovi: +${data.summary?.leads_created || 0} novih, ${data.summary?.leads_updated || 0} ažuriranih · Prodavci: +${data.summary?.created_stores || 0} · Izvori: +${data.summary?.created_sources || 0} · OpenAI: ${data.ai_used ? 'da' : 'ne'} · Web: ${data.web_search_enabled ? 'uključen' : 'isključen'}</small>
     <div class="table-wrap compact-table seller-discovery-table-v104">
       <table>

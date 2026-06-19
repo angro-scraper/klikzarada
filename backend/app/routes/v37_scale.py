@@ -243,18 +243,47 @@ def list_leads(request: Request, status: str | None = None, _: bool = Depends(re
 
 @router.post("/seller-discovery/search", response_model=dict)
 def seller_discovery_search(payload: SellerDiscoveryRequest, request: Request, db: Session = Depends(get_db), _: bool = Depends(require_admin_session)):
-    return discover_sellers(
-        db,
-        city=payload.city,
-        category=payload.category,
-        query=payload.query,
-        limit=payload.limit,
-        include_existing=payload.include_existing,
-        include_research_tasks=payload.include_research_tasks,
-        web_search=payload.web_search,
-        import_to_stores=payload.import_to_stores,
-        create_sources=payload.create_sources,
-    )
+    try:
+        return discover_sellers(
+            db,
+            city=payload.city,
+            category=payload.category,
+            query=payload.query,
+            limit=payload.limit,
+            include_existing=payload.include_existing,
+            include_research_tasks=payload.include_research_tasks,
+            web_search=payload.web_search,
+            import_to_stores=payload.import_to_stores,
+            create_sources=payload.create_sources,
+        )
+    except Exception as exc:
+        db.rollback()
+        return {
+            "ok": False,
+            "criteria": {
+                "city": payload.city,
+                "category": payload.category,
+                "query": payload.query,
+                "limit": payload.limit,
+            },
+            "search_queries": [],
+            "ai_used": False,
+            "ai_summary": "AI pretraga je trenutno u sigurnom režimu.",
+            "web_search_enabled": False,
+            "summary": {
+                "candidates": 0,
+                "leads_created": 0,
+                "leads_updated": 0,
+                "created_stores": 0,
+                "updated_stores": 0,
+                "created_sources": 0,
+            },
+            "warnings": [f"Neočekivana greška u AI pretrazi: {exc}"],
+            "candidates": [],
+            "leads": [],
+            "run_id": None,
+            "message": "AI pretraga nije mogla da završi ovaj zahtev, ali stranica je ostala stabilna. Probaj bez web pretrage ili sa manjim limitom.",
+        }
 
 
 @router.get("/seller-discovery/runs", response_model=list[dict])
