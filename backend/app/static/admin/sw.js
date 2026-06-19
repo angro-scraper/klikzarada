@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sacuvaj-hranu-pilot-v105';
+const CACHE_NAME = 'sacuvaj-hranu-pilot-v106';
 const APP_SHELL = [
   '/',
   '/pocetna',
