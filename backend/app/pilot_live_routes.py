@@ -20,7 +20,7 @@ from .routes.reservations import _reservation_to_out
 from .services.excel_database import DATA_DIR, EXCEL_PATH, export_database_to_excel
 from .services.json_store import read_json
 from .services.pricing import apply_pricing_to_reservation, mark_paid
-from .services.customers import apply_reservation_status_transition, register_reservation_created
+from .services.customers import apply_reservation_status_transition, rebuild_customer_database, register_reservation_created
 
 router = APIRouter(prefix="/pilot-live", tags=["pilot-live"])
 
@@ -1488,3 +1488,8 @@ def pilot_smoke_test(db: Session = Depends(get_db)):
             "finance_summary": "/finance/summary",
         },
     }
+
+
+@router.post("/rebuild-customer-database", response_model=dict)
+def pilot_rebuild_customer_database(db: Session = Depends(get_db)):
+    return rebuild_customer_database(db)
