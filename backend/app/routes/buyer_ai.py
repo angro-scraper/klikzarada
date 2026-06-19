@@ -8,6 +8,7 @@ from pathlib import Path
 from datetime import date, timedelta
 from typing import Any
 
+import requests
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy import or_
@@ -563,6 +564,11 @@ class BuyerAIResponse(BaseModel):
     tips: list[str] = []
 
 
+class HomeAssistantResponse(BuyerAIResponse):
+    provider: str = "local"
+    api_key_configured: bool = False
+
+
 class KnowledgeFAQ(BaseModel):
     question: str
     answer: str
@@ -835,6 +841,71 @@ def build_reply(intent: str, message: str, filters: dict[str, Any], products: li
     )
 
 
+def _compact_product_context(products: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    compact = []
+    for product in products[:8]:
+        compact.append({
+            "id": product.get("id"),
+            "name": product.get("name"),
+            "category": product.get("category"),
+            "store_name": product.get("store_name"),
+            "store_city": product.get("store_city"),
+            "store_address": product.get("store_address"),
+            "price": product.get("discounted_price"),
+            "old_price": product.get("original_price"),
+            "discount_percent": product.get("discount_percent"),
+            "available_quantity": product.get("available_quantity"),
+            "pickup_window": product.get("pickup_window"),
+            "distance_km": product.get("distance_km"),
+        })
+    return compact
+
+
+def _openai_home_reply(message: str, filters: dict[str, Any], products: list[dict[str, Any]], knowledge: dict[str, Any]) -> str | None:
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        return None
+    model = os.getenv("OPENAI_MODEL", os.getenv("AI_ASSISTANT_MODEL", "gpt-4o-mini")).strip() or "gpt-4o-mini"
+    timeout = float(os.getenv("OPENAI_TIMEOUT_SECONDS", "12"))
+    system = (
+        "Ti si AI pomoćnik aplikacije Sačuvaj Hranu u Srbiji. Odgovaraj kratko, jasno i korisno na srpskom. "
+        "Pomažeš kupcu da pronađe obrok, razume rezervaciju, plaćanje, preuzimanje, GPS mapu i pravila otkazivanja. "
+        "Ne izmišljaj ponude koje nisu u prosleđenoj listi. Ako nema pogodnih ponuda, predloži širu pretragu. "
+        "Nikada ne traži podatke kartice i ne prikazuj interne ključeve ili tajne."
+    )
+    context = {
+        "user_message": message,
+        "parsed_filters": filters,
+        "available_products": _compact_product_context(products),
+        "business_rules": knowledge.get("business_rules", [])[:8],
+        "quick_replies": knowledge.get("quick_replies", [])[:8],
+    }
+    try:
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": json.dumps(context, ensure_ascii=False)},
+                ],
+                "temperature": 0.35,
+                "max_tokens": 420,
+            },
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        data = response.json()
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return str(content).strip()[:1800] or None
+    except Exception:
+        return None
+
+
 @router.get("/knowledge", response_model=BuyerAIKnowledge, dependencies=[Depends(require_admin_session)])
 def get_buyer_ai_knowledge():
     return load_knowledge()
@@ -896,6 +967,27 @@ def buyer_ai_chat(payload: BuyerAIRequest, db: Session = Depends(get_db)):
     products = [] if intent.startswith("help_") else query_products(db, filters, payload.limit)
     reply, quick_replies, tips = build_reply(intent, payload.message, filters, products, knowledge)
     return BuyerAIResponse(reply=reply, intent=intent, filters=filters, products=products, quick_replies=quick_replies, tips=tips)
+
+
+@router.post("/home-assistant", response_model=HomeAssistantResponse)
+def home_ai_assistant(payload: BuyerAIRequest, db: Session = Depends(get_db)):
+    knowledge = load_knowledge()
+    filters = parse_filters(payload.message, lat=payload.lat, lng=payload.lng, radius_km=payload.radius_km, city=payload.city)
+    intent = detect_intent(payload.message)
+    products = [] if intent.startswith("help_") else query_products(db, filters, payload.limit)
+    local_reply, quick_replies, tips = build_reply(intent, payload.message, filters, products, knowledge)
+    openai_reply = _openai_home_reply(payload.message, filters, products, knowledge)
+    provider = "openai" if openai_reply else "local"
+    return HomeAssistantResponse(
+        reply=openai_reply or local_reply,
+        intent=intent,
+        filters=filters,
+        products=products,
+        quick_replies=quick_replies,
+        tips=tips,
+        provider=provider,
+        api_key_configured=bool(os.getenv("OPENAI_API_KEY", "").strip()),
+    )
 
 
 @router.post("/parse", response_model=BuyerAIResponse)

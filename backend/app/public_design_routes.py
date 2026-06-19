@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from . import models
@@ -22,6 +23,9 @@ CSS += """
 """
 CSS += """
 .ops-list{display:grid;gap:12px}.ops-row{background:#fffdf8;border:1px solid var(--line);border-radius:18px;padding:14px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}.ops-row small{display:block;color:var(--muted);font-weight:700}.ops-code{font-size:18px;color:var(--green);font-weight:950}.ops-actions{display:flex;gap:8px;flex-wrap:wrap}.ops-kpi b{font-size:26px}.compact-input{width:100%;border:1px solid #eadfce;background:#fffdf8;border-radius:14px;padding:12px 13px;color:#233e36}
+"""
+CSS += """
+.ai-home{margin-top:22px;background:white;border:1px solid var(--line);border-radius:22px;padding:14px;box-shadow:var(--shadow-soft);display:grid;gap:10px}.ai-home textarea{width:100%;min-height:84px;resize:vertical;border:1px solid #eadfce;background:#fffdf8;border-radius:16px;padding:14px;color:#233e36;font:inherit;line-height:1.45}.ai-home-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.ai-chip{border:1px solid #d8eadf;background:#f4fbf7;color:var(--green);border-radius:999px;padding:8px 11px;font-weight:900;cursor:pointer}.ai-result{display:none;background:#f8fbf7;border:1px solid #dceee4;border-radius:16px;padding:14px;white-space:pre-wrap;color:#21473c;font-weight:750;line-height:1.5}.ai-result.show{display:block}.ai-products{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.ai-product{display:block;background:#fffdf8;border:1px solid var(--line);border-radius:14px;padding:12px;font-weight:900}.ai-product small{display:block;color:var(--muted);font-weight:800;margin-top:4px}.category-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.category-button{background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:22px;padding:18px 16px;box-shadow:var(--shadow-soft);display:grid;gap:8px;min-height:146px;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}.category-button:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:#b8dec8}.category-icon{font-size:48px;line-height:1}.category-button b{font-size:24px;color:var(--green);display:block}.category-button span{color:var(--muted);font-weight:850}.app-footer{margin:14px auto 22px}.motto-panel{border-radius:20px;padding:12px 16px 14px}.motto-panel:before{width:150px;height:150px;left:-70px;bottom:-95px}.motto-panel:after{width:150px;height:150px;right:-45px;top:-58px}.motto-brand{gap:10px;margin-bottom:10px}.motto-brand img{width:38px;height:38px;border-radius:14px;padding:4px}.motto-title{font-size:20px}.motto-sub{font-size:11px;margin-top:3px}.motto-grid{gap:8px}.motto-item{border-radius:14px;padding:9px 11px;min-height:64px;font-size:13px;line-height:1.18}.motto-icon{font-size:18px;margin-bottom:3px}.motto-item small{margin-top:4px;font-size:10px;line-height:1.25}@media(max-width:900px){.ai-products,.category-grid{grid-template-columns:1fr 1fr}}@media(max-width:640px){.category-grid{grid-template-columns:1fr 1fr}.category-button{min-height:128px}.category-icon{font-size:40px}.category-button b{font-size:20px}.motto-grid{grid-template-columns:1fr 1fr}.motto-item small{display:none}}
 """
 
 def logo():
@@ -86,6 +90,56 @@ function useLiveLocation(){
 }
 </script>"""
 
+def home_ai_script():
+    return """<script>
+function escapeHomeAiHtml(value){
+  return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
+  });
+}
+function setAiPrompt(text){
+  var input = document.getElementById('aiQuestion');
+  if(input){ input.value = text; }
+  askHomeAi();
+}
+function aiProductHtml(product){
+  var name = product.name || 'Ponuda';
+  var store = product.store_name || 'Sačuvaj Hranu partner';
+  var price = product.discounted_price || product.price || product.original_price || '';
+  var href = product.id ? '/rezervisi/' + encodeURIComponent(product.id) : '/ponude';
+  var meta = store + (price ? ' • ' + Math.round(Number(price)) + ' RSD' : '');
+  return '<a class="ai-product" href="' + href + '">' + escapeHomeAiHtml(name) + '<small>' + escapeHomeAiHtml(meta) + '</small></a>';
+}
+async function askHomeAi(){
+  var input = document.getElementById('aiQuestion');
+  var city = document.getElementById('aiCity');
+  var result = document.getElementById('aiResult');
+  var products = document.getElementById('aiProducts');
+  var message = (input && input.value ? input.value : '').trim();
+  if(!message){
+    result.className = 'ai-result show';
+    result.textContent = 'Napiši šta tražiš, na primer: ručak do 400 RSD ili pekara blizu mene.';
+    return;
+  }
+  result.className = 'ai-result show';
+  result.textContent = 'AI traži najbolje ponude...';
+  products.innerHTML = '';
+  try{
+    var response = await fetch('/buyer-ai/home-assistant', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:message, city:(city && city.value ? city.value : 'Beograd'), limit:6})
+    });
+    var data = await response.json();
+    if(!response.ok){ throw new Error(data.detail || 'AI trenutno nije dostupan'); }
+    result.textContent = data.reply || 'Nema odgovora za ovaj upit.';
+    products.innerHTML = (data.products || []).slice(0,4).map(aiProductHtml).join('');
+  }catch(error){
+    result.textContent = 'AI trenutno ne može da odgovori. Otvori sve ponude ili probaj šire pitanje.';
+  }
+}
+</script>"""
+
 @router.get("/", response_class=HTMLResponse)
 def root_page():
     return home_page()
@@ -98,21 +152,52 @@ def offline_page():
 @router.get("/pocetna", response_class=HTMLResponse)
 def home_page():
     body=f"""
-    <section class='hero'><div class='hero-card'><span class='badge'>🌱 Spasi obrok danas</span><h1>Uštedi novac.<br>Sačuvaj obrok.<br><span>Smanji bacanje.</span></h1><p class='lead'>Pronađi odlične obroke po nižim cenama iz restorana, pekara i prodavnica u tvom kraju. Rezerviši za nekoliko sekundi i preuzmi u dogovorenom terminu.</p><div class='searchbar'><input placeholder='Pretraži ponude, proizvode ili partnere...'><input style='max-width:170px' placeholder='Beograd'><button class='btn'>Traži</button></div><div class='stats'><div class='stat'><b>10.000+</b><span>spašenih obroka</span></div><div class='stat'><b>200+</b><span>partnera</span></div><div class='stat'><b>50.000+</b><span>zadovoljnih korisnika</span></div><div class='stat'><b>12</b><span>gradova u Srbiji</span></div></div></div><div class='visual'><div class='food-img'></div><h2>Domaći ručak danas</h2><p class='muted'>Rezervisano u tvom kraju • Ušteda do 40%</p><button class='btn'>Pogledaj ponude</button></div></section>
-    <section class='section gps-panel'><div class='detail'><span class='badge'>GPS ponude u blizini</span><h2>Mapa obroka oko tebe</h2><p class='lead'>Na početnoj strani kupac odmah vidi gde se nalaze najbliže ponude. Mapa je uživo: možeš da je pomeraš, zumiraš i prebaciš na svoju lokaciju.</p><div class='gps-actions'><button class='btn' type='button' onclick='useLiveLocation()'>Koristi moju lokaciju</button><a class='btn secondary' href='/ponude'>Otvori sve ponude</a></div><div id='mapStatus' class='map-status'>Mapa prikazuje aktivne demo partnere u Beogradu.</div><div class='location-list'><div class='location-row'><span class='chip'>1</span><div><b>Restoran Zeleno</b><small>1,2 km • domaći ručak • 360 RSD</small></div><span class='status paid'>-40%</span></div><div class='location-row'><span class='chip'>2</span><div><b>Picerija Napoli</b><small>1,8 km • pizza parče • 280 RSD</small></div><span class='status part'>-30%</span></div><div class='location-row'><span class='chip'>3</span><div><b>Pekara Hleb i Kvasac</b><small>2,4 km • pekarski miks • 150 RSD</small></div><span class='status due'>-25%</span></div></div></div><div class='map-card' aria-label='GPS mapa ponuda'><iframe id='liveMap' class='live-map' title='Mapa ponuda uživo' loading='lazy' referrerpolicy='no-referrer-when-downgrade' src='https://www.openstreetmap.org/export/embed.html?bbox=20.405%2C44.765%2C20.525%2C44.845&amp;layer=mapnik&amp;marker=44.8125%2C20.4612'></iframe><div class='pin one'><span>1</span></div><div class='pin two'><span>2</span></div><div class='pin three'><span>3</span></div><div class='map-info'><div><b id='mapTitle'>Beograd • ponude u krugu od 3 km</b><br><span class='muted' id='mapSubtitle'>3 partnera dostupna za preuzimanje danas</span></div><a class='btn' href='/ponude'>Prikaži na listi</a></div></div></section>{live_map_script()}
-    <section class='section'><div class='section-head'><h2>Istraži ponude po kategorijama</h2><a class='chip' href='/ponude'>Prikaži sve</a></div><div class='grid four'><div class='stat'>🍽 <b>Restorani</b><span>Domaći obroci</span></div><div class='stat'>🛒 <b>Prodavnice</b><span>Paketi namirnica</span></div><div class='stat'>🥐 <b>Pekare</b><span>Peciva i hleb</span></div><div class='stat'>☕ <b>Kafići</b><span>Piće i deserti</span></div></div></section>
+    <section class='hero'><div class='hero-card'><span class='badge'>🌱 Spasi obrok danas</span><h1>Uštedi novac.<br>Sačuvaj obrok.<br><span>Smanji bacanje.</span></h1><p class='lead'>Pronađi odlične obroke po nižim cenama iz restorana, pekara i prodavnica u tvom kraju. Rezerviši za nekoliko sekundi i preuzmi u dogovorenom terminu.</p><div class='ai-home'><textarea id='aiQuestion' placeholder='Pitaj AI pomoćnika: pecivo do 200 din u Beogradu, ručak blizu mene, najveći popusti danas...'>Šta ima danas blizu mene do 400 RSD?</textarea><div class='ai-home-actions'><input class='field' id='aiCity' value='Beograd' style='max-width:170px' placeholder='Grad'><button class='btn' type='button' onclick='askHomeAi()'>Pitaj AI</button><button class='ai-chip' type='button' onclick="setAiPrompt('Pekara do 200 din u Beogradu')">Pekara do 200</button><button class='ai-chip' type='button' onclick="setAiPrompt('Najveći popusti danas')">Najveći popusti</button></div><div id='aiResult' class='ai-result'>Napiši šta tražiš i AI će predložiti ponude.</div><div id='aiProducts' class='ai-products'></div></div><div class='stats'><div class='stat'><b>10.000+</b><span>spašenih obroka</span></div><div class='stat'><b>200+</b><span>partnera</span></div><div class='stat'><b>50.000+</b><span>zadovoljnih korisnika</span></div><div class='stat'><b>12</b><span>gradova u Srbiji</span></div></div></div><div class='visual'><div class='food-img'></div><h2>Domaći ručak danas</h2><p class='muted'>Rezervisano u tvom kraju • Ušteda do 40%</p><a class='btn' href='/ponude'>Pogledaj ponude</a></div></section>
+    <section class='section gps-panel'><div class='detail'><span class='badge'>GPS ponude u blizini</span><h2>Mapa obroka oko tebe</h2><p class='lead'>Na početnoj strani kupac odmah vidi gde se nalaze najbliže ponude. Mapa je uživo: možeš da je pomeraš, zumiraš i prebaciš na svoju lokaciju.</p><div class='gps-actions'><button class='btn' type='button' onclick='useLiveLocation()'>Koristi moju lokaciju</button><a class='btn secondary' href='/ponude'>Otvori sve ponude</a></div><div id='mapStatus' class='map-status'>Mapa prikazuje aktivne demo partnere u Beogradu.</div><div class='location-list'><div class='location-row'><span class='chip'>1</span><div><b>Restoran Zeleno</b><small>1,2 km • domaći ručak • 360 RSD</small></div><span class='status paid'>-40%</span></div><div class='location-row'><span class='chip'>2</span><div><b>Picerija Napoli</b><small>1,8 km • pizza parče • 280 RSD</small></div><span class='status part'>-30%</span></div><div class='location-row'><span class='chip'>3</span><div><b>Pekara Hleb i Kvasac</b><small>2,4 km • pekarski miks • 150 RSD</small></div><span class='status due'>-25%</span></div></div></div><div class='map-card' aria-label='GPS mapa ponuda'><iframe id='liveMap' class='live-map' title='Mapa ponuda uživo' loading='lazy' referrerpolicy='no-referrer-when-downgrade' src='https://www.openstreetmap.org/export/embed.html?bbox=20.405%2C44.765%2C20.525%2C44.845&amp;layer=mapnik'></iframe><div class='map-info'><div><b id='mapTitle'>Beograd • ponude u krugu od 3 km</b><br><span class='muted' id='mapSubtitle'>3 partnera dostupna za preuzimanje danas</span></div><a class='btn' href='/ponude'>Prikaži na listi</a></div></div></section>{live_map_script()}{home_ai_script()}
+    <section class='section'><div class='section-head'><h2>Istraži ponude po kategorijama</h2><a class='chip' href='/ponude'>Prikaži sve</a></div><div class='category-grid'><a class='category-button' href='/ponude?category=restoran'><span class='category-icon'>🍽</span><b>Restorani</b><span>Domaći obroci</span></a><a class='category-button' href='/ponude?category=market'><span class='category-icon'>🛒</span><b>Prodavnice</b><span>Paketi namirnica</span></a><a class='category-button' href='/ponude?category=pekara'><span class='category-icon'>🥐</span><b>Pekare</b><span>Peciva i hleb</span></a><a class='category-button' href='/ponude?category=kafa'><span class='category-icon'>☕</span><b>Kafići</b><span>Piće i deserti</span></a></div></section>
     <section class='section'><div class='section-head'><h2>Izdvojene ponude</h2><a class='chip' href='/ponude'>Pogledaj sve ponude</a></div><div class='grid cards'>{offer_card()}{offer_card('Pizza parče','Picerija Napoli','280 RSD','400 RSD','-30%')}{offer_card('Pekarski miks','Pekara Hleb i Kvasac','150 RSD','200 RSD','-25%')}</div></section>"""
     return page("Početna", body, "pocetna")
 
 @router.get("/ponude", response_class=HTMLResponse)
-def listing_page(db: Session = Depends(get_db)):
-    products = db.query(models.Product).outerjoin(models.Store).filter(
+def listing_page(category: str | None = Query(default=None), db: Session = Depends(get_db)):
+    category = (category or "").strip().lower()
+    category_labels = {
+        "restoran": "Restorani",
+        "market": "Prodavnice",
+        "prodavnica": "Prodavnice",
+        "pekara": "Pekare",
+        "kafa": "Kafići",
+    }
+    category_aliases = {
+        "restoran": ["restoran", "gotova jela", "ručak", "rucak"],
+        "market": ["market", "prodavnica", "namirnice"],
+        "prodavnica": ["market", "prodavnica", "namirnice"],
+        "pekara": ["pekara", "pecivo", "hleb", "kroasan"],
+        "kafa": ["kafa", "doručak", "dorucak", "pića", "pica", "poslastice"],
+    }
+    query = db.query(models.Product).outerjoin(models.Store).filter(
         models.Product.status.in_(list(VISIBLE_STATUSES))
-    ).order_by(models.Product.updated_at.desc()).limit(12).all()
+    )
+    if category:
+        category_filter = None
+        for alias in category_aliases.get(category, [category]):
+            needle = f"%{alias}%"
+            clause = or_(models.Product.category.ilike(needle), models.Product.name.ilike(needle), models.Store.name.ilike(needle))
+            category_filter = clause if category_filter is None else or_(category_filter, clause)
+        query = query.filter(category_filter)
+    products = query.order_by(models.Product.updated_at.desc()).limit(12).all()
     cards = "".join(product_offer_card(db, product) for product in products)
     if not cards:
         cards="".join([offer_card(),offer_card('Supa + hleb','Kuhinja Doma','210 RSD','300 RSD','-30%'),offer_card('Voćna salata','Zeleni Kutak','150 RSD','200 RSD','-25%'),offer_card('Pekarski miks','Pekara Hleb i Kvasac','105 RSD','150 RSD','-30%')])
-    body=f"""<div class='section-head'><div><h1 style='font-size:42px'>Ponude u tvojoj blizini</h1><p class='lead'>Filtriraj po lokaciji, vremenu preuzimanja, kategoriji i popustu.</p></div><a class='btn' href='/ponude/1'>Probaj detalj ponude</a></div><div class='layout'><aside class='card' style='padding:18px'><h3>Filteri</h3><div class='grid'><input class='field' value='Beograd'><select class='field'><option>Sve kategorije</option><option>Restorani</option><option>Pekare</option></select><select class='field'><option>Danas</option><option>Sutra</option></select><label class='chip'><input type='checkbox'> Samo dostupno</label><label class='chip'><input type='checkbox'> Omiljeni partneri</label><button class='btn'>Prikaži rezultate</button></div></aside><section><div class='section-head'><h2>42 ponude pronađene</h2><span class='chip'>Sortiranje: Najnovije</span></div><div class='grid two'>{cards}</div><p style='text-align:center'><button class='btn secondary'>Učitaj još</button></p></section></div>"""
+    heading = category_labels.get(category, "Ponude u tvojoj blizini") if category else "Ponude u tvojoj blizini"
+    count_label = f"{len(products)} ponuda pronađeno" if products else "Prikazujemo preporučene ponude"
+    selected = {
+        "restoran": "Restorani",
+        "market": "Prodavnice",
+        "pekara": "Pekare",
+        "kafa": "Kafići",
+    }.get(category, "Sve kategorije")
+    body=f"""<div class='section-head'><div><h1 style='font-size:42px'>{heading}</h1><p class='lead'>Filtriraj po lokaciji, vremenu preuzimanja, kategoriji i popustu.</p></div><a class='btn' href='/ponude/1'>Probaj detalj ponude</a></div><div class='layout'><aside class='card' style='padding:18px'><h3>Filteri</h3><div class='grid'><input class='field' value='Beograd'><select class='field' onchange="if(this.value) location.href=this.value"><option>{selected}</option><option value='/ponude'>Sve kategorije</option><option value='/ponude?category=restoran'>Restorani</option><option value='/ponude?category=market'>Prodavnice</option><option value='/ponude?category=pekara'>Pekare</option><option value='/ponude?category=kafa'>Kafići</option></select><select class='field'><option>Danas</option><option>Sutra</option></select><label class='chip'><input type='checkbox'> Samo dostupno</label><label class='chip'><input type='checkbox'> Omiljeni partneri</label><a class='btn' href='/ponude'>Resetuj filtere</a></div></aside><section><div class='section-head'><h2>{count_label}</h2><span class='chip'>Sortiranje: Najnovije</span></div><div class='grid two'>{cards}</div><p style='text-align:center'><a class='btn secondary' href='/ponude'>Učitaj sve</a></p></section></div>"""
     return page("Ponude", body, "ponude")
 
 @router.get("/rezervisi/{product_id}", response_class=HTMLResponse)
