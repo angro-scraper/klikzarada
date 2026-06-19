@@ -14,6 +14,34 @@
     ['🤝','Zajednica koja pravi razliku','Hiljade korisnika već učestvuje.'],
     ['🌿','Za bolju budućnost bez bacanja hrane','Manje otpada, više smisla.']
   ];
+  const adminPaths = new Set([
+    '/admin',
+    '/finance',
+    '/customers-admin',
+    '/partners-admin',
+    '/support-admin',
+    '/ops',
+    '/ai-admin',
+    '/settings-admin',
+    '/notifications-admin',
+    '/commission-admin',
+    '/pilot',
+    '/go-live',
+    '/live-launch'
+  ]);
+  const adminNav = [
+    ['Admin','/admin'],
+    ['Operacije','/ops'],
+    ['Kupci','/customers-admin'],
+    ['Partneri','/partners-admin'],
+    ['Podrška','/support-admin'],
+    ['Finansije','/finance'],
+    ['AI','/ai-admin'],
+    ['Podešavanja','/settings-admin']
+  ];
+  function isAdminPage(){
+    return adminPaths.has(location.pathname) || location.pathname.startsWith('/admin/');
+  }
   function valueHTML(items, cls='sh56-values'){
     return `<section class="${cls}" data-sh56="values">${items.map(([ic,t,d])=>`<article class="sh56-value"><span class="sh56-icon">${ic}</span><b>${t}</b><p>${d}</p></article>`).join('')}</section>`;
   }
@@ -42,6 +70,7 @@
     });
   }
   function ensureTopbarForPlainPage(){
+    if(isAdminPage()) return;
     const hasTop = document.querySelector('.sh55-topbar,.ticket-header-v26,.checkout-header-v29,.sidebar49,.fs45-top');
     if(hasTop || document.body.dataset.sh56Topbar) return;
     document.body.dataset.sh56Topbar='1';
@@ -51,6 +80,7 @@
     document.body.insertBefore(nav, document.body.firstChild);
   }
   function ensurePageIdentity(){
+    if(isAdminPage()) return;
     if(document.body.classList.contains('sh55-command') || document.querySelector('.sh55-hero,.fs45-top') || document.querySelector('[data-sh56="identity"]')) return;
     const pageTitle = (document.title || BRAND).replace(/Sačuvaj Hranu|—|V\d+|Admin/g,'').trim() || BRAND;
     const id = document.createElement('section');
@@ -61,12 +91,14 @@
     if(afterTop && afterTop.nextSibling) afterTop.parentNode.insertBefore(id, afterTop.nextSibling); else document.body.insertBefore(id, document.body.firstChild);
   }
   function ensureGlobalValues(){
+    if(isAdminPage()) return;
     const main = document.querySelector('main') || document.body;
     const important = location.pathname.match(/^\/(customer|seller|checkout|reservation|partner|support|offers|offer|finance|admin|ops|settings-admin|notifications-admin|partners-admin|customers-admin|seller-pro|customer-plus|refund|terms|privacy|food-safety|pilot|launch|expansion|market-ops|execution|real-data|ai-market|live-launch|scale|growth)$/);
     if(!important || document.querySelector('[data-sh56="values"]')) return;
     main.insertAdjacentHTML('afterbegin', valueHTML(values, 'sh56-values three'));
   }
   function ensureTrust(){
+    if(isAdminPage()) return;
     const main = document.querySelector('main') || document.body;
     const important = location.pathname.match(/^\/(customer|seller|checkout|reservation|partner|support|offers|offer|finance|admin|ops|settings-admin|notifications-admin|partners-admin|customers-admin|seller-pro|customer-plus|refund|terms|privacy|food-safety|pilot|launch|expansion|market-ops|execution|real-data|ai-market|live-launch|scale|growth|app|u)$/);
     if(!important || document.querySelector('[data-sh56="trust"],.sh55-trustbar,.sh55-brand-trust')) return;
@@ -104,6 +136,15 @@
       shell.appendChild(guide);
     }
   }
-  function run(){ normalizeTopbar(); ensureTopbarForPlainPage(); ensurePageIdentity(); ensureGlobalValues(); ensureTrust(); cleanDuplicateMiniValues(); fixCommand(); fixConsumerApp(); fixTicketCopy(); }
+  function ensureAdminShell(){
+    if(!isAdminPage() || document.body.dataset.shAdminShell) return;
+    document.body.dataset.shAdminShell = '1';
+    document.body.classList.add('sh-admin-shell');
+    const top = document.createElement('nav');
+    top.className = 'sh-admin-topbar-v103';
+    top.innerHTML = `<a class="sh-admin-brand-v103" href="/admin">${logo}<span><strong>${BRAND}</strong><small>Admin · ${SLOGAN}</small></span></a><div class="sh-admin-nav-v103">${adminNav.map(([label,href])=>`<a class="${location.pathname===href?'active':''}" href="${href}">${label}</a>`).join('')}<a href="/pocetna">Sajt</a><button class="secondary danger-link" data-admin-logout>Odjava</button></div>`;
+    document.body.insertBefore(top, document.body.firstChild);
+  }
+  function run(){ ensureAdminShell(); normalizeTopbar(); ensureTopbarForPlainPage(); ensurePageIdentity(); ensureGlobalValues(); ensureTrust(); cleanDuplicateMiniValues(); fixCommand(); fixConsumerApp(); fixTicketCopy(); }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', run); else run();
 })();
