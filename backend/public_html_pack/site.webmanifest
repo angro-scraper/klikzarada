@@ -1,7 +1,7 @@
 {
   "name": "Sačuvaj Hranu",
   "short_name": "Sačuvaj Hranu",
-  "start_url": "/",
+  "start_url": "https://app.sacuvaj-hranu.rs/pocetna",
   "display": "standalone",
   "background_color": "#fff8e8",
   "theme_color": "#064b3a",
