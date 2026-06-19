@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>V48 Super Command — Sačuvaj Hranu</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <link rel="stylesheet" href="/admin-assets/super-command.css" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="v48-body">
+  <header class="v48-hero">
+    <nav class="v48-nav">
+      <div class="brand">Sačuvaj Hranu <span>V48</span></div>
+      <div class="links">
+        <a href="/app">Korisnička app</a>
+        <a href="/live-launch">Live launch</a>
+        <a href="/market-ops">Market ops</a>
+        <a href="/admin-auth/logout">Odjava</a>
+      </div>
+    </nav>
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Super App & Scale Command</p>
+        <h1>Jedan centar za bazu, rast, AI, gradove i izlazak na tržište.</h1>
+        <p class="lead">V48 spaja sve što smo gradili: aplikaciju za kupce, prodavce, plaćanje, QR, GPS, AI, finansije, ponude i operativni plan.</p>
+        <div class="actions">
+          <button data-action="seed" class="primary">Učitaj super bazu</button>
+          <button data-action="growth">Aktiviraj growth sistem</button>
+          <button data-action="refresh">Osveži status</button>
+        </div>
+      </div>
+      <div class="score-card">
+        <div class="score" id="score">—</div>
+        <div class="score-label">Super readiness</div>
+        <div id="missing" class="missing"></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="v48-main">
+    <section class="grid four" id="metrics"></section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div><h2>AI master plan</h2><p>Šta sistem predlaže kao sledeći potez.</p></div>
+        <button data-action="plan">Generiši plan</button>
+      </div>
+      <div id="plan" class="cards"></div>
+    </section>
+
+    <section class="grid two">
+      <div class="panel">
+        <div class="panel-head"><div><h2>Gradovi</h2><p>Readiness po gradu.</p></div><button data-action="cities">Osveži</button></div>
+        <div id="cities" class="list"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h2>Dynamic pricing</h2><p>AI predlozi za popuste.</p></div><button data-action="pricing">Izračunaj</button></div>
+        <div id="pricing" class="list compact"></div>
+      </div>
+    </section>
+
+    <section class="grid two">
+      <div class="panel">
+        <div class="panel-head"><div><h2>Data room</h2><p>Pregled za osnivača, partnera ili investitora.</p></div><button data-action="dataroom">Prikaži</button></div>
+        <div id="dataroom" class="cards"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h2>Growth sistem</h2><p>Kampanje, journeys i eksperimenti.</p></div></div>
+        <div id="growthState" class="cards"></div>
+      </div>
+    </section>
+
+    <section class="panel log-panel">
+      <h2>Activity log</h2>
+      <pre id="log">Spremno.</pre>
+    </section>
+  </main>
+  <script src="/admin-assets/super-command.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

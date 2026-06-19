@@ -1,0 +1,21 @@
+{
+  "name": "Sačuvaj Hranu",
+  "short_name": "Sačuvaj",
+  "description": "Uštedi novac. Sačuvaj obrok. Smanji bacanje.",
+  "start_url": "/pocetna",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F7F3EB",
+  "theme_color": "#114B3A",
+  "orientation": "portrait-primary",
+  "lang": "sr",
+  "icons": [
+    {"src":"/admin-assets/icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"/admin-assets/icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ],
+  "shortcuts": [
+    {"name":"Ponude blizu tebe","short_name":"Ponude","url":"/ponude","description":"Pronađi hranu na sniženju"},
+    {"name":"Postani partner","short_name":"Partner","url":"/partner/onboarding","description":"Uključi lokal u pilot"},
+    {"name":"Potvrdi preuzimanje","short_name":"Preuzimanje","url":"/partner/preuzimanje","description":"Partner PIN potvrda"}
+  ]
+}

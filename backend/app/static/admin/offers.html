@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — AI ponude hrane</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="manifest" href="/admin-assets/manifest.webmanifest" />
+  <meta name="theme-color" content="#1E4D3A" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Sačuvaj Hranu" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="buyer-v21">
+  <header class="buyer-shell buyer-hero-v21">
+    <nav class="buyer-nav">
+      <a class="brand-lockup" href="/offers" aria-label="Sačuvaj Hranu">
+        <span class="sh56-logo small" aria-hidden="true"></span>
+        <span><strong>Sačuvaj Hranu</strong><small>Hranu</small></span>
+      </a>
+      <div class="buyer-nav-links">
+        <a href="/customer">Moj nalog</a>
+        <a href="/support">Pomoć</a>
+        <a href="/partner">Postani partner</a>
+        <a href="/seller">Prodavac</a>
+        <a href="/admin">Admin</a>
+      </div>
+    </nav>
+
+    <section class="hero-grid-v21">
+      <div class="hero-copy-v21">
+        <p class="eyebrow">AI pretraga hrane na sniženju</p>
+        <h1>Nađi sniženu hranu blizu sebe.</h1>
+        <p class="subtitle">Napiši šta tražiš normalnim jezikom. AI će podesiti filtere, pronaći najbliže ponude i izdvojiti najbolje popuste. Rezervaciju možeš platiti online kroz aplikaciju.</p>
+        <div class="hero-trust-row">
+          <span>✓ Brza rezervacija</span>
+          <span>✓ Ponude blizu tebe</span>
+          <span>✓ Jasni rokovi</span>
+        </div>
+      </div>
+
+      <div class="ai-search-panel-v21" id="aiSearchPanel">
+        <div class="panel-title-row">
+          <div>
+            <span class="mini-label">AI pretraživač</span>
+            <h2>Šta želiš da pronađeš?</h2>
+          </div>
+          <span class="ai-live-badge">AI online</span>
+        </div>
+        <div class="ai-search-box-v21">
+          <textarea id="aiSearchInput" placeholder="Primer: Treba mi hleb ili pecivo blizu mene do 200 din, najbolje sa velikim popustom"></textarea>
+          <button id="aiSearchBtn" class="button-primary-lg">AI pretraga</button>
+        </div>
+        <div class="prompt-chips-v21">
+          <button data-prompt="Pekara do 200 din u blizini">Pekara do 200 din</button>
+          <button data-prompt="Najveći popusti danas">Najveći popusti</button>
+          <button data-prompt="Ponude pred istek roka danas">Rok danas</button>
+          <button data-prompt="Pecivo u krugu 5 km">Pecivo 5 km</button>
+          <button data-prompt="Gotova jela do 400 din">Gotova jela</button>
+          <button data-prompt="Samo ponude sa slikom">Sa slikom</button>
+        </div>
+        <div class="search-expander-v27">
+          <div>
+            <span>Brzi gradovi</span>
+            <div id="cityChips" class="taxonomy-chip-row"></div>
+          </div>
+          <div>
+            <span>Kategorije</span>
+            <div id="categoryChips" class="taxonomy-chip-row"></div>
+          </div>
+        </div>
+        <div id="aiSearchResult" class="ai-result-v21">AI će ovde objasniti šta je pronašao i podesiti filtere.</div>
+      </div>
+    </section>
+  </header>
+
+  <main class="buyer-shell buyer-layout-v21">
+    <aside class="buyer-sidebar-v21">
+      <section class="filter-card-v21">
+        <div class="section-kicker">Filteri</div>
+        <h2>Preciziraj pretragu</h2>
+        <div class="smart-filter-stack">
+          <label>Pretraga<input id="qFilter" placeholder="Naziv, prodavac, adresa ili naselje" /></label>
+          <div class="two-col-v21">
+            <label>Grad<select id="cityFilter"><option value="">Svi gradovi</option></select></label>
+            <label>Naselje/opština<input id="districtFilter" placeholder="Zemun, Vračar, Dorćol..." list="districtOptions" /></label>
+          </div>
+          <datalist id="districtOptions"></datalist>
+          <label>Kategorija<select id="categoryFilter"><option value="">Sve kategorije</option></select></label>
+          <label class="toggle-line-v27"><input id="hasImageFilter" type="checkbox" /> Samo ponude sa slikom</label>
+          <label>Status
+            <select id="statusFilter">
+              <option value="">Svi aktivni</option>
+              <option value="public_discount">Akcijska cena</option>
+              <option value="seller_verified">Potvrđeno</option>
+              <option value="near_expiry">Pred istek</option>
+            </select>
+          </label>
+          <label>Sortiranje
+            <select id="sortFilter">
+              <option value="updated">Najskorije ažurirano</option>
+              <option value="distance_asc">Najbliže meni</option>
+              <option value="discount_desc">Najveći popust</option>
+              <option value="price_asc">Najniža cena</option>
+              <option value="expiry_asc">Najbliži rok</option>
+              <option value="newest">Najnovije dodato</option>
+            </select>
+          </label>
+          <div class="two-col-v21">
+            <label>Min. popust %<input id="minDiscountFilter" type="number" min="0" max="100" placeholder="30" /></label>
+            <label>Max cena RSD<input id="maxPriceFilter" type="number" min="0" placeholder="200" /></label>
+          </div>
+          <label>Rok
+            <select id="expiringDaysFilter">
+              <option value="">Bilo koji rok</option>
+              <option value="0">Ističe danas</option>
+              <option value="1">Do sutra</option>
+              <option value="3">U naredna 3 dana</option>
+              <option value="7">U narednih 7 dana</option>
+            </select>
+          </label>
+          <label>Blizina
+            <select id="radiusFilter">
+              <option value="">Bez GPS filtera</option>
+              <option value="1">U krugu 1 km</option>
+              <option value="3">U krugu 3 km</option>
+              <option value="5">U krugu 5 km</option>
+              <option value="10">U krugu 10 km</option>
+              <option value="25">U krugu 25 km</option>
+            </select>
+          </label>
+          <button id="useLocationBtn" type="button" class="location-button-v21">Koristi moju lokaciju</button>
+          <details class="manual-location-v21">
+            <summary>Ručni unos lokacije</summary>
+            <div class="two-col-v21">
+              <input id="manualLatFilter" type="number" step="0.000001" placeholder="Latitude" />
+              <input id="manualLngFilter" type="number" step="0.000001" placeholder="Longitude" />
+            </div>
+            <button id="setManualLocationBtn" type="button" class="secondary full-width">Postavi lokaciju</button>
+          </details>
+          <div class="filter-actions-v21">
+            <button id="applyFiltersBtn">Pretraži</button>
+            <button id="clearFiltersBtn" class="secondary">Reset</button>
+          </div>
+        </div>
+        <div id="activeFilters" class="active-filters"></div>
+      </section>
+
+      <section class="assistant-card-v21">
+        <div class="section-kicker">Asistent</div>
+        <h2>Pitaj Sačuvaj Hranu AI</h2>
+        <div id="aiChatMessages" class="chat-messages-v21">
+          <div class="chat-bubble ai">Zdravo! Mogu da preporučim ponude, objasnim rokove, pomognem oko rezervacije i podesim pretragu umesto tebe.</div>
+        </div>
+        <div id="aiQuickReplies" class="ai-quick-replies-v21"></div>
+        <form id="aiChatForm" class="chat-form-v21">
+          <input id="aiChatInput" placeholder="Pitaj: Šta ima blizu mene?" autocomplete="off" />
+          <button type="submit">Pošalji</button>
+        </form>
+      </section>
+    </aside>
+
+    <section class="buyer-content-v21">
+      <section class="results-toolbar-v21">
+        <div>
+          <span class="section-kicker">Rezultati</span>
+          <h2>Aktivne ponude</h2>
+        </div>
+        <div class="toolbar-meta-v21">
+          <span id="locationStatus" class="status">GPS nije uključen</span>
+          <span id="offersCount" class="result-count-v21">0 ponuda</span>
+        </div>
+      </section>
+
+      <section class="map-wrap-v21">
+        <div id="offersMap" class="offers-map-v21"><div class="map-placeholder">Mapa će prikazati ponude sa GPS lokacijom.</div></div>
+      </section>
+
+      <section id="aiRecommendedProducts" class="ai-recommended-v21 hidden"></section>
+      <section id="offersGrid" class="offers-grid-v21"></section>
+
+      <section id="reservationPanel" class="reservation-drawer-v21 hidden">
+        <div class="drawer-card-v21">
+          <button id="cancelReservationBtn" class="drawer-close" type="button">×</button>
+          <span class="section-kicker">Rezervacija</span>
+          <h2>Rezerviši ponudu</h2>
+          <p id="reservationProductText" class="help-text"></p>
+          <form id="reservationForm" class="grid-form">
+            <input type="hidden" name="product_id" id="reservationProductId" />
+            <label>Ime i prezime<input name="customer_name" required placeholder="Petar Petrović" /></label>
+            <label>Telefon<input name="customer_phone" required placeholder="0601234567" /></label>
+            <label>Email opciono<input name="customer_email" type="email" placeholder="ime@email.com" /></label>
+            <label>Količina<input name="quantity" type="number" min="1" value="1" required /></label>
+            <div id="paymentPreview" class="payment-preview-v28 wide-field">Unesi telefon i količinu da vidiš cenu, loyalty popust i iznos za online plaćanje.</div>
+            <label class="wide-field">Napomena<input name="note" placeholder="Dolazim oko 19h" /></label>
+            <button type="submit">Rezerviši i nastavi na plaćanje</button>
+          </form>
+          <pre id="reservationResult" class="result"></pre>
+        </div>
+      </section>
+
+      <section class="reservation-lookup-v21">
+        <div>
+          <span class="section-kicker">Provera</span>
+          <h2>Proveri rezervaciju</h2>
+        </div>
+        <div class="lookup-row-v21">
+          <input id="reservationCodeInput" placeholder="Kod rezervacije" />
+          <button id="lookupReservationBtn" class="secondary">Proveri kod</button>
+        </div>
+        <div id="reservationLookupPanel" class="hidden">
+          <div id="reservationLookupResult"></div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast" role="status"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/admin-assets/offers.js"></script>
+  <script src="/admin-assets/pwa.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

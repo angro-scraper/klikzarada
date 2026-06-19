@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — Detalji ponude</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <link rel="manifest" href="/admin-assets/manifest.webmanifest" />
+  <meta name="theme-color" content="#16a34a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="SacuvajHranu" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">Detalji ponude</p>
+      <h1 id="pageTitle">Ponuda</h1>
+      <p class="subtitle">Detaljan prikaz ponude i brza rezervacija.</p>
+    </div>
+    <div class="utility-row"><a class="link-button secondary-link" href="/offers">Nazad na ponude</a></div>
+  </header>
+
+  <main class="offers-main detail-main">
+    <section class="card wide">
+      <div id="detailBox" class="detail-box"></div>
+    </section>
+
+    <section class="card wide">
+      <h2>Rezerviši ovu ponudu</h2>
+      <p id="reservationProductText" class="help-text"></p>
+      <form id="reservationForm" class="grid-form">
+        <input type="hidden" name="product_id" id="reservationProductId" />
+        <label>Ime i prezime<input name="customer_name" required placeholder="Petar Petrović" /></label>
+        <label>Telefon<input name="customer_phone" required placeholder="0601234567" /></label>
+        <label>Email opciono<input name="customer_email" type="email" placeholder="ime@email.com" /></label>
+        <label>Količina<input name="quantity" type="number" min="1" value="1" required /></label>
+        <label class="wide-field">Napomena<input name="note" placeholder="Dolazim oko 19h" /></label>
+        <button type="submit">Pošalji rezervaciju</button>
+      </form>
+      <pre id="reservationResult" class="result"></pre>
+    </section>
+  </main>
+  <div id="toast" role="status"></div>
+  <script src="/admin-assets/offer-detail.js"></script>
+  <script src="/admin-assets/pwa.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

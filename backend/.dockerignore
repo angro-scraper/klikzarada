@@ -1,0 +1,15 @@
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+food_saver.db
+data/pilot_backups
+data/*.xlsx
+dist
+server.out.log
+server.err.log
+qa-*.png
+.env
+.env.local

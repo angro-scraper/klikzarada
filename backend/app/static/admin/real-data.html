@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — Real Data AI</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="sh56-logo small" aria-hidden="true"></span><div><strong>Sačuvaj Hranu</strong><span>V42 · Real prodavci + real proizvodi + AI quality</span></div></div>
+    <nav class="nav-actions">
+      <a class="link-button secondary-link" href="/execution">Execution</a>
+      <a class="link-button secondary-link" href="/market-ops">Market Ops</a>
+      <a class="link-button secondary-link" href="/admin">Admin</a>
+      <a class="link-button" href="/offers">Korisnik</a>
+    </nav>
+  </header>
+
+  <main class="exec-grid">
+    <section class="card wide hero-card">
+      <div class="table-header">
+        <div>
+          <p class="eyebrow">REAL DATA CONTROL</p>
+          <h1>Realni prodavci i proizvodi, ali bez lažnog “pred istek” statusa</h1>
+          <p class="help-text">Ovaj centar ubacuje javno dostupne katalog reference, slike i cene. AI zatim proverava šta sme u javnu ponudu, a šta mora da potvrdi prodavac.</p>
+        </div>
+        <div class="button-row">
+          <button id="seedBtn">Učitaj realne kataloge</button>
+          <button id="auditBtn" class="secondary">AI audit</button>
+          <button id="tasksBtn" class="secondary">Napravi outreach taskove</button>
+          <button id="candidateBtn" class="danger">Prebaci katalog u candidate</button>
+          <button id="refreshBtn" class="secondary">Osveži</button>
+        </div>
+      </div>
+      <div id="kpis" class="kpi-row"></div>
+      <div class="notice warning-card">
+        <strong>Važno:</strong> realni katalog ≠ realna live ponuda. Cene/slike iz javnih izvora su za referencu i kontaktiranje prodavaca. Za javnu prodaju prodavac mora potvrditi cenu, količinu, rok i sliku kroz seller panel.
+      </div>
+    </section>
+
+    <section class="card two-third">
+      <div class="table-header">
+        <div><h2>Realni proizvodi u bazi</h2><p class="help-text">Prikaz proizvoda ubačenih iz javnih kataloga. Svi imaju source URL, cenu i sliku ili source image referencu.</p></div>
+      </div>
+      <div id="products" class="product-grid compact-products"></div>
+    </section>
+
+    <section class="card third">
+      <div class="table-header"><div><h2>AI preporuke</h2><p class="help-text">Šta nas blokira pre live pilota.</p></div></div>
+      <div id="recommendations" class="cards-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>AI kvalitet baze</h2><p class="help-text">Photo gate, price gate, source gate, seller verification.</p></div></div>
+      <div id="audit" class="cards-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>Outreach taskovi</h2><p class="help-text">Zadaci za kontaktiranje realnih prodavaca i potvrdu partnerstva.</p></div></div>
+      <div id="tasks" class="cards-list"></div>
+    </section>
+
+    <section class="card wide">
+      <div class="table-header">
+        <div><h2>AI sledeći potezi po prodavcu</h2><p class="help-text">AI predlaže šta raditi sa svakim prodavcem.</p></div>
+        <button id="merchantAiBtn" class="secondary">Učitaj AI predloge</button>
+      </div>
+      <div id="merchantActions" class="cards-list grid-list"></div>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+  <script src="/admin-assets/admin-auth.js"></script>
+  <script src="/admin-assets/real-data.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

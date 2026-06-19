@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — V39 Expansion OS</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="admin-v20 expansion-v39">
+  <header class="scale-hero expansion-hero-v39">
+    <div>
+      <p class="eyebrow">V39 Expansion OS</p>
+      <h1>Veliki paket za širenje: automatizacija, B2B, donacije, rute, eksperimenti i rizici.</h1>
+      <p class="subtitle">Jedno mesto za nove ideje koje nisu samo “dodaj dugme”: ovde se planira rast, partnerstva, operativa i kontrola kvaliteta.</p>
+    </div>
+    <nav class="top-nav">
+      <a class="link-button secondary-link" href="/launch">Launch</a>
+      <a class="link-button secondary-link" href="/scale">Scale</a>
+      <a class="link-button secondary-link" href="/pilot">Pilot</a>
+      <a class="link-button" href="/offers">Korisnik</a>
+    </nav>
+  </header>
+
+  <main class="scale-main expansion-main-v39">
+    <section class="card wide expansion-command-v39">
+      <div class="table-header">
+        <div>
+          <h2>Executive pregled</h2>
+          <p class="help-text">Prvo učitaj komplet V39, pa generiši AI plan i board memo.</p>
+        </div>
+        <div class="actions">
+          <button id="seedAllBtn">Učitaj komplet V39</button>
+          <button id="refreshBtn" class="secondary">Osveži</button>
+          <button id="aiPlanBtn" class="secondary">AI plan širenja</button>
+          <button id="memoBtn" class="secondary">Board memo</button>
+        </div>
+      </div>
+      <div id="overviewStats" class="stats-grid"></div>
+      <div id="aiPlan" class="scale-actions"></div>
+      <pre id="boardMemo" class="memo-box-v39">Board memo će se prikazati ovde.</pre>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>Automatizacija</h2><p class="help-text">Pravila za rutinske operacije: slike, podsetnici, potvrde i sakrivanje.</p></div></div>
+      <form id="automationForm" class="grid-form">
+        <label>Naziv <input name="name" required placeholder="npr. Podsetnik kupcu"></label>
+        <label>Trigger <input name="trigger" placeholder="npr. pickup - 30min"></label>
+        <label>Akcija <input name="action" placeholder="SMS/push"></label>
+        <label>Status <select name="status"><option>draft</option><option>ready</option><option>active</option><option>paused</option></select></label>
+        <label>Rizik <select name="risk"><option>low</option><option>medium</option><option>high</option></select></label>
+        <label class="wide-field">Napomena <input name="note"></label>
+        <button type="submit">Dodaj pravilo</button>
+      </form>
+      <div class="table-wrap compact-table"><table><thead><tr><th>Pravilo</th><th>Trigger</th><th>Status</th><th>Akcije</th></tr></thead><tbody id="automationBody"></tbody></table></div>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>B2B / corporate kupci</h2><p class="help-text">Firme, coworking prostori i studentske grupe za veće bundle narudžbine.</p></div></div>
+      <form id="corporateForm" class="grid-form">
+        <label>Naziv <input name="name" required></label>
+        <label>Grad <input name="city" value="Beograd"></label>
+        <label>Kontakt <input name="contact"></label>
+        <label>Broj ljudi <input name="employees" type="number" min="0"></label>
+        <label class="wide-field">Interesovanje <input name="category_interest" placeholder="sendviči, peciva, gotova jela"></label>
+        <label>Status <select name="status"><option>lead</option><option>contacted</option><option>pilot</option><option>active</option><option>paused</option></select></label>
+        <label class="wide-field">Napomena <input name="note"></label>
+        <button type="submit">Dodaj B2B lead</button>
+      </form>
+      <div class="table-wrap compact-table"><table><thead><tr><th>Klijent</th><th>Grad</th><th>Interesovanje</th><th>Status</th><th>Akcije</th></tr></thead><tbody id="corporateBody"></tbody></table></div>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>Donacije posle prodaje</h2><p class="help-text">Opcija za neprodate viškove, bez mešanja sa ponudama kupcima.</p></div></div>
+      <form id="donationForm" class="grid-form">
+        <label>Naziv <input name="name" required></label>
+        <label>Grad <input name="city" value="Beograd"></label>
+        <label>Kontakt <input name="contact"></label>
+        <label>Vreme preuzimanja <input name="pickup_window" placeholder="21-22h"></label>
+        <label class="wide-field">Prima <input name="category_accepts" placeholder="hleb, pecivo, gotova jela"></label>
+        <label>Status <select name="status"><option>available</option><option>contacted</option><option>active</option><option>paused</option></select></label>
+        <label class="wide-field">Napomena <input name="note"></label>
+        <button type="submit">Dodaj donacionog partnera</button>
+      </form>
+      <div class="table-wrap compact-table"><table><thead><tr><th>Partner</th><th>Grad</th><th>Prima</th><th>Status</th><th>Akcije</th></tr></thead><tbody id="donationBody"></tbody></table></div>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>Dostava / pickup rute</h2><p class="help-text">MVP planiranje zona pre stvarnog ugovaranja dostavljača.</p></div><button id="routeBtn" class="secondary">Predloži rute</button></div>
+      <form id="courierForm" class="grid-form">
+        <label>Naziv zone <input name="name" required></label>
+        <label>Grad <input name="city" value="Beograd"></label>
+        <label>Radius km <input name="radius_km" type="number" step="0.1" value="2"></label>
+        <label>Naknada RSD <input name="fee_rsd" type="number" value="150"></label>
+        <label>Status <select name="status"><option>draft</option><option>research</option><option>active</option><option>paused</option></select></label>
+        <label class="wide-field">Napomena <input name="coverage_note"></label>
+        <button type="submit">Dodaj zonu</button>
+      </form>
+      <div id="routePlan" class="muted-box route-box-v39">Predlog ruta će se prikazati ovde.</div>
+      <div class="table-wrap compact-table"><table><thead><tr><th>Zona</th><th>Grad</th><th>Radius</th><th>Status</th><th>Akcije</th></tr></thead><tbody id="courierBody"></tbody></table></div>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>Eksperimenti</h2><p class="help-text">A/B testovi za kampanje, pretragu, mapu, proviziju i prodavce.</p></div></div>
+      <form id="experimentForm" class="grid-form">
+        <label>Naziv <input name="name" required></label>
+        <label>Cilj <input name="goal"></label>
+        <label>Varijanta A <input name="variant_a"></label>
+        <label>Varijanta B <input name="variant_b"></label>
+        <label>Metrika <input name="metric" placeholder="conversion_rate"></label>
+        <label>Status <select name="status"><option>draft</option><option>research</option><option>running</option><option>finished</option><option>paused</option></select></label>
+        <label class="wide-field">Napomena <input name="note"></label>
+        <button type="submit">Dodaj eksperiment</button>
+      </form>
+      <div class="table-wrap compact-table"><table><thead><tr><th>Eksperiment</th><th>Varijante</th><th>Metrika</th><th>Status</th><th>Akcije</th></tr></thead><tbody id="experimentBody"></tbody></table></div>
+    </section>
+
+    <section class="card wide">
+      <div class="table-header"><div><h2>Risk & Trust audit</h2><p class="help-text">Brza provera šta koči širenje: slike, niska sigurnost, no-show, refund i status plaćanja.</p></div><button id="riskBtn">Pokreni audit</button></div>
+      <div id="riskStats" class="stats-grid"></div>
+      <div id="riskRecommendations" class="scale-ai-grid"></div>
+    </section>
+
+    <section class="card wide">
+      <h2>Playbook biblioteka</h2>
+      <p class="help-text">Gotovi tekstovi za prodavce, podršku i trening. Ovo kasnije hranimo u AI asistente.</p>
+      <div class="table-wrap compact-table"><table><thead><tr><th>Naslov</th><th>Tip</th><th>Status</th><th>Tekst</th></tr></thead><tbody id="playbookBody"></tbody></table></div>
+    </section>
+  </main>
+  <div id="toast"></div>
+  <script src="/admin-assets/admin-auth.js"></script>
+  <script src="/admin-assets/expansion.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

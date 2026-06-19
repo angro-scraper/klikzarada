@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — V40 Market Operations Suite</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <style>
+    .v40-hero{background:radial-gradient(circle at 20% 10%,#e6fffa,transparent 28%),linear-gradient(135deg,#f0fff4,#fffaf0);align-items:flex-start}.v40-hero h1{font-size:clamp(2rem,4vw,3.4rem);max-width:980px}.v40-main{grid-template-columns:repeat(12,minmax(0,1fr));gap:1rem}.v40-main .card{grid-column:span 6}.v40-main .wide{grid-column:1/-1}.v40-main .third{grid-column:span 4}.v40-main .two-third{grid-column:span 8}.v40-kpi{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.75rem}.v40-kpi .stat-card strong{font-size:1.45rem}.v40-checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:.75rem}.check-card{border:1px solid var(--border);border-radius:16px;padding:.9rem;background:#fff}.check-card.ok{border-color:#9ae6b4;background:#f0fff4}.check-card.bad{border-color:#fed7aa;background:#fffaf0}.tag{display:inline-block;border-radius:999px;padding:.2rem .55rem;background:#edf2f7;color:#4a5568;font-size:.78rem;font-weight:800}.tag.ok{background:#c6f6d5;color:#276749}.tag.bad{background:#fed7aa;color:#9c4221}.v40-list{display:grid;gap:.65rem}.v40-row{border:1px solid var(--border);border-radius:14px;padding:.8rem;background:#fff}.v40-row h3{margin:0 0 .25rem;font-size:1rem}.v40-row p{margin:.2rem 0;color:var(--muted);font-size:.9rem}.v40-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.75rem}.v40-actions{display:flex;gap:.5rem;flex-wrap:wrap}.ai-board{display:grid;grid-template-columns:1fr;gap:.7rem}.ai-priority{padding:.85rem;border-left:4px solid var(--accent);background:#f8fafc;border-radius:12px}.memo-lite{white-space:pre-wrap;background:#111827;color:#ecfdf5;border-radius:14px;padding:1rem;max-height:420px;overflow:auto}.small-table table{min-width:720px}.muted-note{color:var(--muted);font-size:.92rem}.pill-row{display:flex;gap:.4rem;flex-wrap:wrap}.danger-zone{border-color:#fed7d7;background:#fff5f5}@media(max-width:1050px){.v40-main .card,.v40-main .third,.v40-main .two-third{grid-column:1/-1}.v40-kpi{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.v40-kpi{grid-template-columns:1fr}}
+  </style>
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="admin-v20 v40-page">
+  <header class="v40-hero">
+    <div>
+      <p class="eyebrow">V40 Market Operations Suite</p>
+      <h1>Kompletan paket za prelaz iz pilota u tržišni operativni sistem.</h1>
+      <p class="subtitle">Gradovi, planovi za prodavce, ugovorna pravila, notification journey, OKR, impact metrika, risk rules, data pipelines i AI board.</p>
+    </div>
+    <nav class="top-nav">
+      <a class="link-button secondary-link" href="/pilot">Pilot</a>
+      <a class="link-button secondary-link" href="/launch">Launch</a>
+      <a class="link-button secondary-link" href="/expansion">Expansion</a>
+      <a class="link-button" href="/offers">Korisnik</a>
+    </nav>
+  </header>
+
+  <main class="v40-main">
+    <section class="card wide">
+      <div class="table-header">
+        <div>
+          <h2>Market Ops komanda</h2>
+          <p class="help-text">Ovo je jedan veliki update: ne dodaje samo ekran, nego operativni model za gradove, partnere, AI, rizike i rast.</p>
+        </div>
+        <div class="v40-actions">
+          <button id="seedBtn">Učitaj komplet V40</button>
+          <button id="refreshBtn" class="secondary">Osveži</button>
+          <button id="aiBtn" class="secondary">AI board</button>
+          <button id="investorBtn" class="secondary">Investor snapshot</button>
+        </div>
+      </div>
+      <div id="kpis" class="v40-kpi"></div>
+      <div id="checks" class="v40-checks" style="margin-top:1rem"></div>
+    </section>
+
+    <section class="card two-third">
+      <div class="table-header"><div><h2>AI Board — sledeći strateški potezi</h2><p class="help-text">AI sada ne daje samo opšte savete, već čita metrike platforme i predlaže prioritete.</p></div></div>
+      <div id="aiBoard" class="ai-board"><p class="muted-note">Klikni “AI board”.</p></div>
+    </section>
+
+    <section class="card third">
+      <div class="table-header"><div><h2>Investor / founder snapshot</h2><p class="help-text">Sažetak za razgovor sa partnerima, investitorima ili timom.</p></div></div>
+      <pre id="investorBox" class="memo-lite">Klikni “Investor snapshot”.</pre>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>Gradovi i launch paketi</h2><p class="help-text">Prioriteti za širenje po Srbiji.</p></div></div>
+      <div id="cities" class="v40-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>Komercijalni planovi prodavaca</h2><p class="help-text">Priprema modela: provizija 25%, pilot free, partner i chain plan.</p></div></div>
+      <div id="plans" class="v40-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>Ugovorna i kvalitet pravila</h2><p class="help-text">Minimum pravila pre ozbiljnog uključivanja prodavaca.</p></div></div>
+      <div id="contracts" class="v40-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>Notification journeys</h2><p class="help-text">Šta se šalje kupcu, prodavcu i adminu u ključnim trenucima.</p></div></div>
+      <div id="journeys" class="v40-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>Content calendar</h2><p class="help-text">Marketing teme za prve dane kampanja.</p></div></div>
+      <div id="content" class="v40-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>Risk rules</h2><p class="help-text">Kontrola poverenja, slika, refund-a, no-show i rokova.</p></div><button id="hideNoImageBtn" class="danger">Sakrij javne bez slike</button></div>
+      <div id="risks" class="v40-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>Data pipelines</h2><p class="help-text">Koji izvori podataka su pouzdani i za šta se koriste.</p></div></div>
+      <div id="pipelines" class="v40-list"></div>
+    </section>
+
+    <section class="card wide">
+      <div class="table-header"><div><h2>OKR — ciljevi za sledeću fazu</h2><p class="help-text">Meri ono što zaista odlučuje da li projekat može u pilot.</p></div></div>
+      <div class="table-wrap small-table"><table><thead><tr><th>Objective</th><th>Key result</th><th>Target</th><th>Trenutno</th><th>Owner</th><th>Status</th></tr></thead><tbody id="okrBody"></tbody></table></div>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+  <script src="/admin-assets/admin-auth.js"></script>
+  <script src="/admin-assets/market-ops.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

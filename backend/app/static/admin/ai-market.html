@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>V43 AI Market Intelligence</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <style>
+    :root{--bg:#f7f8f3;--ink:#172018;--muted:#687064;--brand:#2f7d32;--brand2:#fb8c00;--card:#fff;--line:#e6eadf;--bad:#b42318;--good:#15803d;--warn:#b45309}
+    body{background:linear-gradient(180deg,#f3f8ed 0,#f7f8f3 28%,#fff 100%);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;margin:0}
+    .wrap{max-width:1180px;margin:0 auto;padding:24px}
+    .top{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:18px}
+    .badge{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);background:#fff;padding:8px 12px;border-radius:999px;color:var(--muted);font-weight:700;font-size:13px}
+    h1{font-size:34px;line-height:1.05;margin:10px 0 8px;letter-spacing:-.04em}.lead{font-size:16px;color:var(--muted);max-width:760px;line-height:1.6}
+    .hero{background:rgba(255,255,255,.85);backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:28px;padding:26px;box-shadow:0 16px 50px rgba(31,65,31,.08)}
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}.btn{border:0;border-radius:14px;padding:12px 16px;font-weight:900;cursor:pointer;background:#eaf3e8;color:#1d3b20}.btn.primary{background:linear-gradient(135deg,var(--brand),#5fad41);color:#fff}.btn.orange{background:#fff1dc;color:#7c3f00}.btn.dark{background:#18231a;color:#fff}.btn:disabled{opacity:.55;cursor:wait}.btn.loading::after{content:"";width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;display:inline-block;margin-left:8px;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;margin-top:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:0 8px 28px rgba(30,60,30,.05)}.span3{grid-column:span 3}.span4{grid-column:span 4}.span5{grid-column:span 5}.span6{grid-column:span 6}.span7{grid-column:span 7}.span8{grid-column:span 8}.span12{grid-column:span 12}
+    .metric{font-size:30px;font-weight:950;letter-spacing:-.04em}.label{color:var(--muted);font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.progress{height:12px;background:#edf1e8;border-radius:20px;overflow:hidden;margin-top:10px}.bar{height:100%;background:linear-gradient(90deg,var(--brand),#8bc34a);border-radius:20px}.list{display:grid;gap:10px}.item{border:1px solid var(--line);border-radius:16px;padding:12px;background:#fff}.item strong{display:block;margin-bottom:4px}.muted{color:var(--muted)}.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:900;background:#f0f5ec;color:#25492b;margin:2px}.pill.bad{background:#fff0ef;color:var(--bad)}.pill.warn{background:#fff7e8;color:var(--warn)}.pill.good{background:#eaf8ee;color:var(--good)}
+    textarea,input,select{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:14px;padding:11px 12px;font:inherit;background:#fff}label{font-weight:900;font-size:13px;color:#34423a}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.log{font-family:ui-monospace,Consolas,monospace;background:#111b13;color:#dbffe1;border-radius:18px;padding:14px;max-height:260px;overflow:auto;font-size:12px;white-space:pre-wrap}.empty{padding:18px;border:1px dashed var(--line);border-radius:18px;color:var(--muted);text-align:center}@media(max-width:900px){.span3,.span4,.span5,.span6,.span7,.span8{grid-column:span 12}.top{display:block}.formgrid{grid-template-columns:1fr}h1{font-size:28px}}
+  </style>
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div><span class="badge">🧠 V43 AI Market Intelligence</span><h1>Jači AI + realni partneri + realne ponude</h1><p class="lead">Ovo je komandni centar za prelaz iz demo aplikacije u terenski pilot: AI proverava bazu, pravi kontakt plan, kreira zadatke za slikanje stvarnih proizvoda i blokira ponude koje nisu dovoljno kvalitetne.</p></div>
+      <div class="actions"><a class="btn" href="/pilot">Pilot</a><a class="btn" href="/real-data">Real data</a><a class="btn" href="/execution">Execution</a><a class="btn" href="/offers">Offers</a></div>
+    </div>
+    <section class="hero">
+      <div class="actions">
+        <button class="btn primary" data-action="load-suite">Učitaj V43 komplet</button>
+        <button class="btn" data-action="contact-plan">Kontakt plan iz baze</button>
+        <button class="btn" data-action="missions">Misije za realne proizvode</button>
+        <button class="btn orange" data-action="autopilot">AI autopilot audit</button>
+        <button class="btn dark" data-action="weekly">Nedeljni plan</button>
+        <button class="btn" data-action="quality">Primeni quality gate</button>
+      </div>
+      <div class="grid">
+        <div class="card span3"><div class="label">Readiness</div><div id="readiness" class="metric">-</div><div class="progress"><div id="readinessBar" class="bar" style="width:0%"></div></div></div>
+        <div class="card span3"><div class="label">Verifikovani prodavci</div><div id="verifiedStores" class="metric">-</div></div>
+        <div class="card span3"><div class="label">Live ponude</div><div id="liveProducts" class="metric">-</div></div>
+        <div class="card span3"><div class="label">Slike u bazi</div><div id="imageRate" class="metric">-</div></div>
+      </div>
+    </section>
+
+    <div class="grid">
+      <section class="card span7"><h2>AI preporučene akcije</h2><div id="actionsList" class="list"><div class="empty">Klikni “AI autopilot audit”.</div></div></section>
+      <section class="card span5"><h2>Brzo dodaj lead prodavca</h2><div class="formgrid"><div><label>Naziv</label><input id="leadName" placeholder="Pekara ..." /></div><div><label>Grad</label><input id="leadCity" value="Beograd" /></div><div><label>Kategorija</label><select id="leadCategory"><option>pekara</option><option>restoran</option><option>poslastice</option><option>market</option></select></div><div><label>Prioritet</label><input id="leadPriority" type="number" value="75" /></div><div><label>Telefon</label><input id="leadPhone" placeholder="063..." /></div><div><label>Website</label><input id="leadWebsite" placeholder="https://" /></div></div><label>Napomena</label><textarea id="leadNote" rows="3" placeholder="Zašto je dobar partner?"></textarea><div class="actions"><button class="btn primary" data-action="add-lead">Dodaj lead</button></div></section>
+      <section class="card span4"><h2>Top seller leadovi</h2><div id="leadsList" class="list"></div></section>
+      <section class="card span4"><h2>Misije za proizvode</h2><div id="missionsList" class="list"></div></section>
+      <section class="card span4"><h2>Quality gates</h2><div id="gatesList" class="list"></div></section>
+      <section class="card span6"><h2>AI playbook</h2><div id="playbookList" class="list"></div></section>
+      <section class="card span6"><h2>Nedeljni plan</h2><div id="weekPlan" class="list"><div class="empty">Klikni “Nedeljni plan”.</div></div></section>
+      <section class="card span12"><h2>Activity log</h2><div id="log" class="log">Spremno.</div></section>
+    </div>
+  </div>
+<script>
+const $ = (id)=>document.getElementById(id);
+function log(msg,obj){ const line = `[${new Date().toLocaleTimeString()}] ${msg}` + (obj?`\n${JSON.stringify(obj,null,2)}`:''); $('log').textContent = line + '\n\n' + $('log').textContent; }
+async function api(path, opts={}){ const r=await fetch('/v43-api'+path,{headers:{'Content-Type':'application/json'},...opts}); if(!r.ok){throw new Error(await r.text())} return r.json(); }
+function item(title, body='', pills=[]){ return `<div class="item"><strong>${title}</strong><div class="muted">${body||''}</div><div>${pills.map(p=>`<span class="pill ${p.kind||''}">${p.text}</span>`).join('')}</div></div>`; }
+function render(data){
+  const m=data.metrics||{}; $('readiness').textContent=(data.readiness_score??0)+'/100'; $('readinessBar').style.width=(data.readiness_score??0)+'%'; $('verifiedStores').textContent=m.verified_stores??0; $('liveProducts').textContent=m.live_products??0; $('imageRate').textContent=(m.image_rate??0)+'%';
+  const leads=(data.leads||[]).slice(0,8); $('leadsList').innerHTML=leads.length?leads.map(x=>item(x.name, `${x.city||''} · ${x.reason||x.offer_angle||''}`, [{text:x.category||'food'},{text:'prio '+(x.priority||'-'),kind:'warn'},{text:x.status||'new'}])).join(''):'<div class="empty">Nema leadova.</div>';
+  const missions=(data.missions||[]).slice(0,8); $('missionsList').innerHTML=missions.length?missions.map(x=>item(x.title, `${x.store_name||'Lead'} · ${x.pickup_window||''}`, [{text:x.category},{text:x.status},{text:x.suggested_discount||'' ,kind:'good'}])).join(''):'<div class="empty">Nema misija.</div>';
+  const gates=(data.quality_gates||[]); $('gatesList').innerHTML=gates.length?gates.map(x=>item(x.gate,x.rule,[{text:x.severity,kind:x.severity==='critical'?'bad':'warn'},{text:x.auto_action}])).join(''):'<div class="empty">Nema gates.</div>';
+  const plays=(data.ai_playbooks||[]); $('playbookList').innerHTML=plays.length?plays.map(x=>item(x.name,x.script,[{text:x.goal,kind:'good'}])).join(''):'<div class="empty">Nema playbook-a.</div>';
+  const acts=(data.autopilot_actions||[]).slice(0,10); $('actionsList').innerHTML=acts.length?acts.map(x=>item(`${x.product} — ${x.store}`, (x.issues||[]).join(', '), [{text:x.severity,kind:x.severity==='critical'?'bad':'warn'},{text:x.recommended_action}])).join(''):'<div class="empty">Nema kritičnih akcija ili audit nije pokrenut.</div>';
+  const wp=data.weekly_plan||{}; if(wp.daily_actions){ $('weekPlan').innerHTML=`<div class="item"><strong>${wp.north_star}</strong><div class="muted">Fokus: ${(wp.week_focus||[]).join(' · ')}</div></div>`+wp.daily_actions.map(d=>item(d.day,(d.actions||[]).join(' / '))).join(''); }
+}
+async function refresh(){ const d=await api('/overview'); render(d); }
+document.querySelectorAll('[data-action]').forEach(btn=>btn.addEventListener('click',async()=>{ const a=btn.dataset.action; btn.disabled=true; btn.classList.add('loading'); try{ let res; if(a==='load-suite') res=await api('/load-suite',{method:'POST'}); if(a==='contact-plan') res=await api('/generate-contact-plan',{method:'POST'}); if(a==='missions') res=await api('/generate-capture-missions',{method:'POST'}); if(a==='autopilot') res=await api('/ai-autopilot',{method:'POST'}); if(a==='weekly') res=await api('/weekly-plan',{method:'POST'}); if(a==='quality') res=await api('/safe-apply-quality',{method:'POST'}); if(a==='add-lead') res=await api('/add-lead',{method:'POST',body:JSON.stringify({name:$('leadName').value,city:$('leadCity').value,category:$('leadCategory').value,phone:$('leadPhone').value,website:$('leadWebsite').value,priority:Number($('leadPriority').value||70),note:$('leadNote').value})}); log('OK: '+a,res); await refresh(); }catch(e){ log('GREŠKA: '+a, String(e)); } finally{ btn.disabled=false; btn.classList.remove('loading'); }}));
+refresh().catch(e=>log('Greška učitavanja',String(e)));
+</script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

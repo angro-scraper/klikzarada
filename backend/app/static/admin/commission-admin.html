@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — Provizije</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+  <link rel="stylesheet" href="/admin-assets/commission-v59.css" />
+  <link rel="manifest" href="/admin-assets/manifest.webmanifest" />
+  <meta name="theme-color" content="#1E4D3A" />
+</head>
+<body class="commission-page-v59">
+  <header class="commission-hero-v59">
+    <div class="brand-lockup-v59">
+      <div class="brand-icon-v59" aria-hidden="true">🛍️</div>
+      <div>
+        <p class="eyebrow">Sačuvaj Hranu · V59</p>
+        <h1>Obračun provizije za partnere</h1>
+        <p class="brand-slogan-v59">Uštedi novac. Sačuvaj obrok. Smanji bacanje.</p>
+        <p class="subtitle">Kada kupac plaća pri preuzimanju, prodavac naplaćuje kupcu, a platformi duguje proviziju kroz periodični obračun.</p>
+      </div>
+    </div>
+    <nav class="top-actions">
+      <a class="link-button" href="/finance">Finansije</a>
+      <a class="link-button secondary-link" href="/flow">Test toka</a>
+      <a class="link-button secondary-link" href="/command">Command</a>
+      <button id="refreshCommissionBtn" class="secondary">Osveži</button>
+      <button class="secondary danger-link" data-admin-logout>Odjava</button>
+    </nav>
+  </header>
+
+  <main class="commission-main-v59">
+    <section class="commission-trust-v59">
+      <article><span>💰</span><strong>25% provizije</strong><small>Automatski obračun po rezervaciji.</small></article>
+      <article><span>🧾</span><strong>Obračun partneru</strong><small>Jedan invoice za sve otvorene stavke.</small></article>
+      <article><span>✅</span><strong>Zatvaranje duga</strong><small>Označi naplaćeno kada partner plati.</small></article>
+      <article><span>📤</span><strong>CSV export</strong><small>Za knjigovodstvo i ručnu proveru.</small></article>
+    </section>
+
+    <section class="card wide">
+      <div class="table-header">
+        <div>
+          <h2>Pregled provizije</h2>
+          <p class="help-text">Otvorena provizija, poslati obračuni i naplaćene stavke.</p>
+        </div>
+        <a class="link-button secondary-link" href="/commission/export.csv">Preuzmi CSV</a>
+      </div>
+      <div id="commissionStats" class="stats-grid commission-stats-v59"></div>
+    </section>
+
+    <section class="card wide">
+      <div class="table-header">
+        <div>
+          <h2>Partneri sa provizijom</h2>
+          <p class="help-text">Za svakog partnera možeš kreirati obračun ili zatvoriti već poslati obračun.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Partner</th>
+              <th>Grad</th>
+              <th>Otvoreno</th>
+              <th>Obračun poslato</th>
+              <th>Naplaćeno</th>
+              <th>Poslednja referenca</th>
+              <th>Akcije</th>
+            </tr>
+          </thead>
+          <tbody id="commissionSellersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card wide">
+      <div class="table-header">
+        <div>
+          <h2>Stavke obračuna</h2>
+          <p class="help-text" id="commissionItemsTitle">Izaberi partnera da vidiš rezervacije koje čine dug provizije.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Kod</th><th>Kupac</th><th>Plaćanje</th><th>Status provizije</th><th>Iznos</th><th>Provizija</th><th>Referenca</th><th>Datum</th>
+            </tr>
+          </thead>
+          <tbody id="commissionItemsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card wide commission-model-v59">
+      <span class="section-kicker">Model naplate</span>
+      <h2>Kako novac teče</h2>
+      <div class="commission-model-grid-v59">
+        <article>
+          <strong>Online / PayPal</strong>
+          <p>Platforma prima uplatu, zadržava 25% provizije, a prodavcu ide neto iznos.</p>
+        </article>
+        <article>
+          <strong>Plaćanje pri preuzimanju</strong>
+          <p>Prodavac naplaćuje kupcu direktno, a platformi duguje 25% kroz nedeljni ili mesečni obračun.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" role="status"></div>
+  <script src="/admin-assets/admin-auth.js"></script>
+  <script src="/admin-assets/commission-v59.js"></script>
+  <script src="/admin-assets/pwa.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

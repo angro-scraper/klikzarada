@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — Moj nalog</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <link rel="manifest" href="/admin-assets/manifest.webmanifest" />
+  <meta name="theme-color" content="#1E4D3A" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="customer-v31 customer-v32 sh55-page sh55-customer">
+  <nav class="sh55-topbar" aria-label="Glavna navigacija">
+    <a class="sh55-brand" href="/app" aria-label="Sačuvaj Hranu">
+      <span class="sh55-logo" aria-hidden="true"></span>
+      <span><strong>Sačuvaj</strong><small>Hranu</small></span>
+    </a>
+    <div class="sh55-navlinks">
+      <a href="/app">Ponude</a>
+      <a href="/seller">Prodavac</a>
+      <a href="/finance">Finansije</a>
+    </div>
+  <a href="/flow">Final flow</a>
+    </nav>
+
+  <header class="sh55-hero sh55-customer-hero">
+    <div class="sh55-hero-copy">
+      <p class="sh55-kicker">Moj Sačuvaj Hranu nalog</p>
+      <h1>Tvoje rezervacije, plaćanja i uštede na jednom mestu.</h1>
+      <p class="sh55-slogan">Uštedi novac. Sačuvaj obrok. Smanji bacanje.</p>
+      <p class="sh55-lead">Unesi telefon sa rezervacije, potvrdi jednokratni kod i otvori digitalne karte, QR kodove, plaćanja i loyalty popust.</p>
+      <div class="sh55-mini-values" aria-label="Vrednosti">
+        <span>💸 Uštedi novac</span>
+        <span>🥗 Sačuvaj obrok</span>
+        <span>🌿 Smanji bacanje</span>
+      </div>
+    </div>
+
+    <form id="customerLookupForm" class="sh55-auth-card customer-lookup-card-v31 otp-card-v32">
+      <div class="otp-step-v32 active" id="phoneStep">
+        <span class="section-kicker">Siguran pristup · Korak 1</span>
+        <label>Telefon kupca<input id="customerPhoneInput" placeholder="0601234567" autocomplete="tel" required /></label>
+        <button type="submit" class="button-primary-lg">Pošalji kod</button>
+        <p class="help-text">Za lokalni MVP kod će biti prikazan na ekranu. U produkciji se šalje SMS-om.</p>
+      </div>
+      <div class="otp-step-v32" id="otpStep">
+        <span class="section-kicker">Siguran pristup · Korak 2</span>
+        <div id="otpInfo" class="otp-info-v32"></div>
+        <label>Jednokratni kod<input id="customerOtpInput" placeholder="123456" inputmode="numeric" maxlength="6" /></label>
+        <div class="actions otp-actions-v32">
+          <button type="button" id="verifyOtpBtn" class="button-primary-lg">Potvrdi i otvori nalog</button>
+          <button type="button" id="resendOtpBtn" class="link-button secondary-link">Pošalji ponovo</button>
+        </div>
+        <p class="help-text">Kod važi 10 minuta. Posle potvrde, ovaj uređaj pamti nalog ograničeno vreme.</p>
+      </div>
+    </form>
+  </header>
+
+  <main class="sh55-main customer-main-v31">
+    <section class="sh55-brand-values customer-values-v55" aria-label="Zašto Sačuvaj Hranu">
+      <article><span>💸</span><b>Uštedi novac</b><p>Odlični obroci po nižim cenama.</p></article>
+      <article><span>🥗</span><b>Sačuvaj obrok</b><p>Kvalitetna hrana zaslužuje da se pojede.</p></article>
+      <article><span>🌿</span><b>Smanji bacanje</b><p>Zajedno čuvamo hranu i našu planetu.</p></article>
+    </section>
+    <section class="sh55-trustbar" aria-label="Poverenje i vrednosti aplikacije">
+      <div><span>🛡️</span><p><b>Proverene ponude</b><small>Prodavnice i restorani sa jasnim informacijama.</small></p></div>
+      <div><span>✅</span><p><b>Sigurne rezervacije</b><small>Digitalna karta i QR kod za preuzimanje.</small></p></div>
+      <div><span>💸</span><p><b>Ušteda za kupca</b><small>Niža cena za kvalitetan obrok.</small></p></div>
+      <div><span>🌿</span><p><b>Manje bacanja</b><small>Svaki sačuvan obrok pravi razliku.</small></p></div>
+    </section>
+
+    <section id="customerEmpty" class="sh55-empty empty-state-v21">
+      <div class="sh55-empty-icon">🥗</div>
+      <h3>Još nema otvorenog naloga</h3>
+      <p>Potvrdi telefon i videćeš svoje rezervacije, QR karte, plaćanja i popuste.</p>
+    </section>
+
+    <section id="customerDashboard" class="hidden sh55-dashboard">
+      <div class="customer-toolbar-v31 sh55-section-head">
+        <div>
+          <span class="section-kicker">Kupac</span>
+          <h2 id="customerTitle">Moj nalog</h2>
+          <p id="customerPrivacy" class="help-text"></p>
+        </div>
+        <div class="actions"><a class="link-button secondary-link" href="/app">Nazad na ponude</a></div>
+      </div>
+
+      <section id="customerStats" class="customer-stats-v31"></section>
+
+      <section class="customer-loyalty-v31">
+        <div class="loyalty-card-v31">
+          <div>
+            <span class="section-kicker">Loyalty</span>
+            <h2 id="loyaltyTitle">Popust za stalne kupce</h2>
+            <p id="loyaltyText"></p>
+          </div>
+          <div class="loyalty-meter-wrap-v31">
+            <div class="loyalty-meter-v31"><span id="loyaltyMeter"></span></div>
+            <div class="loyalty-scale-v31"><span>0%</span><span>5%</span></div>
+          </div>
+        </div>
+        <div id="customerInsights" class="customer-insights-v31"></div>
+      </section>
+
+      <section class="customer-reservations-v31">
+        <div class="section-title-row-v21">
+          <div><span class="section-kicker">Istorija</span><h2>Moje rezervacije</h2></div>
+          <span id="customerReservationCount" class="result-count-v21"></span>
+        </div>
+        <div id="customerReservations" class="customer-reservation-list-v31"></div>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast" role="status"></div>
+  <script src="/admin-assets/customer.js"></script>
+  <script src="/admin-assets/pwa.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

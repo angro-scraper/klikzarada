@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Sačuvaj Hranu — Ponude blizu tebe</title>
+  <link rel="manifest" href="/admin-assets/manifest.webmanifest" />
+  <meta name="theme-color" content="#1E4D3A" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="/admin-assets/consumer-v46.css" />
+  <link rel="stylesheet" href="/admin-assets/consumer-v49.css" />
+  <link rel="stylesheet" href="/admin-assets/consumer-v50.css" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="fs45-body">
+  <div id="toast45" class="fs45-toast" role="status"></div>
+
+  <header class="fs45-topbar">
+    <a class="fs45-brand" href="/app" aria-label="Sačuvaj Hranu početna">
+      <span class="sh56-logo small" aria-hidden="true"></span>
+      <span><strong>Sačuvaj</strong><small>Hranu</small></span>
+    </a>
+    <nav class="fs45-nav" aria-label="Glavna navigacija">
+      <a href="#search45">Pretraga</a>
+      <a href="#map45">Mapa</a>
+      <a href="/customer">Moj nalog</a>
+      <a href="/support">Pomoć</a>
+      <a class="fs45-seller-link" href="/partner">Za prodavce</a>
+    <a href="/flow">Final flow</a>
+    </nav>
+  </header>
+
+  <main class="fs45-shell">
+    <section class="fs45-hero">
+      <div class="fs45-hero-copy">
+        <div class="fs45-kicker-row"><p class="fs45-kicker">Sačuvaj Hranu</p><span>Uštedi novac. Sačuvaj obrok. Smanji bacanje.</span></div>
+        <h1>Dobra hrana blizu tebe, po nižoj ceni.</h1>
+        <p>Pronađi obroke, peciva i namirnice koje prodavci žele da sačuvaju od bacanja. Rezerviši za par sekundi, izaberi plaćanje i preuzmi kodom kod prodavca.</p>
+        <div class="fs45-trust-row" aria-label="Prednosti aplikacije">
+          <span>✓ Proverene ponude</span>
+          <span>✓ Jasna cena i rok</span>
+          <span>✓ QR kod za preuzimanje</span>
+          <span>✓ Ušteda za stalne kupce</span>
+        </div>
+      </div>
+      <div class="fs45-hero-card">
+        <span>Spremnost aplikacije</span>
+        <strong id="readinessScore45">—</strong>
+        <small id="readinessMsg45">Proveravam ponude...</small>
+        <button id="seedBtn45" class="fs45-warning fs45-hero-seed">Učitaj početnu bazu</button>
+      </div>
+    </section>
+
+    <section class="fs45-flow" aria-label="Tok korišćenja">
+      <div><strong>1</strong><span>Pronađi ponudu</span></div>
+      <div><strong>2</strong><span>Rezerviši količinu</span></div>
+      <div><strong>3</strong><span>Plati QR-om</span></div>
+      <div><strong>4</strong><span>Preuzmi kodom</span></div>
+    </section>
+
+    <section id="search45" class="fs45-search-card" aria-label="Pametna pretraga ponuda">
+      <div class="fs45-section-title"><div><span>Pametna pretraga</span><h2>Šta želiš da sačuvaš danas?</h2></div><small>Primer: „burek u Vračaru do 200 din”</small></div>
+      <div class="fs45-ai-row">
+        <div class="fs45-ai-input-wrap">
+          <span class="fs45-ai-icon">✦</span>
+          <input id="aiQuery45" autocomplete="off" placeholder="Npr. burek u Vračaru do 200 din, ponude blizu mene, gotova jela u Novom Sadu..." />
+        </div>
+        <button id="aiSearchBtn45" class="fs45-primary">Pronađi</button>
+        <button id="gpsBtn45" class="fs45-soft">📍 Uključi GPS</button>
+      </div>
+      <div class="fs45-citychips" id="cityChips45"></div>
+      <div class="fs45-quickchips" id="quickChips45"></div>
+      <div class="fs45-filters">
+        <label>Grad<select id="city45"><option value="">Svi gradovi</option></select></label>
+        <label>Naselje / adresa<input id="district45" list="districtList45" placeholder="npr. Vračar, Zemun..." /></label>
+        <datalist id="districtList45"></datalist>
+        <label>Kategorija<select id="category45"><option value="">Sve kategorije</option></select></label>
+        <label>Max cena<input id="maxPrice45" type="number" min="0" step="10" placeholder="npr. 300" /></label>
+        <label>Min. popust<select id="minDiscount45"><option value="">Bilo koji</option><option value="10">10%+</option><option value="20">20%+</option><option value="30">30%+</option><option value="40">40%+</option></select></label>
+        <label>Rok<select id="expiring45"><option value="">Bilo koji</option><option value="0">Danas</option><option value="1">Do sutra</option><option value="3">3 dana</option><option value="7">7 dana</option></select></label>
+        <label>Radius<select id="radius45"><option value="">Bez radiusa</option><option value="1">1 km</option><option value="3">3 km</option><option value="5">5 km</option><option value="10">10 km</option><option value="25">25 km</option></select></label>
+        <label>Sortiranje<select id="sort45"><option value="distance_asc">Najbliže meni</option><option value="discount_desc">Najveći popust</option><option value="price_asc">Najniža cena</option><option value="expiry_asc">Najbliži rok</option><option value="newest">Najnovije</option></select></label>
+        <label class="fs45-check"><input id="hasImage45" type="checkbox" checked /> Samo sa slikom</label>
+      </div>
+      <div class="fs45-actions-row">
+        <button id="searchBtn45" class="fs45-primary">Pretraži ponude</button>
+        <button id="resetBtn45" class="fs45-ghost">Resetuj</button>
+        <button id="saveSearchBtn45" class="fs45-ghost">Sačuvaj pretragu</button>
+      </div>
+    </section>
+
+    <section class="fs45-layout">
+      <aside class="fs45-map-panel">
+        <div class="fs45-panel-head">
+          <div><strong>Mapa ponuda</strong><span id="mapHint45">Klik na mapu postavlja tvoju lokaciju.</span></div>
+          <button id="centerMapBtn45" class="fs45-mini">Centriraj</button>
+        </div>
+        <div id="map45" class="fs45-map"></div>
+        <div class="fs45-location-manual">
+          <input id="manualLat45" placeholder="Latitude" />
+          <input id="manualLng45" placeholder="Longitude" />
+          <button id="manualLocBtn45">Primeni</button>
+        </div>
+        <div id="locationStatus45" class="fs45-small-note">GPS nije uključen.</div>
+      </aside>
+
+      <section class="fs45-results-panel">
+        <div class="fs45-results-head">
+          <div>
+            <h2>Ponude</h2>
+            <p id="resultsMeta45">Učitavam...</p>
+          </div>
+          <div class="fs45-stats">
+            <span><strong id="statOffers45">0</strong><small>ponuda</small></span>
+            <span><strong id="statCities45">0</strong><small>gradova</small></span>
+            <span><strong id="statImages45">0</strong><small>slika</small></span>
+          </div>
+        </div>
+        <div id="activeFilters45" class="fs45-active-filters"></div>
+        <div id="emptyState45" class="fs45-empty hidden"></div>
+        <div id="offersGrid45" class="fs45-offers-grid"></div>
+      </section>
+    </section>
+
+
+
+    <section class="sh54-trustbar" aria-label="Poverenje i vrednosti aplikacije">
+      <div><span>🛡</span><p><b>Proverene prodavnice i restorani</b><small>Proveravamo kvalitet ponuda.</small></p></div>
+      <div><span>🔒</span><p><b>Sigurne rezervacije i plaćanja</b><small>Jasan kod, karta i status.</small></p></div>
+      <div><span>👥</span><p><b>Zajednica koja pravi razliku</b><small>Svaki kupac čuva obrok.</small></p></div>
+      <div><span>🌿</span><p><b>Za bolju budućnost bez bacanja hrane</b><small>Manje otpada, više smisla.</small></p></div>
+    </section>
+
+    <section class="fs45-bottom-panels">
+      <div class="fs45-side-card">
+        <h3>Sačuvane pretrage</h3>
+        <div id="savedSearches45" class="fs45-saved-list"></div>
+      </div>
+      <div class="fs45-side-card">
+        <h3>Omiljene ponude</h3>
+        <div id="favorites45" class="fs45-saved-list"></div>
+      </div>
+      <div class="fs45-side-card fs45-ai-card">
+        <h3>Pomoćnik za kupovinu</h3>
+        <div id="chatBox45" class="fs45-chat-box"></div>
+        <div class="fs45-chat-form">
+          <input id="chatInput45" placeholder="Pitaj: kako radi plaćanje, preuzimanje, rok...?" />
+          <button id="chatSend45">Pošalji</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="reserveModal45" class="fs45-modal hidden" role="dialog" aria-modal="true" aria-labelledby="reserveTitle45">
+    <div class="fs45-modal-card">
+      <button class="fs45-close" id="closeReserve45" aria-label="Zatvori">×</button>
+      <div id="reserveContent45"></div>
+    </div>
+  </div>
+
+  <div id="offerDrawer45" class="fs45-drawer hidden">
+    <button class="fs45-close" id="closeDrawer45" aria-label="Zatvori">×</button>
+    <div id="drawerContent45"></div>
+  </div>
+
+  <nav class="fs45-mobile-nav" aria-label="Brza navigacija">
+    <a href="#search45">🔎<span>Pretraga</span></a>
+    <a href="#map45">🗺️<span>Mapa</span></a>
+    <a href="#offersGrid45">🥐<span>Ponude</span></a>
+    <a href="/customer">👤<span>Nalog</span></a>
+  </nav>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/admin-assets/consumer-app.js"></script>
+  <script src="/admin-assets/pwa.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

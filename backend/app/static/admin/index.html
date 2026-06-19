@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu Admin</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <link rel="manifest" href="/admin-assets/manifest.webmanifest" />
+  <meta name="theme-color" content="#1E4D3A" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Sačuvaj Hranu" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="admin-v20">
+  <header class="admin-hero">
+    <div>
+      <p class="eyebrow">Sačuvaj Hranu · Admin</p>
+      <h1>Realna baza pekarskih proizvoda</h1>
+      <p class="subtitle">Fokus: Beograd pekare · proizvod mora imati naziv, cenu i sliku.</p>
+    </div>
+    <nav class="top-actions">
+      <a class="link-button" href="/ops">Operativni centar</a>
+      <a class="link-button secondary-link" href="/offers">Kupac pregled</a>
+      <a class="link-button secondary-link" href="/finance">Finansije</a>
+      <a class="link-button secondary-link" href="/partners-admin">Partneri</a>
+      <a class="link-button secondary-link" href="/support-admin">Podrška</a>
+      <a class="link-button secondary-link" href="/notifications-admin">SMS</a>
+      <a class="link-button secondary-link" href="/seller">Prodavac panel</a>
+      <button id="refreshBtn" class="secondary">Osveži</button>
+      <button class="secondary danger-link" data-admin-logout>Odjava</button>
+    </nav>
+  </header>
+
+  <main class="admin-grid">
+    <section class="card wide command-center">
+      <div class="section-title">
+        <div>
+          <span class="step-badge">1</span>
+          <h2>Glavna akcija: napravi bazu pekarskih proizvoda</h2>
+          <p class="help-text">Prvo ubaci pekare i izvore, zatim pusti duboko skeniranje. Dugmad sada imaju loading stanje i status ispod, tako da se jasno vidi kada je nešto pritisnuto i kada je završeno.</p>
+        </div>
+      </div>
+      <div class="primary-actions">
+        <button id="seedBelgradeBakeryStoresBtn" class="secondary">1. Dodaj pekare BG</button>
+        <button id="seedBelgradeBakeryProductSuperDeepSourcesBtn">2. Dodaj izvore proizvoda</button>
+        <button id="crawlDeepBakeryBtn" class="big-action">3. Pokreni duboko skeniranje</button>
+      </div>
+      <div class="scan-options">
+        <label>Limit izvora za jedan prolaz
+          <input id="batchCrawlLimit" type="number" min="1" max="50" value="3" />
+        </label>
+        <label>Tip izvora
+          <select id="batchSourceType">
+            <option value="bakery_product_super_deep">SUPER DUBOKO: pekarski proizvodi sa slikom i cenom</option>
+            <option value="bakery_product_deep">DUBOKO: pekarski proizvodi sa slikom i cenom</option>
+            <option value="bakery_belgrade_official">Pekare BG - zvanični izvori</option>
+            <option value="bakery_belgrade_directory">Pekare BG - direktorijumi</option>
+            <option value="">Svi aktivni izvori</option>
+            <option value="official_catalog">Samo zvanični izvori</option>
+            <option value="aggregator_catalog">Samo agregatori</option>
+          </select>
+        </label>
+        <button id="crawlActiveBtn" class="secondary">Batch crawler</button>
+      </div>
+      <div id="crawlStatus" class="status-panel idle">
+        <strong>Spremno za skeniranje.</strong>
+        <span>Za početak koristi limit 2–3 izvora. Ako rezultat bude 0, otvori “Dijagnostika izvora”.</span>
+      </div>
+      <div id="activityLog" class="activity-log" aria-live="polite"></div>
+    </section>
+
+    <section class="card wide compact-dashboard">
+      <h2>Pregled baze</h2>
+      <div id="statsGrid" class="stats-grid"></div>
+      <pre id="jobsResult" class="result compact-result">Ovde će se videti poslednji crawler poslovi.</pre>
+    </section>
+
+    <section class="card wide">
+      <details open>
+        <summary><span class="step-badge">2</span> Dijagnostika izvora i ručno dodavanje URL-a</summary>
+        <p class="help-text">Koristi kada crawler vrati 0. Deep provera ne upisuje ništa u bazu, nego pokaže koliko ima cena, slika, linkova i da li je Browser/JS režim uspeo.</p>
+        <form id="crawlDebugForm" class="inline-form clean-form">
+          <input name="url" required placeholder="URL za proveru, npr. stranica pekare/proizvoda" />
+          <button type="submit" class="secondary">Proveri HTML</button>
+          <button type="button" id="crawlDebugDeepBtn">Deep + Browser provera</button>
+        </form>
+        <form id="crawlUrlForm" class="inline-form clean-form">
+          <input name="url" required placeholder="Direktan URL za upis u bazu" />
+          <input name="store_name" placeholder="Naziv prodavca" />
+          <input name="city" placeholder="Grad" />
+          <button type="submit">Crawl direktan URL</button>
+        </form>
+        <pre id="crawlResult" class="result">Rezultat crawlera će biti prikazan ovde.</pre>
+      </details>
+    </section>
+
+    <section class="card wide">
+      <details>
+        <summary><span class="step-badge">3</span> Izvori i napredne komande</summary>
+        <div class="split-grid">
+          <form id="sourceForm" class="grid-form clean-form">
+            <label>Naziv izvora<input name="name" required placeholder="Pekara / katalog" /></label>
+            <label>URL<input name="url" required placeholder="https://..." /></label>
+            <label>Grad<input name="city" placeholder="Beograd" /></label>
+            <label>Tip izvora<input name="source_type" value="bakery_product_super_deep" /></label>
+            <button type="submit">Sačuvaj izvor</button>
+          </form>
+          <div class="panel-soft">
+            <label>Izaberi jedan izvor<select id="sourceSelect"></select></label>
+            <button id="crawlSelectedBtn">Pokreni izabrani izvor</button>
+            <div class="utility-row wrap">
+              <button id="seedBelgradeBakeryProductDeepSourcesBtn" class="secondary">Dodaj stare deep izvore</button>
+              <button id="seedBelgradeBakerySourcesBtn" class="secondary">Dodaj izvore pekara/lokacija</button>
+              <button id="addDemoSourceBtn" class="secondary">Demo izvor</button>
+              <button id="seedSerbiaSourcesBtn" class="secondary">Svi izvori Srbije</button>
+            </div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section class="card wide">
+      <details>
+        <summary>Ručno dodavanje prodavca i artikla</summary>
+        <div class="split-grid">
+          <div>
+            <h3>Dodaj prodavca</h3>
+            <form id="storeForm" class="grid-form clean-form">
+              <label>Naziv<input name="name" required placeholder="Test Pekara" /></label>
+              <label>Grad<input name="city" placeholder="Beograd" /></label>
+              <label>Adresa<input name="address" placeholder="Bulevar kralja Aleksandra 1" /></label>
+              <label>Latitude<input name="latitude" type="number" step="0.000001" placeholder="44.8176" /></label>
+              <label>Longitude<input name="longitude" type="number" step="0.000001" placeholder="20.4633" /></label>
+              <button type="button" id="adminUseGpsBtn" class="secondary">Uzmi GPS</button>
+              <label>Website<input name="website" placeholder="https://example.com" /></label>
+              <label>Telefon<input name="phone" placeholder="0601234567" /></label>
+              <label>PIN za prodavca<input name="seller_pin" placeholder="ostavi prazno za auto PIN" /></label>
+              <button type="submit">Sačuvaj prodavca</button>
+            </form>
+            <pre id="storeResult" class="result compact-result">PIN će se prikazati ovde nakon čuvanja prodavca.</pre>
+          </div>
+          <div>
+            <h3>Dodaj artikal ručno</h3>
+            <form id="productForm" class="grid-form clean-form">
+              <label>Prodavac<select name="store_id" id="storeSelect"></select></label>
+              <label>Naziv<input name="name" required placeholder="Hleb beli 500g" /></label>
+              <label>Kategorija<input name="category" placeholder="pekara" /></label>
+              <label>Stara cena<input name="original_price" type="number" step="0.01" /></label>
+              <label>Snižena cena<input name="discounted_price" type="number" step="0.01" /></label>
+              <label>Popust %<input name="discount_percent" type="number" step="0.01" /></label>
+              <label>Rok trajanja<input name="expiry_date" type="date" /></label>
+              <label>Tip roka<select name="expiry_type"><option value="unknown">unknown</option><option value="best_before">best_before</option><option value="use_by">use_by</option></select></label>
+              <label>Količina<input name="quantity" type="number" /></label>
+              <label>Preuzimanje<input name="pickup_window" placeholder="danas 18-21h" /></label>
+              <label>Slika artikla<input name="product_image" type="file" accept="image/*" capture="environment" /></label>
+              <label>Status<select name="status"><option value="candidate">candidate</option><option value="public_discount">public_discount</option><option value="seller_verified">seller_verified</option><option value="near_expiry">near_expiry</option><option value="hidden">hidden</option></select></label>
+              <button type="submit">Sačuvaj artikal</button>
+            </form>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section class="card wide">
+      <h2>Excel baza i čišćenje</h2>
+      <div class="utility-row wrap">
+        <button id="excelStatusBtn" class="secondary">Excel status</button>
+        <button id="excelSaveBtn">Snimi bazu u Excel</button>
+        <a class="link-button" href="/excel-database/download">Preuzmi Excel</a>
+        <label class="file-inline">Uvezi Excel<input id="excelImportFile" type="file" accept=".xlsx" /></label>
+        <button id="excelImportBtn" class="secondary">Importuj Excel</button>
+        <button id="qualityReportBtn" class="secondary">Kvalitet</button>
+        <button id="sourceReportBtn" class="secondary">Izvori</button>
+        <button id="promoteDiscountsBtn">Promoviši akcije</button>
+        <button id="expireOldBtn" class="secondary">Sakrij istekle</button>
+      </div>
+      <div class="crawler-row clean-form">
+        <label class="small-field">Min. confidence<input id="qualityMinConfidence" type="number" min="0" max="1" step="0.01" value="0.45" /></label>
+        <button id="duplicatesDryRunBtn" class="secondary">Duplikati: proveri</button>
+        <button id="duplicatesApplyBtn" class="danger">Duplikati: sakrij</button>
+        <button id="lowQualityDryRunBtn" class="secondary">Slabi: proveri</button>
+        <button id="lowQualityApplyBtn" class="danger">Slabi: sakrij</button>
+      </div>
+      <div class="utility-row wrap subtle-links">
+        <a class="link-button secondary-link" href="/database/products.csv">CSV proizvodi</a>
+        <a class="link-button secondary-link" href="/database/stores.csv">CSV prodavci</a>
+        <a class="link-button secondary-link" href="/database/sources.csv">CSV izvori</a>
+      </div>
+      <pre id="databaseToolsResult" class="result compact-result">Ovde će se prikazati izveštaji baze.</pre>
+    </section>
+
+    <section class="card wide">
+      <div class="table-header">
+        <h2>Artikli u bazi</h2>
+        <div class="filters">
+          <input id="cityFilter" placeholder="Grad" />
+          <input id="categoryFilter" placeholder="Kategorija" />
+          <select id="statusFilter">
+            <option value="">Svi aktivni</option>
+            <option value="candidate">candidate</option>
+            <option value="public_discount">public_discount</option>
+            <option value="seller_verified">seller_verified</option>
+            <option value="near_expiry">near_expiry</option>
+            <option value="expired">expired</option>
+            <option value="hidden">hidden</option>
+          </select>
+          <button id="applyFiltersBtn">Primeni</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Slika</th><th>Naziv</th><th>Kategorija</th><th>Cena</th><th>Dostupno</th><th>Popust</th><th>Rok</th><th>Status</th><th>Confidence</th><th>Akcije</th></tr></thead>
+          <tbody id="productsTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card wide">
+      <div class="table-header">
+        <h2>Rezervacije</h2>
+        <div class="filters">
+          <select id="reservationStatusFilter"><option value="">Svi statusi</option><option value="pending">pending</option><option value="confirmed">confirmed</option><option value="picked_up">picked_up</option><option value="cancelled">cancelled</option><option value="expired">expired</option></select>
+          <button id="applyReservationFiltersBtn">Primeni</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Kod</th><th>Artikal</th><th>Kupac</th><th>Telefon</th><th>Količina</th><th>Status</th><th>Plaćanje</th><th>Provizija</th><th>Vreme</th><th>Akcije</th></tr></thead>
+          <tbody id="reservationsTable"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" role="status"></div>
+  <script src="/admin-assets/admin-auth.js"></script>
+  <script src="/admin-assets/app.js"></script>
+  <script src="/admin-assets/pwa.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

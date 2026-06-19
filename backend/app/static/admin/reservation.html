@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — Rezervacija</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <link rel="manifest" href="/admin-assets/manifest.webmanifest" />
+  <meta name="theme-color" content="#1E4D3A" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="sh55-page sh55-ticket ticket-page-v26">
+  <header class="ticket-header-v26">
+    <a class="brand-lockup sh55-ticket-brand" href="/app" aria-label="Sačuvaj Hranu">
+      <img src="/admin-assets/brand/logo-mark.svg" alt="" />
+      <span><strong>Sačuvaj Hranu</strong><small>Uštedi novac. Sačuvaj obrok. Smanji bacanje.</small></span>
+    </a>
+    <nav class="buyer-nav-links">
+      <a href="/offers">Ponude</a>
+      <a href="/seller">Prodavac</a>
+    <a href="/flow">Final flow</a>
+    </nav>
+  </header>
+
+  <main class="ticket-shell-v26">
+    <section class="sh55-brand-values reservation-steps-v55" aria-label="Kako funkcioniše">
+      <article><span>1</span><b>Unesi kod</b><p>Pronađi rezervaciju iz poruke ili linka.</p></article>
+      <article><span>2</span><b>Prikaži kartu</b><p>Otvori digitalnu kartu sa detaljima.</p></article>
+      <article><span>3</span><b>Pokaži QR</b><p>Prodavac proverava kod pri preuzimanju.</p></article>
+      <article><span>4</span><b>Preuzmi obrok</b><p>Uštedi novac i smanji bacanje.</p></article>
+    </section>
+    <section class="ticket-search-card-v26">
+      <span class="section-kicker">Digitalna karta</span>
+      <h1>Proveri rezervaciju</h1>
+      <p>Unesi kod rezervacije ili otvori link koji si dobio posle rezervacije. Plaćanje se obavlja kroz povezani provider. Ako je podešen IPS račun, korisnik dobija stvaran IPS QR kod za m-banking.</p>
+      <div class="ticket-code-row-v26">
+        <input id="ticketCodeInput" placeholder="npr. A1B2C3D4" autocomplete="off" />
+        <button id="loadTicketBtn">Prikaži kartu</button>
+      </div>
+      <div id="ticketMessage" class="ai-result-v21">Unesi kod da prikažeš detalje rezervacije.</div>
+    </section>
+
+    <section id="ticketPanel" class="reservation-ticket-v26 hidden">
+      <div class="ticket-top-v26">
+        <div>
+          <span class="section-kicker">Kod rezervacije</span>
+          <div id="ticketCodeBig" class="ticket-code-big-v26">—</div>
+        </div>
+        <div id="ticketStatus" class="ticket-status-v26">—</div>
+      </div>
+
+      <div class="ticket-visual-code-v26" id="visualCode" aria-hidden="true"></div>
+
+      <div class="ticket-grid-v26">
+        <div><span>Proizvod</span><strong id="ticketProduct">—</strong></div>
+        <div><span>Prodavac</span><strong id="ticketStore">—</strong></div>
+        <div><span>Količina</span><strong id="ticketQuantity">—</strong></div>
+        <div><span>Kupac</span><strong id="ticketCustomer">—</strong></div>
+        <div><span>Telefon</span><strong id="ticketPhone">—</strong></div>
+        <div><span>Plaćanje</span><strong id="ticketPaymentStatus">—</strong></div>
+        <div><span>Iznos</span><strong id="ticketPayable">—</strong></div>
+        <div><span>Loyalty popust</span><strong id="ticketLoyalty">—</strong></div>
+        <div><span>Kreirano</span><strong id="ticketCreated">—</strong></div>
+      </div>
+
+      <div id="ticketPaymentBox" class="payment-preview-v28"></div>
+
+      <div class="ticket-note-v26">
+        <strong>Kako se koristi?</strong>
+        <p>Sačuvaj ovaj ekran ili pokaži kod prodavcu pri preuzimanju. Prodavac može kod da proveri u svom panelu i označi rezervaciju kao preuzetu. Plaćena rezervacija ima status “Plaćeno online”; IPS uplata može čekati potvrdu providera ili prodavca.</p>
+      </div>
+
+      <div class="ticket-actions-v26">
+        <button id="copyTicketLinkBtn">Kopiraj link</button>
+        <button id="shareTicketBtn" class="secondary">Podeli</button>
+        <button id="printTicketBtn" class="secondary">Štampaj / Sačuvaj PDF</button>
+      </div>
+
+      <details class="cancel-box-v26">
+        <summary>Otkaži rezervaciju</summary>
+        <p>Otkazivanje je moguće dok je rezervacija u statusu “čeka potvrdu” ili “potvrđeno”. Zbog zaštite podataka, potvrdi poslednjih 6 cifara telefona.</p>
+        <div class="ticket-code-row-v26">
+          <input id="cancelPhoneInput" placeholder="Telefon korišćen za rezervaciju" />
+          <button id="cancelTicketBtn" class="danger">Otkaži</button>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <div id="toast" role="status"></div>
+  <script src="/admin-assets/reservation.js"></script>
+  <script src="/admin-assets/pwa.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

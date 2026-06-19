@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — Pilot Ready</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="pilot-v36">
+<header class="admin-hero compact-hero-v35 pilot-hero-v36">
+  <div>
+    <p class="eyebrow">Sačuvaj Hranu · V36</p>
+    <h1>Pilot Ready Platform</h1>
+    <p class="subtitle">Jedan pregled za pilot: kvalitet baze, prodavci, porudžbine, finansije, refundi, import i dnevni izveštaj.</p>
+  </div>
+  <nav class="top-actions">
+    <a class="link-button" href="/offers">Kupac</a>
+    <a class="link-button secondary-link" href="/seller-pro">Seller Pro</a>
+    <a class="link-button secondary-link" href="/finance">Finansije</a>
+    <a class="link-button secondary-link" href="/ops">Ops</a>
+    <button class="secondary danger-link" data-admin-logout>Odjava</button>
+  </nav>
+</header>
+<main class="ops-main-v35 pilot-main-v36">
+  <section class="card wide">
+    <div class="section-title">
+      <div><h2>Kontrolna tabla pilota</h2><p class="help-text">Ovo je glavna stranica pre izlaska pred prve prodavce i kupce.</p></div>
+      <div class="utility-row"><button id="refreshPilot">Osveži</button><button id="dailyReportBtn" class="secondary">Dnevni izveštaj</button><button id="expireBtn" class="secondary">Sakrij istekle</button></div>
+    </div>
+    <div id="pilotStats" class="stats-grid"></div>
+  </section>
+  <section class="card wide">
+    <h2>Brze akcije</h2>
+    <div class="module-grid-v35">
+      <a href="/admin"><strong>Baza i proizvodi</strong><span>Unos, crawler, Excel i odobravanje ponuda</span></a>
+      <a href="/partners-admin"><strong>Onboarding prodavaca</strong><span>Prijave, odobravanje, seller PIN</span></a>
+      <a href="/support-admin"><strong>Podrška</strong><span>Problemi i tiketi</span></a>
+      <a href="/refund"><strong>Zahtev za refund</strong><span>Javna strana za kupca</span></a>
+      <a href="/customer-plus"><strong>Kupac Plus</strong><span>Omiljeni, pretrage, referral, ocene</span></a>
+      <a href="/settings-admin"><strong>Podešavanja</strong><span>Pravila, gradovi, kategorije</span></a>
+    </div>
+  </section>
+  <section class="card wide">
+    <div class="section-title"><div><h2>Kvalitet baze</h2><p class="help-text">Javna ponuda mora imati prodavca, sliku, cenu i količinu.</p></div><button id="qualityBtn">Proveri kvalitet</button></div>
+    <div id="qualityBox" class="pilot-box-v36"></div>
+  </section>
+  <section class="card wide">
+    <div class="section-title"><div><h2>Import za pilot</h2><p class="help-text">Za realan pilot je često brže uvesti prodavce i proizvode iz Excel-a nego se oslanjati na scraping.</p></div><a class="link-button secondary-link" href="/pilot-api/import/template.xlsx">Preuzmi šablon</a></div>
+    <form id="importForm" class="inline-form"><input type="file" name="file" accept=".xlsx,.xlsm" required><button>Uvezi Excel</button></form>
+    <pre id="importResult" class="log-box"></pre>
+  </section>
+  <section class="card wide">
+    <h2>Dnevni izveštaj</h2>
+    <pre id="reportBox" class="log-box tall-log-v36">Klikni „Dnevni izveštaj”.</pre>
+  </section>
+</main>
+<div id="toast"></div>
+<script src="/admin-assets/admin-auth.js"></script>
+<script src="/admin-assets/pilot.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

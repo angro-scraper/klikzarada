@@ -1,0 +1,436 @@
+import os
+from pathlib import Path
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, Response, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+from .database import Base, engine, SessionLocal
+from . import finance_models  # noqa: F401 - registers finance tables on Base metadata
+from sqlalchemy import text
+from .services.excel_database import export_database_to_excel, excel_status
+from .services.admin_auth import is_request_admin
+from .routes import stores, products, sources, crawl, stats, jobs, reservations, seller_api, uploads, database_tools, excel_database, buyer_ai, payments, qr, finance, customers, admin_auth, notifications, app_settings, support_tickets, seller_applications, operations, v36_pilot, v36_engagement, v36_orders, v37_scale, v38_launch, v39_expansion, v40_market_ops, v41_execution, v42_real_data, v43_stronger_ai, v45_consumer, v47_live_launch, v48_super_app, flow, commission
+from .admin_console_routes import router as admin_console_router
+from .finance_reports_routes import router as finance_reports_router
+from .finance_reports_sr_routes import router as finance_reports_sr_router
+
+load_dotenv()
+
+Base.metadata.create_all(bind=engine)
+
+# Lightweight SQLite migration for users who reuse an older local food_saver.db.
+# In production, replace this with Alembic migrations.
+try:
+    if str(engine.url).startswith("sqlite"):
+        with engine.begin() as conn:
+            rows = conn.execute(text("PRAGMA table_info(stores)")).fetchall()
+            columns = {row[1] for row in rows}
+            if "seller_pin" not in columns:
+                conn.execute(text("ALTER TABLE stores ADD COLUMN seller_pin VARCHAR(20)"))
+                conn.execute(text("UPDATE stores SET seller_pin = printf('%06d', abs(random()) % 1000000) WHERE seller_pin IS NULL"))
+            if "latitude" not in columns:
+                conn.execute(text("ALTER TABLE stores ADD COLUMN latitude FLOAT"))
+            if "longitude" not in columns:
+                conn.execute(text("ALTER TABLE stores ADD COLUMN longitude FLOAT"))
+
+            reservation_rows = conn.execute(text("PRAGMA table_info(reservations)")).fetchall()
+            reservation_columns = {row[1] for row in reservation_rows}
+            reservation_additions = {
+                "payment_status": "VARCHAR(60) DEFAULT 'unpaid'",
+                "payment_provider": "VARCHAR(80) DEFAULT 'demo'",
+                "payment_method": "VARCHAR(80) DEFAULT 'online_card_demo'",
+                "payment_reference": "VARCHAR(120)",
+                "currency": "VARCHAR(10) DEFAULT 'RSD'",
+                "gross_amount": "FLOAT DEFAULT 0",
+                "loyalty_discount_percent": "FLOAT DEFAULT 0",
+                "loyalty_discount_amount": "FLOAT DEFAULT 0",
+                "payable_amount": "FLOAT DEFAULT 0",
+                "platform_fee_percent": "FLOAT DEFAULT 25",
+                "platform_fee_amount": "FLOAT DEFAULT 0",
+                "seller_net_amount": "FLOAT DEFAULT 0",
+                "paid_at": "DATETIME",
+                "seller_payout_status": "VARCHAR(60) DEFAULT 'not_ready'",
+                "seller_payout_reference": "VARCHAR(160)",
+                "seller_payout_note": "TEXT",
+                "seller_payout_at": "DATETIME",
+            }
+            for col, definition in reservation_additions.items():
+                if col not in reservation_columns:
+                    conn.execute(text(f"ALTER TABLE reservations ADD COLUMN {col} {definition}"))
+except Exception:
+    pass
+
+app = FastAPI(title=os.getenv("APP_NAME", "Sačuvaj Hranu MVP"))
+app.include_router(finance_reports_sr_router)
+app.include_router(finance_reports_router)
+app.include_router(admin_console_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.middleware("http")
+async def excel_autosave_middleware(request, call_next):
+    """Autosave Excel backup without slowing critical customer/seller actions.
+
+    Earlier MVP builds exported the entire Excel database after every POST/PATCH.
+    That made reservation creation and payment-option saving feel slow.
+    V52 keeps manual Excel export available, but skips autosave for fast live flows.
+    """
+    response = await call_next(request)
+    autosave = os.getenv("EXCEL_AUTOSAVE", "false").lower() in {"1", "true", "yes", "da"}
+    mutating_method = request.method.upper() in {"POST", "PATCH", "PUT", "DELETE"}
+    fast_live_prefixes = (
+        "/reservations",
+        "/payments",
+        "/seller-api",
+        "/customers",
+        "/finance",
+        "/uploads",
+        "/notifications",
+        "/v45",
+        "/v48",
+    )
+    skip_path = request.url.path.startswith("/excel-database") or request.url.path.startswith(fast_live_prefixes)
+    if autosave and mutating_method and response.status_code < 400 and not skip_path:
+        try:
+            db = SessionLocal()
+            export_database_to_excel(db)
+        except Exception:
+            pass
+        finally:
+            try:
+                db.close()
+            except Exception:
+                pass
+    return response
+
+app.include_router(admin_auth.router)
+app.include_router(stores.router)
+app.include_router(products.router)
+app.include_router(sources.router)
+app.include_router(crawl.router)
+app.include_router(stats.router)
+app.include_router(jobs.router)
+app.include_router(reservations.router)
+app.include_router(seller_api.router)
+app.include_router(uploads.router)
+app.include_router(database_tools.router)
+app.include_router(excel_database.router)
+app.include_router(buyer_ai.router)
+app.include_router(payments.router)
+app.include_router(qr.router)
+app.include_router(finance.router)
+app.include_router(customers.router)
+app.include_router(notifications.router)
+app.include_router(app_settings.router)
+app.include_router(support_tickets.router)
+app.include_router(seller_applications.router)
+app.include_router(operations.router)
+app.include_router(v36_pilot.router)
+app.include_router(v36_engagement.router)
+app.include_router(v36_orders.router)
+app.include_router(v37_scale.router)
+app.include_router(v38_launch.router)
+app.include_router(v39_expansion.router)
+app.include_router(v40_market_ops.router)
+app.include_router(v41_execution.router)
+app.include_router(v42_real_data.router)
+app.include_router(v43_stronger_ai.router)
+app.include_router(v45_consumer.router)
+app.include_router(v47_live_launch.router)
+app.include_router(v48_super_app.router)
+app.include_router(flow.router)
+app.include_router(commission.router)
+
+STATIC_ADMIN_DIR = Path(__file__).parent / "static" / "admin"
+UPLOAD_DIR = Path(__file__).parent / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/admin-assets", StaticFiles(directory=STATIC_ADMIN_DIR), name="admin-assets")
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+
+
+
+
+def protected_admin_page(request: Request, filename: str):
+    if not is_request_admin(request):
+        return RedirectResponse(url=f"/admin-login?next={request.url.path}", status_code=303)
+    return FileResponse(STATIC_ADMIN_DIR / filename)
+
+
+@app.get("/sw.js", include_in_schema=False)
+def service_worker():
+    content = (STATIC_ADMIN_DIR / "sw.js").read_text(encoding="utf-8")
+    return Response(content=content, media_type="application/javascript", headers={"Service-Worker-Allowed": "/"})
+
+
+@app.get("/admin-login", include_in_schema=False)
+def admin_login_page():
+    return FileResponse(STATIC_ADMIN_DIR / "admin-login.html")
+
+
+@app.get("/admin", include_in_schema=False)
+def admin_page(request: Request):
+    return protected_admin_page(request, "index.html")
+
+
+@app.get("/offers", include_in_schema=False)
+def offers_page():
+    return FileResponse(STATIC_ADMIN_DIR / "offers.html")
+
+
+@app.get("/seller", include_in_schema=False)
+def seller_page():
+    return FileResponse(STATIC_ADMIN_DIR / "seller.html")
+
+
+@app.get("/ai-admin", include_in_schema=False)
+def ai_admin_page(request: Request):
+    return protected_admin_page(request, "ai-admin.html")
+
+
+@app.get("/offer", include_in_schema=False)
+def offer_detail_page():
+    return FileResponse(STATIC_ADMIN_DIR / "offer-detail.html")
+
+
+@app.get("/reservation", include_in_schema=False)
+def reservation_ticket_page():
+    return FileResponse(STATIC_ADMIN_DIR / "reservation.html")
+
+
+@app.get("/checkout", include_in_schema=False)
+def checkout_page():
+    return FileResponse(STATIC_ADMIN_DIR / "checkout.html")
+
+
+@app.get("/finance", include_in_schema=False)
+def finance_page(request: Request):
+    return protected_admin_page(request, "finance.html")
+
+
+
+
+@app.get("/commission-admin", include_in_schema=False)
+def commission_admin_page(request: Request):
+    return protected_admin_page(request, "commission-admin.html")
+
+
+@app.get("/v59", include_in_schema=False)
+def v59_page(request: Request):
+    return protected_admin_page(request, "commission-admin.html")
+
+
+@app.get("/customer", include_in_schema=False)
+def customer_page():
+    return FileResponse(STATIC_ADMIN_DIR / "customer.html")
+
+
+@app.get("/notifications-admin", include_in_schema=False)
+def notifications_admin_page(request: Request):
+    return protected_admin_page(request, "notifications.html")
+
+
+@app.get("/ops", include_in_schema=False)
+def operations_page(request: Request):
+    return protected_admin_page(request, "operations.html")
+
+
+@app.get("/settings-admin", include_in_schema=False)
+def settings_admin_page(request: Request):
+    return protected_admin_page(request, "settings.html")
+
+
+@app.get("/support-admin", include_in_schema=False)
+def support_admin_page(request: Request):
+    return protected_admin_page(request, "support-admin.html")
+
+
+@app.get("/partners-admin", include_in_schema=False)
+def partners_admin_page(request: Request):
+    return protected_admin_page(request, "partners-admin.html")
+
+
+@app.get("/support", include_in_schema=False)
+def support_page():
+    return FileResponse(STATIC_ADMIN_DIR / "support.html")
+
+
+@app.get("/partner", include_in_schema=False)
+def partner_page():
+    return FileResponse(STATIC_ADMIN_DIR / "partner.html")
+
+
+@app.get("/terms", include_in_schema=False)
+def terms_page():
+    return FileResponse(STATIC_ADMIN_DIR / "terms.html")
+
+
+@app.get("/privacy", include_in_schema=False)
+def privacy_page():
+    return FileResponse(STATIC_ADMIN_DIR / "privacy.html")
+
+
+@app.get("/food-safety", include_in_schema=False)
+def food_safety_page():
+    return FileResponse(STATIC_ADMIN_DIR / "food-safety.html")
+
+
+@app.get("/pilot", include_in_schema=False)
+def pilot_page(request: Request):
+    return protected_admin_page(request, "pilot.html")
+
+
+@app.get("/seller-pro", include_in_schema=False)
+def seller_pro_page():
+    return FileResponse(STATIC_ADMIN_DIR / "seller-pro.html")
+
+
+@app.get("/customer-plus", include_in_schema=False)
+def customer_plus_page():
+    return FileResponse(STATIC_ADMIN_DIR / "customer-plus.html")
+
+
+@app.get("/refund", include_in_schema=False)
+def refund_page():
+    return FileResponse(STATIC_ADMIN_DIR / "refund.html")
+
+
+@app.get("/launch", include_in_schema=False)
+def launch_page(request: Request):
+    return protected_admin_page(request, "launch.html")
+
+
+
+@app.get("/expansion", include_in_schema=False)
+def expansion_page(request: Request):
+    return protected_admin_page(request, "expansion.html")
+
+
+@app.get("/market-ops", include_in_schema=False)
+def market_ops_page(request: Request):
+    return protected_admin_page(request, "market-ops.html")
+
+@app.get("/v40", include_in_schema=False)
+def v40_page(request: Request):
+    return protected_admin_page(request, "market-ops.html")
+
+
+@app.get("/execution", include_in_schema=False)
+def execution_page(request: Request):
+    return protected_admin_page(request, "execution.html")
+
+@app.get("/v41", include_in_schema=False)
+def v41_page(request: Request):
+    return protected_admin_page(request, "execution.html")
+
+
+@app.get("/real-data", include_in_schema=False)
+def real_data_page(request: Request):
+    return protected_admin_page(request, "real-data.html")
+
+@app.get("/v42", include_in_schema=False)
+def v42_page(request: Request):
+    return protected_admin_page(request, "real-data.html")
+
+
+
+@app.get("/ai-market", include_in_schema=False)
+def ai_market_page(request: Request):
+    return protected_admin_page(request, "ai-market.html")
+
+@app.get("/v43", include_in_schema=False)
+def v43_page(request: Request):
+    return protected_admin_page(request, "ai-market.html")
+
+
+
+@app.get("/app", include_in_schema=False)
+def consumer_app_page():
+    return FileResponse(STATIC_ADMIN_DIR / "consumer-app.html")
+
+@app.get("/u", include_in_schema=False)
+def consumer_app_short_page():
+    return FileResponse(STATIC_ADMIN_DIR / "consumer-app.html")
+
+
+@app.get("/go-live", include_in_schema=False)
+def go_live_page(request: Request):
+    return protected_admin_page(request, "go-live.html")
+
+@app.get("/v46", include_in_schema=False)
+def v46_page():
+    return FileResponse(STATIC_ADMIN_DIR / "consumer-app.html")
+
+
+@app.get("/live-launch", include_in_schema=False)
+def live_launch_page(request: Request):
+    return protected_admin_page(request, "live-launch.html")
+
+@app.get("/v47", include_in_schema=False)
+def v47_page(request: Request):
+    return protected_admin_page(request, "live-launch.html")
+
+
+@app.get("/flow", include_in_schema=False)
+def flow_page():
+    return FileResponse(STATIC_ADMIN_DIR / "flow.html")
+
+
+@app.get("/launch-pack", include_in_schema=False)
+def launch_pack_page():
+    return FileResponse(STATIC_ADMIN_DIR / "launch-pack.html")
+
+@app.get("/v58", include_in_schema=False)
+def v58_page():
+    return FileResponse(STATIC_ADMIN_DIR / "launch-pack.html")
+
+@app.get("/command", include_in_schema=False)
+def v48_command_page(request: Request):
+    return protected_admin_page(request, "command-v49.html")
+
+@app.get("/super-command", include_in_schema=False)
+def v48_super_command_page(request: Request):
+    return protected_admin_page(request, "command-v49.html")
+
+@app.get("/v48", include_in_schema=False)
+def v48_page(request: Request):
+    return protected_admin_page(request, "command-v49.html")
+
+@app.get("/v49", include_in_schema=False)
+def v49_page(request: Request):
+    return protected_admin_page(request, "command-v49.html")
+
+@app.get("/v50", include_in_schema=False)
+def v50_page(request: Request):
+    return protected_admin_page(request, "command-v49.html")
+
+@app.get("/v51", include_in_schema=False)
+def v51_page(request: Request):
+    return protected_admin_page(request, "command-v49.html")
+
+@app.get("/")
+def root():
+    return {
+        "app": "Sačuvaj Hranu MVP",
+        "status": "running",
+        "docs": "/docs",
+        "excel_database": excel_status(),
+        "message": "Backend za ponude hrane na sniženju i artikle kraćeg roka. Excel baza se automatski čuva u backend/data/food_saver_database.xlsx.",
+    }
+
+
+@app.get("/scale", include_in_schema=False)
+def scale_page(request: Request):
+    return protected_admin_page(request, "scale.html")
+
+@app.get("/growth", include_in_schema=False)
+def growth_page(request: Request):
+    return protected_admin_page(request, "scale.html")

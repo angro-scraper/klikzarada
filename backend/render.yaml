@@ -1,0 +1,52 @@
+services:
+  - type: web
+    name: sacuvaj-hranu-api
+    env: docker
+    plan: starter
+    healthCheckPath: /healthz
+    autoDeploy: false
+    envVars:
+      - key: APP_NAME
+        value: Sačuvaj Hranu
+      - key: APP_ENV
+        value: production
+      - key: PRODUCTION_MODE
+        value: "true"
+      - key: ADMIN_GUARD_ENABLED
+        value: "true"
+      - key: ADMIN_COOKIE_SECURE
+        value: "true"
+      - key: PAYMENT_PROVIDER
+        value: pay_on_pickup
+      - key: EXCEL_AUTOSAVE
+        value: "false"
+      - key: DEFAULT_LOCALE
+        value: sr-RS
+      - key: UI_LANGUAGE
+        value: sr
+      - key: FINANCE_CONSOLE_LANGUAGE
+        value: sr
+      - key: DATABASE_URL
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: ADMIN_PIN
+        sync: false
+      - key: ADMIN_SESSION_SECRET
+        sync: false
+      - key: PLATFORM_COMMISSION_PERCENT
+        value: "25"
+      - key: COMMISSION_COLLECTION_MODEL
+        value: seller_invoice
+      - key: SMS_ENABLED
+        value: "true"
+      - key: SMS_PROVIDER
+        value: mock
+      - key: SMS_DRY_RUN
+        value: "true"
+      - key: SMS_HTTP_URL
+        sync: false
+      - key: SMS_HTTP_TOKEN
+        sync: false

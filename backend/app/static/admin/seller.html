@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — Prodavac panel</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <link rel="manifest" href="/admin-assets/manifest.webmanifest" />
+  <meta name="theme-color" content="#1E4D3A" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Sačuvaj Hranu" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="sh55-page sh55-seller">
+  <nav class="sh55-topbar" aria-label="Glavna navigacija">
+    <a class="sh55-brand" href="/app" aria-label="Sačuvaj Hranu">
+      <span class="sh55-logo" aria-hidden="true"></span>
+      <span><strong>Sačuvaj</strong><small>Hranu</small></span>
+    </a>
+    <div class="sh55-navlinks">
+      <a href="/app">Ponude</a>
+      <a href="/customer">Kupac</a>
+      <a href="/finance">Finansije</a>
+      <a href="/admin">Admin</a>
+    </div>
+  <a href="/flow">Final flow</a>
+    </nav>
+
+  <header class="sh55-hero sh55-seller-hero">
+    <div class="sh55-hero-copy">
+      <p class="sh55-kicker">Prodavac panel</p>
+      <h1>Brzo objavi ponudu, proveri QR i sačuvaj obrok.</h1>
+      <p class="sh55-slogan">Uštedi novac. Sačuvaj obrok. Smanji bacanje.</p>
+      <p class="sh55-lead">Panel za prodavce prati isti izgled kao kupac: jasne kartice, brzi unos, kamera/QR provera i status provizije.</p>
+      <div class="sh55-mini-values">
+        <span>🛍️ Nova ponuda</span>
+        <span>📷 QR skener</span>
+        <span>✅ Preuzimanje</span>
+        <span>💰 Provizija</span>
+      </div>
+    </div>
+    <div class="sh55-action-card">
+      <span class="sh55-logo large" aria-hidden="true"></span>
+      <h2>Sačuvaj Hranu</h2>
+      <p>Prodavac potvrđuje rezervaciju, kupac preuzima obrok, platforma prati status.</p>
+      <div class="utility-row">
+        <a class="link-button" href="/app">Pregled za kupce</a>
+        <button id="refreshBtn">Osveži</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="sh55-brand-values seller-values-v55" aria-label="Prednosti za prodavce">
+    <article><span>🛍️</span><b>Brza objava</b><p>Objavi ponudu za nekoliko minuta.</p></article>
+    <article><span>📷</span><b>QR preuzimanje</b><p>Proveri kupca kamerom ili ručnim kodom.</p></article>
+    <article><span>🥗</span><b>Manje bačene hrane</b><p>Prodaj višak dok je još kvalitetan.</p></article>
+    <article><span>💰</span><b>Jasan obračun</b><p>Provizija i promet su transparentni.</p></article>
+  </section>
+
+  <main>
+    <section class="card wide">
+      <h2>Izaberi prodavca</h2>
+      <p class="help-text">Izaberi prodavca i unesi njegov PIN. PIN kreiraš u admin panelu kada dodaš prodavca.</p>
+      <div class="seller-selector">
+        <select id="sellerStoreSelect"></select>
+        <input id="sellerPinInput" type="password" placeholder="PIN prodavca" autocomplete="current-password" />
+        <button id="useStoreBtn">Prijavi prodavca</button>
+        <button id="logoutSellerBtn" class="secondary">Odjavi</button>
+        <button id="copySellerLinkBtn" class="secondary">Kopiraj link za prodavca</button>
+      </div>
+      <div id="sellerInfo" class="seller-info"></div>
+    </section>
+
+
+
+    <section class="card wide" data-seller-protected>
+      <h2>Lokacija prodavnice za mapu</h2>
+      <p class="help-text">Kupci mogu da pretražuju ponude u blizini samo ako prodavnica ima GPS koordinate. Najlakše: stani u prodavnici i klikni dugme ispod. Ako browser blokira GPS, unesi koordinate ručno.</p>
+      <div class="seller-selector">
+        <button id="sellerUseGpsBtn" type="button">Upiši GPS lokaciju prodavnice</button>
+        <button id="sellerOpenMapBtn" type="button" class="secondary">Otvori na mapi</button>
+        <input id="sellerManualLat" type="number" step="0.000001" placeholder="Latitude" />
+        <input id="sellerManualLng" type="number" step="0.000001" placeholder="Longitude" />
+        <button id="sellerSaveManualGpsBtn" type="button" class="secondary">Sačuvaj ručno</button>
+      </div>
+      <pre id="sellerLocationResult" class="result compact-result">GPS lokacija još nije upisana.</pre>
+    </section>
+
+    <section class="card wide" data-seller-protected>
+      <h2>Pregled prodavca</h2>
+      <div id="sellerStatsGrid" class="stats-grid"></div>
+    </section>
+
+    <section class="card" data-seller-protected>
+      <h2>Dodaj novu ponudu</h2>
+      <p class="help-text">Za pekare i restorane možeš koristiti naziv tipa “Korpa iznenađenja” ili konkretan proizvod.</p>
+
+      <div class="quick-agent-panel wide-field">
+        <h3>AI brzi unos prodavca</h3>
+        <p class="help-text">Upiši ili izdiktiraj jednu rečenicu, pa klikni “Popuni formu”. Primer: <b>hleb beli 500g stara 90 nova 55 10 kom rok sutra 18-21</b></p>
+        <div class="quick-command-row">
+          <textarea id="quickCommandText" rows="3" placeholder="npr. jogurt 1kg stara 180 nova 120 6 kom rok 20.06 preuzimanje do 21h"></textarea>
+          <div class="quick-command-actions">
+            <button type="button" id="parseQuickCommandBtn">Popuni formu</button>
+            <button type="button" id="voiceQuickCommandBtn" class="secondary">Diktiraj</button>
+            <button type="button" id="repeatLastOfferBtn" class="secondary">Ponovi poslednju</button>
+          </div>
+        </div>
+        <div class="quick-chips">
+          <button type="button" data-quick-expiry="today" class="secondary">Rok danas</button>
+          <button type="button" data-quick-expiry="tomorrow" class="secondary">Rok sutra</button>
+          <button type="button" data-quick-pickup="danas 16-18h" class="secondary">16-18h</button>
+          <button type="button" data-quick-pickup="danas 18-21h" class="secondary">18-21h</button>
+          <button type="button" data-quick-pickup="danas do 21h" class="secondary">do 21h</button>
+        </div>
+        <pre id="quickCommandResult" class="result compact-result">Brzi unos čeka komandu.</pre>
+      </div>
+
+      <form id="sellerProductForm" class="grid-form">
+        <label>Naziv<input name="name" required placeholder="Korpa peciva" /></label>
+        <label>Kategorija<input name="category" placeholder="pekara" /></label>
+        <label>Stara cena<input name="original_price" type="number" step="0.01" placeholder="500" /></label>
+        <label>Snižena cena<input name="discounted_price" type="number" step="0.01" placeholder="250" /></label>
+        <label>Popust %<input name="discount_percent" type="number" step="0.01" placeholder="50" /></label>
+        <label>Količina<input name="quantity" type="number" min="1" placeholder="5" /></label>
+        <label>Rok trajanja<input name="expiry_date" type="date" /></label>
+        <label>Tip roka
+          <select name="expiry_type">
+            <option value="unknown">unknown</option>
+            <option value="best_before">best_before</option>
+            <option value="use_by">use_by</option>
+          </select>
+        </label>
+        <label>Preuzimanje<input name="pickup_window" placeholder="danas 18-21h" /></label>
+        <label>Slika ponude<input name="product_image" type="file" accept="image/*" capture="environment" /></label>
+
+        <div class="wide-field camera-panel">
+          <div class="camera-toolbar">
+            <button type="button" id="openCameraBtn" class="secondary">Otvori kameru</button>
+            <button type="button" id="snapCameraBtn" disabled>Slikaj proizvod</button>
+            <button type="button" id="clearCapturedImageBtn" class="secondary">Ukloni sliku</button>
+          </div>
+          <video id="cameraVideo" class="camera-video hidden" autoplay playsinline muted></video>
+          <canvas id="cameraCanvas" class="hidden"></canvas>
+          <div id="cameraPreviewWrap" class="camera-preview-wrap hidden">
+            <img id="cameraPreview" class="camera-preview" alt="Pregled uslikane ponude" />
+            <span class="status">Kamera slika je spremna za objavu</span>
+          </div>
+          <p class="help-text">Na telefonu možeš koristiti direktno polje “Slika ponude”, a na desktopu dugme “Otvori kameru”. Posle slikanja samo klikni “Objavi ponudu”.</p>
+        </div>
+
+        <label>Status
+          <select name="status">
+            <option value="seller_verified">seller_verified</option>
+            <option value="near_expiry">near_expiry</option>
+            <option value="public_discount">public_discount</option>
+            <option value="candidate">candidate</option>
+          </select>
+        </label>
+        <button type="submit">Objavi ponudu</button>
+      </form>
+    </section>
+
+    <section class="card" data-seller-protected>
+      <h2>Brzi šabloni</h2>
+      <p class="help-text">Klik popunjava formu. Posle samo proveri cenu/količinu i sačuvaj.</p>
+      <div class="template-grid">
+        <button class="secondary" data-template="bakery">Pekara: korpa peciva</button>
+        <button class="secondary" data-template="lunch">Restoran: dnevni meni</button>
+        <button class="secondary" data-template="market">Market: kraći rok</button>
+      </div>
+      <div class="quick-camera-grid">
+        <button data-quick-camera="bakery">Pekara + kamera</button>
+        <button data-quick-camera="lunch">Restoran + kamera</button>
+        <button data-quick-camera="market">Market + kamera</button>
+      </div>
+      <p class="help-text">Brzi tok: klikni šablon + kamera, slikaj proizvod, proveri cenu i objavi.</p>
+      <pre id="sellerResult" class="result">Izaberi prodavca i dodaj ponudu.</pre>
+    </section>
+
+    <section class="card wide" data-seller-protected>
+      <div class="table-header">
+        <h2>Moji artikli</h2>
+        <div class="filters">
+          <select id="sellerProductStatusFilter">
+            <option value="">Svi aktivni</option>
+            <option value="candidate">candidate</option>
+            <option value="public_discount">public_discount</option>
+            <option value="seller_verified">seller_verified</option>
+            <option value="near_expiry">near_expiry</option>
+            <option value="expired">expired</option>
+            <option value="hidden">hidden</option>
+          </select>
+          <button id="applyProductFilterBtn">Primeni</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th><th>Slika</th><th>Naziv</th><th>Kategorija</th><th>Cena</th><th>Dostupno</th><th>Rok</th><th>Status</th><th>Akcije</th>
+            </tr>
+          </thead>
+          <tbody id="sellerProductsTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+
+    <section class="card wide" data-seller-protected>
+      <div class="table-header">
+        <div>
+          <h2>Provera koda pri preuzimanju</h2>
+          <p class="help-text">Kada kupac dođe, unesi njegov kod rezervacije. Sistem proverava da li rezervacija pripada tvojoj prodavnici.</p>
+        </div>
+      </div>
+      <div class="seller-code-check-v26">
+        <input id="sellerReservationCodeInput" placeholder="Kod rezervacije, npr. A1B2C3D4" autocomplete="off" />
+        <button id="sellerLookupReservationBtn" type="button">Proveri kod</button>
+      </div>
+      <div class="seller-qr-scan-v52">
+        <div class="camera-toolbar">
+          <button id="startQrScanBtn" type="button">Skeniraj QR kupca</button>
+          <button id="stopQrScanBtn" type="button" class="secondary" disabled>Zaustavi skener</button>
+          <label class="link-button secondary-link qr-file-label-v52">Učitaj QR sliku<input id="qrImageFileInput" type="file" accept="image/*" hidden /></label>
+        </div>
+        <video id="qrScannerVideo" class="camera-video hidden" autoplay playsinline muted></video>
+        <canvas id="qrScannerCanvas" class="hidden"></canvas>
+        <pre id="qrScannerStatus" class="result compact-result">Možeš ručno uneti kod ili skenirati QR sa digitalne karte kupca.</pre>
+      </div>
+      <div id="sellerReservationCheckResult" class="seller-check-result-v26">Unesi kod da prikažeš rezervaciju.</div>
+    </section>
+
+    <section class="card wide" data-seller-protected>
+      <div class="table-header">
+        <h2>Moje rezervacije</h2>
+        <div class="filters">
+          <select id="sellerReservationStatusFilter">
+            <option value="">Svi statusi</option>
+            <option value="pending">pending</option>
+            <option value="confirmed">confirmed</option>
+            <option value="picked_up">picked_up</option>
+            <option value="cancelled">cancelled</option>
+            <option value="expired">expired</option>
+          </select>
+          <button id="applyReservationFilterBtn">Primeni</button>
+        </div>
+      </div>
+      <p class="help-text">Prodavac može da potvrdi rezervaciju, označi da je kupac preuzeo ili otkaže rezervaciju.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Kod</th><th>Artikal</th><th>Kupac</th><th>Telefon</th><th>Količina</th><th>Status</th><th>Plaćanje</th><th>Neto prodavcu</th><th>Vreme</th><th>Akcije</th>
+            </tr>
+          </thead>
+          <tbody id="sellerReservationsTable"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" role="status"></div>
+  <script src="/admin-assets/seller.js"></script>
+  <script src="/admin-assets/pwa.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

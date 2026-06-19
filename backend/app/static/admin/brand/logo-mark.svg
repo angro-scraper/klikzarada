@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Sačuvaj Hranu logo">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B4B3A"/>
+      <stop offset="1" stop-color="#116B50"/>
+    </linearGradient>
+    <linearGradient id="m" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7BC69B"/>
+      <stop offset="1" stop-color="#4FBF9F"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="58" fill="#F7F3EB"/>
+  <path d="M72 84h112l-10 112H82L72 84z" fill="url(#g)"/>
+  <path d="M92 88V70c0-24 18-41 36-41s36 17 36 41v18" fill="none" stroke="#0B4B3A" stroke-width="18" stroke-linecap="round"/>
+  <path d="M81 119c10 38 35 56 70 48 21-5 39-20 49-43-32 5-50 0-72 14-20 13-35 8-47-19z" fill="#FFF7E6"/>
+  <circle cx="105" cy="120" r="15" fill="#F2A93B"/>
+  <circle cx="128" cy="113" r="17" fill="#F2A93B"/>
+  <path d="M148 125c9-27 29-39 55-37-7 27-25 43-55 37z" fill="#7BC69B"/>
+  <path d="M145 126c18-12 35-21 54-34" fill="none" stroke="#0B4B3A" stroke-width="5" stroke-linecap="round" opacity=".65"/>
+  <path d="M94 169l31 31 65-72" fill="none" stroke="url(#m)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

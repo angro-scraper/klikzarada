@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — Plaćanje</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <link rel="manifest" href="/admin-assets/manifest.webmanifest" />
+  <meta name="theme-color" content="#1E4D3A" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="sh55-page sh55-ticket ticket-page-v26 checkout-page-v29">
+  <header class="ticket-header-v26">
+    <a class="brand-lockup sh55-ticket-brand" href="/app" aria-label="Sačuvaj Hranu">
+      <img src="/admin-assets/brand/logo-mark.svg" alt="" />
+      <span><strong>Sačuvaj Hranu</strong><small>Uštedi novac. Sačuvaj obrok. Smanji bacanje.</small></span>
+    </a>
+    <nav class="buyer-nav-links">
+      <a href="/offers">Ponude</a>
+      <a href="/reservation">Rezervacija</a>
+    <a href="/flow">Final flow</a>
+    </nav>
+  </header>
+
+  <main class="checkout-shell-v29">
+    <section class="sh55-brand-values checkout-values-v55" aria-label="Sigurnost plaćanja">
+      <article><span>🔒</span><b>Sigurno plaćanje</b><p>Izaberi PayPal ili plaćanje pri preuzimanju.</p></article>
+      <article><span>🎟️</span><b>Digitalna karta</b><p>Rezervacija ostaje sačuvana kao dokaz.</p></article>
+      <article><span>✅</span><b>Jasna cena</b><p>Popust, stara cena i nova cena su vidljivi.</p></article>
+    </section>
+    <section class="checkout-hero-v29">
+      <span class="section-kicker">Sigurno plaćanje</span>
+      <h1>Plati rezervaciju</h1>
+      <p>Izaberi način plaćanja: PayPal, IPS QR kada bude dostupan, ili plaćanje pri preuzimanju. Digitalna karta ostaje dokaz rezervacije.</p>
+      <div class="ticket-code-row-v26">
+        <input id="checkoutCodeInput" placeholder="Kod rezervacije" autocomplete="off" />
+        <button id="loadCheckoutBtn">Učitaj plaćanje</button>
+      </div>
+      <div id="checkoutMessage" class="ai-result-v21">Unesi kod rezervacije da prikažeš plaćanje.</div>
+    </section>
+
+    <section id="checkoutPanel" class="checkout-card-v29 hidden">
+      <div class="checkout-top-v29">
+        <div>
+          <span class="section-kicker">Rezervacija</span>
+          <h2 id="checkoutCode">—</h2>
+          <p id="checkoutProduct">—</p>
+        </div>
+        <div class="checkout-amount-v29">
+          <span>Za plaćanje</span>
+          <strong id="checkoutAmount">—</strong>
+        </div>
+      </div>
+
+      <div class="checkout-status-grid-v29">
+        <div><span>Prodavac</span><strong id="checkoutStore">—</strong></div>
+        <div><span>Status rezervacije</span><strong id="checkoutReservationStatus">—</strong></div>
+        <div><span>Status plaćanja</span><strong id="checkoutPaymentStatus">—</strong></div>
+        <div><span>Provider</span><strong id="checkoutProvider">—</strong></div>
+      </div>
+
+      <div id="providerNotice" class="checkout-notice-v29 hidden"></div>
+
+      <div class="qr-grid-v29">
+        <article id="paymentQrCard" class="qr-card-v29">
+          <span class="section-kicker">QR plaćanje</span>
+          <h3>IPS / provider QR</h3>
+          <div id="paymentQrBox" class="qr-box-v29"></div>
+          <p id="paymentInstructions">—</p>
+        </article>
+        <article class="qr-card-v29">
+          <span class="section-kicker">Digitalna karta</span>
+          <h3>QR za rezervaciju</h3>
+          <div id="ticketQrBox" class="qr-box-v29"></div>
+          <p>Skeniranjem se otvara digitalna karta rezervacije.</p>
+        </article>
+      </div>
+
+      <details id="ipsPayloadDetails" class="cancel-box-v26 hidden">
+        <summary>Tehnički IPS tekst</summary>
+        <pre id="ipsPayloadText"></pre>
+      </details>
+
+      <div id="paypalBox" class="paypal-box-v51 hidden">
+        <div>
+          <span class="section-kicker">PayPal online plaćanje</span>
+          <h3>Plati PayPal-om</h3>
+          <p id="paypalAmountText">—</p>
+        </div>
+        <a id="paypalPayBtn" class="paypal-button-v51" href="#" target="_blank" rel="noopener">Nastavi na PayPal</a>
+      </div>
+
+      <div class="pickup-box-v51">
+        <div>
+          <span class="section-kicker">Alternativa</span>
+          <h3>Plati pri preuzimanju</h3>
+          <p>Rezervacija ostaje aktivna, a kupac plaća direktno prodavcu. Platformska provizija se vodi interno za obračun sa prodavcem.</p>
+        </div>
+        <button id="payOnPickupBtn" class="secondary">Izaberi plaćanje pri preuzimanju</button>
+      </div>
+
+      <div class="ticket-actions-v26">
+        <a id="openReservationLink" class="link-button" href="#">Otvori digitalnu kartu</a>
+        <button id="copyCheckoutLinkBtn" class="secondary">Kopiraj link plaćanja</button>
+        <button id="refreshCheckoutBtn" class="secondary">Osveži status</button>
+        <button id="demoPayBtn" class="secondary hidden">Demo potvrdi plaćanje</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" role="status"></div>
+  <script src="/admin-assets/checkout.js"></script>
+  <script src="/admin-assets/pwa.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

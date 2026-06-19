@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Launch centar — Sačuvaj Hranu</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <style>
+    body{background:#f8fafc;color:#0f172a;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;margin:0}.top{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-bottom:1px solid #e2e8f0}.bar{max-width:1240px;margin:0 auto;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}.brand{display:flex;gap:12px;align-items:center;font-weight:850;font-size:20px}.logo{width:40px;height:40px;border-radius:14px;background:linear-gradient(135deg,#16a34a,#84cc16);display:grid;place-items:center;color:white}.nav a{color:#475569;text-decoration:none;margin-left:12px;font-weight:700;font-size:14px}.wrap{max-width:1240px;margin:0 auto;padding:26px 20px 60px}.hero{display:grid;grid-template-columns:1.4fr .8fr;gap:18px;align-items:stretch}.card{background:#fff;border:1px solid #e2e8f0;border-radius:24px;box-shadow:0 18px 40px rgba(15,23,42,.06);padding:22px}.hero h1{font-size:38px;line-height:1.05;margin:0 0 12px}.muted{color:#64748b}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}.metric{background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:16px}.metric b{display:block;font-size:28px;margin-top:6px}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}button,.btn{border:0;border-radius:14px;padding:12px 16px;font-weight:800;cursor:pointer;background:#0f172a;color:#fff;text-decoration:none;display:inline-flex;align-items:center;gap:8px}button.secondary{background:#e2e8f0;color:#0f172a}button.green{background:#16a34a}button.orange{background:#ea580c}button.red{background:#dc2626}button:disabled{opacity:.6;cursor:not-allowed}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}.checks{display:grid;gap:10px}.check{display:flex;gap:12px;align-items:flex-start;border:1px solid #e2e8f0;background:#fff;border-radius:18px;padding:14px}.dot{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:900;flex:0 0 26px}.ok{background:#dcfce7;color:#166534}.bad{background:#fee2e2;color:#991b1b}.list{display:grid;gap:10px}.row{border:1px solid #e2e8f0;border-radius:18px;padding:14px;background:#fff}.row-head{display:flex;justify-content:space-between;gap:12px;align-items:center}.pill{font-size:12px;border-radius:999px;padding:5px 9px;background:#e2e8f0;color:#334155;font-weight:800}.pill.high{background:#fee2e2;color:#991b1b}.pill.medium{background:#fef3c7;color:#92400e}.pill.done{background:#dcfce7;color:#166534}.log{background:#020617;color:#dbeafe;border-radius:20px;padding:16px;height:190px;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:13px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.tabs button{background:#fff;color:#0f172a;border:1px solid #e2e8f0}.tabs button.active{background:#0f172a;color:#fff}.hidden{display:none}.table{width:100%;border-collapse:collapse}.table th,.table td{border-bottom:1px solid #e2e8f0;text-align:left;padding:10px;font-size:14px}.form{display:grid;gap:10px}.form input,.form select,.form textarea{border:1px solid #cbd5e1;border-radius:14px;padding:12px;font-size:15px}@media(max-width:900px){.hero,.grid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}.hero h1{font-size:30px}.nav{display:none}}
+  </style>
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body>
+  <div class="top"><div class="bar"><div class="brand"><span class="sh56-logo small" aria-hidden="true"></span><div>Launch centar</div></div><div class="nav"><a href="/pilot">Pilot</a><a href="/scale">Scale</a><a href="/ops">Ops</a><a href="/admin">Admin</a><a href="/offers">Kupci</a></div></div></div>
+  <main class="wrap">
+    <section class="hero">
+      <div class="card">
+        <div class="pill">V38 Launch Execution Suite</div>
+        <h1>AI preporuke pretvorene u konkretne akcije.</h1>
+        <p class="muted">Ovde jednim klikom pripremaš ponude, kvalitet, prodavce i kampanje za prvi realan pilot. Dugmad jasno pokazuju status rada.</p>
+        <div class="actions">
+          <button class="green" data-action="seedOffers">➕ Dodaj 50 pilot ponuda sa slikama</button>
+          <button class="orange" data-action="dryQuality">🔍 Proveri ponude bez slike</button>
+          <button class="red" data-action="enforceQuality">🚫 Sakrij bez slike</button>
+          <button class="secondary" data-action="activateCampaigns">🚀 Aktiviraj kampanje</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0">Spremnost pilota</h2>
+        <div id="readyBox" class="muted">Učitavam...</div>
+        <div class="actions"><button class="secondary" data-action="refresh">Osveži pregled</button><button class="secondary" data-action="report">Dnevni izveštaj</button></div>
+      </div>
+    </section>
+
+    <section class="metrics" id="metrics"></section>
+
+    <section class="grid">
+      <div class="card"><h2>Checklist</h2><div class="checks" id="checks"></div></div>
+      <div class="card"><h2>Activity log</h2><div class="log" id="log"></div></div>
+    </section>
+
+    <div class="tabs">
+      <button class="active" data-tab="tasks">Taskovi</button>
+      <button data-tab="outreach">Prodavci / outreach</button>
+      <button data-tab="templates">Scriptovi</button>
+      <button data-tab="report">Izveštaj</button>
+    </div>
+
+    <section id="tab-tasks" class="card tab"><div class="row-head"><h2>Launch taskovi</h2><div class="actions"><button class="secondary" data-action="seedTasks">Učitaj taskove</button></div></div><div class="list" id="tasks"></div></section>
+
+    <section id="tab-outreach" class="card tab hidden"><div class="row-head"><h2>Outreach pipeline</h2><div class="actions"><button class="secondary" data-action="seedLeads">Dodaj 20 leadova</button></div></div><table class="table"><thead><tr><th>Lead</th><th>Grad</th><th>Kategorija</th><th>Status</th><th>Score</th><th>Akcija</th></tr></thead><tbody id="leads"></tbody></table></section>
+
+    <section id="tab-templates" class="card tab hidden"><h2>Scriptovi za kontaktiranje prodavaca</h2><div class="list" id="templates"></div></section>
+
+    <section id="tab-report" class="card tab hidden"><h2>Dnevni pilot izveštaj</h2><pre id="report" class="log" style="height:360px;white-space:pre-wrap"></pre></section>
+  </main>
+
+<script>
+const $ = s => document.querySelector(s); const $$ = s => [...document.querySelectorAll(s)];
+function log(msg){ const el=$('#log'); el.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}\n` + el.innerHTML; }
+async function api(url, opts={}){ const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opts}); if(!r.ok){throw new Error(await r.text())} return r.json(); }
+function setBusy(action,on){ $$(`[data-action="${action}"]`).forEach(b=>{b.disabled=on; b.dataset.old=b.dataset.old||b.innerHTML; b.innerHTML=on?'⏳ Radim...':b.dataset.old;}); }
+async function run(action, fn){ try{ setBusy(action,true); log('Pokrenuto: '+action); const res=await fn(); log('OK: '+(res.message||JSON.stringify(res).slice(0,160))); await refresh(); }catch(e){ log('GREŠKA: '+e.message); }finally{ setBusy(action,false); } }
+async function refresh(){ const data=await api('/launch-api/overview'); renderOverview(data); await renderTasks(); await renderLeads(); }
+function renderOverview(data){ const m=data.metrics; $('#readyBox').innerHTML = data.ready_for_private_pilot ? '<div class="check"><span class="dot ok">✓</span><div><b>Spremno za privatni pilot</b><p class="muted">Osnovni uslovi su ispunjeni.</p></div></div>' : '<div class="check"><span class="dot bad">!</span><div><b>Nije još spremno za javni test</b><p class="muted">Završi checklistu ispod.</p></div></div>';
+ $('#metrics').innerHTML = [
+  ['Javne ponude',m.visible_offers],['Pokriće slika',m.image_coverage_percent+'%'],['Verifikovani partneri',m.verified_stores],['Leadovi',m.leads_total],['Taskovi urađeni',m.tasks_done+'/'+m.tasks_total],['Aktivne rezervacije',m.active_reservations],['Plaćeno',m.paid_amount+' RSD'],['Provizija',m.platform_fee+' RSD']
+ ].map(x=>`<div class="metric"><span class="muted">${x[0]}</span><b>${x[1]}</b></div>`).join('');
+ $('#checks').innerHTML = data.checks.map(c=>`<div class="check"><span class="dot ${c.ok?'ok':'bad'}">${c.ok?'✓':'!'}</span><div><b>${c.name}</b><p class="muted">Trenutno: ${c.current} / Cilj: ${c.target}</p><p>${c.note}</p></div></div>`).join(''); }
+async function renderTasks(){ const rows=await api('/launch-api/tasks'); $('#tasks').innerHTML = rows.map(t=>`<div class="row"><div class="row-head"><div><span class="pill ${t.priority}">${t.priority}</span> <b>${t.title}</b><p class="muted">${t.area} · ${t.owner||''} · rok ${t.due_date||''}</p><p>${t.note||''}</p></div><div class="actions"><button class="secondary" onclick="task('${t.id}','in_progress')">Radi se</button><button class="green" onclick="task('${t.id}','done')">Gotovo</button></div></div></div>`).join('') || '<p class="muted">Nema taskova. Klikni Učitaj taskove.</p>'; }
+async function task(id,status){ await api('/launch-api/tasks/'+id,{method:'PATCH',body:JSON.stringify({status})}); log('Task ažuriran: '+status); await refresh(); }
+async function renderLeads(){ const rows=await api('/launch-api/outreach'); $('#leads').innerHTML = rows.map(l=>`<tr><td><b>${l.name}</b><br><span class="muted">${l.contact||''}</span></td><td>${l.city||''}</td><td>${l.category||''}</td><td><span class="pill">${l.status||'new'}</span></td><td>${l.score||''}</td><td><button class="secondary" onclick="lead('${l.id}','contacted')">Kontaktiran</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">Nema leadova. Klikni Dodaj 20 leadova.</td></tr>'; }
+async function lead(id,status){ await api('/launch-api/outreach/'+id,{method:'PATCH',body:JSON.stringify({status})}); await refresh(); }
+async function templates(){ const t=await api('/launch-api/outreach/templates'); $('#templates').innerHTML=Object.entries(t).map(([k,v])=>`<div class="row"><b>${k}</b><p>${v}</p></div>`).join(''); }
+async function report(){ const r=await api('/launch-api/pilot-report'); $('#report').textContent=JSON.stringify(r,null,2); }
+$$('.tabs button').forEach(b=>b.onclick=()=>{ $$('.tabs button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); $$('.tab').forEach(x=>x.classList.add('hidden')); $('#tab-'+b.dataset.tab).classList.remove('hidden'); if(b.dataset.tab==='templates') templates(); if(b.dataset.tab==='report') report(); });
+$$('[data-action]').forEach(b=>b.addEventListener('click',()=>{ const a=b.dataset.action; const actions={
+ refresh:()=>run(a,async()=>({message:'Pregled osvežen'})), seedOffers:()=>run(a,()=>api('/launch-api/seed/public-offers?count=50',{method:'POST'})), dryQuality:()=>run(a,()=>api('/launch-api/quality/enforce-images?dry_run=true',{method:'POST'})), enforceQuality:()=>run(a,()=>api('/launch-api/quality/enforce-images?dry_run=false',{method:'POST'})), activateCampaigns:()=>run(a,()=>api('/launch-api/campaigns/activate-first',{method:'POST'})), seedTasks:()=>run(a,()=>api('/launch-api/seed/tasks',{method:'POST'})), seedLeads:()=>run(a,()=>api('/launch-api/seed/outreach?count=20',{method:'POST'})), report:()=>run(a,async()=>{await report(); document.querySelector('[data-tab="report"]').click(); return {message:'Izveštaj generisan'}})
+}; actions[a]&&actions[a](); }));
+refresh().catch(e=>log(e.message));
+</script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

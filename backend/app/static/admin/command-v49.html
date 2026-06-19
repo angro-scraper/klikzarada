@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>V55 Komandni centar — Sačuvaj Hranu</title>
+  <link rel="stylesheet" href="/admin-assets/command-v49.css" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="cmd49-body sh55-command">
+  <div id="toast49" class="toast49">Spremno.</div>
+  <aside class="sidebar49">
+    <a class="brand49 sh55-command-brand" href="/command">
+      <img src="/admin-assets/brand/logo-mark.svg" alt="" />
+      <span class="sh55-command-name"><strong>Sačuvaj Hranu</strong><small>Uštedi novac. Sačuvaj obrok. Smanji bacanje.</small></span>
+    </a>
+    <nav class="nav49">
+      <a class="active" href="#overview">🏠 Dashboard</a>
+      <a href="/app">🛍️ Korisnička app</a>
+      <a href="/seller-pro">🏪 Seller Pro</a>
+      <a href="/flow">🧭 Final flow</a>
+      <a href="/finance">💰 Finansije</a>
+      <a href="/live-launch">🚀 Live readiness</a>
+      <a href="/market-ops">📍 Market ops</a>
+      <a href="/ai-market">✨ AI Market</a>
+      <a href="/support-admin">🛟 Support</a>
+    </nav>
+    <div class="side-card49">
+      <b>Fokus danas</b>
+      <p>1. Baza sa slikama<br>2. Gradovi + GPS<br>3. Final flow test<br>4. Pravi prodavci</p>
+    </div>
+  </aside>
+
+  <main class="main49">
+    <header class="top49">
+      <div>
+        <p class="eyebrow49">Sačuvaj Hranu · komandni centar</p><div class="sh55-page-motto"><span>💸 Uštedi novac</span><span>🥗 Sačuvaj obrok</span><span>🌿 Smanji bacanje</span></div>
+        <h1>Komandni centar za izlazak uživo.</h1>
+        <p>Uštedi novac. Sačuvaj obrok. Smanji bacanje. Pregled ponuda, prodavaca, plaćanja, QR preuzimanja i sledećih poteza za izlazak uživo.</p>
+      </div>
+      <div class="top-actions49">
+        <a href="/app" class="btn49 ghost">Otvori app</a>
+        <button class="btn49" data-action="seed">Učitaj bazu</button>
+        <button class="btn49 primary" data-action="refresh">Osveži</button>
+      </div>
+    </header>
+
+    <section class="sh55-brand-trust sh55-command-trust" aria-label="Vrednosti brenda">
+      <article><b>💸 Uštedi novac</b><span>Niže cene za kvalitetne obroke.</span></article>
+      <article><b>🥗 Sačuvaj obrok</b><span>Dobra hrana zaslužuje da se pojede.</span></article>
+      <article><b>🌿 Smanji bacanje</b><span>Manje otpada, više smisla.</span></article>
+      <article><b>✅ Provereni partneri</b><span>Prodavci, rezervacije i preuzimanja pod kontrolom.</span></article>
+    </section>
+
+    <section id="overview" class="overview49">
+      <div class="score49">
+        <div class="score-ring49"><strong id="score49">—</strong><span>/100</span></div>
+        <div><h2>🚀 Live readiness</h2><p id="missing49">Učitavam stanje...</p></div>
+      </div>
+      <div class="quick49">
+        <button data-action="growth">Aktiviraj growth</button>
+        <button data-action="plan">AI plan</button>
+        <button data-action="cities">Gradovi</button>
+        <button data-action="pricing">Cene</button>
+        <button data-action="dataroom">Data room</button>
+      </div>
+    </section>
+
+    <section class="metrics49" id="metrics49"></section>
+
+    <section class="workspace49">
+      <article class="panel49 large">
+        <div class="panel-head49"><div><h2>AI sledeći potezi</h2><p>Prioriteti koje sistem predlaže na osnovu metrike.</p></div><button data-action="plan">Generiši</button></div>
+        <div id="plan49" class="cards49"></div>
+      </article>
+      <article class="panel49">
+        <div class="panel-head49"><div><h2>Alerti kvaliteta</h2><p>Šta blokira ozbiljan izlazak.</p></div></div>
+        <div id="alerts49" class="alerts49"></div>
+      </article>
+    </section>
+
+    <section class="workspace49">
+      <article class="panel49">
+        <div class="panel-head49"><div><h2>Gradovi i pokrivenost</h2><p>Readiness po gradu, broj ponuda i sledeći potez.</p></div><button data-action="cities">Osveži</button></div>
+        <div id="cities49" class="list49"></div>
+      </article>
+      <article class="panel49">
+        <div class="panel-head49"><div><h2>Dynamic pricing</h2><p>Predlog cene/popusta za bržu prodaju.</p></div><button data-action="pricing">Izračunaj</button></div>
+        <div id="pricing49" class="list49"></div>
+      </article>
+    </section>
+
+    <section class="workspace49">
+      <article class="panel49">
+        <div class="panel-head49"><div><h2>Growth sistem</h2><p>Kampanje, journeys i eksperimenti.</p></div><button data-action="growth">Aktiviraj</button></div>
+        <div id="growth49" class="cards49"></div>
+      </article>
+      <article class="panel49">
+        <div class="panel-head49"><div><h2>Data room</h2><p>Snapshot za osnivača, partnera ili investitora.</p></div><button data-action="dataroom">Prikaži</button></div>
+        <div id="dataroom49" class="cards49"></div>
+      </article>
+    </section>
+
+    <section class="panel49 log-panel49">
+      <div class="panel-head49"><div><h2>Activity log</h2><p>Svaka akcija jasno pokazuje da je pokrenuta i završena.</p></div><button data-action="clear-log">Očisti</button></div>
+      <pre id="log49">Spremno.</pre>
+    </section>
+  </main>
+  <script src="/admin-assets/command-v49.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

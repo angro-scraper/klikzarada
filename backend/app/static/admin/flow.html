@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>V57 Final Product Flow — Sačuvaj Hranu</title>
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+  <link rel="stylesheet" href="/admin-assets/flow-v57.css" />
+</head>
+<body class="flow57-body">
+  <header class="flow57-top">
+    <a class="flow57-brand" href="/app">
+      <img src="/admin-assets/brand/logo-mark.svg" alt="" />
+      <span><strong>Sačuvaj Hranu</strong><small>Uštedi novac. Sačuvaj obrok. Smanji bacanje.</small></span>
+    </a>
+    <nav>
+      <a href="/app">Kupac</a>
+      <a href="/seller">Prodavac</a>
+      <a href="/command">Admin</a>
+      <a href="/finance">Finansije</a>
+      <a href="/commission-admin">Provizije</a>
+    </nav>
+  </header>
+
+  <main class="flow57-shell">
+    <section class="flow57-hero">
+      <div>
+        <p class="flow57-kicker">V57 · Final Product Flow</p>
+        <h1>Proveri ceo tok: kupac → plaćanje → QR karta → prodavac → provizija.</h1>
+        <p>Ova strana je kontrolni centar za realan pilot test. Jednim klikom kreiraš demo rezervaciju, zatim prolaziš isti tok kao pravi kupac i prodavac.</p>
+        <div class="flow57-actions">
+          <button id="createDemo57" class="flow57-primary">Kreiraj demo rezervaciju</button>
+          <button id="refresh57" class="flow57-secondary">Osveži status</button>
+          <a class="flow57-secondary" href="/app">Otvori korisničku app</a>
+        </div>
+      </div>
+      <aside class="flow57-score">
+        <span>Spremnost toka</span>
+        <strong id="score57">—%</strong>
+        <small id="scoreMsg57">Učitavam...</small>
+      </aside>
+    </section>
+
+    <section class="flow57-trust" aria-label="Brand vrednosti">
+      <article><b>💸 Uštedi novac</b><span>Kupac vidi nižu cenu, staru cenu i popust.</span></article>
+      <article><b>🥗 Sačuvaj obrok</b><span>Rezervacija čuva količinu do preuzimanja.</span></article>
+      <article><b>🌿 Smanji bacanje</b><span>Prodavac potvrđuje preuzimanje QR kodom.</span></article>
+      <article><b>✅ Jasan obračun</b><span>Platforma prati proviziju i status naplate.</span></article>
+    </section>
+
+    <section class="flow57-grid">
+      <article class="flow57-panel">
+        <div class="flow57-panel-head"><span>1</span><div><h2>Kupac</h2><p>Pronađi, rezerviši i izaberi plaćanje.</p></div></div>
+        <ol>
+          <li>Otvori ponude u aplikaciji.</li>
+          <li>Rezerviši jednu ponudu.</li>
+          <li>Otvori checkout i izaberi plaćanje.</li>
+          <li>Sačuvaj kod rezervacije.</li>
+        </ol>
+        <div class="flow57-links" id="buyerLinks57"><a href="/app">Otvori /app</a></div>
+      </article>
+
+      <article class="flow57-panel">
+        <div class="flow57-panel-head"><span>2</span><div><h2>Digitalna karta</h2><p>Kod i QR za preuzimanje.</p></div></div>
+        <ol>
+          <li>Unesi ili otvori kod rezervacije.</li>
+          <li>Proveri proizvod, cenu i status.</li>
+          <li>Prikaži QR kod prodavcu.</li>
+        </ol>
+        <div class="flow57-links" id="ticketLinks57"><a href="/reservation">Otvori /reservation</a></div>
+      </article>
+
+      <article class="flow57-panel">
+        <div class="flow57-panel-head"><span>3</span><div><h2>Prodavac</h2><p>Proveri kod i potvrdi preuzimanje.</p></div></div>
+        <ol>
+          <li>Uđi u seller panel sa ID + PIN.</li>
+          <li>Skeniraj QR ili upiši kod.</li>
+          <li>Označi kao preuzeto.</li>
+        </ol>
+        <div class="flow57-sellerbox" id="sellerBox57">Kreiraj demo rezervaciju za test ID/PIN.</div>
+        <div class="flow57-links"><a href="/seller">Otvori /seller</a></div>
+      </article>
+
+      <article class="flow57-panel">
+        <div class="flow57-panel-head"><span>4</span><div><h2>Admin i finansije</h2><p>Proveri KPI, promet i proviziju.</p></div></div>
+        <ol>
+          <li>Otvori finance za uplate.</li>
+          <li>Otvori provizije za invoice i naplatu.</li>
+          <li>Proveri command readiness.</li>
+          <li>Vidi da li je tok zatvoren.</li>
+        </ol>
+        <div class="flow57-links"><a href="/finance">Finansije</a><a href="/commission-admin">Provizije</a><a href="/command">Command</a></div>
+      </article>
+    </section>
+
+    <section class="flow57-panel flow57-demo hidden" id="demoPanel57">
+      <div class="flow57-panel-head"><span>✓</span><div><h2>Demo rezervacija</h2><p id="demoMessage57">Spremno.</p></div></div>
+      <div class="flow57-demo-grid">
+        <div><small>Kod rezervacije</small><strong id="demoCode57">—</strong></div>
+        <div><small>Kupac</small><strong>Demo Kupac · 0601234567</strong></div>
+        <div><small>Prodavac</small><strong id="demoStore57">—</strong></div>
+        <div><small>PIN</small><strong id="demoPin57">—</strong></div>
+      </div>
+      <div class="flow57-actions">
+        <button id="pickupPay57" class="flow57-secondary">Označi plaćanje pri preuzimanju</button>
+        <button id="pickedUp57" class="flow57-secondary">Označi kao preuzeto</button>
+        <button id="copyDemo57" class="flow57-secondary">Kopiraj kod</button>
+      </div>
+    </section>
+
+    <section class="flow57-panel">
+      <div class="flow57-panel-head"><span>●</span><div><h2>Status toka</h2><p>Ovo mora biti zeleno pre ozbiljnog pilot testa.</p></div></div>
+      <div id="checks57" class="flow57-checks"></div>
+      <div id="counts57" class="flow57-counts"></div>
+    </section>
+  </main>
+  <div id="toast57" class="flow57-toast">Spremno.</div>
+  <script src="/admin-assets/flow-v57.js"></script>
+</body>
+</html>

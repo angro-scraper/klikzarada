@@ -1,0 +1,9 @@
+{
+  "name": "Sačuvaj Hranu",
+  "short_name": "Sačuvaj Hranu",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff8e8",
+  "theme_color": "#064b3a",
+  "lang": "sr-RS"
+}

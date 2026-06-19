@@ -1,0 +1,16 @@
+RewriteEngine On
+
+# Canonical host and HTTPS. If SSL is still propagating, temporarily comment these lines.
+RewriteCond %{HTTPS} !=on [OR]
+RewriteCond %{HTTP_HOST} ^www\.sacuvaj-hranu\.rs$ [NC]
+RewriteRule ^(.*)$ https://sacuvaj-hranu.rs/$1 [R=301,L]
+
+Options -Indexes
+
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set X-Frame-Options "SAMEORIGIN"
+</IfModule>
+
+ErrorDocument 404 /index.html

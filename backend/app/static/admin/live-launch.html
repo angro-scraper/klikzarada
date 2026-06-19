@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — Live Launch</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <style>
+    :root{--green:#16a34a;--orange:#f59e0b;--red:#ef4444;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f8fafc;--card:#fff}
+    body{background:linear-gradient(180deg,#ecfdf5 0,#f8fafc 360px);color:var(--ink)}
+    .launch-wrap{max-width:1180px;margin:0 auto;padding:22px}
+    .hero-live{display:grid;grid-template-columns:1.3fr .7fr;gap:18px;align-items:stretch;margin:16px 0 22px}
+    .hero-card{background:rgba(255,255,255,.9);border:1px solid rgba(22,163,74,.18);box-shadow:0 18px 50px rgba(15,23,42,.08);border-radius:28px;padding:28px;backdrop-filter:blur(10px)}
+    .eyebrow{display:inline-flex;gap:8px;align-items:center;padding:7px 12px;border-radius:999px;background:#dcfce7;color:#166534;font-weight:800;font-size:13px}
+    h1{font-size:42px;line-height:1.02;margin:18px 0 10px;letter-spacing:-.04em}.lead{font-size:17px;color:#475569;max-width:720px;line-height:1.6}.score-box{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;background:linear-gradient(135deg,#16a34a,#22c55e);color:white;border-radius:28px;padding:28px;box-shadow:0 20px 45px rgba(22,163,74,.25)}.score-num{font-size:66px;font-weight:950;letter-spacing:-.06em}.score-label{font-weight:800;opacity:.95}.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}.metric{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px}.metric b{font-size:26px;display:block}.metric span{color:var(--muted);font-size:13px;font-weight:700}.actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}.btn-live{border:0;border-radius:14px;padding:12px 15px;font-weight:850;cursor:pointer;background:#0f172a;color:white;box-shadow:0 10px 20px rgba(15,23,42,.12)}.btn-live.alt{background:white;color:#0f172a;border:1px solid var(--line)}.btn-live.good{background:#16a34a}.btn-live.warn{background:#f59e0b;color:#111827}.panel{background:#fff;border:1px solid var(--line);border-radius:24px;padding:18px;margin:14px 0;box-shadow:0 8px 25px rgba(15,23,42,.04)}.panel h2{margin:0 0 12px;font-size:20px}.checks{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.check{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:16px;padding:12px;background:#fff}.dot{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;color:white;font-weight:900;font-size:12px}.dot.ok{background:var(--green)}.dot.bad{background:var(--red)}.check b{display:block}.check small{display:block;color:var(--muted);line-height:1.4;margin-top:3px}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}.log{background:#0f172a;color:#d1fae5;border-radius:18px;padding:14px;min-height:170px;white-space:pre-wrap;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;font-size:13px;overflow:auto}.missing{display:flex;flex-wrap:wrap;gap:8px}.pill{background:#fef3c7;color:#92400e;padding:8px 10px;border-radius:999px;font-weight:800;font-size:13px}.okpill{background:#dcfce7;color:#166534}.env-row{display:grid;grid-template-columns:180px 90px 1fr;gap:10px;border-bottom:1px dashed #e2e8f0;padding:10px 0}.env-row:last-child{border-bottom:0}.footer-links{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}.footer-links a{color:#0f172a;text-decoration:none;background:white;border:1px solid var(--line);padding:10px 12px;border-radius:12px;font-weight:800}@media(max-width:850px){.hero-live,.two{grid-template-columns:1fr}.grid4{grid-template-columns:repeat(2,1fr)}.checks{grid-template-columns:1fr}h1{font-size:34px}.env-row{grid-template-columns:1fr}}
+  </style>
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body>
+  <main class="launch-wrap">
+    <div class="hero-live">
+      <section class="hero-card">
+        <span class="eyebrow">🚀 V47 Live Deployment Suite</span>
+        <h1>Spremamo aplikaciju za izlazak uživo</h1>
+        <p class="lead">Ovaj centar proverava da li imamo dovoljno ponuda, slika, GPS lokacija, prodavaca, plaćanje, backup i produkciona podešavanja. Cilj: zatvoreni pilot sa realnim korisnicima.</p>
+        <div class="actions">
+          <button class="btn-live good" onclick="loadStatus()">Osveži readiness</button>
+          <button class="btn-live" onclick="makeBackup()">Napravi backup</button>
+          <button class="btn-live alt" onclick="makeEnv()">Kreiraj .env.production.example</button>
+          <button class="btn-live alt" onclick="makeSitemap()">SEO sitemap preview</button>
+          <button class="btn-live warn" onclick="seedChecklist()">Učitaj launch checklist</button>
+        </div>
+      </section>
+      <aside class="score-box">
+        <div class="score-num" id="score">—</div>
+        <div class="score-label">Live readiness score</div>
+        <div id="scoreText" style="margin-top:10px;opacity:.9">Učitavanje...</div>
+      </aside>
+    </div>
+
+    <section class="grid4">
+      <div class="metric"><b id="mProducts">—</b><span>javnih ponuda</span></div>
+      <div class="metric"><b id="mImages">—</b><span>sa slikom</span></div>
+      <div class="metric"><b id="mGps">—</b><span>sa GPS lokacijom</span></div>
+      <div class="metric"><b id="mStores">—</b><span>aktivnih prodavaca</span></div>
+    </section>
+
+    <div class="two">
+      <section class="panel">
+        <h2>Šta još blokira live?</h2>
+        <div id="missing" class="missing"></div>
+      </section>
+      <section class="panel">
+        <h2>AI preporučuje sledeće</h2>
+        <div id="recs"></div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <h2>Produkcioni .env check</h2>
+      <div id="envChecks"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Launch checklist</h2>
+      <div id="checklist" class="checks"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Output / log</h2>
+      <div id="log" class="log">Spremno.</div>
+    </section>
+
+    <div class="footer-links">
+      <a href="/app">Korisnička aplikacija</a>
+      <a href="/go-live">Go-live checklist</a>
+      <a href="/market-ops">Market Ops</a>
+      <a href="/finance">Finansije</a>
+      <a href="/admin">Admin</a>
+      <a href="/docs">API docs</a>
+    </div>
+  </main>
+  <script src="/admin-assets/live-launch.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

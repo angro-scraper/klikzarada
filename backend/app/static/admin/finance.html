@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — Finansije</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <link rel="manifest" href="/admin-assets/manifest.webmanifest" />
+  <meta name="theme-color" content="#1E4D3A" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="finance-page-v30">
+  <header class="finance-hero-v30">
+    <div>
+      <p class="eyebrow">Sačuvaj Hranu · Finansije</p>
+      <h1>Uplate, provizija i isplate prodavcima</h1>
+      <p class="subtitle">Kontrola IPS QR uplata, 25% provizije platforme i neto iznosa za prodavce.</p>
+    </div>
+    <nav class="top-actions">
+      <a class="link-button" href="/admin">Admin</a>
+      <a class="link-button" href="/commission-admin">Provizije</a>
+      <a class="link-button secondary-link" href="/offers">Kupac pregled</a>
+      <button id="refreshFinanceBtn" class="secondary">Osveži</button>
+      <button class="secondary danger-link" data-admin-logout>Odjava</button>
+    </nav>
+  </header>
+
+  <main class="finance-main-v30">
+    <section class="card wide finance-command-v30">
+      <div class="finance-command-copy-v30">
+        <span class="section-kicker">IPS QR MVP</span>
+        <h2>Ručna potvrda plaćanja</h2>
+        <p>Dok ne povežemo bankarski callback ili payment gateway webhook, IPS QR uplata se potvrđuje ručno nakon provere izvoda banke.</p>
+      </div>
+      <div class="finance-confirm-row-v30">
+        <input id="financeCodeInput" placeholder="Kod rezervacije, npr. A1B2C3D4" autocomplete="off" />
+        <input id="financeReferenceInput" placeholder="Referenca / broj izvoda" />
+        <input id="financeNoteInput" placeholder="Napomena, opciono" />
+        <button id="confirmIpsBtn">Potvrdi uplatu</button>
+      </div>
+      <div id="financeMessage" class="ai-result-v21">Spremno. Unesi kod rezervacije i potvrdi uplatu tek kada je vidiš na računu.</div>
+    </section>
+
+    <section class="card wide">
+      <div class="table-header">
+        <div>
+          <h2>Finansijski pregled</h2>
+          <p class="help-text">Plaćeno, provizija platforme i iznosi za isplatu prodavcima.</p>
+        </div>
+      </div>
+      <div id="financeStats" class="stats-grid finance-stats-v30"></div>
+    </section>
+
+    <section class="card wide">
+      <div class="table-header">
+        <div>
+          <h2>Prodavci — obračun isplata</h2>
+          <p class="help-text">Prikaz po prodavcu: plaćene rezervacije, provizija, neto iznos i čekanje isplate.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Prodavac</th><th>Grad</th><th>Rez.</th><th>Plaćeno</th><th>Promet</th><th>Naša provizija</th><th>Prodavcu neto</th><th>Čeka isplatu</th><th>Isplaćeno</th>
+            </tr>
+          </thead>
+          <tbody id="sellerSettlementsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card wide">
+      <div class="table-header">
+        <div>
+          <h2>Dnevni finance closeout</h2>
+          <p class="help-text">Zaključavanje dana: plaćeno, plaćanje kod prodavca, provizija za naplatu i CSV izvoz.</p>
+        </div>
+        <div class="filters finance-filters-v30">
+          <button id="loadCloseoutBtn" class="secondary">Osveži closeout</button>
+          <a class="link-button" href="/finance/live-closeout.csv">CSV izvoz</a>
+        </div>
+      </div>
+      <div id="closeoutStats" class="stats-grid finance-stats-v30"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Partner</th><th>Rez.</th><th>Preuzeto</th><th>Plaćeno online</th><th>Plaćanje kod partnera</th><th>Provizija za naplatu</th><th>Obračun poslat</th><th>Akcija</th>
+            </tr>
+          </thead>
+          <tbody id="closeoutBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card wide">
+      <div class="table-header">
+        <div>
+          <h2>Rezervacije za finansije</h2>
+          <p class="help-text">Filtriraj i označi status isplate prodavcu.</p>
+        </div>
+        <div class="filters finance-filters-v30">
+          <select id="paymentStatusFilter">
+            <option value="">Svi statusi plaćanja</option>
+            <option value="payment_pending">Plaćanje pokrenuto</option>
+            <option value="paid">Plaćeno</option>
+            <option value="refunded">Refundirano</option>
+            <option value="unpaid">Neplaćeno</option>
+          </select>
+          <select id="payoutStatusFilter">
+            <option value="">Svi statusi isplate</option>
+            <option value="not_ready">Nije spremno</option>
+            <option value="pending">Čeka isplatu</option>
+            <option value="paid">Isplaćeno</option>
+            <option value="blocked">Blokirano</option>
+            <option value="commission_due">Provizija za naplatu</option>
+            <option value="invoice_sent">Obračun poslat</option>
+            <option value="commission_paid">Provizija naplaćena</option>
+          </select>
+          <button id="loadFinanceReservationsBtn" class="secondary">Prikaži</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Kod</th><th>Proizvod</th><th>Prodavac</th><th>Kupac</th><th>Plaćanje</th><th>Iznos</th><th>Provizija</th><th>Prodavcu</th><th>Isplata</th><th>Akcije</th>
+            </tr>
+          </thead>
+          <tbody id="financeReservationsBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" role="status"></div>
+  <script src="/admin-assets/admin-auth.js"></script>
+  <script src="/admin-assets/finance.js"></script>
+  <script src="/admin-assets/pwa.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

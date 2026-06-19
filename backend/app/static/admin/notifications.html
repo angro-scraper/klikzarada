@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — SMS i obaveštenja</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <link rel="manifest" href="/admin-assets/manifest.webmanifest" />
+  <meta name="theme-color" content="#0f766e" />
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="finance-page-v30 notifications-page-v34">
+  <header class="finance-hero-v30">
+    <div>
+      <p class="eyebrow">Sačuvaj Hranu · Obaveštenja</p>
+      <h1>SMS provider, OTP i poruke korisnicima</h1>
+      <p class="subtitle">Pregled slanja OTP kodova, potvrda rezervacija i statusnih poruka. U mock režimu poruke se ne šalju stvarno, već se upisuju u lokalni log.</p>
+    </div>
+    <nav class="top-actions">
+      <a class="link-button" href="/admin">Admin</a>
+      <a class="link-button secondary-link" href="/finance">Finansije</a>
+      <a class="link-button secondary-link" href="/ai-admin">AI trening</a>
+      <button id="refreshNotificationsBtn" class="secondary">Osveži</button>
+      <button class="secondary danger-link" data-admin-logout>Odjava</button>
+    </nav>
+  </header>
+
+  <main class="finance-main-v30">
+    <section class="card wide finance-command-v30">
+      <div class="finance-command-copy-v30">
+        <span class="section-kicker">V34 Notification Center</span>
+        <h2>Test SMS slanja</h2>
+        <p>Za lokalni rad koristi <strong>SMS_PROVIDER=mock</strong>. Za realno slanje povezuje se HTTP SMS gateway kroz <code>.env</code>.</p>
+      </div>
+      <div class="finance-confirm-row-v30">
+        <input id="testSmsPhone" placeholder="Telefon, npr. 0601234567" autocomplete="off" />
+        <input id="testSmsMessage" placeholder="Poruka" value="Sačuvaj Hranu test SMS poruka." />
+        <button id="sendTestSmsBtn">Pošalji test</button>
+      </div>
+      <div id="notificationMessage" class="ai-result-v21">Spremno. Proveri status providera ispod.</div>
+    </section>
+
+    <section class="card wide">
+      <div class="table-header">
+        <div>
+          <h2>Status SMS providera</h2>
+          <p class="help-text">Ako je dry-run uključen ili je provider mock, SMS ide samo u lokalni log.</p>
+        </div>
+      </div>
+      <div id="notificationStatus" class="stats-grid finance-stats-v30"></div>
+      <pre id="notificationConfigHelp" class="result compact-result"></pre>
+    </section>
+
+    <section class="card wide">
+      <div class="table-header">
+        <div>
+          <h2>Log obaveštenja</h2>
+          <p class="help-text">Ovde vidiš OTP kodove, rezervacije i greške SMS slanja.</p>
+        </div>
+        <div class="filters finance-filters-v30">
+          <select id="notificationPurposeFilter">
+            <option value="">Sve namene</option>
+            <option value="customer_otp">OTP kodovi</option>
+            <option value="reservation_created">Nove rezervacije</option>
+            <option value="reservation_status">Status rezervacije</option>
+            <option value="admin_test">Test poruke</option>
+          </select>
+          <select id="notificationStatusFilter">
+            <option value="">Svi statusi</option>
+            <option value="mock_sent">Mock poslato</option>
+            <option value="sent">Poslato</option>
+            <option value="failed">Greška</option>
+            <option value="skipped">Preskočeno</option>
+          </select>
+          <button id="loadNotificationsBtn" class="secondary">Prikaži</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Vreme</th><th>Kanal</th><th>Provider</th><th>Namena</th><th>Primaoc</th><th>Status</th><th>Poruka</th><th>Greška</th>
+            </tr>
+          </thead>
+          <tbody id="notificationsBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" role="status"></div>
+  <script src="/admin-assets/admin-auth.js"></script>
+  <script src="/admin-assets/notifications.js"></script>
+  <script src="/admin-assets/pwa.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

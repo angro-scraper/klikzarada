@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — AI trening</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <style>
+    body.ai-admin-body{background:#f5f7f2;color:#0f172a;margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .ai-admin-shell{max-width:1180px;margin:0 auto;padding:28px 18px 64px}
+    .ai-admin-nav{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:22px}
+    .ai-admin-nav a{background:#fff;border:1px solid #dbe5dc;border-radius:999px;padding:10px 16px;text-decoration:none;color:#0f172a;font-weight:800}
+    .ai-admin-hero{background:linear-gradient(135deg,#083f35,#15946b);color:#fff;border-radius:28px;padding:28px;box-shadow:0 24px 60px rgba(8,63,53,.18);margin-bottom:22px}
+    .ai-admin-hero h1{font-size:clamp(30px,4vw,52px);line-height:.98;margin:8px 0 12px;letter-spacing:-.04em}
+    .ai-admin-hero p{max-width:760px;color:#d7fff1;font-size:18px;line-height:1.5;margin:0}
+    .ai-admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+    .ai-admin-card{background:#fff;border:1px solid #dbe5dc;border-radius:24px;padding:22px;box-shadow:0 18px 45px rgba(15,23,42,.06)}
+    .ai-admin-card h2{font-size:24px;margin:0 0 12px}
+    .ai-admin-card label{display:block;font-weight:800;color:#475569;margin:14px 0 6px}
+    .ai-admin-card input,.ai-admin-card textarea{width:100%;box-sizing:border-box;border:1px solid #d7e0d8;border-radius:16px;padding:12px 14px;font-size:15px;background:#fbfcfb;color:#0f172a}
+    .ai-admin-card textarea{min-height:120px;resize:vertical}
+    .ai-admin-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+    .ai-admin-actions button,.faq-item button{border:0;border-radius:14px;padding:12px 16px;background:#15946b;color:#fff;font-weight:900;cursor:pointer}
+    .ai-admin-actions button.secondary,.faq-item button.secondary{background:#eef7f0;color:#0f513f;border:1px solid #cae6d3}
+    .faq-list{display:grid;gap:12px;margin-top:14px}
+    .faq-item{border:1px solid #e2e8e1;border-radius:18px;padding:14px;background:#fbfcfb}
+    .faq-item strong{display:block;margin-bottom:8px;color:#0f172a}
+    .faq-item p{margin:0 0 8px;color:#475569;line-height:1.45}
+    .keywords{font-size:13px;color:#64748b;background:#eef7f0;border-radius:999px;padding:6px 10px;display:inline-block;margin-bottom:10px}
+    .test-result{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border-radius:18px;padding:14px;min-height:120px;line-height:1.45}
+    .status-line{margin-top:12px;color:#0f766e;font-weight:800}
+    @media(max-width:900px){.ai-admin-grid{grid-template-columns:1fr}.ai-admin-nav{align-items:flex-start;flex-direction:column}.ai-admin-nav div{display:flex;gap:8px;flex-wrap:wrap}}
+  .ai-admin-logout-v33{background:#fee2e2!important;color:#991b1b!important;border:1px solid #fecaca!important;border-radius:999px!important;padding:10px 16px!important;font-weight:900!important;cursor:pointer}
+    </style>
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="ai-admin-body">
+  <main class="ai-admin-shell">
+    <nav class="ai-admin-nav">
+      <a href="/offers">← Korisnička strana</a>
+      <div>
+        <a href="/admin">Admin</a>
+        <a href="/seller">Prodavac</a>
+        <button class="ai-admin-logout-v33" data-admin-logout>Odjava</button>
+      </div>
+    </nav>
+
+    <section class="ai-admin-hero">
+      <p>AI trening centar</p>
+      <h1>Nauči asistenta kako da priča sa korisnicima.</h1>
+      <p>Ovde uređuješ ton, pravila, najčešća pitanja i gotove odgovore. Sve radi lokalno, bez dodatnog API ključa, i odmah utiče na AI chat na korisničkoj strani.</p>
+    </section>
+
+    <section class="ai-admin-grid">
+      <div class="ai-admin-card">
+        <h2>Osnovna podešavanja</h2>
+        <label>Naziv asistenta</label>
+        <input id="assistantName" placeholder="Sačuvaj Hranu AI" />
+        <label>Ton komunikacije</label>
+        <textarea id="tone"></textarea>
+        <label>Brzi odgovori / predlozi</label>
+        <input id="quickReplies" placeholder="Šta ima blizu mene?, Pekara do 200 din" />
+        <label>Pravila poslovanja, jedno pravilo po redu</label>
+        <textarea id="businessRules"></textarea>
+        <div class="ai-admin-actions">
+          <button id="saveKnowledgeBtn">Sačuvaj trening</button>
+          <button id="seedExpandedBtn" class="secondary">Učitaj proširenu FAQ bazu</button>
+          <button id="resetKnowledgeBtn" class="secondary">Vrati podrazumevano</button>
+        </div>
+        <div id="knowledgeStatus" class="status-line"></div>
+      </div>
+
+      <div class="ai-admin-card">
+        <h2>Test razgovora</h2>
+        <label>Poruka korisnika</label>
+        <input id="testMessage" placeholder="Kako radi rezervacija?" />
+        <div class="ai-admin-actions">
+          <button id="testChatBtn">Testiraj odgovor</button>
+          <button id="testSearchBtn" class="secondary">Testiraj AI pretragu</button>
+        </div>
+        <div id="testResult" class="test-result">Ovde će se prikazati odgovor AI asistenta.</div>
+      </div>
+
+      <div class="ai-admin-card">
+        <h2>Dodaj novo pitanje i odgovor</h2>
+        <label>Pitanje korisnika</label>
+        <input id="faqQuestion" placeholder="Da li mogu da otkažem rezervaciju?" />
+        <label>Odgovor asistenta</label>
+        <textarea id="faqAnswer" placeholder="Da, ako još nije preuzeta..." ></textarea>
+        <label>Ključne reči, odvojene zarezom</label>
+        <input id="faqKeywords" placeholder="otkazivanje, rezervacija, promena" />
+        <div class="ai-admin-actions">
+          <button id="addFaqBtn">Dodaj FAQ</button>
+        </div>
+      </div>
+
+      <div class="ai-admin-card">
+        <h2>Trenutna FAQ baza</h2>
+        <p style="color:#64748b;line-height:1.45;margin-top:-4px">U V24 je ubačena proširena baza pitanja za kupce. Možeš je učitati jednim klikom, pa kasnije brisati ili menjati stavke koje ti ne odgovaraju.</p>
+        <div id="faqList" class="faq-list"></div>
+      </div>
+    </section>
+  </main>
+  <script src="/admin-assets/admin-auth.js"></script>
+  <script src="/admin-assets/ai-admin.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>

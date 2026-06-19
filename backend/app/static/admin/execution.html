@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sačuvaj Hranu — V41 Execution Engine</title>
+  <link rel="stylesheet" href="/admin-assets/styles.css" />
+  <style>
+    .exec-hero{background:radial-gradient(circle at 20% 0%,#e6fffa,transparent 28%),linear-gradient(135deg,#eef2ff,#fffaf0);align-items:flex-start}.exec-hero h1{font-size:clamp(2rem,4vw,3.2rem);max-width:1000px}.exec-grid{grid-template-columns:repeat(12,minmax(0,1fr));gap:1rem}.exec-grid .card{grid-column:span 6}.exec-grid .wide{grid-column:1/-1}.exec-grid .third{grid-column:span 4}.exec-grid .two-third{grid-column:span 8}.kpi-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.75rem}.readiness{display:grid;grid-template-columns:260px 1fr;gap:1rem;align-items:center}.score-ring{border-radius:28px;background:#111827;color:#fff;padding:1.2rem;text-align:center}.score-ring strong{display:block;font-size:3rem;line-height:1}.gap-list,.task-list,.cards-list{display:grid;gap:.65rem}.exec-row{border:1px solid var(--border);border-radius:16px;background:#fff;padding:.85rem}.exec-row h3{margin:0 0 .25rem;font-size:1rem}.exec-row p{margin:.25rem 0;color:var(--muted);font-size:.92rem}.tag{display:inline-block;border-radius:999px;padding:.2rem .55rem;background:#edf2f7;color:#4a5568;font-size:.78rem;font-weight:800}.tag.high{background:#fed7d7;color:#9b2c2c}.tag.medium{background:#fefcbf;color:#744210}.tag.low{background:#e6fffa;color:#234e52}.tag.done{background:#c6f6d5;color:#276749}.tag.open{background:#fed7aa;color:#9c4221}.tag.doing{background:#bee3f8;color:#2a4365}.button-row{display:flex;gap:.5rem;flex-wrap:wrap}.muted{color:var(--muted)}.brief{white-space:pre-wrap;background:#111827;color:#ecfdf5;border-radius:16px;padding:1rem;max-height:520px;overflow:auto}.mini-table table{min-width:760px}.progress{height:10px;background:#edf2f7;border-radius:999px;overflow:hidden}.progress span{display:block;height:100%;background:#38a169}.task-controls{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.5rem}.task-controls button{padding:.4rem .65rem;font-size:.82rem}.warning-card{border-color:#fed7aa;background:#fffaf0}@media(max-width:1050px){.exec-grid .card,.exec-grid .third,.exec-grid .two-third{grid-column:1/-1}.kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}.readiness{grid-template-columns:1fr}}@media(max-width:640px){.kpi-row{grid-template-columns:1fr}}
+  </style>
+  <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
+</head>
+<body class="admin-v20 execution-page">
+  <header class="exec-hero">
+    <div>
+      <p class="eyebrow">V41 Execution Engine</p>
+      <h1>Sledeća faza: pretvaramo strategiju iz V40 u dnevno izvršavanje.</h1>
+      <p class="subtitle">Task board, seller scorecards, city readiness, safe automations, playbook biblioteka, SLA pravila i weekly brief.</p>
+    </div>
+    <nav class="top-nav">
+      <a class="link-button secondary-link" href="/market-ops">Market Ops</a>
+      <a class="link-button secondary-link" href="/launch">Launch</a>
+      <a class="link-button secondary-link" href="/finance">Finance</a>
+      <a class="link-button" href="/offers">Korisnik</a>
+    </nav>
+  </header>
+
+  <main class="exec-grid">
+    <section class="card wide">
+      <div class="table-header">
+        <div><h2>Execution komanda</h2><p class="help-text">Ovo je operativni sloj preko V40: vidi gapove, generiši taskove i pokreni bezbedne provere.</p></div>
+        <div class="button-row">
+          <button id="seedBtn">Učitaj V41 komplet</button>
+          <button id="generateBtn" class="secondary">Generiši taskove iz metrike</button>
+          <button id="automationDryBtn" class="secondary">Safe check — bez izmene</button>
+          <button id="automationRunBtn" class="danger">Safe check — primeni</button>
+          <button id="refreshBtn" class="secondary">Osveži</button>
+        </div>
+      </div>
+      <div class="readiness">
+        <div id="scoreBox" class="score-ring"><span>Readiness</span><strong>0</strong><span>/100</span></div>
+        <div>
+          <div id="kpis" class="kpi-row"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card two-third">
+      <div class="table-header"><div><h2>Gapovi koje treba zatvoriti</h2><p class="help-text">Sistem čita stvarnu bazu i kaže šta blokira pilot.</p></div></div>
+      <div id="gaps" class="gap-list"></div>
+    </section>
+
+    <section class="card third">
+      <div class="table-header"><div><h2>Weekly brief</h2><p class="help-text">Kratak izveštaj za tebe/tim.</p></div><button id="briefBtn" class="secondary">Generiši</button></div>
+      <pre id="briefBox" class="brief">Klikni “Generiši”.</pre>
+    </section>
+
+    <section class="card wide">
+      <div class="table-header"><div><h2>Execution task board</h2><p class="help-text">Taskovi imaju lane, owner, prioritet i status. Klikom ih prebacuješ u rad/done.</p></div></div>
+      <div id="tasks" class="task-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>Seller scorecards</h2><p class="help-text">Koji prodavci su spremni, a kome treba pomoć.</p></div><button id="sellerBtn" class="secondary">Učitaj</button></div>
+      <div id="sellerCards" class="cards-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>City readiness</h2><p class="help-text">Koji grad ima dovoljno ponuda/prodavaca za širenje.</p></div><button id="cityBtn" class="secondary">Učitaj</button></div>
+      <div id="cityCards" class="cards-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>Playbooks</h2><p class="help-text">Operativna uputstva za prodaju, onboarding, kvalitet, refund i finansije.</p></div></div>
+      <div id="playbooks" class="cards-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="table-header"><div><h2>SLA pravila</h2><p class="help-text">Rokovi reakcije za prodavce, support i refund.</p></div></div>
+      <div id="sla" class="cards-list"></div>
+    </section>
+  </main>
+  <div id="toast"></div>
+  <script src="/admin-assets/admin-auth.js"></script>
+  <script src="/admin-assets/execution.js"></script>
+  <script src="/admin-assets/brand-system-v56.js"></script>
+</body>
+</html>
