@@ -7,6 +7,14 @@ from .. import models, schemas
 from ..database import get_db
 from ..services.pricing import apply_pricing_to_reservation, mark_refunded_if_paid
 from ..services.notifications import customer_notifications_enabled, reservation_created_message, reservation_status_message, send_sms
+from ..services.customers import (
+    apply_reservation_status_transition,
+    enforce_customer_block,
+    find_customer_by_phone,
+    get_or_create_customer,
+    register_reservation_created,
+    customer_to_public,
+)
 
 router = APIRouter(prefix="/reservations", tags=["reservations"])
 ACTIVE_RESERVATION_STATUSES = ["pending", "confirmed"]
@@ -96,6 +104,22 @@ def create_reservation(payload: schemas.ReservationCreate, background_tasks: Bac
     if available is not None and payload.quantity > available:
         raise HTTPException(status_code=400, detail=f"Nema dovoljno dostupne količine. Dostupno: {available}")
 
+    try:
+        customer = get_or_create_customer(
+            db,
+            name=payload.customer_name,
+            phone=payload.customer_phone,
+            email=payload.customer_email,
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Unesi ispravan broj telefona")
+    enforce_customer_block(customer)
+    if customer.status == "blocked":
+        raise HTTPException(
+            status_code=403,
+            detail="Korisnik je blokiran zbog 3 otkazivanja rezervacije. Kontaktiraj podršku za proveru naloga.",
+        )
+
     reservation = models.Reservation(
         product_id=payload.product_id,
         customer_name=payload.customer_name.strip(),
@@ -110,6 +134,7 @@ def create_reservation(payload: schemas.ReservationCreate, background_tasks: Bac
     db.add(reservation)
     db.flush()
     apply_pricing_to_reservation(db, reservation)
+    register_reservation_created(db, reservation, customer)
     db.commit()
     db.refresh(reservation)
     if customer_notifications_enabled():
@@ -158,9 +183,11 @@ def customer_reservations(phone: str, limit: int = 50, db: Session = Depends(get
     cancelled = [r for r in matches if r.status == "cancelled"]
     total_saved = sum(max(0, (r.gross_amount or 0) - (r.payable_amount or 0)) for r in matches if r.status != "cancelled")
     total_paid = sum((r.payable_amount or 0) for r in matches if r.payment_status in {"paid", "pay_on_pickup"})
+    customer = find_customer_by_phone(db, phone)
     return {
         "ok": True,
         "phone_tail": provided[-4:],
+        "customer": customer_to_public(customer),
         "stats": {
             "total": len(matches),
             "active": len(active),
@@ -181,9 +208,11 @@ def update_reservation_status(reservation_id: int, status: str, db: Session = De
     reservation = db.get(models.Reservation, reservation_id)
     if not reservation:
         raise HTTPException(status_code=404, detail="Rezervacija nije pronađena")
+    previous_status = reservation.status
     reservation.status = status
     if status in {"cancelled", "expired"}:
         mark_refunded_if_paid(reservation)
+    apply_reservation_status_transition(db, reservation, previous_status, status)
     reservation.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(reservation)
@@ -223,8 +252,10 @@ def cancel_reservation_by_code(reservation_code: str, phone: str, db: Session = 
         raise HTTPException(status_code=401, detail="Telefon se ne poklapa sa rezervacijom")
     if reservation.status not in {"pending", "confirmed"}:
         raise HTTPException(status_code=400, detail="Ova rezervacija više ne može da se otkaže")
+    previous_status = reservation.status
     reservation.status = "cancelled"
     mark_refunded_if_paid(reservation)
+    apply_reservation_status_transition(db, reservation, previous_status, "cancelled")
     reservation.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(reservation)

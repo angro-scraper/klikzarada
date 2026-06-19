@@ -20,6 +20,7 @@ from .routes.reservations import _reservation_to_out
 from .services.excel_database import DATA_DIR, EXCEL_PATH, export_database_to_excel
 from .services.json_store import read_json
 from .services.pricing import apply_pricing_to_reservation, mark_paid
+from .services.customers import apply_reservation_status_transition, register_reservation_created
 
 router = APIRouter(prefix="/pilot-live", tags=["pilot-live"])
 
@@ -1405,6 +1406,7 @@ def pilot_confirm_pickup(payload: PickupConfirmRequest, db: Session = Depends(ge
         raise HTTPException(status_code=404, detail="Rezervacija ne pripada ovom partneru ili ne postoji")
     if reservation.status in {"cancelled", "expired"}:
         raise HTTPException(status_code=400, detail="Ova rezervacija više ne može da se potvrdi")
+    previous_status = reservation.status
     apply_pricing_to_reservation(db, reservation)
     if reservation.payment_status == "unpaid":
         reservation.payment_status = "pay_on_pickup"
@@ -1417,6 +1419,7 @@ def pilot_confirm_pickup(payload: PickupConfirmRequest, db: Session = Depends(ge
     elif reservation.payment_status == "paid" and reservation.seller_payout_status in {"not_ready", "blocked"}:
         reservation.seller_payout_status = "pending"
     reservation.status = "picked_up"
+    apply_reservation_status_transition(db, reservation, previous_status, "picked_up")
     reservation.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(reservation)
@@ -1456,8 +1459,11 @@ def pilot_smoke_test(db: Session = Depends(get_db)):
     db.add(reservation)
     db.flush()
     apply_pricing_to_reservation(db, reservation)
+    register_reservation_created(db, reservation)
     mark_paid(reservation, provider="demo", method="pilot_demo_card")
+    previous_status = reservation.status
     reservation.status = "picked_up"
+    apply_reservation_status_transition(db, reservation, previous_status, "picked_up")
     reservation.seller_payout_status = "pending"
     reservation.updated_at = datetime.utcnow()
     db.commit()

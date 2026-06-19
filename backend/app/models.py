@@ -49,6 +49,25 @@ class Product(Base):
     reservations = relationship("Reservation", back_populates="product")
 
 
+class Customer(Base):
+    __tablename__ = "customers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    phone: Mapped[str] = mapped_column(String(80), index=True)
+    phone_digits: Mapped[str] = mapped_column(String(40), unique=True, index=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(40), default="active", index=True)
+    total_reservations: Mapped[int] = mapped_column(Integer, default=0)
+    cancelled_reservations: Mapped[int] = mapped_column(Integer, default=0)
+    completed_reservations: Mapped[int] = mapped_column(Integer, default=0)
+    blocked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    block_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_reservation_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class Reservation(Base):
     __tablename__ = "reservations"
 

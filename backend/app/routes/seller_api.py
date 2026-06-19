@@ -6,6 +6,7 @@ from ..database import get_db
 from .products import product_to_public
 from .reservations import _reservation_to_out
 from ..services.pricing import mark_refunded_if_paid
+from ..services.customers import apply_reservation_status_transition
 
 router = APIRouter(prefix="/seller-api", tags=["seller-api"])
 SELLER_PRODUCT_STATUSES = {"seller_verified", "near_expiry", "public_discount", "candidate", "hidden"}
@@ -117,12 +118,14 @@ def seller_update_reservation_status(
     reservation = db.get(models.Reservation, reservation_id)
     if not reservation or not reservation.product or reservation.product.store_id != payload.store_id:
         raise HTTPException(status_code=404, detail="Rezervacija nije pronađena za ovog prodavca")
+    previous_status = reservation.status
     reservation.status = payload.status
     if payload.status in {"cancelled", "expired"}:
         mark_refunded_if_paid(reservation)
     if payload.status == "picked_up" and reservation.payment_status == "pay_on_pickup":
         reservation.seller_payout_status = "commission_due"
         reservation.seller_payout_note = "Prodavac je naplatio kupcu pri preuzimanju; platformska provizija je za naplatu od prodavca."
+    apply_reservation_status_transition(db, reservation, previous_status, payload.status)
     reservation.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(reservation)

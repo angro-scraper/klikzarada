@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -17,6 +17,12 @@ from .. import models
 from ..database import get_db
 from ..services.pricing import normalize_phone, loyalty_percent_for_completed_pickups
 from ..services.notifications import send_sms, otp_message
+from ..services.admin_auth import is_request_admin
+from ..services.customers import (
+    customer_to_public,
+    find_customer_by_phone,
+    rebuild_customer_database,
+)
 
 router = APIRouter(prefix="/customers", tags=["customers"])
 
@@ -25,6 +31,15 @@ OTP_FILE = DATA_DIR / "customer_otp_sessions.json"
 OTP_TTL_MINUTES = int(os.getenv("CUSTOMER_OTP_TTL_MINUTES", "10"))
 TOKEN_TTL_DAYS = int(os.getenv("CUSTOMER_TOKEN_TTL_DAYS", "30"))
 DEV_SHOW_OTP = os.getenv("DEV_SHOW_OTP", "true").lower() in {"1", "true", "yes", "da"}
+
+
+def _admin_guard_active() -> bool:
+    return os.getenv("ADMIN_GUARD_ENABLED", "false").lower() in {"1", "true", "yes", "da", "on"}
+
+
+def _require_customer_admin(request: Request) -> None:
+    if _admin_guard_active() and not is_request_admin(request):
+        raise HTTPException(status_code=401, detail="Admin prijava je potrebna")
 
 
 class OtpRequest(BaseModel):
@@ -135,6 +150,7 @@ def _next_loyalty_goal(picked_up: int) -> dict:
 def _profile_payload(db: Session, phone: str, limit: int = 50, secure: bool = False) -> dict:
     reservations = _matching_reservations(db, phone)
     limited = reservations[:limit]
+    customer = find_customer_by_phone(db, phone)
 
     picked_up = sum(1 for r in reservations if r.status == "picked_up")
     active = sum(1 for r in reservations if r.status in {"pending", "confirmed"})
@@ -184,6 +200,7 @@ def _profile_payload(db: Session, phone: str, limit: int = 50, secure: bool = Fa
     return {
         "phone_masked": _mask_phone(phone),
         "verified": secure,
+        "customer": customer_to_public(customer),
         "total_reservations": len(reservations),
         "active_reservations": active,
         "picked_up_count": picked_up,
@@ -302,3 +319,51 @@ def customer_profile(
     payload = _profile_payload(db, phone, limit=limit, secure=False)
     payload["privacy_note"] = "Ovo je nezaštićen MVP prikaz po telefonu. Koristi /customer stranicu sa OTP potvrdom za bezbedniji prikaz naloga."
     return payload
+
+
+@router.get("/database", response_model=dict)
+def customer_database(
+    request: Request,
+    status: str | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=1000),
+    db: Session = Depends(get_db),
+):
+    _require_customer_admin(request)
+    query = db.query(models.Customer)
+    if status:
+        query = query.filter(models.Customer.status == status)
+    total = query.count()
+    customers = query.order_by(models.Customer.updated_at.desc()).limit(limit).all()
+    blocked_total = db.query(models.Customer).filter(models.Customer.status == "blocked").count()
+    return {
+        "ok": True,
+        "customers_total": total,
+        "blocked_customers_total": blocked_total,
+        "limit": limit,
+        "customers": [customer_to_public(customer) for customer in customers],
+    }
+
+
+@router.post("/database/rebuild", response_model=dict)
+def rebuild_customer_database_endpoint(request: Request, db: Session = Depends(get_db)):
+    _require_customer_admin(request)
+    return rebuild_customer_database(db)
+
+
+@router.post("/{customer_id}/unblock", response_model=dict)
+def unblock_customer(customer_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_customer_admin(request)
+    customer = db.get(models.Customer, customer_id)
+    if not customer:
+        raise HTTPException(status_code=404, detail="Korisnik nije pronađen")
+    customer.status = "active"
+    customer.blocked_at = None
+    customer.block_reason = None
+    customer.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(customer)
+    return {
+        "ok": True,
+        "message": "Korisnik je odblokiran.",
+        "customer": customer_to_public(customer),
+    }
