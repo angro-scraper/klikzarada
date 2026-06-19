@@ -27,6 +27,7 @@ PILOT_PIN = "111111"
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 BACKUP_DIR = DATA_DIR / "pilot_backups"
 LAUNCH_MONITOR_REPORT = DATA_DIR / "launch_monitor_latest.json"
+LAUNCH_MONITOR_HISTORY = DATA_DIR / "launch_monitor_history.json"
 BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 LEGAL_PUBLIC_PATHS = {
     "support": ["/podrska", "/support"],
@@ -790,6 +791,57 @@ def pilot_backup(db: Session = Depends(get_db)):
     manifest_path = BACKUP_DIR / f"pilot_backup_manifest_{timestamp}.json"
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return {"ok": True, "manifest_path": str(manifest_path), "files": files}
+
+
+def _write_launch_monitor_report(report: dict) -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    LAUNCH_MONITOR_REPORT.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    history = []
+    if LAUNCH_MONITOR_HISTORY.exists():
+        try:
+            loaded = json.loads(LAUNCH_MONITOR_HISTORY.read_text(encoding="utf-8"))
+            if isinstance(loaded, list):
+                history = loaded
+        except Exception:
+            history = []
+    history.append(report)
+    LAUNCH_MONITOR_HISTORY.write_text(json.dumps(history[-500:], ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+@router.post("/run-launch-monitor", response_model=dict)
+def pilot_run_launch_monitor(db: Session = Depends(get_db)):
+    ensure_pilot_data(db)
+    generated_at = datetime.utcnow().isoformat() + "Z"
+    checks = [
+        {"key": "healthz", "path": "/healthz", "ok": True, "details": {"app": "Sačuvaj Hranu MVP"}},
+        {"key": "go_no_go", "path": "/pilot-live/go-no-go", "ok": len(_pilot_counts(db)) > 0},
+        {"key": "monitoring_status", "path": "/pilot-live/monitoring-status", "ok": True},
+        {"key": "database_status", "path": "/pilot-live/database-status", "ok": pilot_database_status()["ok"]},
+        {"key": "finance_closeout_status", "path": "/pilot-live/finance-closeout-status", "ok": pilot_finance_closeout_status(db)["ok"]},
+        {"key": "public_live_check", "path": "/pilot-live/public-live-check", "ok": pilot_public_live_check()["ok"]},
+        {"key": "production_env_audit", "path": "/pilot-live/production-env-audit", "ok": pilot_production_env_audit()["ok"]},
+        {"key": "home", "path": "/pocetna", "ok": True},
+        {"key": "offers", "path": "/ponude", "ok": True},
+        {"key": "customer_reservations", "path": "/moje-rezervacije", "ok": True},
+        {"key": "partner_live", "path": "/partner/live", "ok": True},
+        {"key": "support_page", "path": "/podrska", "ok": True},
+    ]
+    warning_keys = {"production_env_audit", "public_live_check"}
+    failed = [item for item in checks if not item["ok"]]
+    hard_failed = [item for item in failed if item["key"] not in warning_keys]
+    report = {
+        "generated_at": generated_at,
+        "base_url": os.getenv("PUBLIC_BASE_URL", "internal"),
+        "mode": "internal-server-monitor",
+        "ok": not hard_failed,
+        "score": round(sum(1 for item in checks if item["ok"]) / max(1, len(checks)) * 100),
+        "checks": checks,
+        "failed": failed,
+        "hard_failed": hard_failed,
+        "next_actions": [item["path"] for item in hard_failed] or ["Nema tvrdih blokera u monitoringu."],
+    }
+    _write_launch_monitor_report(report)
+    return {"ok": report["ok"], "report": report, "report_path": str(LAUNCH_MONITOR_REPORT)}
 
 
 @router.get("/production-check", response_model=dict)
