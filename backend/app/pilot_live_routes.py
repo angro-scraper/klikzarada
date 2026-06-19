@@ -844,6 +844,87 @@ def pilot_run_launch_monitor(db: Session = Depends(get_db)):
     return {"ok": report["ok"], "report": report, "report_path": str(LAUNCH_MONITOR_REPORT)}
 
 
+@router.post("/final-live-update", response_model=dict)
+def pilot_final_live_update(db: Session = Depends(get_db)):
+    ensure_pilot_data(db)
+    started_at = datetime.utcnow().isoformat() + "Z"
+    before = _pilot_counts(db)
+    steps: list[dict] = []
+
+    smoke_result = None
+    if before["reservations_total"] == 0 or before["picked_up_reservations"] == 0:
+        smoke_result = pilot_smoke_test(db)
+        steps.append({
+            "key": "smoke_test",
+            "ok": bool(smoke_result.get("ok")),
+            "message": smoke_result.get("message"),
+            "reservation_code": smoke_result.get("reservation", {}).get("reservation_code"),
+        })
+    else:
+        steps.append({
+            "key": "smoke_test",
+            "ok": True,
+            "message": "Preskočeno: produkcija već ima rezervaciju i potvrđeno preuzimanje.",
+        })
+
+    backup_result = pilot_backup(db)
+    steps.append({
+        "key": "backup",
+        "ok": bool(backup_result.get("ok")),
+        "manifest_path": backup_result.get("manifest_path"),
+        "files": backup_result.get("files", []),
+    })
+
+    monitor_result = pilot_run_launch_monitor(db)
+    steps.append({
+        "key": "launch_monitor",
+        "ok": bool(monitor_result.get("ok")),
+        "score": monitor_result.get("report", {}).get("score"),
+        "hard_failed": monitor_result.get("report", {}).get("hard_failed", []),
+    })
+
+    final = pilot_go_no_go(db)
+    env_blockers = final.get("production_env", {}).get("blockers", [])
+    manual_actions = []
+    if any(item.get("key") in {"admin_secret", "admin_secret_strength"} for item in env_blockers):
+        manual_actions.append(
+            "U Render Environment promeni ADMIN_SESSION_SECRET na 48+ karaktera sa velikim/malim slovima, brojevima i simbolom, pa redeploy."
+        )
+    for item in env_blockers:
+        fix = item.get("fix")
+        if fix and fix not in manual_actions:
+            manual_actions.append(fix)
+
+    return {
+        "ok": bool(final.get("ok")),
+        "closed_pilot_ready": bool(final.get("ok")),
+        "public_live_ready": final.get("public_decision") == "GO za javni live",
+        "started_at": started_at,
+        "finished_at": datetime.utcnow().isoformat() + "Z",
+        "summary": {
+            "decision": final.get("decision"),
+            "public_decision": final.get("public_decision"),
+            "closed_pilot_score": final.get("closed_pilot_score"),
+            "public_live_score": final.get("public_live_score"),
+            "visible_products": final.get("metrics", {}).get("visible_products"),
+            "stores_with_gps": final.get("metrics", {}).get("stores_with_gps"),
+            "reservations_total": final.get("metrics", {}).get("reservations_total"),
+            "picked_up_reservations": final.get("metrics", {}).get("picked_up_reservations"),
+            "backup_exists": final.get("metrics", {}).get("backup_exists"),
+            "monitoring_ok": final.get("metrics", {}).get("monitoring_ok"),
+        },
+        "steps": steps,
+        "manual_actions": manual_actions,
+        "final_go_no_go": final,
+        "links": {
+            "go_no_go": "/pilot-live/go-no-go",
+            "monitor": "/pilot-live/launch-monitor-status",
+            "backup": "/pilot-live/backup",
+            "admin_page": "/go-live",
+        },
+    }
+
+
 @router.get("/production-check", response_model=dict)
 def pilot_production_check(db: Session = Depends(get_db)):
     readiness = pilot_readiness(db)

@@ -19,6 +19,7 @@
         <p>Jedno mesto za odluku pre live dana: kupac, partner, support, finance, mapa, PWA, backup, deploy i security.</p>
         <div class="go-actions">
           <button class="dark" id="refreshBtn">Osveži status</button>
+          <button class="dark" id="finalBtn">Finalni live update</button>
           <button id="backupBtn">Napravi backup</button>
           <a href="/pocetna">Početna</a>
           <a href="/finance">Finansije</a>
@@ -110,8 +111,19 @@
       $('log').textContent = JSON.stringify(data, null, 2);
       await loadStatus();
     }
+    async function finalLiveUpdate(){
+      $('log').textContent = 'Pokrećem finalni live update: smoke test po potrebi, backup, monitor i završni go/no-go...';
+      const data = await api('/pilot-live/final-live-update', {method:'POST'});
+      $('log').textContent = JSON.stringify({
+        summary: data.summary,
+        steps: data.steps,
+        manual_actions: data.manual_actions
+      }, null, 2);
+      await loadStatus();
+    }
     $('refreshBtn').addEventListener('click', () => loadStatus().catch(e => $('log').textContent = e.message));
     $('backupBtn').addEventListener('click', () => makeBackup().catch(e => $('log').textContent = e.message));
+    $('finalBtn').addEventListener('click', () => finalLiveUpdate().catch(e => $('log').textContent = e.message));
     loadStatus().catch(e => $('log').textContent = e.message);
   </script>
 </body>
