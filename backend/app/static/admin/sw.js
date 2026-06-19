@@ -3,6 +3,7 @@ const APP_SHELL = [
   '/',
   '/pocetna',
   '/ponude',
+  '/problem-bacanja-hrane',
   '/partner/onboarding',
   '/partner/preuzimanje',
   '/offline',
