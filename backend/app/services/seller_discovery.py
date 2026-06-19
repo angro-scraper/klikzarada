@@ -12,6 +12,7 @@ from urllib.parse import urlencode, urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .. import models
@@ -142,6 +143,23 @@ def _tokens(value: str | None) -> set[str]:
 def _clean(value: Any, limit: int = 255) -> str | None:
     text = re.sub(r"\s+", " ", str(value or "")).strip()
     return text[:limit] if text else None
+
+
+def _canonical_source_url(value: str | None) -> str | None:
+    raw = _clean(value, 500)
+    if not raw or not raw.startswith(("http://", "https://")):
+        return raw
+    try:
+        parsed = urlparse(raw)
+    except Exception:
+        return raw.rstrip("/")
+    scheme = (parsed.scheme or "https").lower()
+    host = (parsed.netloc or "").lower()
+    path = (parsed.path or "").rstrip("/")
+    query = f"?{parsed.query}" if parsed.query else ""
+    if not host:
+        return raw.rstrip("/")
+    return f"{scheme}://{host}{path}{query}"
 
 
 def _to_float(value: Any) -> float | None:
@@ -635,7 +653,18 @@ def _store_exists(db: Session, name: str, city: str | None, website: str | None)
     if store:
         return store
     if website:
-        return db.query(models.Store).filter(models.Store.website == website).first()
+        website_with_slash = f"{website}/" if not website.endswith("/") else website
+        website_without_slash = website.rstrip("/")
+        return (
+            db.query(models.Store)
+            .filter(
+                or_(
+                    models.Store.website == website_without_slash,
+                    models.Store.website == website_with_slash,
+                )
+            )
+            .first()
+        )
     return None
 
 
@@ -645,9 +674,9 @@ def _import_candidates_to_stores(db: Session, candidates: list[dict[str, Any]], 
     created_sources = 0
     seen_source_urls: set[str] = set()
     existing_source_urls = {
-        str(url or "").rstrip("/")
+        _canonical_source_url(str(url or ""))
         for (url,) in db.query(models.Source.url).filter(models.Source.url.isnot(None)).all()
-        if str(url or "").strip()
+        if _canonical_source_url(str(url or ""))
     }
     for candidate in candidates:
         if candidate.get("kind") == "research_task":
@@ -657,7 +686,7 @@ def _import_candidates_to_stores(db: Session, candidates: list[dict[str, Any]], 
             continue
         city = _clean(candidate.get("city"), 80)
         website = _clean(candidate.get("source_url") or candidate.get("contact"), 500)
-        normalized_website = website.rstrip("/") if website and website.startswith("http") else website
+        normalized_website = _canonical_source_url(website)
         phone = None if website and website.startswith("http") else _clean(candidate.get("contact"), 80)
         store = _store_exists(db, name, city, normalized_website)
         if store:
@@ -680,22 +709,35 @@ def _import_candidates_to_stores(db: Session, candidates: list[dict[str, Any]], 
         if create_sources and normalized_website and normalized_website.startswith("http"):
             if normalized_website in seen_source_urls or normalized_website in existing_source_urls:
                 continue
-            source = (
-                db.query(models.Source)
-                .filter(
-                    or_(
-                        models.Source.url == normalized_website,
-                        models.Source.url == f"{normalized_website}/",
-                    )
-                )
-                .first()
-            )
-            if not source:
-                db.add(models.Source(name=name, url=normalized_website, city=city, source_type="ai_seller_discovery", crawl_frequency="weekly", active=True))
-                db.flush()
-                created_sources += 1
-                existing_source_urls.add(normalized_website)
             seen_source_urls.add(normalized_website)
+            try:
+                with db.begin_nested():
+                    source = (
+                        db.query(models.Source)
+                        .filter(
+                            or_(
+                                models.Source.url == normalized_website,
+                                models.Source.url == f"{normalized_website}/",
+                            )
+                        )
+                        .first()
+                    )
+                    if not source:
+                        db.add(
+                            models.Source(
+                                name=name,
+                                url=normalized_website,
+                                city=city,
+                                source_type="ai_seller_discovery",
+                                crawl_frequency="weekly",
+                                active=True,
+                            )
+                        )
+                        db.flush()
+                        created_sources += 1
+            except IntegrityError:
+                pass
+            existing_source_urls.add(normalized_website)
     db.commit()
     return {"created_stores": created_stores, "updated_stores": updated_stores, "created_sources": created_sources}
 

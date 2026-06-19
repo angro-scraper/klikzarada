@@ -2058,3 +2058,70 @@ body.go-live-v113 .sh-admin-topbar-v103{
     gap:12px!important;
   }
 }
+
+/* V116: Final AI admin readability guardrails */
+body.ai-admin-body #sellerDiscoveryResult,
+body.ai-admin-body #sellerDiscoveryResult *{
+  opacity:1!important;
+  filter:none!important;
+  mix-blend-mode:normal!important;
+  text-shadow:none!important;
+}
+body.ai-admin-body #sellerDiscoveryResult{
+  background:#fffdf8!important;
+  color:#103b2f!important;
+  border:1px solid rgba(16,59,47,.16)!important;
+}
+body.ai-admin-body #sellerDiscoveryResult p,
+body.ai-admin-body #sellerDiscoveryResult strong,
+body.ai-admin-body #sellerDiscoveryResult td,
+body.ai-admin-body #sellerDiscoveryResult th,
+body.ai-admin-body #sellerDiscoveryResult li,
+body.ai-admin-body #sellerDiscoveryResult span,
+body.ai-admin-body #sellerDiscoveryResult div,
+body.ai-admin-body #sellerDiscoveryResult small{
+  color:#103b2f!important;
+}
+body.ai-admin-body #sellerDiscoveryResult small,
+body.ai-admin-body #sellerDiscoveryResult .help-text{
+  color:#5f776d!important;
+}
+body.ai-admin-body #sellerDiscoveryResult a{
+  color:#146a52!important;
+}
+body.ai-admin-body #sellerDiscoveryResult .status-box.warning{
+  background:#fff8e8!important;
+  color:#103b2f!important;
+  border:1px solid rgba(198,140,0,.24)!important;
+}
+body.ai-admin-body #sellerDiscoveryResult .seller-discovery-table-v104{
+  width:100%!important;
+  min-width:0!important;
+  overflow-x:auto!important;
+}
+body.ai-admin-body #sellerDiscoveryResult .seller-discovery-table-v104 table{
+  width:100%!important;
+  min-width:940px!important;
+  background:#fffdf8!important;
+  border-collapse:collapse!important;
+}
+body.ai-admin-body #sellerDiscoveryResult .seller-discovery-table-v104 thead th{
+  background:#eef8f3!important;
+  color:#103b2f!important;
+}
+body.ai-admin-body #sellerDiscoveryResult .seller-discovery-table-v104 tbody tr,
+body.ai-admin-body #sellerDiscoveryResult .seller-discovery-table-v104 tbody td{
+  background:transparent!important;
+  color:#103b2f!important;
+}
+body.ai-admin-body #sellerDiscoveryResult .seller-discovery-table-v104 tbody tr:nth-child(even){
+  background:#fbfdfb!important;
+}
+body.ai-admin-body #sellerDiscoveryResult .seller-discovery-table-v104 tbody tr:hover{
+  background:#f2fbf6!important;
+}
+body.ai-admin-body #sellerDiscoveryResult button.secondary{
+  background:#eef7f0!important;
+  color:#0f513f!important;
+  border:1px solid #cae6d3!important;
+}

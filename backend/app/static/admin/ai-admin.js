@@ -15,11 +15,22 @@ function setStatus(text) { $('knowledgeStatus').textContent = text; }
 function escapeHtml(str) { return String(str ?? '').replace(/[&<>'"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function formDataJson(form) { return Object.fromEntries(new FormData(form).entries()); }
 function checkbox(form, name) { return !!form.querySelector(`[name="${name}"]`)?.checked; }
+function normalizeDiscoveryMessage(message) {
+  const text = String(message || '').trim();
+  const lower = text.toLowerCase();
+  if (lower.includes('duplicate key value') || lower.includes('ix_sources_url')) {
+    return 'Neki izvori su već postojali u bazi, pa su duplikati preskočeni bez prekida pretrage.';
+  }
+  if (lower.includes('insert into sources') || lower.includes('parameters:') || text.length > 700) {
+    return 'Pretraga je vratila tehničko upozorenje. Osveži stranicu i probaj ponovo sa manjim limitom ili užim kriterijumom.';
+  }
+  return text;
+}
 function renderSellerDiscoveryError(message) {
   $('sellerDiscoveryResult').innerHTML = `
     <div class="status-box warning">
       <strong>AI pretraga nije završena</strong>
-      <p>${escapeHtml(message || 'Došlo je do greške tokom AI pretrage prodavaca.')}</p>
+      <p>${escapeHtml(normalizeDiscoveryMessage(message) || 'Došlo je do greške tokom AI pretrage prodavaca.')}</p>
       <small>Osveži stranicu ili pokreni novu pretragu sa manjim limitom.</small>
     </div>
   `;
@@ -38,7 +49,7 @@ function setBusy(btn, on = true) {
 
 function renderSellerDiscovery(data) {
   const items = data.leads?.length ? data.leads : (data.candidates || []);
-  const warnings = (data.warnings || []).map((warning) => `<li>${escapeHtml(warning)}</li>`).join('');
+  const warnings = (data.warnings || []).map((warning) => `<li>${escapeHtml(normalizeDiscoveryMessage(warning))}</li>`).join('');
   const rows = items.map((candidate) => `
     <tr>
       <td><strong>${escapeHtml(candidate.name)}</strong><br><small>${escapeHtml(candidate.note || candidate.ai_reason || '')}</small></td>
