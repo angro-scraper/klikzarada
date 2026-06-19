@@ -44,6 +44,21 @@ const SH_GO_LIVE = (() => {
     node.textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
   }
 
+  function logSummary(snapshot) {
+    const checks = snapshot.checks || [];
+    const lines = [
+      `Status: ${snapshot.status || "-"}`,
+      `Odluka: ${snapshot.decision || "-"}`,
+      `Ažurirano: ${formatDate(snapshot.generated_at)}`,
+      "",
+      "Provere:",
+    ];
+    checks.forEach((item) => {
+      lines.push(`${item.ok ? "OK" : "PROBLEM"} - ${item.label}: ${present(item.value, item.fix || "")}`);
+    });
+    log(lines.join("\n"));
+  }
+
   function renderDecision(snapshot) {
     const card = el("decisionCard");
     const isOk = !!snapshot.ok;
@@ -177,12 +192,7 @@ const SH_GO_LIVE = (() => {
     log("Učitavam Go Live kontrolni centar...");
     return api("/pilot-live/control-center").then((snapshot) => {
       render(snapshot);
-      log({
-        decision: snapshot.decision,
-        status: snapshot.status,
-        generated_at: snapshot.generated_at,
-        checks: snapshot.checks,
-      });
+      logSummary(snapshot);
       return snapshot;
     });
   }
@@ -194,13 +204,10 @@ const SH_GO_LIVE = (() => {
     return api(path, options || {}).then((result) => {
       if (result.snapshot) {
         render(result.snapshot);
-        log(result);
+        logSummary(result.snapshot);
         return result;
       }
-      return refresh().then(() => {
-        log(result);
-        return result;
-      });
+      return refresh().then(() => result);
     }).catch((error) => {
       log(`Greška: ${error.message}`);
     }).then((result) => {

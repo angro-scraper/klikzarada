@@ -1876,3 +1876,141 @@ body.sh55-partner .agreement-box-v107 .help-text{
   .go-live-status-grid-v113,.go-live-links-v113,.go-live-finance-grid-v113{grid-template-columns:1fr}
   .go-live-panel-v113 .section-title{display:block}
 }
+
+/* V115: Go Live layout guardrails */
+body.go-live-v113{
+  overflow-x:hidden!important;
+}
+body.go-live-v113 .sh-admin-topbar-v103{
+  position:relative!important;
+  top:auto!important;
+  z-index:20!important;
+  width:calc(100% - 60px)!important;
+  max-width:none!important;
+  margin:18px 30px 12px!important;
+  box-sizing:border-box!important;
+}
+.go-live-v113 .go-live-shell-v113{
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  padding:14px 30px 46px!important;
+  box-sizing:border-box!important;
+}
+.go-live-v113 .go-live-hero-v113{
+  grid-template-columns:minmax(0,1fr) minmax(300px,390px)!important;
+  align-items:stretch!important;
+  gap:20px!important;
+  overflow:hidden!important;
+}
+.go-live-v113 .go-live-hero-v113 h1{
+  max-width:900px!important;
+  font-size:clamp(42px,5vw,78px)!important;
+  line-height:.96!important;
+}
+.go-live-v113 .go-live-hero-v113 .subtitle{
+  max-width:720px!important;
+}
+.go-live-v113 .go-live-decision-v113{
+  min-height:210px!important;
+  align-self:stretch!important;
+}
+.go-live-v113 .go-live-actions-v113{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(178px,1fr))!important;
+  gap:12px!important;
+  align-items:stretch!important;
+  margin:18px 0 22px!important;
+}
+.go-live-v113 .go-live-actions-v113 button{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  min-width:0!important;
+  min-height:56px!important;
+  height:auto!important;
+  padding:10px 14px!important;
+  white-space:normal!important;
+  text-align:center!important;
+  line-height:1.18!important;
+}
+.go-live-v113 .go-live-status-grid-v113{
+  grid-template-columns:repeat(auto-fit,minmax(245px,1fr))!important;
+  gap:16px!important;
+  align-items:stretch!important;
+}
+.go-live-v113 .go-live-check-v113{
+  grid-template-columns:52px minmax(0,1fr)!important;
+  min-height:126px!important;
+  align-items:start!important;
+  padding:18px!important;
+}
+.go-live-v113 .go-live-check-v113 span{
+  width:48px!important;
+  height:48px!important;
+  flex:0 0 auto!important;
+}
+.go-live-v113 .go-live-check-v113 strong,
+.go-live-v113 .go-live-check-v113 small,
+.go-live-v113 .go-live-row-v113 strong,
+.go-live-v113 .go-live-row-v113 small{
+  word-break:normal!important;
+  overflow-wrap:break-word!important;
+  hyphens:none!important;
+}
+.go-live-v113 .go-live-two-v113{
+  grid-template-columns:repeat(2,minmax(360px,1fr))!important;
+  gap:20px!important;
+}
+.go-live-v113 .go-live-panel-v113{
+  width:100%!important;
+  min-width:0!important;
+  overflow:hidden!important;
+}
+.go-live-v113 .go-live-links-v113{
+  grid-template-columns:repeat(auto-fit,minmax(132px,1fr))!important;
+}
+.go-live-v113 .go-live-links-v113 a{
+  min-height:52px!important;
+  height:auto!important;
+  padding:10px 12px!important;
+  line-height:1.18!important;
+  white-space:normal!important;
+  text-align:center!important;
+}
+.go-live-v113 .go-live-finance-grid-v113{
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr))!important;
+}
+.go-live-v113 .go-live-finance-grid-v113 article{
+  min-height:128px!important;
+}
+.go-live-v113 .go-live-log-v113{
+  max-height:420px!important;
+  line-height:1.45!important;
+}
+@media(max-width:1100px){
+  .go-live-v113 .go-live-hero-v113,
+  .go-live-v113 .go-live-two-v113{
+    grid-template-columns:1fr!important;
+  }
+}
+@media(max-width:760px){
+  body.go-live-v113 .sh-admin-topbar-v103{
+    width:calc(100% - 20px)!important;
+    margin:10px!important;
+  }
+  .go-live-v113 .go-live-shell-v113{
+    padding:10px 10px 34px!important;
+  }
+  .go-live-v113 .go-live-actions-v113,
+  .go-live-v113 .go-live-status-grid-v113,
+  .go-live-v113 .go-live-links-v113,
+  .go-live-v113 .go-live-finance-grid-v113{
+    grid-template-columns:1fr!important;
+  }
+  .go-live-v113 .go-live-panel-v113 .section-title{
+    display:grid!important;
+    gap:12px!important;
+  }
+}
