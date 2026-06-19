@@ -13,6 +13,7 @@ from .. import models
 from ..database import get_db
 from ..services.admin_auth import require_admin_session
 from ..services.json_store import read_json, write_json, append_json_row, update_json_row
+from ..services.seller_discovery import discover_sellers
 
 router = APIRouter(prefix="/scale-api", tags=["v37-scale-suite"])
 VISIBLE = {"public_discount", "seller_verified", "near_expiry"}
@@ -75,6 +76,17 @@ class LeadCreate(BaseModel):
     status: str = "new"
     score: int = Field(default=50, ge=0, le=100)
     note: str | None = None
+
+class SellerDiscoveryRequest(BaseModel):
+    city: str | None = "Beograd"
+    category: str | None = "pekara"
+    query: str | None = None
+    limit: int = Field(default=12, ge=1, le=50)
+    include_existing: bool = True
+    include_research_tasks: bool = True
+    web_search: bool = False
+    import_to_stores: bool = False
+    create_sources: bool = True
 
 
 def money(x: Any) -> float:
@@ -221,6 +233,27 @@ def list_leads(request: Request, status: str | None = None, _: bool = Depends(re
     if status:
         rows = [r for r in rows if r.get("status") == status]
     return rows[:500]
+
+
+@router.post("/seller-discovery/search", response_model=dict)
+def seller_discovery_search(payload: SellerDiscoveryRequest, request: Request, db: Session = Depends(get_db), _: bool = Depends(require_admin_session)):
+    return discover_sellers(
+        db,
+        city=payload.city,
+        category=payload.category,
+        query=payload.query,
+        limit=payload.limit,
+        include_existing=payload.include_existing,
+        include_research_tasks=payload.include_research_tasks,
+        web_search=payload.web_search,
+        import_to_stores=payload.import_to_stores,
+        create_sources=payload.create_sources,
+    )
+
+
+@router.get("/seller-discovery/runs", response_model=list[dict])
+def seller_discovery_runs(request: Request, _: bool = Depends(require_admin_session)):
+    return list(reversed(read_json("seller_discovery_runs.json", [])))[:100]
 
 
 @router.patch("/leads/{row_id}", response_model=dict)

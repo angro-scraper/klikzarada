@@ -5,6 +5,7 @@ async function api(url, opts={}){ const res=await fetch(url,{credentials:'includ
 function formDataJson(form){ return Object.fromEntries(new FormData(form).entries()); }
 function setBusy(btn, on=true){ if(!btn) return; if(on){ btn.dataset.old=btn.textContent; btn.disabled=true; btn.textContent='Radim...'; } else { btn.disabled=false; btn.textContent=btn.dataset.old || btn.textContent; } }
 async function withBusy(btn, fn){ try{ setBusy(btn,true); await fn(); } catch(e){ toast(e.message); } finally{ setBusy(btn,false); } }
+function checkbox(form, name){ return !!form.querySelector(`[name="${name}"]`)?.checked; }
 
 async function loadOverview(){
   const o=await api('/scale-api/overview');
@@ -41,6 +42,16 @@ async function loadLeads(){
   $('leadsBody').innerHTML = rows.map(r=>`<tr><td><strong>${r.name}</strong><br><small>${r.contact||''}</small><br><small>${r.note||''}</small></td><td>${r.city||''}<br><small>${r.category||''}</small></td><td><span class="status">${r.status}</span></td><td>${r.score||0}</td><td class="actions"><button data-lead="${r.id}" data-status="contacted">Kontaktiran</button><button class="secondary" data-lead="${r.id}" data-status="meeting">Sastanak</button><button data-lead="${r.id}" data-status="approved">Odobren</button></td></tr>`).join('') || '<tr><td colspan="5">Nema leadova.</td></tr>';
   document.querySelectorAll('[data-lead]').forEach(b=>b.addEventListener('click',()=>withBusy(b,async()=>{await api(`/scale-api/leads/${b.dataset.lead}`,{method:'PATCH',body:JSON.stringify({status:b.dataset.status})}); await loadLeads(); toast('Lead ažuriran');})));
 }
+function renderSellerDiscovery(r){
+  const rows=(r.candidates||[]).map(c=>`<tr><td><strong>${c.name||''}</strong><br><small>${c.note||c.ai_reason||''}</small></td><td>${c.city||''}<br><small>${c.category||''}</small></td><td>${c.contact||c.source_url||'-'}</td><td>${c.score||0}</td><td><span class="status">${c.kind||c.status||'lead'}</span></td></tr>`).join('');
+  $('sellerDiscoveryResult').innerHTML = `
+    <strong>${r.message||'AI pretraga završena.'}</strong>
+    <p>${r.ai_summary||''}</p>
+    <small>Leadovi: +${r.summary?.leads_created||0} novih, ${r.summary?.leads_updated||0} ažuriranih · Prodavci: +${r.summary?.created_stores||0} · Izvori: +${r.summary?.created_sources||0} · OpenAI: ${r.ai_used?'da':'ne'} · Web: ${r.web_search_enabled?'uključen':'isključen'}</small>
+    <div class="table-wrap compact-table" style="margin-top:.75rem"><table><thead><tr><th>Kandidat</th><th>Grad</th><th>Kontakt/izvor</th><th>Score</th><th>Tip</th></tr></thead><tbody>${rows||'<tr><td colspan="5">Nema kandidata za ove kriterijume.</td></tr>'}</tbody></table></div>
+    <p class="help-text">Predlozi za pretragu: ${(r.search_queries||[]).join(' · ')}</p>
+  `;
+}
 async function loadAiActions(){
   const r=await api('/scale-api/ai/next-actions');
   $('aiActions').innerHTML = `<h3>AI sledeći potezi</h3><div class="scale-ai-grid">${r.actions.map(a=>`<div class="mini-card priority-${a.priority}"><strong>${a.area}</strong><p>${a.action}</p><small>${a.why}</small></div>`).join('')}</div>`;
@@ -55,6 +66,7 @@ $('cityForm')?.addEventListener('submit',(e)=>{e.preventDefault(); withBusy(e.su
 $('campaignForm')?.addEventListener('submit',(e)=>{e.preventDefault(); withBusy(e.submitter,async()=>{const data=formDataJson(e.target); data.discount_percent=Number(data.discount_percent||0); data.budget_rsd=Number(data.budget_rsd||0); await api('/scale-api/campaigns',{method:'POST',body:JSON.stringify(data)}); await loadCampaigns(); await loadOverview(); toast('Kampanja dodata');});});
 $('demandForm')?.addEventListener('submit',(e)=>{e.preventDefault(); withBusy(e.submitter,async()=>{await api('/scale-api/demand',{method:'POST',body:JSON.stringify(formDataJson(e.target))}); e.target.reset(); await loadDemand(); await loadOverview(); toast('Zahtev dodat');});});
 $('leadForm')?.addEventListener('submit',(e)=>{e.preventDefault(); withBusy(e.submitter,async()=>{const data=formDataJson(e.target); data.score=Number(data.score||0); await api('/scale-api/leads',{method:'POST',body:JSON.stringify(data)}); e.target.reset(); await loadLeads(); await loadOverview(); toast('Lead dodat');});});
+$('sellerDiscoveryForm')?.addEventListener('submit',(e)=>{e.preventDefault(); withBusy(e.submitter,async()=>{const data=formDataJson(e.target); data.limit=Number(data.limit||12); data.include_existing=checkbox(e.target,'include_existing'); data.include_research_tasks=checkbox(e.target,'include_research_tasks'); data.import_to_stores=checkbox(e.target,'import_to_stores'); data.web_search=checkbox(e.target,'web_search'); const r=await api('/scale-api/seller-discovery/search',{method:'POST',body:JSON.stringify(data)}); renderSellerDiscovery(r); await loadLeads(); await loadOverview(); toast('AI prodavci su osveženi');});});
 $('sellerAdviceForm')?.addEventListener('submit',(e)=>{e.preventDefault(); withBusy(e.submitter,async()=>{const fd=formDataJson(e.target); const r=await api(`/scale-api/seller-advice?store_id=${encodeURIComponent(fd.store_id)}`); $('sellerAdvice').innerHTML = `<strong>${r.store.name}</strong><br>Javne ponude: ${r.visible_offers} · Rezervacije: ${r.reservations} · Prosečan popust: ${r.average_discount}%<ul>${r.advice.map(x=>`<li>${x}</li>`).join('')}</ul>`; toast('Analiza spremna');});});
 $('seoBtn')?.addEventListener('click',(e)=>withBusy(e.target,async()=>{const rows=await api('/scale-api/seo-pages'); $('seoBody').innerHTML = rows.map(r=>`<tr><td>${r.title}</td><td><code>${r.url}</code></td><td>${r.type}</td></tr>`).join('') || '<tr><td colspan="3">Nema predloga.</td></tr>'; toast('SEO predlozi generisani');}));
 init().catch(e=>toast(e.message));
