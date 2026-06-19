@@ -43,7 +43,7 @@ function renderSellerDiscovery(data) {
     <tr>
       <td><strong>${escapeHtml(candidate.name)}</strong><br><small>${escapeHtml(candidate.note || candidate.ai_reason || '')}</small></td>
       <td>${escapeHtml(candidate.city || '')}<br><small>${escapeHtml(candidate.category || '')}</small></td>
-      <td>${escapeHtml(candidate.contact || candidate.source_url || '-')}</td>
+      <td>${escapeHtml(candidate.contact || candidate.source_url || '-')}<br><small>slika: ${candidate.image_evidence ? 'da' : 'ne'} · akcija: ${candidate.discount_evidence ? 'da' : 'ne'} · hrana: ${candidate.food_evidence ? 'da' : 'ne'}</small></td>
       <td><strong>${escapeHtml(candidate.score || 0)}</strong></td>
       <td><span class="keywords">${escapeHtml(candidate.status || candidate.kind || 'lead')}</span></td>
       <td>${candidate.id ? `<button type="button" class="secondary" data-lead-contact="${escapeHtml(candidate.id)}">Odobri kontakt</button>` : '<span class="help-text">Nema lead ID</span>'}</td>
@@ -83,6 +83,9 @@ async function runSellerDiscovery(event) {
   payload.include_research_tasks = checkbox(form, 'include_research_tasks');
   payload.import_to_stores = checkbox(form, 'import_to_stores');
   payload.web_search = checkbox(form, 'web_search');
+  payload.require_image_evidence = checkbox(form, 'require_image_evidence');
+  payload.require_discount_signal = checkbox(form, 'require_discount_signal');
+  payload.deep_search = checkbox(form, 'deep_search');
   $('sellerDiscoveryResult').textContent = 'AI traži prodavce i priprema leadove...';
   try {
     setBusy(btn, true);

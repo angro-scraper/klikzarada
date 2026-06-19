@@ -93,6 +93,9 @@ class SellerDiscoveryRequest(BaseModel):
     web_search: bool = False
     import_to_stores: bool = False
     create_sources: bool = True
+    require_image_evidence: bool = True
+    require_discount_signal: bool = True
+    deep_search: bool = True
 
 
 def money(x: Any) -> float:
@@ -255,6 +258,9 @@ def seller_discovery_search(payload: SellerDiscoveryRequest, request: Request, d
             web_search=payload.web_search,
             import_to_stores=payload.import_to_stores,
             create_sources=payload.create_sources,
+            require_image_evidence=payload.require_image_evidence,
+            require_discount_signal=payload.require_discount_signal,
+            deep_search=payload.deep_search,
         )
     except Exception as exc:
         db.rollback()

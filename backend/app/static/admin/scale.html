@@ -109,13 +109,16 @@
         <p class="help-text">Zadaj grad, kategoriju i kriterijum. AI puni Lead CRM, a po potrebi upisuje kandidate kao neverifikovane prodavce.</p>
         <form id="sellerDiscoveryForm" class="grid-form">
           <label>Grad <input name="city" value="Beograd" placeholder="Beograd, Novi Sad..."></label>
-          <label>Kategorija <input name="category" value="pekara" placeholder="pekara, restoran, market..."></label>
-          <label class="wide-field">Kriterijum <input name="query" placeholder="npr. centar, posle 18h, studentska zona, zdrava hrana"></label>
+          <label>Kategorija <input name="category" value="pekara" placeholder="pekara, restoran, market, prodavnica, maloprodaja, domaća hrana..."></label>
+          <label class="wide-field">Kriterijum <input name="query" placeholder="npr. centar, posle 18h, studentska zona, zdrava hrana, domaća radinost"></label>
           <label>Limit <input name="limit" type="number" value="12" min="1" max="50"></label>
           <label><input name="include_existing" type="checkbox" checked> Pretraži postojeću bazu</label>
           <label><input name="include_research_tasks" type="checkbox" checked> Dodaj istraživačke zadatke</label>
           <label><input name="import_to_stores" type="checkbox"> Upiši kao prodavce</label>
           <label><input name="web_search" type="checkbox"> Pokušaj web pretragu</label>
+          <label><input name="require_image_evidence" type="checkbox" checked> Samo kandidati sa dokazom o slici proizvoda</label>
+          <label><input name="require_discount_signal" type="checkbox" checked> Samo kandidati sa akcijom / popustom</label>
+          <label><input name="deep_search" type="checkbox" checked> Dubinska pretraga sajta i podstranica</label>
           <button type="submit">AI pronađi prodavce</button>
         </form>
         <div id="sellerDiscoveryResult" class="result muted-box">AI pronalazak prodavaca čeka kriterijume.</div>

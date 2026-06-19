@@ -7,7 +7,7 @@ import unicodedata
 from collections import Counter
 from datetime import datetime
 from typing import Any
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlencode, urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -24,8 +24,15 @@ DEFAULT_CITIES = ["Beograd", "Novi Sad", "Nis", "Kragujevac", "Subotica", "Cacak
 DEFAULT_ZONES = ["centar", "naselje", "pijaca", "poslovna zona", "studentska zona", "glavna ulica"]
 CATEGORY_ALIASES = {
     "pekara": ["pekara", "pekar", "pecivo", "hleb", "burek", "kifla"],
+    "pekare": ["pekara", "pekar", "pecivo", "hleb", "burek", "kifla"],
     "restoran": ["restoran", "gotova jela", "rucak", "ručak", "meni", "dnevni meni"],
+    "restorani": ["restoran", "gotova jela", "rucak", "ručak", "meni", "dnevni meni"],
     "market": ["market", "prodavnica", "prehrana", "mini market", "supermarket"],
+    "marketi": ["market", "prodavnica", "prehrana", "mini market", "supermarket"],
+    "prodavnica": ["prodavnica", "mini market", "market", "prehrana", "samousluga"],
+    "prodavnice": ["prodavnica", "mini market", "market", "prehrana", "samousluga"],
+    "maloprodaja": ["maloprodaja", "prodavnica", "market", "lanac", "lokalna radnja"],
+    "maloprodaje": ["maloprodaja", "prodavnica", "market", "lanac", "lokalna radnja"],
     "poslastice": ["poslastice", "kolaci", "kolači", "torte", "slatko"],
     "zdrava hrana": ["zdrava hrana", "salate", "vege", "bio", "organic"],
     "domaca hrana": ["domaca hrana", "domaća hrana", "domaca radinost", "domaća radinost", "kuvana jela", "porudzbine hrane"],
@@ -33,6 +40,78 @@ CATEGORY_ALIASES = {
     "kucna kuhinja": ["kucna kuhinja", "kućna kuhinja", "domaca kuhinja", "domaća kuhinja", "rucak za poneti"],
     "mali proizvodjaci": ["mali proizvodjaci hrane", "gazdinstvo", "OPG", "domaci proizvodi", "pijaca"],
 }
+DISCOUNT_TERMS = (
+    "akcija",
+    "akcijska cena",
+    "akcijske cene",
+    "akcijska ponuda",
+    "popust",
+    "sniženje",
+    "snizenje",
+    "sale",
+    "happy hour",
+    "specijalna cena",
+    "na sniženju",
+    "na snizenju",
+    "ušteda",
+    "usted",
+)
+IMAGE_TERMS = (
+    "galerija",
+    "slika",
+    "slike",
+    "fotografija",
+    "fotografije",
+    "instagram",
+    "meni",
+    "jelovnik",
+    "ponuda",
+)
+FOOD_TERMS = (
+    "hrana",
+    "obrok",
+    "ručak",
+    "rucak",
+    "večera",
+    "vecera",
+    "pecivo",
+    "hleb",
+    "burek",
+    "kifla",
+    "kolač",
+    "kolac",
+    "torta",
+    "pekara",
+    "restoran",
+    "kuhinja",
+    "meni",
+    "jelovnik",
+    "pizza",
+    "sendvič",
+    "sendvic",
+    "burger",
+    "roštilj",
+    "rostilj",
+    "market",
+    "prodavnica",
+    "prehrana",
+)
+DEEP_LINK_HINTS = (
+    "kontakt",
+    "o-nama",
+    "o nama",
+    "meni",
+    "jelovnik",
+    "ponuda",
+    "akcija",
+    "popust",
+    "snizen",
+    "snižen",
+    "proizvod",
+    "katalog",
+    "shop",
+    "radnja",
+)
 
 
 def friendly_discovery_error(exc: Exception, fallback: str = "AI pretraga trenutno nije završena.") -> str:
@@ -63,6 +142,15 @@ def _tokens(value: str | None) -> set[str]:
 def _clean(value: Any, limit: int = 255) -> str | None:
     text = re.sub(r"\s+", " ", str(value or "")).strip()
     return text[:limit] if text else None
+
+
+def _to_float(value: Any) -> float | None:
+    try:
+        if value in (None, ""):
+            return None
+        return float(value)
+    except Exception:
+        return None
 
 
 def _canonical_lead_key(row: dict[str, Any]) -> str:
@@ -102,6 +190,15 @@ def build_search_queries(city: str | None, category: str | None, query: str | No
             f"{alias} {city} porudžbine",
             f"{alias} {city} domaća radinost",
             f"{alias} {city} facebook",
+            f"{alias} {city} akcija",
+            f"{alias} {city} popust",
+            f"{alias} {city} sniženje",
+            f"{alias} {city} slike",
+            f"{alias} {city} galerija",
+            f"{alias} {city} meni akcija",
+            f"{alias} {city} ponuda fotografije",
+            f"{alias} {city} glovo",
+            f"{alias} {city} wolt",
         ])
     if query:
         base_terms.insert(0, f"{category} {city} {query}")
@@ -126,10 +223,53 @@ def _score_candidate(candidate: dict[str, Any], city: str | None, category: str 
         score += 6
     if candidate.get("kind") == "existing_store":
         score += 8
+    if candidate.get("image_evidence"):
+        score += 12
+    if candidate.get("discount_evidence"):
+        score += 12
+    if candidate.get("food_evidence"):
+        score += 10
+    if candidate.get("deep_checked"):
+        score += 6
     return max(0, min(score, 100))
 
 
-def _existing_store_candidates(db: Session, city: str | None, category: str | None, query: str | None, limit: int) -> list[dict[str, Any]]:
+def _store_has_discounted_products(db: Session, store_id: int, require_image_evidence: bool, require_discount_signal: bool) -> bool:
+    products = (
+        db.query(models.Product)
+        .filter(models.Product.store_id == store_id, models.Product.status.in_(("public_discount", "seller_verified", "near_expiry")))
+        .limit(80)
+        .all()
+    )
+    if not products:
+        return False
+    for product in products:
+        has_image = bool(str(product.image_url or "").strip())
+        original = _to_float(product.original_price)
+        discounted = _to_float(product.discounted_price)
+        discount_percent = _to_float(product.discount_percent)
+        has_discount = bool(
+            discount_percent and discount_percent > 0
+            or (original is not None and discounted is not None and discounted < original)
+            or discounted is not None
+        )
+        if require_image_evidence and not has_image:
+            continue
+        if require_discount_signal and not has_discount:
+            continue
+        return True
+    return False
+
+
+def _existing_store_candidates(
+    db: Session,
+    city: str | None,
+    category: str | None,
+    query: str | None,
+    limit: int,
+    require_image_evidence: bool,
+    require_discount_signal: bool,
+) -> list[dict[str, Any]]:
     stores = db.query(models.Store).order_by(models.Store.created_at.desc()).limit(2000).all()
     city_key = _ascii_key(city)
     category_tokens = _tokens(category)
@@ -152,6 +292,8 @@ def _existing_store_candidates(db: Session, city: str | None, category: str | No
             continue
         if query_tokens and not (query_tokens & tokens):
             continue
+        if not _store_has_discounted_products(db, store.id, require_image_evidence, require_discount_signal):
+            continue
         row = {
             "kind": "existing_store",
             "name": store.name,
@@ -162,6 +304,9 @@ def _existing_store_candidates(db: Session, city: str | None, category: str | No
             "status": "approved" if store.verified else "new",
             "note": f"Postoji u bazi prodavaca kao Store #{store.id}; verified={bool(store.verified)}.",
             "store_id": store.id,
+            "image_evidence": True,
+            "discount_evidence": True,
+            "food_evidence": True,
         }
         row["score"] = _score_candidate(row, city, category, query)
         candidates.append(row)
@@ -185,17 +330,122 @@ def _research_task_candidates(city: str | None, category: str | None, query: str
             "source_url": "",
             "status": "needs_review",
             "score": max(58, 78 - idx * 3),
-            "note": f"Zadatak za pronalazak realnih prodavaca i domaće radinosti. Pretraži: {search}. Skupi kontakt, pa admin ručno odobrava slanje ponude.",
+            "note": f"Zadatak za pronalazak realnih prodavaca i domaće radinosti. Pretraži: {search}. Potvrdi da imaju slike proizvoda i aktivan popust, pa admin ručno odobrava slanje ponude.",
         }
         rows.append(row)
     return rows
 
 
-def _web_search_candidates(city: str | None, category: str | None, query: str | None, limit: int) -> list[dict[str, Any]]:
+def _find_contacts(text: str) -> list[str]:
+    contacts: list[str] = []
+    seen: set[str] = set()
+    for match in re.findall(r"[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}", text or ""):
+        if match not in seen:
+            seen.add(match)
+            contacts.append(match)
+    for match in re.findall(r"(\+?\d[\d\s()./-]{6,}\d)", text or ""):
+        clean = re.sub(r"\s+", " ", match).strip()
+        if clean not in seen:
+            seen.add(clean)
+            contacts.append(clean)
+    return contacts
+
+
+def _collect_deep_links(soup: BeautifulSoup, base_url: str) -> list[str]:
+    base_domain = urlparse(base_url).netloc.lower()
+    links: list[str] = []
+    seen: set[str] = set()
+    for anchor in soup.select("a[href]"):
+        href = anchor.get("href") or ""
+        label = " ".join(filter(None, [anchor.get_text(" ", strip=True), href])).lower()
+        if not any(hint in label for hint in DEEP_LINK_HINTS):
+            continue
+        absolute = urljoin(base_url, href)
+        parsed = urlparse(absolute)
+        if not parsed.scheme.startswith("http"):
+            continue
+        if parsed.netloc.lower() != base_domain:
+            continue
+        normalized = absolute.split("#", 1)[0]
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        links.append(normalized)
+        if len(links) >= 2:
+            break
+    return links
+
+
+def _page_evidence(url: str, timeout: float, deep_search: bool) -> dict[str, Any]:
+    headers = {"User-Agent": "SacuvajHranuSellerDiscovery/1.0 (+kontakt@sacuvaj-hranu.rs)"}
+    response = requests.get(url, headers=headers, timeout=timeout)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "lxml")
+    text_parts = soup.stripped_strings
+    raw_text = " ".join(list(text_parts)[:900])
+    text = _ascii_key(raw_text)
+    combined_text = text
+    image_hits = 0
+    for img in soup.select("img")[:40]:
+        src = (img.get("src") or "").lower()
+        alt = (img.get("alt") or "").lower()
+        if any(term in src or term in alt for term in FOOD_TERMS + IMAGE_TERMS):
+            image_hits += 1
+    contacts = _find_contacts(raw_text)
+    deep_checked = False
+    if deep_search:
+        for link in _collect_deep_links(soup, url):
+            try:
+                nested = requests.get(link, headers=headers, timeout=timeout)
+                nested.raise_for_status()
+                nested_soup = BeautifulSoup(nested.text, "lxml")
+                nested_text = " ".join(list(nested_soup.stripped_strings)[:500])
+                nested_key = _ascii_key(nested_text)
+                combined_text += " " + nested_key
+                image_hits += sum(
+                    1
+                    for img in nested_soup.select("img")[:25]
+                    if any(term in (img.get("src") or "").lower() or term in (img.get("alt") or "").lower() for term in FOOD_TERMS + IMAGE_TERMS)
+                )
+                contacts.extend(_find_contacts(nested_text))
+                deep_checked = True
+            except Exception:
+                continue
+    image_evidence = image_hits > 0 or any(term in combined_text for term in IMAGE_TERMS)
+    discount_evidence = any(term in combined_text for term in DISCOUNT_TERMS) or bool(re.search(r"\b\d{1,2}\s?%\b", raw_text))
+    food_evidence = any(term in combined_text for term in FOOD_TERMS)
+    uniq_contacts = []
+    seen_contacts: set[str] = set()
+    for contact in contacts:
+        if contact in seen_contacts:
+            continue
+        seen_contacts.add(contact)
+        uniq_contacts.append(contact)
+    return {
+        "title": _clean(soup.title.get_text(" ", strip=True) if soup.title else "", 180),
+        "contact": uniq_contacts[0] if uniq_contacts else None,
+        "note": _clean(raw_text, 320),
+        "image_evidence": image_evidence,
+        "discount_evidence": discount_evidence,
+        "food_evidence": food_evidence,
+        "deep_checked": deep_checked,
+    }
+
+
+def _web_search_candidates(
+    city: str | None,
+    category: str | None,
+    query: str | None,
+    limit: int,
+    require_image_evidence: bool,
+    require_discount_signal: bool,
+    deep_search: bool,
+) -> list[dict[str, Any]]:
     if os.getenv("SELLER_DISCOVERY_WEB_ENABLED", "false").lower() not in {"1", "true", "yes", "da", "on"}:
         return []
     timeout = float(os.getenv("SELLER_DISCOVERY_TIMEOUT_SECONDS", "10"))
     candidates: list[dict[str, Any]] = []
+    seen_urls: set[str] = set()
     for search_query in build_search_queries(city, category, query, limit=4):
         url = "https://duckduckgo.com/html/?" + urlencode({"q": search_query})
         try:
@@ -218,19 +468,45 @@ def _web_search_candidates(city: str | None, category: str | None, query: str | 
             parsed = urlparse(href)
             if not parsed.scheme.startswith("http"):
                 continue
+            normalized_href = href.rstrip("/")
+            if normalized_href in seen_urls:
+                continue
+            try:
+                evidence = _page_evidence(normalized_href, timeout=timeout, deep_search=deep_search)
+            except Exception:
+                evidence = {
+                    "title": title,
+                    "contact": None,
+                    "note": _clean(snippet.get_text(" ", strip=True) if snippet else f"Web rezultat za: {search_query}", 300),
+                    "image_evidence": False,
+                    "discount_evidence": False,
+                    "food_evidence": bool(category and _ascii_key(category) in _ascii_key(title)),
+                    "deep_checked": False,
+                }
+            if require_image_evidence and not evidence["image_evidence"]:
+                continue
+            if require_discount_signal and not evidence["discount_evidence"]:
+                continue
+            if not evidence["food_evidence"]:
+                continue
             row = {
                 "kind": "web_result",
-                "name": title,
+                "name": evidence.get("title") or title,
                 "city": city,
                 "category": category,
-                "contact": href,
+                "contact": evidence.get("contact") or href,
                 "source": "web_search",
-                "source_url": href,
+                "source_url": normalized_href,
                 "status": "new",
-                "note": _clean(snippet.get_text(" ", strip=True) if snippet else f"Web rezultat za: {search_query}", 300),
+                "note": evidence.get("note") or _clean(snippet.get_text(" ", strip=True) if snippet else f"Web rezultat za: {search_query}", 300),
+                "image_evidence": evidence["image_evidence"],
+                "discount_evidence": evidence["discount_evidence"],
+                "food_evidence": evidence["food_evidence"],
+                "deep_checked": evidence["deep_checked"],
             }
             row["score"] = _score_candidate(row, city, category, query)
             candidates.append(row)
+            seen_urls.add(normalized_href)
             if len(candidates) >= limit:
                 return candidates
     return candidates[:limit]
@@ -368,6 +644,11 @@ def _import_candidates_to_stores(db: Session, candidates: list[dict[str, Any]], 
     updated_stores = 0
     created_sources = 0
     seen_source_urls: set[str] = set()
+    existing_source_urls = {
+        str(url or "").rstrip("/")
+        for (url,) in db.query(models.Source.url).filter(models.Source.url.isnot(None)).all()
+        if str(url or "").strip()
+    }
     for candidate in candidates:
         if candidate.get("kind") == "research_task":
             continue
@@ -397,7 +678,7 @@ def _import_candidates_to_stores(db: Session, candidates: list[dict[str, Any]], 
             db.flush()
             created_stores += 1
         if create_sources and normalized_website and normalized_website.startswith("http"):
-            if normalized_website in seen_source_urls:
+            if normalized_website in seen_source_urls or normalized_website in existing_source_urls:
                 continue
             source = (
                 db.query(models.Source)
@@ -413,6 +694,7 @@ def _import_candidates_to_stores(db: Session, candidates: list[dict[str, Any]], 
                 db.add(models.Source(name=name, url=normalized_website, city=city, source_type="ai_seller_discovery", crawl_frequency="weekly", active=True))
                 db.flush()
                 created_sources += 1
+                existing_source_urls.add(normalized_website)
             seen_source_urls.add(normalized_website)
     db.commit()
     return {"created_stores": created_stores, "updated_stores": updated_stores, "created_sources": created_sources}
@@ -430,6 +712,9 @@ def discover_sellers(
     web_search: bool = False,
     import_to_stores: bool = False,
     create_sources: bool = True,
+    require_image_evidence: bool = True,
+    require_discount_signal: bool = True,
+    deep_search: bool = True,
 ) -> dict[str, Any]:
     limit = max(1, min(int(limit or 12), 50))
     criteria = {
@@ -437,18 +722,41 @@ def discover_sellers(
         "category": _clean(category, 80),
         "query": _clean(query, 240),
         "limit": limit,
+        "require_image_evidence": bool(require_image_evidence),
+        "require_discount_signal": bool(require_discount_signal),
+        "deep_search": bool(deep_search),
     }
     warnings: list[str] = []
     candidates: list[dict[str, Any]] = []
     if include_existing:
         try:
-            candidates.extend(_existing_store_candidates(db, city, category, query, limit=limit))
+            candidates.extend(
+                _existing_store_candidates(
+                    db,
+                    city,
+                    category,
+                    query,
+                    limit=limit,
+                    require_image_evidence=require_image_evidence,
+                    require_discount_signal=require_discount_signal,
+                )
+            )
         except Exception as exc:
             db.rollback()
             warnings.append(friendly_discovery_error(exc, "Postojeći prodavci trenutno nisu učitani."))
     if web_search:
         try:
-            candidates.extend(_web_search_candidates(city, category, query, limit=limit))
+            candidates.extend(
+                _web_search_candidates(
+                    city,
+                    category,
+                    query,
+                    limit=limit,
+                    require_image_evidence=require_image_evidence,
+                    require_discount_signal=require_discount_signal,
+                    deep_search=deep_search,
+                )
+            )
         except Exception as exc:
             warnings.append(friendly_discovery_error(exc, "Web pretraga nije završena za ovaj zahtev."))
     if include_research_tasks and len(candidates) < limit:

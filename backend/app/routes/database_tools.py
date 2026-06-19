@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from .. import finance_models, models
 from ..database import get_db
 from ..services.admin_auth import require_admin_session
+from ..services.json_store import read_json, write_json
 
 router = APIRouter(prefix="/database", tags=["database tools"])
 
@@ -113,6 +114,26 @@ def _is_pilot_reservation(reservation: models.Reservation, product_id: int | Non
 
 def _is_pilot_source(source: models.Source) -> bool:
     return _contains_pilot_marker(source.name) or _contains_pilot_url(source.url)
+
+
+def _purge_pilot_rows(name: str, *, dry_run: bool) -> dict[str, int]:
+    rows = read_json(name, [])
+    if not isinstance(rows, list):
+        return {"removed": 0, "remaining": 0}
+    kept = []
+    removed = 0
+    for row in rows:
+        if not isinstance(row, dict):
+            kept.append(row)
+            continue
+        text_blob = " ".join(str(row.get(key) or "") for key in ("name", "city", "category", "contact", "source", "source_url", "note", "query", "phone"))
+        if _contains_pilot_marker(text_blob) or _contains_pilot_url(text_blob) or _is_local_test_email(text_blob):
+            removed += 1
+            continue
+        kept.append(row)
+    if not dry_run:
+        write_json(name, kept)
+    return {"removed": removed, "remaining": len(kept)}
 
 
 @router.get("/products.csv", response_class=Response)
@@ -454,11 +475,17 @@ def purge_pilot_data(
     }
 
     if dry_run:
+        json_preview = {
+            "growth_leads": _purge_pilot_rows("growth_leads.json", dry_run=True),
+            "seller_discovery_runs": _purge_pilot_rows("seller_discovery_runs.json", dry_run=True),
+            "customer_demand_requests": _purge_pilot_rows("customer_demand_requests.json", dry_run=True),
+        }
         return {
             "ok": True,
             "dry_run": True,
             "counts": counts,
             "samples": samples,
+            "json_preview": json_preview,
             "message": "Pronađeni su pilot/test/demo podaci za bezbedno čišćenje. Ništa još nije obrisano.",
         }
 
@@ -492,10 +519,17 @@ def purge_pilot_data(
         db.query(models.Store).filter(models.Store.id.in_(pilot_store_ids)).delete(synchronize_session=False)
     db.commit()
 
+    json_cleanup = {
+        "growth_leads": _purge_pilot_rows("growth_leads.json", dry_run=False),
+        "seller_discovery_runs": _purge_pilot_rows("seller_discovery_runs.json", dry_run=False),
+        "customer_demand_requests": _purge_pilot_rows("customer_demand_requests.json", dry_run=False),
+    }
+
     return {
         "ok": True,
         "dry_run": False,
         "counts": counts,
         "samples": samples,
+        "json_cleanup": json_cleanup,
         "message": "Pilot/test/demo podaci su obrisani. Baza je očišćena i spremna za stvarne kupce i prodavce.",
     }
