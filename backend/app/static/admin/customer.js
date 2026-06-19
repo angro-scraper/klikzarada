@@ -5,6 +5,7 @@ let currentToken = '';
 
 function toast(message) {
   const el = $('toast');
+  if (!el) return;
   el.textContent = message;
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), 3200);
@@ -46,8 +47,8 @@ function storageKey(phone) {
   return `foodSaverCustomerToken:${clean}`;
 }
 function setStep(step) {
-  $('phoneStep').classList.toggle('active', step === 'phone');
-  $('otpStep').classList.toggle('active', step === 'otp');
+  $('phoneStep')?.classList.toggle('active', step === 'phone');
+  $('otpStep')?.classList.toggle('active', step === 'otp');
 }
 function saveToken(phone, token) {
   localStorage.setItem(storageKey(phone), token);
@@ -186,20 +187,23 @@ async function loadCustomer(phone, submitButton=null, token=null) {
   }
 }
 
-$('customerLookupForm').addEventListener('submit', (event) => {
-  event.preventDefault();
-  const phone = $('customerPhoneInput').value;
-  const existing = readToken(phone);
-  if (existing) loadCustomer(phone, event.submitter, existing);
-  else requestOtp(phone, event.submitter);
-});
-$('verifyOtpBtn').addEventListener('click', (event) => verifyOtp(event.currentTarget));
-$('resendOtpBtn').addEventListener('click', (event) => requestOtp(pendingPhone || $('customerPhoneInput').value, event.currentTarget));
-$('customerOtpInput').addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') { event.preventDefault(); verifyOtp($('verifyOtpBtn')); }
-});
+function bindCustomerActions() {
+  $('customerLookupForm')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const phone = $('customerPhoneInput').value;
+    const existing = readToken(phone);
+    if (existing) loadCustomer(phone, event.submitter, existing);
+    else requestOtp(phone, event.submitter);
+  });
+  $('verifyOtpBtn')?.addEventListener('click', (event) => verifyOtp(event.currentTarget));
+  $('resendOtpBtn')?.addEventListener('click', (event) => requestOtp(pendingPhone || $('customerPhoneInput').value, event.currentTarget));
+  $('customerOtpInput')?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') { event.preventDefault(); verifyOtp($('verifyOtpBtn')); }
+  });
+}
 
 (function init() {
+  bindCustomerActions();
   const params = new URLSearchParams(location.search);
   if (params.get('phone')) {
     $('customerPhoneInput').value = params.get('phone');

@@ -4,8 +4,10 @@ const payoutLabels = { not_ready: 'Nije spremno', pending: 'Čeka isplatu', paid
 
 function escapeHtml(str) { return String(str ?? '').replace(/[&<>'"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function money(amount, currency='RSD') { return `${Number(amount || 0).toLocaleString('sr-RS', { maximumFractionDigits: 2 })} ${currency}`; }
-function toast(message) { const el = $('toast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 3200); }
-function setButtonLoading(btn, text) { const old = btn.innerHTML; btn.disabled = true; btn.innerHTML = `<span class="spinner"></span>${escapeHtml(text)}`; return () => { btn.disabled = false; btn.innerHTML = old; }; }
+function toast(message) { const el = $('toast'); if (!el) return setMessage(message, 'error'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 3200); }
+function setMessage(message, type='info') { const el = $('financeMessage'); if (!el) return; el.textContent = message; el.dataset.state = type; }
+function setButtonLoading(btn, text) { if (!btn) return () => {}; const old = btn.innerHTML; btn.disabled = true; btn.innerHTML = `<span class="spinner"></span>${escapeHtml(text)}`; return () => { btn.disabled = false; btn.innerHTML = old; }; }
+function on(id, eventName, handler) { const el = $(id); if (el) el.addEventListener(eventName, handler); }
 async function request(url, options={}) { const res = await fetch(url, options); if (!res.ok) { let text = await res.text(); try { text = JSON.parse(text).detail || text; } catch (_) {} throw new Error(text || `HTTP ${res.status}`); } return res.json(); }
 function badge(text, cls='') { return `<span class="status ${cls}">${escapeHtml(text)}</span>`; }
 
@@ -90,10 +92,11 @@ function renderReservations(rows) {
 async function loadFinance() {
   const done = setButtonLoading($('refreshFinanceBtn'), 'Osvežavam...');
   try {
+    setMessage('Osvežavam finansije...', 'info');
     const [summary, sellers] = await Promise.all([request('/finance/summary'), request('/finance/seller-settlements')]);
     renderStats(summary); renderSellers(sellers); await loadCloseout(false); await loadReservations(false);
-    $('financeMessage').textContent = 'Finansijski podaci su osveženi.';
-  } catch (err) { toast(err.message); } finally { done(); }
+    setMessage('Finansijski podaci su osveženi.', 'success');
+  } catch (err) { setMessage(`Greška: ${err.message}`, 'error'); toast(err.message); } finally { done(); }
 }
 
 async function loadCloseout(showToast=true) {
@@ -129,19 +132,19 @@ async function updatePayout(code, status) {
   await request(`/finance/reservations/${encodeURIComponent(code)}/payout`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seller_payout_status: status, reference, note }) });
 }
 
-$('confirmIpsBtn').addEventListener('click', async () => {
+on('confirmIpsBtn', 'click', async () => {
   const code = $('financeCodeInput').value.trim().toUpperCase();
-  if (!code) return toast('Unesi kod rezervacije');
+  if (!code) { setMessage('Unesi kod rezervacije pre potvrde uplate.', 'error'); return toast('Unesi kod rezervacije'); }
   const done = setButtonLoading($('confirmIpsBtn'), 'Potvrđujem...');
-  try { await confirmIps(code, $('financeReferenceInput').value.trim(), $('financeNoteInput').value.trim()); $('financeMessage').textContent = `Uplata za ${code} je potvrđena. Isplata prodavcu je sada u statusu “čeka isplatu”.`; await loadFinance(); }
-  catch (err) { toast(err.message); }
+  try { setMessage(`Potvrđujem uplatu za ${code}...`, 'info'); await confirmIps(code, $('financeReferenceInput').value.trim(), $('financeNoteInput').value.trim()); setMessage(`Uplata za ${code} je potvrđena. Isplata prodavcu je sada u statusu "čeka isplatu".`, 'success'); await loadFinance(); }
+  catch (err) { setMessage(`Greška: ${err.message}`, 'error'); toast(err.message); }
   finally { done(); }
 });
 
-$('loadFinanceReservationsBtn').addEventListener('click', () => loadReservations().catch(err => toast(err.message)));
-$('loadCloseoutBtn').addEventListener('click', () => loadCloseout().catch(err => toast(err.message)));
-$('refreshFinanceBtn').addEventListener('click', loadFinance);
-$('closeoutBody').addEventListener('click', async (e) => {
+on('loadFinanceReservationsBtn', 'click', () => loadReservations().then(() => setMessage('Rezervacije za finansije su učitane.', 'success')).catch(err => { setMessage(`Greška: ${err.message}`, 'error'); toast(err.message); }));
+on('loadCloseoutBtn', 'click', () => loadCloseout().then(() => setMessage('Dnevni closeout je osvežen.', 'success')).catch(err => { setMessage(`Greška: ${err.message}`, 'error'); toast(err.message); }));
+on('refreshFinanceBtn', 'click', loadFinance);
+on('closeoutBody', 'click', async (e) => {
   const storeId = e.target.getAttribute('data-commission-sent');
   if (!storeId) return;
   try {
@@ -152,7 +155,7 @@ $('closeoutBody').addEventListener('click', async (e) => {
     toast(err.message);
   }
 });
-$('financeReservationsBody').addEventListener('click', async (e) => {
+on('financeReservationsBody', 'click', async (e) => {
   const confirmCode = e.target.getAttribute('data-confirm-ips');
   const paidCode = e.target.getAttribute('data-payout-paid');
   const blockCode = e.target.getAttribute('data-payout-block');
