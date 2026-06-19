@@ -943,11 +943,54 @@ body.sh-admin-shell .seller-discovery-table-v104{
 
 body.ai-admin-body #sellerDiscoveryResult{
   min-height:220px!important;
+  background:#ffffff!important;
+  color:#103b2f!important;
+  border:1px solid rgba(16,59,47,.12)!important;
+}
+
+body.sh-admin-shell #sellerDiscoveryResult{
+  background:#ffffff!important;
+  color:#103b2f!important;
+  border:1px solid rgba(16,59,47,.12)!important;
 }
 
 body.ai-admin-body .seller-discovery-table-v104 table,
 body.sh-admin-shell .seller-discovery-table-v104 table{
   width:100%!important;
+}
+
+body.ai-admin-body #sellerDiscoveryResult p,
+body.ai-admin-body #sellerDiscoveryResult strong,
+body.ai-admin-body #sellerDiscoveryResult td,
+body.ai-admin-body #sellerDiscoveryResult th,
+body.ai-admin-body #sellerDiscoveryResult li,
+body.sh-admin-shell #sellerDiscoveryResult p,
+body.sh-admin-shell #sellerDiscoveryResult strong,
+body.sh-admin-shell #sellerDiscoveryResult td,
+body.sh-admin-shell #sellerDiscoveryResult th,
+body.sh-admin-shell #sellerDiscoveryResult li{
+  color:#103b2f!important;
+}
+
+body.ai-admin-body #sellerDiscoveryResult small,
+body.sh-admin-shell #sellerDiscoveryResult small{
+  color:#5f776d!important;
+}
+
+body.ai-admin-body #sellerDiscoveryResult .seller-discovery-table-v104 thead th,
+body.sh-admin-shell #sellerDiscoveryResult .seller-discovery-table-v104 thead th{
+  background:#eef8f3!important;
+  color:#103b2f!important;
+}
+
+body.ai-admin-body #sellerDiscoveryResult .seller-discovery-table-v104 tbody tr:nth-child(even),
+body.sh-admin-shell #sellerDiscoveryResult .seller-discovery-table-v104 tbody tr:nth-child(even){
+  background:#fbfdfb!important;
+}
+
+body.ai-admin-body #sellerDiscoveryResult .seller-discovery-table-v104 tbody tr:hover,
+body.sh-admin-shell #sellerDiscoveryResult .seller-discovery-table-v104 tbody tr:hover{
+  background:#f2fbf6!important;
 }
 
 body.buyer-v21 .buyer-content-v21,

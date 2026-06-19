@@ -15,6 +15,15 @@ function setStatus(text) { $('knowledgeStatus').textContent = text; }
 function escapeHtml(str) { return String(str ?? '').replace(/[&<>'"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function formDataJson(form) { return Object.fromEntries(new FormData(form).entries()); }
 function checkbox(form, name) { return !!form.querySelector(`[name="${name}"]`)?.checked; }
+function renderSellerDiscoveryError(message) {
+  $('sellerDiscoveryResult').innerHTML = `
+    <div class="status-box warning">
+      <strong>AI pretraga nije završena</strong>
+      <p>${escapeHtml(message || 'Došlo je do greške tokom AI pretrage prodavaca.')}</p>
+      <small>Osveži stranicu ili pokreni novu pretragu sa manjim limitom.</small>
+    </div>
+  `;
+}
 function setBusy(btn, on = true) {
   if (!btn) return;
   if (on) {
@@ -84,7 +93,7 @@ async function runSellerDiscovery(event) {
     });
     renderSellerDiscovery(data);
   } catch (err) {
-    $('sellerDiscoveryResult').textContent = `Greška: ${err.message}`;
+    renderSellerDiscoveryError(err.message);
   } finally {
     setBusy(btn, false);
   }
@@ -112,7 +121,7 @@ async function loadSellerDiscoveryRuns() {
       </div>
     `;
   } catch (err) {
-    $('sellerDiscoveryResult').textContent = `Greška: ${err.message}`;
+    renderSellerDiscoveryError(err.message);
   }
 }
 

@@ -5,14 +5,32 @@ import io
 import re
 from collections import defaultdict
 from datetime import datetime
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import Response
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
-from .. import models
+from .. import finance_models, models
 from ..database import get_db
+from ..services.admin_auth import require_admin_session
 
 router = APIRouter(prefix="/database", tags=["database tools"])
+
+PILOT_TEXT_MARKERS = (
+    "pilot",
+    "test",
+    "demo",
+    "sample",
+    "seed",
+    "primer",
+    "probni",
+)
+PILOT_URL_MARKERS = (
+    "seed://",
+    "example.com/pilot",
+    "example.com/sacuvaj-hranu-demo",
+    "/admin-assets/seed-images/",
+    "sacuvaj-hranu.local",
+)
 
 
 def _csv_response(filename: str, rows: list[dict]) -> Response:
@@ -46,6 +64,55 @@ def _safe_price(price: float | None) -> str:
     if price is None:
         return ""
     return f"{price:.2f}"
+
+
+def _contains_pilot_marker(*values: str | None) -> bool:
+    haystack = " ".join(str(value or "").strip().lower() for value in values)
+    return any(marker in haystack for marker in PILOT_TEXT_MARKERS)
+
+
+def _contains_pilot_url(*values: str | None) -> bool:
+    haystack = " ".join(str(value or "").strip().lower() for value in values)
+    return any(marker in haystack for marker in PILOT_URL_MARKERS)
+
+
+def _is_local_test_email(value: str | None) -> bool:
+    return str(value or "").strip().lower().endswith(".local")
+
+
+def _is_pilot_store(store: models.Store) -> bool:
+    return (
+        _contains_pilot_marker(store.name, store.address, store.blocked_reason)
+        or _contains_pilot_url(store.website)
+        or _is_local_test_email(store.website)
+    )
+
+
+def _is_pilot_product(product: models.Product, store: models.Store | None) -> bool:
+    return (
+        _contains_pilot_marker(product.name, product.description, store.name if store else None)
+        or _contains_pilot_url(product.source_url, product.image_url, store.website if store else None)
+    )
+
+
+def _is_pilot_customer(customer: models.Customer) -> bool:
+    return (
+        _contains_pilot_marker(customer.name, customer.block_reason)
+        or _is_local_test_email(customer.email)
+        or "pilot" in str(customer.phone or "").lower()
+    )
+
+
+def _is_pilot_reservation(reservation: models.Reservation, product_id: int | None) -> bool:
+    return (
+        (product_id is not None and reservation.product_id == product_id)
+        or _contains_pilot_marker(reservation.customer_name, reservation.note, reservation.payment_provider, reservation.payment_method)
+        or _is_local_test_email(reservation.customer_email)
+    )
+
+
+def _is_pilot_source(source: models.Source) -> bool:
+    return _contains_pilot_marker(source.name) or _contains_pilot_url(source.url)
 
 
 @router.get("/products.csv", response_class=Response)
@@ -246,3 +313,189 @@ def promote_discounts(
         p.updated_at = datetime.utcnow()
     db.commit()
     return {"promoted_to_public_discount": len(products), "min_confidence": min_confidence}
+
+
+@router.post("/purge-pilot-data", response_model=dict)
+def purge_pilot_data(
+    request: Request,
+    dry_run: bool = Query(default=True),
+    _: bool = Depends(require_admin_session),
+    db: Session = Depends(get_db),
+):
+    stores = db.query(models.Store).all()
+    store_map = {store.id: store for store in stores}
+    pilot_store_ids = {store.id for store in stores if _is_pilot_store(store)}
+
+    products = db.query(models.Product).all()
+    pilot_product_ids = {
+        product.id
+        for product in products
+        if product.store_id in pilot_store_ids or _is_pilot_product(product, store_map.get(product.store_id))
+    }
+
+    customers = db.query(models.Customer).all()
+    pilot_customer_ids = {customer.id for customer in customers if _is_pilot_customer(customer)}
+
+    reservations = db.query(models.Reservation).all()
+    pilot_reservation_ids = set()
+    for reservation in reservations:
+        if (
+            reservation.product_id in pilot_product_ids
+            or _is_pilot_reservation(reservation, None)
+            or reservation.customer_phone in {customer.phone for customer in customers if customer.id in pilot_customer_ids}
+        ):
+            pilot_reservation_ids.add(reservation.id)
+
+    sources = db.query(models.Source).all()
+    pilot_source_ids = {source.id for source in sources if _is_pilot_source(source)}
+
+    crawl_job_ids = {
+        row.id
+        for row in db.query(models.CrawlJob).filter(models.CrawlJob.source_id.in_(pilot_source_ids)).all()
+    } if pilot_source_ids else set()
+
+    invoice_ids = {
+        row.id
+        for row in db.query(finance_models.SellerInvoice).filter(finance_models.SellerInvoice.seller_id.in_(pilot_store_ids)).all()
+    } if pilot_store_ids else set()
+
+    payment_request_ids = {
+        row.id
+        for row in db.query(finance_models.SellerInvoicePaymentRequest).filter(
+            or_(
+                finance_models.SellerInvoicePaymentRequest.seller_id.in_(pilot_store_ids),
+                finance_models.SellerInvoicePaymentRequest.seller_invoice_id.in_(invoice_ids),
+            )
+        ).all()
+    } if pilot_store_ids or invoice_ids else set()
+
+    payment_ids = {
+        row.id
+        for row in db.query(finance_models.SellerInvoicePayment).filter(
+            or_(
+                finance_models.SellerInvoicePayment.seller_id.in_(pilot_store_ids),
+                finance_models.SellerInvoicePayment.seller_invoice_id.in_(invoice_ids),
+            )
+        ).all()
+    } if pilot_store_ids or invoice_ids else set()
+
+    invoice_line_ids = {
+        row.id
+        for row in db.query(finance_models.SellerInvoiceLine).filter(
+            or_(
+                finance_models.SellerInvoiceLine.invoice_id.in_(invoice_ids),
+                finance_models.SellerInvoiceLine.order_id.in_(pilot_reservation_ids),
+            )
+        ).all()
+    } if invoice_ids or pilot_reservation_ids else set()
+
+    ledger_ids = {
+        row.id
+        for row in db.query(finance_models.SellerCommissionLedger).filter(
+            or_(
+                finance_models.SellerCommissionLedger.seller_id.in_(pilot_store_ids),
+                finance_models.SellerCommissionLedger.order_id.in_(pilot_reservation_ids),
+                finance_models.SellerCommissionLedger.invoice_id.in_(invoice_ids),
+            )
+        ).all()
+    } if pilot_store_ids or pilot_reservation_ids or invoice_ids else set()
+
+    reconciliation_ids = {
+        row.id
+        for row in db.query(finance_models.FinanceReconciliationException).filter(
+            or_(
+                finance_models.FinanceReconciliationException.seller_id.in_(pilot_store_ids),
+                finance_models.FinanceReconciliationException.invoice_id.in_(invoice_ids),
+            )
+        ).all()
+    } if pilot_store_ids or invoice_ids else set()
+
+    webhook_ids = {
+        row.id
+        for row in db.query(finance_models.ProviderWebhookEvent).all()
+        if _contains_pilot_marker(row.provider, row.event_type, row.provider_event_id)
+        or _contains_pilot_url(row.payload_json)
+    }
+
+    audit_log_ids = {
+        row.id
+        for row in db.query(finance_models.FinanceAuditLog).all()
+        if _contains_pilot_marker(row.action, row.entity_type, row.reason, row.before_json, row.after_json)
+        or (
+            row.entity_id in pilot_store_ids
+            or row.entity_id in pilot_reservation_ids
+            or row.entity_id in invoice_ids
+            or row.entity_id in payment_ids
+            or row.entity_id in payment_request_ids
+        )
+    }
+
+    counts = {
+        "stores": len(pilot_store_ids),
+        "products": len(pilot_product_ids),
+        "customers": len(pilot_customer_ids),
+        "reservations": len(pilot_reservation_ids),
+        "sources": len(pilot_source_ids),
+        "crawl_jobs": len(crawl_job_ids),
+        "seller_invoices": len(invoice_ids),
+        "seller_invoice_lines": len(invoice_line_ids),
+        "seller_invoice_payment_requests": len(payment_request_ids),
+        "seller_invoice_payments": len(payment_ids),
+        "seller_commission_ledger": len(ledger_ids),
+        "finance_reconciliation_exceptions": len(reconciliation_ids),
+        "provider_webhook_events": len(webhook_ids),
+        "finance_audit_log": len(audit_log_ids),
+    }
+    samples = {
+        "stores": [store.name for store in stores if store.id in pilot_store_ids][:10],
+        "products": [product.name for product in products if product.id in pilot_product_ids][:10],
+        "customers": [customer.name or customer.phone for customer in customers if customer.id in pilot_customer_ids][:10],
+        "sources": [source.url for source in sources if source.id in pilot_source_ids][:10],
+    }
+
+    if dry_run:
+        return {
+            "ok": True,
+            "dry_run": True,
+            "counts": counts,
+            "samples": samples,
+            "message": "Pronađeni su pilot/test/demo podaci za bezbedno čišćenje. Ništa još nije obrisano.",
+        }
+
+    if invoice_line_ids:
+        db.query(finance_models.SellerInvoiceLine).filter(finance_models.SellerInvoiceLine.id.in_(invoice_line_ids)).delete(synchronize_session=False)
+    if payment_request_ids:
+        db.query(finance_models.SellerInvoicePaymentRequest).filter(finance_models.SellerInvoicePaymentRequest.id.in_(payment_request_ids)).delete(synchronize_session=False)
+    if payment_ids:
+        db.query(finance_models.SellerInvoicePayment).filter(finance_models.SellerInvoicePayment.id.in_(payment_ids)).delete(synchronize_session=False)
+    if ledger_ids:
+        db.query(finance_models.SellerCommissionLedger).filter(finance_models.SellerCommissionLedger.id.in_(ledger_ids)).delete(synchronize_session=False)
+    if reconciliation_ids:
+        db.query(finance_models.FinanceReconciliationException).filter(finance_models.FinanceReconciliationException.id.in_(reconciliation_ids)).delete(synchronize_session=False)
+    if audit_log_ids:
+        db.query(finance_models.FinanceAuditLog).filter(finance_models.FinanceAuditLog.id.in_(audit_log_ids)).delete(synchronize_session=False)
+    if webhook_ids:
+        db.query(finance_models.ProviderWebhookEvent).filter(finance_models.ProviderWebhookEvent.id.in_(webhook_ids)).delete(synchronize_session=False)
+    if invoice_ids:
+        db.query(finance_models.SellerInvoice).filter(finance_models.SellerInvoice.id.in_(invoice_ids)).delete(synchronize_session=False)
+    if pilot_reservation_ids:
+        db.query(models.Reservation).filter(models.Reservation.id.in_(pilot_reservation_ids)).delete(synchronize_session=False)
+    if pilot_product_ids:
+        db.query(models.Product).filter(models.Product.id.in_(pilot_product_ids)).delete(synchronize_session=False)
+    if pilot_customer_ids:
+        db.query(models.Customer).filter(models.Customer.id.in_(pilot_customer_ids)).delete(synchronize_session=False)
+    if crawl_job_ids:
+        db.query(models.CrawlJob).filter(models.CrawlJob.id.in_(crawl_job_ids)).delete(synchronize_session=False)
+    if pilot_source_ids:
+        db.query(models.Source).filter(models.Source.id.in_(pilot_source_ids)).delete(synchronize_session=False)
+    if pilot_store_ids:
+        db.query(models.Store).filter(models.Store.id.in_(pilot_store_ids)).delete(synchronize_session=False)
+    db.commit()
+
+    return {
+        "ok": True,
+        "dry_run": False,
+        "counts": counts,
+        "samples": samples,
+        "message": "Pilot/test/demo podaci su obrisani. Baza je očišćena i spremna za stvarne kupce i prodavce.",
+    }

@@ -15,7 +15,7 @@ from ..database import get_db
 from ..services.admin_auth import require_admin_session
 from ..services.json_store import read_json, write_json, append_json_row, update_json_row
 from ..services.notifications import send_sms
-from ..services.seller_discovery import discover_sellers
+from ..services.seller_discovery import discover_sellers, friendly_discovery_error
 
 router = APIRouter(prefix="/scale-api", tags=["v37-scale-suite"])
 VISIBLE = {"public_discount", "seller_verified", "near_expiry"}
@@ -278,7 +278,7 @@ def seller_discovery_search(payload: SellerDiscoveryRequest, request: Request, d
                 "updated_stores": 0,
                 "created_sources": 0,
             },
-            "warnings": [f"Neočekivana greška u AI pretrazi: {exc}"],
+            "warnings": [friendly_discovery_error(exc, "AI pretraga nije završena za ovaj zahtev.")],
             "candidates": [],
             "leads": [],
             "run_id": None,

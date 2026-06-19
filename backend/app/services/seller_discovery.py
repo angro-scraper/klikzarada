@@ -11,6 +11,7 @@ from urllib.parse import urlencode, urlparse
 
 import requests
 from bs4 import BeautifulSoup
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from .. import models
@@ -32,6 +33,20 @@ CATEGORY_ALIASES = {
     "kucna kuhinja": ["kucna kuhinja", "kućna kuhinja", "domaca kuhinja", "domaća kuhinja", "rucak za poneti"],
     "mali proizvodjaci": ["mali proizvodjaci hrane", "gazdinstvo", "OPG", "domaci proizvodi", "pijaca"],
 }
+
+
+def friendly_discovery_error(exc: Exception, fallback: str = "AI pretraga trenutno nije završena.") -> str:
+    text = str(exc or "").strip()
+    lower = text.lower()
+    if "duplicate key value" in lower and "ix_sources_url" in lower:
+        return "Neki izvori su već postojali u bazi, pa su duplikati preskočeni. Osveži listu i pokušaj ponovo."
+    if "openai" in lower and ("api" in lower or "quota" in lower or "rate" in lower):
+        return "OpenAI odgovor trenutno nije dostupan. Pokušaj ponovo za minut."
+    if "timeout" in lower or "timed out" in lower:
+        return "Pretraga je istekla pre završetka. Pokušaj sa manjim limitom ili bez web pretrage."
+    if "connection" in lower or "network" in lower:
+        return "Mrežna veza za AI pretragu trenutno nije stabilna. Probaj ponovo."
+    return fallback
 
 
 def _ascii_key(value: str | None) -> str:
@@ -352,6 +367,7 @@ def _import_candidates_to_stores(db: Session, candidates: list[dict[str, Any]], 
     created_stores = 0
     updated_stores = 0
     created_sources = 0
+    seen_source_urls: set[str] = set()
     for candidate in candidates:
         if candidate.get("kind") == "research_task":
             continue
@@ -360,30 +376,44 @@ def _import_candidates_to_stores(db: Session, candidates: list[dict[str, Any]], 
             continue
         city = _clean(candidate.get("city"), 80)
         website = _clean(candidate.get("source_url") or candidate.get("contact"), 500)
+        normalized_website = website.rstrip("/") if website and website.startswith("http") else website
         phone = None if website and website.startswith("http") else _clean(candidate.get("contact"), 80)
-        store = _store_exists(db, name, city, website)
+        store = _store_exists(db, name, city, normalized_website)
         if store:
             changed = False
             if city and not store.city:
                 store.city = city
                 changed = True
-            if website and not store.website and website.startswith("http"):
-                store.website = website
+            if normalized_website and not store.website and normalized_website.startswith("http"):
+                store.website = normalized_website
                 changed = True
             if phone and not store.phone:
                 store.phone = phone
                 changed = True
             updated_stores += 1 if changed else 0
         else:
-            store = models.Store(name=name, city=city, website=website if website and website.startswith("http") else None, phone=phone, verified=False, seller_type="home_producer" if "domac" in _ascii_key(candidate.get("category")) else "business")
+            store = models.Store(name=name, city=city, website=normalized_website if normalized_website and normalized_website.startswith("http") else None, phone=phone, verified=False, seller_type="home_producer" if "domac" in _ascii_key(candidate.get("category")) else "business")
             db.add(store)
             db.flush()
             created_stores += 1
-        if create_sources and website and website.startswith("http"):
-            source = db.query(models.Source).filter(models.Source.url == website).first()
+        if create_sources and normalized_website and normalized_website.startswith("http"):
+            if normalized_website in seen_source_urls:
+                continue
+            source = (
+                db.query(models.Source)
+                .filter(
+                    or_(
+                        models.Source.url == normalized_website,
+                        models.Source.url == f"{normalized_website}/",
+                    )
+                )
+                .first()
+            )
             if not source:
-                db.add(models.Source(name=name, url=website, city=city, source_type="ai_seller_discovery", crawl_frequency="weekly", active=True))
+                db.add(models.Source(name=name, url=normalized_website, city=city, source_type="ai_seller_discovery", crawl_frequency="weekly", active=True))
+                db.flush()
                 created_sources += 1
+            seen_source_urls.add(normalized_website)
     db.commit()
     return {"created_stores": created_stores, "updated_stores": updated_stores, "created_sources": created_sources}
 
@@ -415,17 +445,17 @@ def discover_sellers(
             candidates.extend(_existing_store_candidates(db, city, category, query, limit=limit))
         except Exception as exc:
             db.rollback()
-            warnings.append(f"Postojeći prodavci nisu učitani: {exc}")
+            warnings.append(friendly_discovery_error(exc, "Postojeći prodavci trenutno nisu učitani."))
     if web_search:
         try:
             candidates.extend(_web_search_candidates(city, category, query, limit=limit))
         except Exception as exc:
-            warnings.append(f"Web pretraga nije završena: {exc}")
+            warnings.append(friendly_discovery_error(exc, "Web pretraga nije završena za ovaj zahtev."))
     if include_research_tasks and len(candidates) < limit:
         try:
             candidates.extend(_research_task_candidates(city, category, query, limit=limit - len(candidates)))
         except Exception as exc:
-            warnings.append(f"Zadaci za ručnu pretragu nisu napravljeni: {exc}")
+            warnings.append(friendly_discovery_error(exc, "Zadaci za ručnu pretragu trenutno nisu napravljeni."))
 
     deduped: dict[str, dict[str, Any]] = {}
     for candidate in candidates:
@@ -435,25 +465,25 @@ def discover_sellers(
             if key not in deduped or int(candidate.get("score") or 0) > int(deduped[key].get("score") or 0):
                 deduped[key] = candidate
         except Exception as exc:
-            warnings.append(f"Jedan kandidat je preskočen pri bodovanju: {exc}")
+            warnings.append(friendly_discovery_error(exc, "Jedan kandidat je preskočen tokom bodovanja."))
     candidates = sorted(deduped.values(), key=lambda x: int(x.get("score") or 0), reverse=True)[:limit]
 
     try:
         ai = _openai_rank_candidates(criteria, candidates)
     except Exception as exc:
-        warnings.append(f"AI rangiranje nije uspelo: {exc}")
+        warnings.append(friendly_discovery_error(exc, "AI rangiranje nije uspelo za ovaj zahtev."))
         ai = {"used": False, "summary": "AI rangiranje nije uspelo; prikazani su lokalno rangirani kandidati.", "candidates": candidates}
     final_candidates = ai["candidates"][:limit]
     try:
         lead_result = _upsert_leads(final_candidates)
     except Exception as exc:
-        warnings.append(f"Leadovi nisu snimljeni: {exc}")
+        warnings.append(friendly_discovery_error(exc, "Leadovi trenutno nisu snimljeni."))
         lead_result = {"created": 0, "updated": 0, "leads": []}
     if import_to_stores:
         try:
             import_result = _import_candidates_to_stores(db, final_candidates, create_sources=create_sources)
         except Exception as exc:
-            warnings.append(f"Import u prodavce nije uspeo: {exc}")
+            warnings.append(friendly_discovery_error(exc, "Import u prodavce trenutno nije uspeo."))
             db.rollback()
             import_result = {"created_stores": 0, "updated_stores": 0, "created_sources": 0}
     else:
@@ -474,7 +504,7 @@ def discover_sellers(
     try:
         run = append_json_row(RUNS_FILE, run_payload, max_rows=500)
     except Exception as exc:
-        warnings.append(f"Istorija pretrage nije snimljena: {exc}")
+        warnings.append(friendly_discovery_error(exc, "Istorija pretrage trenutno nije sačuvana."))
         run = {**run_payload, "id": None}
     return {
         "ok": not warnings,
