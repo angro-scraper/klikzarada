@@ -216,6 +216,17 @@ const SH_GO_LIVE = (() => {
     });
   }
 
+  function previewPilotData() {
+    return runAction("pilotPreviewBtn", "/database/purge-pilot-data?dry_run=true", { method: "POST" });
+  }
+
+  function purgePilotData() {
+    if (!window.confirm("Ovo briše pilot/test/demo proizvode, rezervacije, kupce, prodavce i povezane finansijske pilot zapise. Nastavljamo?")) {
+      return Promise.resolve();
+    }
+    return runAction("pilotPurgeBtn", "/database/purge-pilot-data?dry_run=false", { method: "POST" });
+  }
+
   function bind() {
     el("refreshBtn").addEventListener("click", () => refresh().catch((error) => log(`Greška: ${error.message}`)));
     el("testFlowBtn").addEventListener("click", () => runAction("testFlowBtn", "/pilot-live/control-center/test-flow", { method: "POST" }));
@@ -223,6 +234,8 @@ const SH_GO_LIVE = (() => {
     el("missingImagesBtn").addEventListener("click", () => runAction("missingImagesBtn", "/pilot-live/control-center/missing-images"));
     el("blocksBtn").addEventListener("click", () => runAction("blocksBtn", "/pilot-live/control-center/blocks"));
     el("financeBtn").addEventListener("click", () => runAction("financeBtn", "/pilot-live/control-center/finance"));
+    el("pilotPreviewBtn").addEventListener("click", previewPilotData);
+    el("pilotPurgeBtn").addEventListener("click", purgePilotData);
     el("readyBtn").addEventListener("click", () => runAction("readyBtn", "/pilot-live/control-center/mark-ready", { method: "POST" }));
   }
 
