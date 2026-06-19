@@ -1417,3 +1417,199 @@ body.ai-admin-body .seller-discovery-table-v104{
     grid-template-columns:1fr!important;
   }
 }
+
+/* V112: professional partner and seller page composition */
+:root{
+  --sh-page-width-v112:calc(100% - 64px);
+}
+
+body.sh55-partner,
+body.sh55-seller{
+  overflow-x:hidden!important;
+}
+
+body.sh55-partner .sh55-topbar,
+body.sh55-seller .sh55-topbar,
+body.sh55-partner .sh55-hero,
+body.sh55-seller .sh55-hero,
+body.sh55-partner main,
+body.sh55-seller main,
+body.sh55-seller .sh55-brand-values{
+  width:var(--sh-page-width-v112)!important;
+  max-width:none!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+  box-sizing:border-box!important;
+}
+
+body.sh55-partner main{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:24px!important;
+  padding:0 0 88px!important;
+}
+
+body.sh55-seller main{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:24px!important;
+  padding:0 0 88px!important;
+}
+
+body.sh55-partner main > .sh56-values,
+body.sh55-partner main > .sh56-trust,
+body.sh55-seller main > .sh56-values,
+body.sh55-seller main > .sh56-trust,
+body.sh55-seller main > .wide,
+body.sh55-seller main > .card.wide,
+body.sh55-partner main > .wide,
+body.sh55-partner main > .card.wide{
+  grid-column:1/-1!important;
+  width:100%!important;
+  max-width:none!important;
+}
+
+body.sh55-partner main > .sh56-values,
+body.sh55-seller .seller-values-v55{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:18px!important;
+  margin:0 auto 24px!important;
+}
+
+body.sh55-seller .seller-values-v55{
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  margin-top:18px!important;
+}
+
+body.sh55-partner main > .sh56-values .sh56-value,
+body.sh55-seller .seller-values-v55 article{
+  min-height:168px!important;
+  padding:24px!important;
+  align-content:start!important;
+}
+
+body.sh55-partner main > .sh56-values .sh56-icon,
+body.sh55-seller .seller-values-v55 article span{
+  width:64px!important;
+  height:64px!important;
+  border-radius:20px!important;
+  font-size:30px!important;
+}
+
+body.sh55-partner main > .sh56-trust,
+body.sh55-seller main > .sh56-trust,
+body.sh55-partner .sh55-brand-trust,
+body.sh55-seller .sh55-brand-trust{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:0!important;
+  width:100%!important;
+  max-width:none!important;
+  margin:28px 0 0!important;
+  border-radius:30px!important;
+  overflow:hidden!important;
+}
+
+body.sh55-partner main > .sh56-trust .sh56-value,
+body.sh55-seller main > .sh56-trust .sh56-value,
+body.sh55-partner .sh55-brand-trust article,
+body.sh55-seller .sh55-brand-trust article{
+  min-height:126px!important;
+  padding:22px 24px!important;
+  border-radius:0!important;
+  align-content:start!important;
+}
+
+body.sh55-partner .card,
+body.sh55-seller .card{
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  padding:30px!important;
+}
+
+body.sh55-partner .grid-form{
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:16px!important;
+}
+
+body.sh55-partner .grid-form .wide-field,
+body.sh55-partner .grid-form button[type="submit"],
+body.sh55-partner .grid-form #partnerResult{
+  grid-column:1/-1!important;
+}
+
+body.sh55-seller .seller-selector{
+  width:100%!important;
+  display:grid!important;
+  grid-template-columns:minmax(320px,2fr) minmax(220px,1fr) auto auto auto!important;
+  gap:14px!important;
+  align-items:stretch!important;
+}
+
+body.sh55-seller .seller-selector select,
+body.sh55-seller .seller-selector input,
+body.sh55-seller .seller-selector button,
+body.sh55-partner .grid-form input,
+body.sh55-partner .grid-form select,
+body.sh55-partner .grid-form textarea,
+body.sh55-partner .grid-form button{
+  min-width:0!important;
+  width:100%!important;
+}
+
+body.sh55-seller .seller-info,
+body.sh55-seller .seller-governance-v107{
+  width:100%!important;
+}
+
+body.sh55-seller .sh55-hero-copy h1{
+  max-width:1050px!important;
+}
+
+@media(max-width:1180px){
+  :root{
+    --sh-page-width-v112:calc(100% - 32px);
+  }
+
+  body.sh55-seller main,
+  body.sh55-partner .grid-form{
+    grid-template-columns:1fr!important;
+  }
+
+  body.sh55-partner main > .sh56-values,
+  body.sh55-seller .seller-values-v55,
+  body.sh55-partner main > .sh56-trust,
+  body.sh55-seller main > .sh56-trust{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+
+  body.sh55-seller .seller-selector{
+    grid-template-columns:1fr 1fr!important;
+  }
+}
+
+@media(max-width:760px){
+  :root{
+    --sh-page-width-v112:calc(100% - 16px);
+  }
+
+  body.sh55-partner .sh55-hero,
+  body.sh55-seller .sh55-hero{
+    grid-template-columns:1fr!important;
+  }
+
+  body.sh55-partner main > .sh56-values,
+  body.sh55-seller .seller-values-v55,
+  body.sh55-partner main > .sh56-trust,
+  body.sh55-seller main > .sh56-trust,
+  body.sh55-seller .seller-selector{
+    grid-template-columns:1fr!important;
+  }
+
+  body.sh55-partner .card,
+  body.sh55-seller .card{
+    padding:18px!important;
+  }
+}
