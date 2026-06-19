@@ -37,6 +37,7 @@
     ['Podrška','/support-admin'],
     ['Finansije','/finance'],
     ['AI','/ai-admin'],
+    ['Go Live','/go-live'],
     ['Podešavanja','/settings-admin']
   ];
   function isAdminPage(){

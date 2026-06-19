@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import func, inspect
+from sqlalchemy import func, inspect, or_
 from sqlalchemy.orm import Session
 
 from . import models
@@ -21,6 +21,8 @@ from .services.excel_database import DATA_DIR, EXCEL_PATH, export_database_to_ex
 from .services.json_store import read_json
 from .services.pricing import apply_pricing_to_reservation, mark_paid
 from .services.customers import apply_reservation_status_transition, rebuild_customer_database, register_reservation_created
+from .services.seller_governance import enforce_seller_billing_rules
+from .services.admin_auth import require_admin_session
 
 router = APIRouter(prefix="/pilot-live", tags=["pilot-live"])
 
@@ -29,6 +31,7 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 BACKUP_DIR = DATA_DIR / "pilot_backups"
 LAUNCH_MONITOR_REPORT = DATA_DIR / "launch_monitor_latest.json"
 LAUNCH_MONITOR_HISTORY = DATA_DIR / "launch_monitor_history.json"
+PILOT_READY_MARKER = DATA_DIR / "pilot_ready_marker.json"
 BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 LEGAL_PUBLIC_PATHS = {
     "support": ["/podrska", "/support"],
@@ -1371,6 +1374,282 @@ def pilot_go_no_go(db: Session = Depends(get_db)):
             "go_live": "/go-live",
         },
     }
+
+
+def _latest_backup_manifest() -> Path | None:
+    manifests = sorted(BACKUP_DIR.glob("pilot_backup_manifest_*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    return manifests[0] if manifests else None
+
+
+def _missing_image_products(db: Session, limit: int = 80) -> dict:
+    query = db.query(models.Product).outerjoin(models.Store).filter(
+        models.Product.status.in_(list(VISIBLE_STATUSES)),
+        or_(models.Product.image_url.is_(None), models.Product.image_url == ""),
+    )
+    total = query.count()
+    rows = []
+    for product in query.order_by(models.Product.updated_at.desc()).limit(limit).all():
+        rows.append({
+            "id": product.id,
+            "name": product.name,
+            "store_id": product.store_id,
+            "store_name": product.store.name if product.store else "Bez prodavca",
+            "category": product.category,
+            "status": product.status,
+            "updated_at": product.updated_at.isoformat() + "Z" if product.updated_at else None,
+            "admin_url": f"/admin?product_id={product.id}",
+        })
+    return {
+        "ok": total == 0,
+        "missing_count": total,
+        "checked_statuses": sorted(VISIBLE_STATUSES),
+        "products": rows,
+        "fix": "Svaka javna ponuda mora imati stvarnu sliku pre pilot/live prikaza.",
+    }
+
+
+def _customer_block_snapshot(db: Session) -> dict:
+    rebuild_customer_database(db)
+    blocked = db.query(models.Customer).filter(models.Customer.status == "blocked").order_by(models.Customer.updated_at.desc()).all()
+    warning = db.query(models.Customer).filter(
+        models.Customer.status != "blocked",
+        models.Customer.cancelled_reservations >= 2,
+    ).order_by(models.Customer.updated_at.desc()).all()
+    return {
+        "ok": len(blocked) == 0,
+        "blocked_count": len(blocked),
+        "warning_count": len(warning),
+        "blocked_customers": [
+            {
+                "id": item.id,
+                "name": item.name,
+                "phone": item.phone,
+                "email": item.email,
+                "cancelled_reservations": item.cancelled_reservations,
+                "total_reservations": item.total_reservations,
+                "block_reason": item.block_reason,
+            }
+            for item in blocked[:50]
+        ],
+        "near_block_customers": [
+            {
+                "id": item.id,
+                "name": item.name,
+                "phone": item.phone,
+                "cancelled_reservations": item.cancelled_reservations,
+                "total_reservations": item.total_reservations,
+            }
+            for item in warning[:50]
+        ],
+        "fix": "Blokirani kupci se vide u /customers-admin i mogu se ručno odblokirati.",
+    }
+
+
+def _seller_block_snapshot(db: Session) -> dict:
+    rows = []
+    for store in db.query(models.Store).order_by(models.Store.name.asc()).all():
+        governance = enforce_seller_billing_rules(db, store)
+        if store.blocked or governance["overdue_invoice_count"] or governance["late_payment_count"]:
+            rows.append({
+                "store_id": store.id,
+                "store_name": store.name,
+                "seller_type": store.seller_type,
+                "blocked": bool(store.blocked),
+                "blocked_reason": store.blocked_reason,
+                "overdue_invoice_count": governance["overdue_invoice_count"],
+                "late_payment_count": governance["late_payment_count"],
+                "loyalty_tier": store.loyalty_tier,
+            })
+    db.commit()
+    return {
+        "ok": len([item for item in rows if item["blocked"]]) == 0,
+        "flagged_count": len(rows),
+        "blocked_count": len([item for item in rows if item["blocked"]]),
+        "sellers": rows[:80],
+        "fix": "Neplaćene fakture i kašnjenja rešavaju se u finansijama, zatim ručno odblokiranje prodavca.",
+    }
+
+
+def _finance_control_snapshot(db: Session) -> dict:
+    paid_q = db.query(models.Reservation).filter(models.Reservation.payment_status == "paid")
+    pickup_q = db.query(models.Reservation).filter(models.Reservation.payment_status == "pay_on_pickup")
+    pending_payout = paid_q.filter(models.Reservation.seller_payout_status == "pending")
+    blocked_payout = db.query(models.Reservation).filter(models.Reservation.seller_payout_status == "blocked")
+    commission_due = db.query(models.Reservation).filter(models.Reservation.seller_payout_status == "commission_due")
+    invoice_sent = db.query(models.Reservation).filter(models.Reservation.seller_payout_status == "invoice_sent")
+    overdue_invoice = invoice_sent.filter(models.Reservation.seller_invoice_due_at.is_not(None), models.Reservation.seller_invoice_due_at < datetime.utcnow())
+    return {
+        "ok": blocked_payout.count() == 0 and overdue_invoice.count() == 0,
+        "paid_count": paid_q.count(),
+        "pay_on_pickup_count": pickup_q.count(),
+        "pending_payout_count": pending_payout.count(),
+        "blocked_payout_count": blocked_payout.count(),
+        "commission_due_count": commission_due.count(),
+        "invoice_sent_count": invoice_sent.count(),
+        "overdue_invoice_count": overdue_invoice.count(),
+        "paid_turnover": _money(paid_q.with_entities(func.coalesce(func.sum(models.Reservation.payable_amount), 0)).scalar()),
+        "pay_on_pickup_turnover": _money(pickup_q.with_entities(func.coalesce(func.sum(models.Reservation.payable_amount), 0)).scalar()),
+        "platform_fee_paid": _money(paid_q.with_entities(func.coalesce(func.sum(models.Reservation.platform_fee_amount), 0)).scalar()),
+        "commission_due_total": _money(commission_due.with_entities(func.coalesce(func.sum(models.Reservation.platform_fee_amount), 0)).scalar()),
+        "pending_payout_amount": _money(pending_payout.with_entities(func.coalesce(func.sum(models.Reservation.seller_net_amount), 0)).scalar()),
+        "fix": "Ako postoje blokirane isplate ili dospele fakture, proveri /finance pre pilot odluke.",
+    }
+
+
+def _go_live_control_snapshot(db: Session) -> dict:
+    go_no_go = pilot_go_no_go(db)
+    missing_images = _missing_image_products(db)
+    customers = _customer_block_snapshot(db)
+    sellers = _seller_block_snapshot(db)
+    finance = _finance_control_snapshot(db)
+    backup = _latest_backup_manifest()
+    latest_ready = None
+    if PILOT_READY_MARKER.exists():
+        try:
+            latest_ready = json.loads(PILOT_READY_MARKER.read_text(encoding="utf-8"))
+        except Exception:
+            latest_ready = None
+
+    metrics = go_no_go.get("metrics", {})
+    checks = [
+        {
+            "key": "flow",
+            "label": "Testirani kupac -> rezervacija -> preuzimanje",
+            "ok": metrics.get("reservations_total", 0) > 0 and metrics.get("picked_up_reservations", 0) > 0,
+            "value": f"{metrics.get('reservations_total', 0)} rezervacija / {metrics.get('picked_up_reservations', 0)} preuzeto",
+            "fix": "Klikni Testiraj tok.",
+        },
+        {
+            "key": "backup",
+            "label": "Backup baze i Excel-a",
+            "ok": backup is not None,
+            "value": backup.name if backup else "nije napravljen",
+            "fix": "Klikni Backup.",
+        },
+        {
+            "key": "missing_images",
+            "label": "Ponude bez slika",
+            "ok": missing_images["ok"],
+            "value": missing_images["missing_count"],
+            "fix": "Dodaj sliku za svaku javnu ponudu bez slike.",
+        },
+        {
+            "key": "customer_blocks",
+            "label": "Blokade kupaca",
+            "ok": customers["ok"],
+            "value": customers["blocked_count"],
+            "fix": "Otvori Kupci i odblokiraj samo ako je rešeno.",
+        },
+        {
+            "key": "seller_blocks",
+            "label": "Blokade prodavaca",
+            "ok": sellers["ok"],
+            "value": sellers["blocked_count"],
+            "fix": "Otvori Finansije i reši fakture/kašnjenja.",
+        },
+        {
+            "key": "finance",
+            "label": "Finansije bez blokera",
+            "ok": finance["ok"],
+            "value": f"{finance['blocked_payout_count']} blokiranih / {finance['overdue_invoice_count']} dospelih",
+            "fix": finance["fix"],
+        },
+        {
+            "key": "support",
+            "label": "Support bez hitnih prijava",
+            "ok": metrics.get("urgent_support", 0) == 0,
+            "value": metrics.get("urgent_support", 0),
+            "fix": "Reši hitne prijave u podršci.",
+        },
+    ]
+    ready = all(item["ok"] for item in checks)
+    return {
+        "ok": ready,
+        "status": "GREEN" if ready else "RED",
+        "decision": "Spremno za pilot" if ready else "Nije spremno za pilot",
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "checks": checks,
+        "go_no_go": go_no_go,
+        "missing_images": missing_images,
+        "customers": customers,
+        "sellers": sellers,
+        "finance": finance,
+        "backup": {
+            "exists": backup is not None,
+            "latest_manifest": str(backup) if backup else None,
+            "latest_name": backup.name if backup else None,
+        },
+        "ready_marker": latest_ready,
+        "next_actions": [item["fix"] for item in checks if not item["ok"]] or ["Pilot može da krene. Uradi još jedan ručni test na telefonu."],
+        "links": {
+            "admin": "/admin",
+            "offers": "/offers",
+            "customers": "/customers-admin",
+            "partners": "/partners-admin",
+            "finance": "/finance",
+            "support": "/support-admin",
+            "ai": "/ai-admin",
+            "settings": "/settings-admin",
+            "public_home": "/pocetna",
+        },
+    }
+
+
+@router.get("/control-center", response_model=dict, dependencies=[Depends(require_admin_session)])
+def pilot_control_center(db: Session = Depends(get_db)):
+    return _go_live_control_snapshot(db)
+
+
+@router.post("/control-center/test-flow", response_model=dict, dependencies=[Depends(require_admin_session)])
+def pilot_control_test_flow(db: Session = Depends(get_db)):
+    result = pilot_smoke_test(db)
+    return {"ok": bool(result.get("ok")), "action": "test_flow", "result": result, "snapshot": _go_live_control_snapshot(db)}
+
+
+@router.post("/control-center/backup", response_model=dict, dependencies=[Depends(require_admin_session)])
+def pilot_control_backup(db: Session = Depends(get_db)):
+    result = pilot_backup(db)
+    return {"ok": bool(result.get("ok")), "action": "backup", "result": result, "snapshot": _go_live_control_snapshot(db)}
+
+
+@router.get("/control-center/missing-images", response_model=dict, dependencies=[Depends(require_admin_session)])
+def pilot_control_missing_images(db: Session = Depends(get_db)):
+    ensure_pilot_data(db)
+    return _missing_image_products(db)
+
+
+@router.get("/control-center/blocks", response_model=dict, dependencies=[Depends(require_admin_session)])
+def pilot_control_blocks(db: Session = Depends(get_db)):
+    return {
+        "ok": True,
+        "customers": _customer_block_snapshot(db),
+        "sellers": _seller_block_snapshot(db),
+    }
+
+
+@router.get("/control-center/finance", response_model=dict, dependencies=[Depends(require_admin_session)])
+def pilot_control_finance(db: Session = Depends(get_db)):
+    return _finance_control_snapshot(db)
+
+
+@router.post("/control-center/mark-ready", response_model=dict, dependencies=[Depends(require_admin_session)])
+def pilot_control_mark_ready(db: Session = Depends(get_db)):
+    snapshot = _go_live_control_snapshot(db)
+    if not snapshot["ok"]:
+        return {
+            "ok": False,
+            "message": "Još nije spremno za pilot. Prvo reši crvene stavke.",
+            "blockers": [item for item in snapshot["checks"] if not item["ok"]],
+            "snapshot": snapshot,
+        }
+    payload = {
+        "ok": True,
+        "marked_at": datetime.utcnow().isoformat() + "Z",
+        "decision": snapshot["decision"],
+        "checks": snapshot["checks"],
+    }
+    PILOT_READY_MARKER.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"ok": True, "message": "Pilot je označen kao spreman.", "ready_marker": payload, "snapshot": snapshot}
 
 
 @router.get("/env-pilot-template", response_model=dict)

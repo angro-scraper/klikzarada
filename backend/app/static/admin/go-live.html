@@ -3,128 +3,126 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Sačuvaj Hranu — Go/No-Go</title>
+  <title>Sačuvaj Hranu — Go Live kontrolni centar</title>
   <link rel="stylesheet" href="/admin-assets/styles.css" />
   <link rel="stylesheet" href="/admin-assets/brand-system-v56.css" />
-  <style>
-    body{background:radial-gradient(circle at top left,#fffaf0 0,#f7f4ed 52%,#fbf8f1 100%);color:#12352a}.go-shell{max-width:1320px;margin:0 auto;padding:24px}.go-hero{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:stretch;background:linear-gradient(110deg,#0f3d2e,#14533d 62%,#246f55);color:#fff;border-radius:30px;padding:26px;box-shadow:0 24px 70px rgba(15,61,46,.18)}.go-hero h1{margin:0;font-size:44px;line-height:.98;letter-spacing:-.05em}.go-hero p{color:#e8fff4;line-height:1.5}.score-card{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:24px;padding:18px}.score-card strong{display:block;font-size:54px;line-height:1}.decision{display:inline-flex;border-radius:999px;padding:8px 12px;font-weight:950;background:#dcfce7;color:#14532d}.decision.bad{background:#fee2e2;color:#991b1b}.go-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.go-actions a,.go-actions button{border:0;border-radius:14px;padding:11px 14px;background:#fff;color:#0f3d2e;text-decoration:none;font-weight:900;cursor:pointer}.go-actions .dark{background:#f2b13d;color:#3b2b04}.go-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:16px}.go-card{background:rgba(255,255,255,.88);border:1px solid #eadfcd;border-radius:22px;padding:16px;box-shadow:0 12px 32px rgba(15,61,46,.08)}.go-card h2{margin:0 0 10px;color:#0f3d2e}.metric strong{display:block;font-size:26px;color:#0f3d2e}.check-list{display:grid;gap:10px}.check-row{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;border:1px solid #eadfcd;background:#fffdf8;border-radius:16px;padding:12px}.check-row .dot{width:30px;height:30px;border-radius:999px;display:grid;place-items:center;background:#dcfce7;color:#166534;font-weight:950}.check-row.bad .dot{background:#fee2e2;color:#991b1b}.check-row b{display:block}.check-row small{color:#6d7b73;font-weight:700}.wide{grid-column:1/-1}.half{grid-column:span 2}.link-grid{display:flex;gap:8px;flex-wrap:wrap}.link-grid a{border-radius:999px;background:#eef8f1;color:#0f3d2e;padding:8px 11px;text-decoration:none;font-weight:900}.log{white-space:pre-wrap;background:#10231f;color:#e8fff4;border-radius:18px;padding:14px;max-height:260px;overflow:auto}.muted{color:#6d7b73}@media(max-width:1050px){.go-hero{grid-template-columns:1fr}.go-grid{grid-template-columns:1fr 1fr}.half{grid-column:1/-1}}@media(max-width:680px){.go-shell{padding:14px}.go-grid{grid-template-columns:1fr}.go-hero h1{font-size:34px}.check-row{grid-template-columns:34px 1fr}}
-  </style>
 </head>
-<body>
-  <main class="go-shell">
-    <section class="go-hero">
+<body class="admin-v20 go-live-v113">
+  <main class="go-live-shell-v113">
+    <section class="go-live-hero-v113">
       <div>
-        <span id="decision" class="decision">Učitavam...</span>
-        <h1>Go/No-Go kontrolna tabla</h1>
-        <p>Jedno mesto za odluku pre live dana: kupac, partner, support, finance, mapa, PWA, backup, deploy i security.</p>
-        <div class="go-actions">
-          <button class="dark" id="refreshBtn">Osveži status</button>
-          <button class="dark" id="finalBtn">Finalni live update</button>
-          <button id="backupBtn">Napravi backup</button>
-          <a href="/pocetna">Početna</a>
-          <a href="/finance">Finansije</a>
-          <a href="/support-admin">Support</a>
-        </div>
+        <p class="section-kicker">Sačuvaj Hranu · Go Live</p>
+        <h1>Kontrolni centar za pilot</h1>
+        <p class="subtitle">Jedna stranica za zeleno/crveno stanje pre izlaska uživo: tok kupca, backup, slike, blokade, finansije i završna pilot odluka.</p>
       </div>
-      <div class="score-card">
-        <div>Zatvoreni pilot</div>
-        <strong id="closedScore">—</strong>
-        <div class="muted" id="publicDecision" style="color:#e8fff4">Javni live: —</div>
+      <aside class="go-live-decision-v113" id="decisionCard">
+        <span id="decisionStatus">Učitavam</span>
+        <strong id="decisionTitle">Provera u toku</strong>
+        <small id="decisionMeta">Sačekaj trenutak...</small>
+      </aside>
+    </section>
+
+    <section class="go-live-actions-v113" aria-label="Go Live akcije">
+      <button id="testFlowBtn">Testiraj tok</button>
+      <button id="backupBtn">Backup</button>
+      <button id="missingImagesBtn">Proveri ponude bez slika</button>
+      <button id="blocksBtn">Proveri blokade</button>
+      <button id="financeBtn">Proveri finansije</button>
+      <button id="readyBtn" class="primary">Spremno za pilot</button>
+      <button id="refreshBtn" class="secondary">Osveži</button>
+    </section>
+
+    <section class="go-live-status-grid-v113" id="statusGrid"></section>
+
+    <section class="go-live-two-v113">
+      <article class="go-live-panel-v113">
+        <div class="section-title">
+          <div>
+            <span class="section-kicker">Detalji</span>
+            <h2>Crvene stavke i sledeći koraci</h2>
+          </div>
+          <a href="/admin" class="link-button secondary-link">Admin</a>
+        </div>
+        <div id="nextActions" class="go-live-list-v113"></div>
+      </article>
+
+      <article class="go-live-panel-v113">
+        <div class="section-title">
+          <div>
+            <span class="section-kicker">Brzi linkovi</span>
+            <h2>Otvori administraciju</h2>
+          </div>
+        </div>
+        <div id="quickLinks" class="go-live-links-v113"></div>
+      </article>
+    </section>
+
+    <section class="go-live-panel-v113">
+      <div class="section-title">
+        <div>
+          <span class="section-kicker">Ponude</span>
+          <h2>Ponude bez slika</h2>
+        </div>
+        <strong id="missingImagesCount" class="go-live-pill-v113">—</strong>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Artikal</th><th>Prodavac</th><th>Kategorija</th><th>Status</th><th>Akcija</th></tr>
+          </thead>
+          <tbody id="missingImagesTable"></tbody>
+        </table>
       </div>
     </section>
 
-    <section class="go-grid">
-      <article class="go-card metric"><strong id="offers">—</strong><span>Javne ponude</span></article>
-      <article class="go-card metric"><strong id="storesGps">—</strong><span>GPS partneri</span></article>
-      <article class="go-card metric"><strong id="reservations">—</strong><span>Rezervacije</span></article>
-      <article class="go-card metric"><strong id="support">—</strong><span>Otvoren support</span></article>
-
-      <article class="go-card half">
-        <h2>Live grupe</h2>
-        <div id="groups" class="check-list"></div>
-      </article>
-      <article class="go-card half">
-        <h2>Operativne provere</h2>
-        <div id="opsChecks" class="check-list"></div>
+    <section class="go-live-two-v113">
+      <article class="go-live-panel-v113">
+        <div class="section-title">
+          <div>
+            <span class="section-kicker">Kupci</span>
+            <h2>Blokade kupaca</h2>
+          </div>
+          <a href="/customers-admin" class="link-button secondary-link">Kupci</a>
+        </div>
+        <div id="customerBlocks" class="go-live-list-v113"></div>
       </article>
 
-      <article class="go-card half">
-        <h2>Blokatori</h2>
-        <div id="blockers" class="check-list"></div>
+      <article class="go-live-panel-v113">
+        <div class="section-title">
+          <div>
+            <span class="section-kicker">Prodavci</span>
+            <h2>Blokade prodavaca</h2>
+          </div>
+          <a href="/finance" class="link-button secondary-link">Finansije</a>
+        </div>
+        <div id="sellerBlocks" class="go-live-list-v113"></div>
       </article>
-      <article class="go-card half">
-        <h2>Sledeće akcije</h2>
-        <div id="actions" class="check-list"></div>
-      </article>
+    </section>
 
-      <article class="go-card wide">
-        <h2>Brzi linkovi</h2>
-        <div id="links" class="link-grid"></div>
-      </article>
-      <article class="go-card wide">
-        <h2>Log</h2>
-        <div id="log" class="log">Spremno.</div>
-      </article>
+    <section class="go-live-panel-v113">
+      <div class="section-title">
+        <div>
+          <span class="section-kicker">Finansije</span>
+          <h2>Finansijski status</h2>
+        </div>
+        <a href="/finance" class="link-button secondary-link">Otvori finansije</a>
+      </div>
+      <div class="go-live-finance-grid-v113" id="financeGrid"></div>
+    </section>
+
+    <section class="go-live-panel-v113">
+      <div class="section-title">
+        <div>
+          <span class="section-kicker">Log</span>
+          <h2>Poslednja akcija</h2>
+        </div>
+      </div>
+      <pre id="actionLog" class="go-live-log-v113">Spremno.</pre>
     </section>
   </main>
 
   <script src="/admin-assets/admin-auth.js"></script>
   <script src="/admin-assets/brand-system-v56.js"></script>
-  <script>
-    const $ = (id) => document.getElementById(id);
-    function esc(v){return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
-    function row(item){
-      const ok = !!item.ok;
-      const value = item.value !== undefined ? `<small>${esc(item.value)} / ${esc(item.target ?? '')}</small>` : (item.score !== undefined ? `<small>${esc(item.score)}%</small>` : '');
-      return `<div class="check-row ${ok?'':'bad'}"><span class="dot">${ok?'✓':'!'}</span><div><b>${esc(item.label || item.key)}</b><small>${esc(ok ? (item.path || 'Spremno') : (item.fix || 'Potrebna provera'))}</small></div>${value}</div>`;
-    }
-    function textRow(text){return `<div class="check-row"><span class="dot">→</span><div><b>${esc(text)}</b></div></div>`;}
-    async function api(path, options){
-      const r = await fetch(path, options);
-      const txt = await r.text();
-      let data; try{data = JSON.parse(txt)}catch{data = txt}
-      if(!r.ok) throw new Error(typeof data === 'string' ? data : (data.detail || JSON.stringify(data)));
-      return data;
-    }
-    async function loadStatus(){
-      $('log').textContent = 'Učitavam go/no-go status...';
-      const data = await api('/pilot-live/go-no-go');
-      $('decision').textContent = data.decision;
-      $('decision').classList.toggle('bad', !data.ok);
-      $('closedScore').textContent = `${data.closed_pilot_score}%`;
-      $('publicDecision').textContent = `${data.public_decision} · ${data.public_live_score}%`;
-      const m = data.metrics || {};
-      $('offers').textContent = m.visible_products ?? '—';
-      $('storesGps').textContent = m.stores_with_gps ?? '—';
-      $('reservations').textContent = m.reservations_total ?? '—';
-      $('support').textContent = `${m.open_support ?? 0} / hitno ${m.urgent_support ?? 0}`;
-      $('groups').innerHTML = (data.groups || []).map(row).join('');
-      $('opsChecks').innerHTML = (data.operational_checks || []).map(row).join('');
-      $('blockers').innerHTML = (data.blockers || []).length ? data.blockers.map(row).join('') : textRow('Nema blokatora za zatvoreni pilot.');
-      $('actions').innerHTML = (data.next_actions || []).map(textRow).join('');
-      $('links').innerHTML = Object.entries(data.links || {}).map(([label, href]) => `<a href="${esc(href)}">${esc(label.replaceAll('_',' '))}</a>`).join('');
-      $('log').textContent = JSON.stringify({generated_at:data.generated_at, metrics:data.metrics, daily_actions:m.daily_actions}, null, 2);
-    }
-    async function makeBackup(){
-      $('log').textContent = 'Pravim backup...';
-      const data = await api('/pilot-live/backup', {method:'POST'});
-      $('log').textContent = JSON.stringify(data, null, 2);
-      await loadStatus();
-    }
-    async function finalLiveUpdate(){
-      $('log').textContent = 'Pokrećem finalni live update: smoke test po potrebi, backup, monitor i završni go/no-go...';
-      const data = await api('/pilot-live/final-live-update', {method:'POST'});
-      $('log').textContent = JSON.stringify({
-        summary: data.summary,
-        steps: data.steps,
-        manual_actions: data.manual_actions
-      }, null, 2);
-      await loadStatus();
-    }
-    $('refreshBtn').addEventListener('click', () => loadStatus().catch(e => $('log').textContent = e.message));
-    $('backupBtn').addEventListener('click', () => makeBackup().catch(e => $('log').textContent = e.message));
-    $('finalBtn').addEventListener('click', () => finalLiveUpdate().catch(e => $('log').textContent = e.message));
-    loadStatus().catch(e => $('log').textContent = e.message);
-  </script>
+  <script src="/admin-assets/go-live.js"></script>
 </body>
 </html>
