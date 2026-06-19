@@ -979,3 +979,221 @@ body.buyer-v21 .offers-grid-v21{
     --sh-page-width-v108:calc(100% - 24px);
   }
 }
+
+/* V109: full-screen live surfaces for seller, buyer app and admin pages */
+:root{
+  --sh-page-width-v109:calc(100% - 24px);
+}
+
+body.sh55-page,
+body.fs45-body,
+body.buyer-v21,
+body.sh-admin-shell{
+  overflow-x:hidden!important;
+}
+
+body.sh55-page .sh55-topbar,
+body.sh55-page .sh56-topbar,
+body.sh55-page .sh55-hero,
+body.sh55-page .sh56-hero,
+body.sh55-page .sh56-page-identity,
+body.sh55-page .sh55-brand-values,
+body.sh55-page .sh55-brand-trust,
+body.sh55-page .sh55-trustbar,
+body.sh55-page .sh56-values,
+body.sh55-page .sh56-trust,
+body.sh55-customer .sh55-main,
+body.sh55-customer main,
+body.sh55-seller main,
+body.fs45-body .fs45-topbar,
+body.fs45-body .fs45-shell,
+body.fs45-body .fs45-hero,
+body.fs45-body .fs45-flow,
+body.fs45-body .fs45-search-card,
+body.fs45-body .fs45-layout,
+body.fs45-body .fs45-bottom-panels,
+body.fs45-body .sh54-trustbar,
+body.buyer-v21 .buyer-shell,
+body.buyer-v21 main.buyer-layout-v21,
+body.sh-admin-shell .sh-admin-topbar-v103,
+body.sh-admin-shell .admin-hero,
+body.sh-admin-shell .finance-hero-v30,
+body.sh-admin-shell .compact-hero-v35,
+body.sh-admin-shell .ai-admin-hero,
+body.sh-admin-shell main,
+body.sh-admin-shell .admin-grid,
+body.sh-admin-shell .finance-main-v30,
+body.sh-admin-shell .ops-main-v35,
+body.sh-admin-shell .ai-admin-shell,
+body.ai-admin-body .ai-admin-shell{
+  width:var(--sh-page-width-v109)!important;
+  max-width:none!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+
+body.sh55-page .sh55-topbar,
+body.sh55-page .sh56-topbar,
+body.fs45-body .fs45-topbar,
+body.sh-admin-shell .sh-admin-topbar-v103{
+  justify-content:space-between!important;
+}
+
+body.sh55-page .sh55-hero,
+body.sh55-page .sh56-hero,
+body.fs45-body .fs45-hero{
+  grid-template-columns:minmax(0,1fr) minmax(380px,.72fr)!important;
+  align-items:stretch!important;
+}
+
+body.sh55-page .sh55-hero-copy,
+body.sh55-page .sh55-action-card,
+body.fs45-body .fs45-hero-copy,
+body.fs45-body .fs45-hero-card,
+body.fs45-body .fs45-search-card,
+body.fs45-body .fs45-results-panel,
+body.fs45-body .fs45-map-panel,
+body.sh55-seller .card,
+body.sh55-customer .sh55-empty,
+body.sh-admin-shell .card,
+body.sh-admin-shell .ai-admin-card{
+  min-width:0!important;
+}
+
+body.sh55-seller main{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+}
+
+body.sh55-seller main>.wide,
+body.sh55-seller main>.card.wide{
+  grid-column:1/-1!important;
+  width:100%!important;
+}
+
+body.sh55-seller .seller-selector{
+  width:100%!important;
+  grid-template-columns:minmax(320px,1fr) minmax(220px,350px) auto auto auto!important;
+}
+
+body.sh55-seller .seller-selector input,
+body.sh55-seller .seller-selector select,
+body.sh55-seller .seller-selector button{
+  min-width:0!important;
+}
+
+body.sh55-page .sh55-brand-values,
+body.sh55-page .sh56-values,
+body.fs45-body .fs45-flow,
+body.fs45-body .sh54-trustbar{
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+}
+
+body.sh55-page .customer-values-v55,
+body.sh55-page .checkout-values-v55,
+body.sh55-page .sh56-values.three{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+}
+
+body.sh55-page .sh55-trustbar,
+body.sh55-page .sh55-brand-trust,
+body.sh55-page .sh56-trust,
+body.fs45-body .sh54-trustbar{
+  min-height:0!important;
+}
+
+body.sh55-page .sh55-trustbar>div,
+body.sh55-page .sh55-brand-trust article,
+body.sh55-page .sh56-trust .sh56-value,
+body.fs45-body .sh54-trustbar div{
+  min-height:82px!important;
+  padding:14px 16px!important;
+}
+
+body.sh55-page .sh55-trustbar span,
+body.sh55-page .sh55-brand-trust .sh56-icon,
+body.sh55-page .sh56-trust .sh56-icon,
+body.fs45-body .sh54-trustbar span{
+  font-size:22px!important;
+}
+
+body.fs45-body .fs45-layout{
+  grid-template-columns:minmax(360px,.78fr) minmax(0,1.22fr)!important;
+}
+
+body.fs45-body .fs45-offers-grid,
+body.fs45-body .fs45-bottom-panels{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+}
+
+body.fs45-body .fs45-search-card,
+body.fs45-body .fs45-results-panel,
+body.fs45-body .fs45-map-panel{
+  box-sizing:border-box!important;
+}
+
+body.fs45-body .fs45-map{
+  width:100%!important;
+}
+
+body.sh-admin-shell .admin-module-grid-v103{
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+}
+
+body.sh-admin-shell .admin-module-grid-v103 a,
+body.sh-admin-shell .admin-module-grid-v103 strong,
+body.sh-admin-shell .admin-module-grid-v103 small{
+  color:#fff!important;
+  opacity:1!important;
+  text-shadow:0 1px 0 rgba(0,0,0,.24)!important;
+}
+
+body.sh-admin-shell .settings-json-panel-v106 pre,
+body.sh-admin-shell .settings-json-panel-v106 textarea,
+body.sh-admin-shell pre,
+body.sh-admin-shell code{
+  white-space:pre-wrap!important;
+  overflow-wrap:anywhere!important;
+}
+
+@media(max-width:1180px){
+  body.sh55-page .sh55-hero,
+  body.sh55-page .sh56-hero,
+  body.fs45-body .fs45-hero,
+  body.fs45-body .fs45-layout,
+  body.sh55-seller main,
+  body.sh-admin-shell .admin-grid,
+  body.sh-admin-shell .finance-main-v30,
+  body.sh-admin-shell .ops-main-v35,
+  body.sh-admin-shell .ai-admin-grid{
+    grid-template-columns:1fr!important;
+  }
+
+  body.sh55-seller .seller-selector,
+  body.fs45-body .fs45-offers-grid,
+  body.fs45-body .fs45-bottom-panels,
+  body.sh-admin-shell .admin-module-grid-v103{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
+
+@media(max-width:720px){
+  :root{
+    --sh-page-width-v109:calc(100% - 16px);
+  }
+
+  body.sh55-page .sh55-brand-values,
+  body.sh55-page .sh56-values,
+  body.sh55-page .customer-values-v55,
+  body.sh55-page .checkout-values-v55,
+  body.sh55-page .sh55-trustbar,
+  body.sh55-page .sh55-brand-trust,
+  body.sh55-page .sh56-trust,
+  body.sh55-seller .seller-selector,
+  body.fs45-body .fs45-flow,
+  body.fs45-body .fs45-offers-grid,
+  body.fs45-body .fs45-bottom-panels,
+  body.fs45-body .sh54-trustbar,
+  body.sh-admin-shell .admin-module-grid-v103{
+    grid-template-columns:1fr!important;
+  }
+}
