@@ -27,10 +27,17 @@ PILOT_TEXT_MARKERS = (
 )
 PILOT_URL_MARKERS = (
     "seed://",
+    "seed://v",
     "example.com/pilot",
+    "example.com/pilot-partner",
     "example.com/sacuvaj-hranu-demo",
     "/admin-assets/seed-images/",
     "sacuvaj-hranu.local",
+    "/pilot/",
+    "pilot-live",
+    "partner-live",
+    "partner-panel",
+    "pilot-partner-onboarding",
 )
 
 
@@ -81,24 +88,57 @@ def _is_local_test_email(value: str | None) -> bool:
     return str(value or "").strip().lower().endswith(".local")
 
 
+def _flatten_json_text(value: object) -> str:
+    if isinstance(value, dict):
+        return " ".join(_flatten_json_text(item) for item in value.values())
+    if isinstance(value, (list, tuple, set)):
+        return " ".join(_flatten_json_text(item) for item in value)
+    return str(value or "")
+
+
 def _is_pilot_store(store: models.Store) -> bool:
     return (
-        _contains_pilot_marker(store.name, store.address, store.blocked_reason)
-        or _contains_pilot_url(store.website)
-        or _is_local_test_email(store.website)
+        _contains_pilot_marker(
+            store.name,
+            store.city,
+            store.address,
+            store.website,
+            store.phone,
+            store.blocked_reason,
+            store.seller_type,
+        )
+        or _contains_pilot_url(store.website, store.address)
     )
 
 
 def _is_pilot_product(product: models.Product, store: models.Store | None) -> bool:
     return (
-        _contains_pilot_marker(product.name, product.description, store.name if store else None)
-        or _contains_pilot_url(product.source_url, product.image_url, store.website if store else None)
+        _contains_pilot_marker(
+            product.name,
+            product.category,
+            product.description,
+            product.pickup_window,
+            product.status,
+            store.name if store else None,
+            store.city if store else None,
+        )
+        or _contains_pilot_url(
+            product.source_url,
+            product.image_url,
+            store.website if store else None,
+        )
     )
 
 
 def _is_pilot_customer(customer: models.Customer) -> bool:
     return (
-        _contains_pilot_marker(customer.name, customer.block_reason)
+        _contains_pilot_marker(
+            customer.name,
+            customer.block_reason,
+            customer.status,
+            customer.email,
+            customer.phone,
+        )
         or _is_local_test_email(customer.email)
         or "pilot" in str(customer.phone or "").lower()
     )
@@ -107,13 +147,31 @@ def _is_pilot_customer(customer: models.Customer) -> bool:
 def _is_pilot_reservation(reservation: models.Reservation, product_id: int | None) -> bool:
     return (
         (product_id is not None and reservation.product_id == product_id)
-        or _contains_pilot_marker(reservation.customer_name, reservation.note, reservation.payment_provider, reservation.payment_method)
+        or _contains_pilot_marker(
+            reservation.customer_name,
+            reservation.customer_phone,
+            reservation.note,
+            reservation.payment_provider,
+            reservation.payment_method,
+            reservation.payment_reference,
+            reservation.reservation_code,
+            reservation.seller_payout_reference,
+            reservation.seller_payout_note,
+            reservation.status,
+            reservation.payment_status,
+        )
+        or _contains_pilot_url(
+            reservation.payment_provider,
+            reservation.payment_method,
+            reservation.payment_reference,
+            reservation.seller_payout_reference,
+        )
         or _is_local_test_email(reservation.customer_email)
     )
 
 
 def _is_pilot_source(source: models.Source) -> bool:
-    return _contains_pilot_marker(source.name) or _contains_pilot_url(source.url)
+    return _contains_pilot_marker(source.name, source.city, source.source_type) or _contains_pilot_url(source.url)
 
 
 def _purge_pilot_rows(name: str, *, dry_run: bool) -> dict[str, int]:
@@ -126,7 +184,7 @@ def _purge_pilot_rows(name: str, *, dry_run: bool) -> dict[str, int]:
         if not isinstance(row, dict):
             kept.append(row)
             continue
-        text_blob = " ".join(str(row.get(key) or "") for key in ("name", "city", "category", "contact", "source", "source_url", "note", "query", "phone"))
+        text_blob = _flatten_json_text(row)
         if _contains_pilot_marker(text_blob) or _contains_pilot_url(text_blob) or _is_local_test_email(text_blob):
             removed += 1
             continue

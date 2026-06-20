@@ -6,6 +6,29 @@ function formDataJson(form){ return Object.fromEntries(new FormData(form).entrie
 function setBusy(btn, on=true){ if(!btn) return; if(on){ btn.dataset.old=btn.textContent; btn.disabled=true; btn.textContent='Radim...'; } else { btn.disabled=false; btn.textContent=btn.dataset.old || btn.textContent; } }
 async function withBusy(btn, fn){ try{ setBusy(btn,true); await fn(); } catch(e){ toast(e.message); } finally{ setBusy(btn,false); } }
 function checkbox(form, name){ return !!form.querySelector(`[name="${name}"]`)?.checked; }
+function escapeHtml(str){ return String(str ?? '').replace(/[&<>'"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+function normalizeDiscoveryMessage(message){
+  const text=String(message||'').trim();
+  const lower=text.toLowerCase();
+  if(lower.includes('import u prodavce nije uspeo') || lower.includes('import u prodavce trenutno nije uspeo') || lower.includes('duplicate key value') || lower.includes('ix_sources_url') || lower.includes('uniqueviolation') || lower.includes('already exists')) return 'Neki izvori su već postojali u bazi, pa su duplikati preskočeni bez prekida pretrage.';
+  if(lower.includes('insert into sources') || lower.includes('parameters:') || lower.includes('psycopg') || lower.includes('sqlalchemy') || lower.includes('traceback') || lower.includes('background on this error') || text.length>700) return 'Pretraga je vratila tehničko upozorenje. Probaj ponovo sa manjim limitom ili užim kriterijumom.';
+  if(lower.includes('internal server error')) return 'AI pretraga je naišla na serversku grešku. Probaj ponovo za minut.';
+  return text;
+}
+function isBenignDiscoveryMessage(message){
+  const text=normalizeDiscoveryMessage(message).toLowerCase();
+  return text.includes('duplikati preskočeni') || text.includes('već postojali u bazi');
+}
+function normalizeDiscoveryWarnings(list){
+  const out=[]; const seen=new Set();
+  for(const item of (list||[])){
+    const normalized=normalizeDiscoveryMessage(item);
+    if(!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    out.push(normalized);
+  }
+  return out;
+}
 
 async function loadOverview(){
   const o=await api('/scale-api/overview');
@@ -43,13 +66,18 @@ async function loadLeads(){
   document.querySelectorAll('[data-lead]').forEach(b=>b.addEventListener('click',()=>withBusy(b,async()=>{await api(`/scale-api/leads/${b.dataset.lead}`,{method:'PATCH',body:JSON.stringify({status:b.dataset.status})}); await loadLeads(); toast('Lead ažuriran');})));
 }
 function renderSellerDiscovery(r){
-  const rows=(r.candidates||[]).map(c=>`<tr><td><strong>${c.name||''}</strong><br><small>${c.note||c.ai_reason||''}</small></td><td>${c.city||''}<br><small>${c.category||''}</small></td><td>${c.contact||c.source_url||'-'}<br><small>slika: ${c.image_evidence?'da':'ne'} · akcija: ${c.discount_evidence?'da':'ne'} · hrana: ${c.food_evidence?'da':'ne'}</small></td><td>${c.score||0}</td><td><span class="status">${c.kind||c.status||'lead'}</span></td></tr>`).join('');
+  const warningsList=normalizeDiscoveryWarnings(r.warnings||[]);
+  const blockingWarnings=warningsList.filter((warning)=>!isBenignDiscoveryMessage(warning));
+  const benignWarnings=warningsList.filter((warning)=>isBenignDiscoveryMessage(warning));
+  const rows=(r.candidates||[]).map(c=>`<tr><td><strong>${c.name||''}</strong><br><small>${c.note||c.ai_reason||''}</small></td><td>${c.city||''}<br><small>${c.category||''}</small></td><td>${c.contact||c.source_url||'-'}<br><small>slika: ${c.image_evidence?'da':'ne'} · akcija: ${c.discount_evidence?'da':'ne'} · cena: ${c.price_evidence?'da':'ne'} · hrana: ${c.food_evidence?'da':'ne'} · dubinski pregled: ${c.deep_checked?'da':'ne'}</small></td><td>${c.score||0}</td><td><span class="status">${c.kind||c.status||'lead'}</span></td></tr>`).join('');
   $('sellerDiscoveryResult').innerHTML = `
-    <strong>${r.message||'AI pretraga završena.'}</strong>
-    <p>${r.ai_summary||''}</p>
-    <small>Leadovi: +${r.summary?.leads_created||0} novih, ${r.summary?.leads_updated||0} ažuriranih · Prodavci: +${r.summary?.created_stores||0} · Izvori: +${r.summary?.created_sources||0} · OpenAI: ${r.ai_used?'da':'ne'} · Web: ${r.web_search_enabled?'uključen':'isključen'}</small>
-    <div class="table-wrap compact-table" style="margin-top:.75rem"><table><thead><tr><th>Kandidat</th><th>Grad</th><th>Kontakt/izvor</th><th>Score</th><th>Tip</th></tr></thead><tbody>${rows||'<tr><td colspan="5">Nema kandidata za ove kriterijume.</td></tr>'}</tbody></table></div>
-    <p class="help-text">Predlozi za pretragu: ${(r.search_queries||[]).join(' · ')}</p>
+    <strong>${escapeHtml(r.message||'AI pretraga završena.')}</strong>
+    <p>${escapeHtml(r.ai_summary||'')}</p>
+    ${blockingWarnings.length ? `<div class="muted-box" style="margin:.75rem 0;background:#fff8e8;border-color:rgba(198,140,0,.28);color:#103b2f"><strong>Upozorenja</strong><ul>${blockingWarnings.map((warning)=>`<li>${escapeHtml(warning)}</li>`).join('')}</ul></div>` : ''}
+    ${benignWarnings.length ? `<div class="muted-box" style="margin:.75rem 0;background:#eff9f3;border-color:rgba(20,106,82,.18);color:#103b2f"><strong>Napomene</strong><ul>${benignWarnings.map((warning)=>`<li>${escapeHtml(warning)}</li>`).join('')}</ul></div>` : ''}
+    <small>Leadovi: +${r.summary?.leads_created||0} novih, ${r.summary?.leads_updated||0} ažuriranih · Prodavci: +${r.summary?.created_stores||0} · Izvori: +${r.summary?.created_sources||0} · Preskočeni duplikati izvora: ${r.summary?.skipped_sources||0} · OpenAI: ${r.ai_used?'da':'ne'} · Web: ${r.web_search_enabled?'uključen':'isključen'}</small>
+    <div class="table-wrap compact-table" style="margin-top:.75rem;color:#103b2f"><table><thead><tr><th>Kandidat</th><th>Grad</th><th>Kontakt/izvor</th><th>Score</th><th>Tip</th></tr></thead><tbody>${rows||'<tr><td colspan="5">Nema kandidata za ove kriterijume.</td></tr>'}</tbody></table></div>
+    <p class="help-text">Predlozi za pretragu: ${escapeHtml((r.search_queries||[]).join(' · '))}. Kandidati se traže kroz restorane, pekare, prodavnice, maloprodaje i domaću radinost, uz obavezne signale slike, cene i sniženja.</p>
   `;
 }
 async function loadAiActions(){
@@ -66,7 +94,7 @@ $('cityForm')?.addEventListener('submit',(e)=>{e.preventDefault(); withBusy(e.su
 $('campaignForm')?.addEventListener('submit',(e)=>{e.preventDefault(); withBusy(e.submitter,async()=>{const data=formDataJson(e.target); data.discount_percent=Number(data.discount_percent||0); data.budget_rsd=Number(data.budget_rsd||0); await api('/scale-api/campaigns',{method:'POST',body:JSON.stringify(data)}); await loadCampaigns(); await loadOverview(); toast('Kampanja dodata');});});
 $('demandForm')?.addEventListener('submit',(e)=>{e.preventDefault(); withBusy(e.submitter,async()=>{await api('/scale-api/demand',{method:'POST',body:JSON.stringify(formDataJson(e.target))}); e.target.reset(); await loadDemand(); await loadOverview(); toast('Zahtev dodat');});});
 $('leadForm')?.addEventListener('submit',(e)=>{e.preventDefault(); withBusy(e.submitter,async()=>{const data=formDataJson(e.target); data.score=Number(data.score||0); await api('/scale-api/leads',{method:'POST',body:JSON.stringify(data)}); e.target.reset(); await loadLeads(); await loadOverview(); toast('Lead dodat');});});
-$('sellerDiscoveryForm')?.addEventListener('submit',(e)=>{e.preventDefault(); withBusy(e.submitter,async()=>{const data=formDataJson(e.target); data.limit=Number(data.limit||12); data.include_existing=checkbox(e.target,'include_existing'); data.include_research_tasks=checkbox(e.target,'include_research_tasks'); data.import_to_stores=checkbox(e.target,'import_to_stores'); data.web_search=checkbox(e.target,'web_search'); data.require_image_evidence=checkbox(e.target,'require_image_evidence'); data.require_discount_signal=checkbox(e.target,'require_discount_signal'); data.deep_search=checkbox(e.target,'deep_search'); const r=await api('/scale-api/seller-discovery/search',{method:'POST',body:JSON.stringify(data)}); renderSellerDiscovery(r); await loadLeads(); await loadOverview(); toast('AI prodavci su osveženi');});});
+$('sellerDiscoveryForm')?.addEventListener('submit',(e)=>{e.preventDefault(); withBusy(e.submitter,async()=>{const data=formDataJson(e.target); data.limit=Number(data.limit||12); data.include_existing=checkbox(e.target,'include_existing'); data.include_research_tasks=checkbox(e.target,'include_research_tasks'); data.import_to_stores=checkbox(e.target,'import_to_stores'); data.web_search=checkbox(e.target,'web_search'); data.require_image_evidence=checkbox(e.target,'require_image_evidence'); data.require_discount_signal=checkbox(e.target,'require_discount_signal'); data.require_price_evidence=checkbox(e.target,'require_price_evidence'); data.deep_search=checkbox(e.target,'deep_search'); const r=await api('/scale-api/seller-discovery/search',{method:'POST',body:JSON.stringify(data)}); renderSellerDiscovery(r); await loadLeads(); await loadOverview(); toast('AI prodavci su osveženi');});});
 $('sellerAdviceForm')?.addEventListener('submit',(e)=>{e.preventDefault(); withBusy(e.submitter,async()=>{const fd=formDataJson(e.target); const r=await api(`/scale-api/seller-advice?store_id=${encodeURIComponent(fd.store_id)}`); $('sellerAdvice').innerHTML = `<strong>${r.store.name}</strong><br>Javne ponude: ${r.visible_offers} · Rezervacije: ${r.reservations} · Prosečan popust: ${r.average_discount}%<ul>${r.advice.map(x=>`<li>${x}</li>`).join('')}</ul>`; toast('Analiza spremna');});});
 $('seoBtn')?.addEventListener('click',(e)=>withBusy(e.target,async()=>{const rows=await api('/scale-api/seo-pages'); $('seoBody').innerHTML = rows.map(r=>`<tr><td>${r.title}</td><td><code>${r.url}</code></td><td>${r.type}</td></tr>`).join('') || '<tr><td colspan="3">Nema predloga.</td></tr>'; toast('SEO predlozi generisani');}));
 init().catch(e=>toast(e.message));

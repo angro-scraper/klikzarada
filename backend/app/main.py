@@ -344,6 +344,11 @@ def checkout_page():
     return FileResponse(STATIC_ADMIN_DIR / "checkout.html")
 
 
+@app.get("/korpa", include_in_schema=False)
+def cart_page():
+    return RedirectResponse(url="/checkout", status_code=303)
+
+
 @app.get("/finance", include_in_schema=False)
 def finance_page(request: Request):
     return protected_admin_page(request, "finance.html")
@@ -362,6 +367,9 @@ def v59_page(request: Request):
 
 
 @app.get("/customer", include_in_schema=False)
+@app.get("/kupac", include_in_schema=False)
+@app.get("/prijava-kupca", include_in_schema=False)
+@app.get("/moj-nalog", include_in_schema=False)
 def customer_page():
     return FileResponse(STATIC_ADMIN_DIR / "customer.html")
 
@@ -397,26 +405,46 @@ def partners_admin_page(request: Request):
 
 
 @app.get("/support", include_in_schema=False)
+@app.get("/kontakt", include_in_schema=False)
+@app.get("/pomoc", include_in_schema=False)
+@app.get("/faq", include_in_schema=False)
 def support_page():
     return FileResponse(STATIC_ADMIN_DIR / "support.html")
 
 
 @app.get("/partner", include_in_schema=False)
+@app.get("/prodavac", include_in_schema=False)
+@app.get("/prijava-prodavca", include_in_schema=False)
+@app.get("/postani-partner", include_in_schema=False)
 def partner_page():
     return FileResponse(STATIC_ADMIN_DIR / "partner.html")
 
 
+@app.get("/prodavac-panel", include_in_schema=False)
+def seller_panel_alias_page():
+    return FileResponse(STATIC_ADMIN_DIR / "seller.html")
+
+
+@app.get("/o-nama", include_in_schema=False)
+@app.get("/about", include_in_schema=False)
+def about_page():
+    return FileResponse(STATIC_ADMIN_DIR / "about.html")
+
+
 @app.get("/terms", include_in_schema=False)
+@app.get("/uslovi", include_in_schema=False)
 def terms_page():
     return FileResponse(STATIC_ADMIN_DIR / "terms.html")
 
 
 @app.get("/privacy", include_in_schema=False)
+@app.get("/privatnost", include_in_schema=False)
 def privacy_page():
     return FileResponse(STATIC_ADMIN_DIR / "privacy.html")
 
 
 @app.get("/food-safety", include_in_schema=False)
+@app.get("/bezbednost-hrane", include_in_schema=False)
 def food_safety_page():
     return FileResponse(STATIC_ADMIN_DIR / "food-safety.html")
 
@@ -437,6 +465,7 @@ def customer_plus_page():
 
 
 @app.get("/refund", include_in_schema=False)
+@app.get("/reklamacije", include_in_schema=False)
 def refund_page():
     return FileResponse(STATIC_ADMIN_DIR / "refund.html")
 

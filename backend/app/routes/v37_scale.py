@@ -85,16 +85,17 @@ class LeadCreate(BaseModel):
 
 class SellerDiscoveryRequest(BaseModel):
     city: str | None = "Beograd"
-    category: str | None = "pekara"
+    category: str | None = "prodavci hrane"
     query: str | None = None
     limit: int = Field(default=12, ge=1, le=50)
     include_existing: bool = True
     include_research_tasks: bool = True
-    web_search: bool = False
+    web_search: bool = True
     import_to_stores: bool = False
     create_sources: bool = True
     require_image_evidence: bool = True
     require_discount_signal: bool = True
+    require_price_evidence: bool = True
     deep_search: bool = True
 
 
@@ -260,6 +261,7 @@ def seller_discovery_search(payload: SellerDiscoveryRequest, request: Request, d
             create_sources=payload.create_sources,
             require_image_evidence=payload.require_image_evidence,
             require_discount_signal=payload.require_discount_signal,
+            require_price_evidence=payload.require_price_evidence,
             deep_search=payload.deep_search,
         )
     except Exception as exc:
@@ -275,7 +277,7 @@ def seller_discovery_search(payload: SellerDiscoveryRequest, request: Request, d
             "search_queries": [],
             "ai_used": False,
             "ai_summary": "AI pretraga je trenutno u sigurnom režimu.",
-            "web_search_enabled": False,
+            "web_search_enabled": payload.web_search,
             "summary": {
                 "candidates": 0,
                 "leads_created": 0,
@@ -283,6 +285,7 @@ def seller_discovery_search(payload: SellerDiscoveryRequest, request: Request, d
                 "created_stores": 0,
                 "updated_stores": 0,
                 "created_sources": 0,
+                "skipped_sources": 0,
             },
             "warnings": [friendly_discovery_error(exc, "AI pretraga nije završena za ovaj zahtev.")],
             "candidates": [],

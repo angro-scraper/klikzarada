@@ -50,3 +50,5 @@ services:
         sync: false
       - key: SMS_HTTP_TOKEN
         sync: false
+      - key: SELLER_DISCOVERY_WEB_ENABLED
+        value: "true"

@@ -30,22 +30,34 @@
     .test-result{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border-radius:18px;padding:14px;min-height:120px;line-height:1.45}
     .status-line{margin-top:12px;color:#0f766e;font-weight:800}
     .status-box.warning{border:1px solid #facc15;background:#fffbeb;color:#713f12;border-radius:16px;padding:12px 14px;margin:12px 0}
+    .status-box.info{border:1px solid rgba(20,106,82,.18);background:#eff9f3;color:#103b2f;border-radius:16px;padding:12px 14px;margin:12px 0}
     .status-box.warning ul{margin:8px 0 0;padding-left:20px}
     .status-box.warning li{margin:4px 0}
-    #sellerDiscoveryResult{background:#fff!important;color:#103b2f!important;border:1px solid rgba(16,59,47,.12)!important;overflow:auto}
+    #sellerDiscoveryResult{background:#fff!important;color:#103b2f!important;border:1px solid rgba(16,59,47,.12)!important;overflow:auto;opacity:1!important}
+    #sellerDiscoveryResult *{opacity:1!important;text-shadow:none!important}
     #sellerDiscoveryResult strong,
     #sellerDiscoveryResult p,
     #sellerDiscoveryResult td,
     #sellerDiscoveryResult th,
-    #sellerDiscoveryResult li{color:#103b2f!important}
+    #sellerDiscoveryResult li,
+    #sellerDiscoveryResult div,
+    #sellerDiscoveryResult span,
+    #sellerDiscoveryResult code{color:#103b2f!important}
     #sellerDiscoveryResult a{color:#146a52!important;word-break:break-word}
     #sellerDiscoveryResult small,
     #sellerDiscoveryResult .help-text{color:#60776d!important}
     #sellerDiscoveryResult .keywords{background:#eef8f3!important;color:#103b2f!important;border:1px solid rgba(16,59,47,.12)!important}
     #sellerDiscoveryResult .status-box.warning{background:#fff8e8!important;color:#103b2f!important;border:1px solid rgba(198,140,0,.24)!important}
+    #sellerDiscoveryResult .status-box.info{background:#eff9f3!important;color:#103b2f!important;border:1px solid rgba(20,106,82,.18)!important}
     #sellerDiscoveryResult .seller-discovery-table-v104{width:100%!important;min-width:0!important}
     #sellerDiscoveryResult .seller-discovery-table-v104 table{width:100%!important;border-collapse:collapse!important;background:#fff!important}
     #sellerDiscoveryResult .seller-discovery-table-v104 thead th{background:#eef8f3!important;color:#103b2f!important}
+    #sellerDiscoveryResult .seller-discovery-table-v104 td,
+    #sellerDiscoveryResult .seller-discovery-table-v104 td *,
+    #sellerDiscoveryResult .seller-discovery-table-v104 th,
+    #sellerDiscoveryResult .seller-discovery-table-v104 th *{color:#103b2f!important;opacity:1!important}
+    #sellerDiscoveryResult .seller-discovery-table-v104 tbody td{background:#fff!important}
+    #sellerDiscoveryResult .seller-discovery-table-v104 tbody td small{color:#60776d!important}
     #sellerDiscoveryResult .seller-discovery-table-v104 tbody tr:nth-child(even){background:#fbfdfb!important}
     #sellerDiscoveryResult .seller-discovery-table-v104 tbody tr:hover{background:#f2fbf6!important}
     @media(max-width:900px){.ai-admin-grid{grid-template-columns:1fr}.ai-admin-nav{align-items:flex-start;flex-direction:column}.ai-admin-nav div{display:flex;gap:8px;flex-wrap:wrap}}
@@ -102,18 +114,19 @@
 
       <div id="seller-discovery" class="ai-admin-card seller-discovery-card-v104">
         <h2>AI pretraga prodavaca</h2>
-        <p class="help-text">Zadaj grad, kategoriju i kriterijum. AI pravi leadove za firme, lokale, male proizvođače i domaću radinost. Administrator ručno proverava kandidata pre slanja ponude za saradnju.</p>
+        <p class="help-text">Zadaj grad, tip prodavca i kriterijum. AI radi dubinsku web pretragu kroz restorane, pekare, prodavnice, maloprodaje i domaću radinost, a prednost imaju samo kandidati koji imaju sliku proizvoda i jasan signal akcije ili popusta.</p>
         <form id="sellerDiscoveryForm" class="grid-form">
           <label>Grad <input name="city" value="Beograd" placeholder="Beograd, Novi Sad..."></label>
-          <label>Kategorija <input name="category" value="pekara" placeholder="pekara, restoran, market, domaća hrana, domaća radinost..."></label>
+          <label>Kategorija <input name="category" value="prodavci hrane" placeholder="prodavci hrane, pekara, restoran, market, domaća hrana, domaća radinost..."></label>
           <label class="wide-field">Kriterijum <input name="query" placeholder="npr. centar, posle 18h, studentska zona, zimnica, kolači po porudžbini"></label>
           <label>Limit <input name="limit" type="number" value="12" min="1" max="50"></label>
           <label><input name="include_existing" type="checkbox" checked> Pretraži postojeću bazu</label>
           <label><input name="include_research_tasks" type="checkbox" checked> Dodaj istraživačke zadatke</label>
           <label><input name="import_to_stores" type="checkbox"> Upiši kao neverifikovane prodavce</label>
-          <label><input name="web_search" type="checkbox"> Pokušaj web pretragu</label>
+          <label><input name="web_search" type="checkbox" checked> Uključi duboku web pretragu</label>
           <label><input name="require_image_evidence" type="checkbox" checked> Samo kandidati sa dokazom o slici proizvoda</label>
           <label><input name="require_discount_signal" type="checkbox" checked> Samo kandidati sa akcijom / popustom</label>
+          <label><input name="require_price_evidence" type="checkbox" checked> Samo kandidati sa vidljivom cenom</label>
           <label><input name="deep_search" type="checkbox" checked> Dubinska pretraga sajta i podstranica</label>
           <div class="ai-admin-actions wide-field">
             <button type="submit">AI pronađi prodavce</button>

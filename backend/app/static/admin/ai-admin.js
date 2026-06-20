@@ -18,20 +18,53 @@ function checkbox(form, name) { return !!form.querySelector(`[name="${name}"]`)?
 function normalizeDiscoveryMessage(message) {
   const text = String(message || '').trim();
   const lower = text.toLowerCase();
-  if (lower.includes('duplicate key value') || lower.includes('ix_sources_url')) {
+  if (
+    lower.includes('import u prodavce nije uspeo') ||
+    lower.includes('import u prodavce trenutno nije uspeo') ||
+    lower.includes('duplicate key value') ||
+    lower.includes('ix_sources_url') ||
+    lower.includes('uniqueviolation') ||
+    lower.includes('already exists')
+  ) {
     return 'Neki izvori su već postojali u bazi, pa su duplikati preskočeni bez prekida pretrage.';
   }
-  if (lower.includes('insert into sources') || lower.includes('parameters:') || text.length > 700) {
+  if (
+    lower.includes('insert into sources') ||
+    lower.includes('parameters:') ||
+    lower.includes('psycopg') ||
+    lower.includes('sqlalchemy') ||
+    lower.includes('traceback') ||
+    lower.includes('background on this error') ||
+    text.length > 700
+  ) {
     return 'Pretraga je vratila tehničko upozorenje. Osveži stranicu i probaj ponovo sa manjim limitom ili užim kriterijumom.';
+  }
+  if (lower.includes('internal server error')) {
+    return 'AI pretraga je naišla na serversku grešku. Probaj ponovo za minut ili sa manjim limitom.';
   }
   return text;
 }
+function isBenignDiscoveryMessage(message) {
+  const text = normalizeDiscoveryMessage(message).toLowerCase();
+  return text.includes('duplikati preskočeni') || text.includes('već postojali u bazi');
+}
+function normalizeDiscoveryWarnings(list) {
+  const unique = [];
+  const seen = new Set();
+  for (const item of (list || [])) {
+    const normalized = normalizeDiscoveryMessage(item);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    unique.push(normalized);
+  }
+  return unique;
+}
 function renderSellerDiscoveryError(message) {
   $('sellerDiscoveryResult').innerHTML = `
-    <div class="status-box warning">
-      <strong>AI pretraga nije završena</strong>
-      <p>${escapeHtml(normalizeDiscoveryMessage(message) || 'Došlo je do greške tokom AI pretrage prodavaca.')}</p>
-      <small>Osveži stranicu ili pokreni novu pretragu sa manjim limitom.</small>
+    <div class="status-box warning" style="background:#fff8e8;color:#103b2f !important;border:1px solid rgba(198,140,0,.24);">
+      <strong style="display:block;color:#103b2f;">AI pretraga nije završena</strong>
+      <p style="margin:8px 0 6px;color:#103b2f;">${escapeHtml(normalizeDiscoveryMessage(message) || 'Došlo je do greške tokom AI pretrage prodavaca.')}</p>
+      <small style="color:#5f6f68;">Osveži stranicu ili pokreni novu pretragu sa manjim limitom.</small>
     </div>
   `;
 }
@@ -49,29 +82,45 @@ function setBusy(btn, on = true) {
 
 function renderSellerDiscovery(data) {
   const items = data.leads?.length ? data.leads : (data.candidates || []);
-  const warnings = (data.warnings || []).map((warning) => `<li>${escapeHtml(normalizeDiscoveryMessage(warning))}</li>`).join('');
+  const warningsList = normalizeDiscoveryWarnings(data.warnings || []);
+  const blockingWarnings = warningsList.filter((warning) => !isBenignDiscoveryMessage(warning));
+  const benignWarnings = warningsList.filter((warning) => isBenignDiscoveryMessage(warning));
+  const warnings = blockingWarnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join('');
+  const notes = benignWarnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join('');
   const rows = items.map((candidate) => `
-    <tr>
-      <td><strong>${escapeHtml(candidate.name)}</strong><br><small>${escapeHtml(candidate.note || candidate.ai_reason || '')}</small></td>
-      <td>${escapeHtml(candidate.city || '')}<br><small>${escapeHtml(candidate.category || '')}</small></td>
-      <td>${escapeHtml(candidate.contact || candidate.source_url || '-')}<br><small>slika: ${candidate.image_evidence ? 'da' : 'ne'} · akcija: ${candidate.discount_evidence ? 'da' : 'ne'} · hrana: ${candidate.food_evidence ? 'da' : 'ne'}</small></td>
-      <td><strong>${escapeHtml(candidate.score || 0)}</strong></td>
-      <td><span class="keywords">${escapeHtml(candidate.status || candidate.kind || 'lead')}</span></td>
-      <td>${candidate.id ? `<button type="button" class="secondary" data-lead-contact="${escapeHtml(candidate.id)}">Odobri kontakt</button>` : '<span class="help-text">Nema lead ID</span>'}</td>
+    <tr style="background:#fff;color:#103b2f;">
+      <td style="background:#fff;color:#103b2f !important;vertical-align:top;">
+        <strong style="color:#103b2f !important;">${escapeHtml(candidate.name)}</strong><br>
+        <small style="color:#60776d !important;">${escapeHtml(candidate.note || candidate.ai_reason || '')}</small>
+      </td>
+      <td style="background:#fff;color:#103b2f !important;vertical-align:top;">
+        ${escapeHtml(candidate.city || '')}<br>
+        <small style="color:#60776d !important;">${escapeHtml(candidate.category || '')}</small>
+      </td>
+      <td style="background:#fff;color:#103b2f !important;vertical-align:top;word-break:break-word;">
+        ${escapeHtml(candidate.contact || candidate.source_url || '-')}<br>
+        <small style="color:#60776d !important;">slika: ${candidate.image_evidence ? 'da' : 'ne'} · akcija: ${candidate.discount_evidence ? 'da' : 'ne'} · cena: ${candidate.price_evidence ? 'da' : 'ne'} · hrana: ${candidate.food_evidence ? 'da' : 'ne'} · dubinski pregled: ${candidate.deep_checked ? 'da' : 'ne'}</small>
+      </td>
+      <td style="background:#fff;color:#103b2f !important;vertical-align:top;"><strong style="color:#103b2f !important;">${escapeHtml(candidate.score || 0)}</strong></td>
+      <td style="background:#fff;color:#103b2f !important;vertical-align:top;"><span class="keywords" style="background:#eef8f3;color:#103b2f !important;border:1px solid rgba(16,59,47,.12);">${escapeHtml(candidate.status || candidate.kind || 'lead')}</span></td>
+      <td style="background:#fff;color:#103b2f !important;vertical-align:top;">${candidate.id ? `<button type="button" class="secondary" data-lead-contact="${escapeHtml(candidate.id)}">Odobri kontakt</button>` : '<span class="help-text" style="color:#60776d !important;">Nema lead ID</span>'}</td>
     </tr>
   `).join('');
   $('sellerDiscoveryResult').innerHTML = `
-    <strong>${escapeHtml(data.message || 'AI pretraga prodavaca je završena.')}</strong>
-    <p>${escapeHtml(data.ai_summary || '')}</p>
-    ${warnings ? `<div class="status-box warning"><strong>Upozorenja</strong><ul>${warnings}</ul></div>` : ''}
-    <small>Leadovi: +${data.summary?.leads_created || 0} novih, ${data.summary?.leads_updated || 0} ažuriranih · Prodavci: +${data.summary?.created_stores || 0} · Izvori: +${data.summary?.created_sources || 0} · OpenAI: ${data.ai_used ? 'da' : 'ne'} · Web: ${data.web_search_enabled ? 'uključen' : 'isključen'}</small>
-    <div class="table-wrap compact-table seller-discovery-table-v104">
-      <table>
-        <thead><tr><th>Kandidat</th><th>Grad</th><th>Kontakt/izvor</th><th>Score</th><th>Status</th><th>Akcija</th></tr></thead>
+    <div style="color:#103b2f !important;">
+    <strong style="display:block;color:#103b2f !important;">${escapeHtml(data.message || 'AI pretraga prodavaca je završena.')}</strong>
+    <p style="margin:8px 0 12px;color:#103b2f !important;">${escapeHtml(data.ai_summary || '')}</p>
+    ${warnings ? `<div class="status-box warning" style="background:#fff8e8;color:#103b2f !important;border:1px solid rgba(198,140,0,.24);"><strong style="color:#103b2f !important;">Upozorenja</strong><ul style="color:#103b2f !important;">${warnings}</ul></div>` : ''}
+    ${notes ? `<div class="status-box info" style="background:#eff9f3;color:#103b2f !important;border:1px solid rgba(20,106,82,.18);"><strong style="color:#103b2f !important;">Napomene</strong><ul style="color:#103b2f !important;">${notes}</ul></div>` : ''}
+    <small style="display:block;color:#60776d;">Leadovi: +${data.summary?.leads_created || 0} novih, ${data.summary?.leads_updated || 0} ažuriranih · Prodavci: +${data.summary?.created_stores || 0} · Izvori: +${data.summary?.created_sources || 0} · Preskočeni duplikati izvora: ${data.summary?.skipped_sources || 0} · OpenAI: ${data.ai_used ? 'da' : 'ne'} · Web: ${data.web_search_enabled ? 'uključen' : 'isključen'}</small>
+    <div class="table-wrap compact-table seller-discovery-table-v104" style="margin-top:.75rem;color:#103b2f;background:#fff;border-radius:18px;overflow:auto;">
+      <table style="width:100%;border-collapse:collapse;background:#fff;color:#103b2f;">
+        <thead><tr><th style="background:#eef8f3;color:#103b2f;">Kandidat</th><th style="background:#eef8f3;color:#103b2f;">Grad</th><th style="background:#eef8f3;color:#103b2f;">Kontakt/izvor</th><th style="background:#eef8f3;color:#103b2f;">Score</th><th style="background:#eef8f3;color:#103b2f;">Status</th><th style="background:#eef8f3;color:#103b2f;">Akcija</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="6">Nema kandidata za ove kriterijume.</td></tr>'}</tbody>
       </table>
     </div>
-    <p class="help-text">Predlozi za ručno proveravanje: ${escapeHtml((data.search_queries || []).join(' · '))}. Domaća radinost i fizička lica se uvek proveravaju pre kontakta i registracije.</p>
+    <p class="help-text" style="margin-top:12px;color:#60776d;">Predlozi za ručno proveravanje: ${escapeHtml((data.search_queries || []).join(' · '))}. Kandidati se traže kroz restorane, pekare, prodavnice, maloprodaje i domaću radinost. U pretragu prolaze samo tragovi koji pokazuju hranu, slike proizvoda, cenu i signal popusta ili akcije. Domaća radinost i fizička lica se uvek proveravaju pre kontakta i registracije.</p>
+    </div>
   `;
 }
 
@@ -96,6 +145,7 @@ async function runSellerDiscovery(event) {
   payload.web_search = checkbox(form, 'web_search');
   payload.require_image_evidence = checkbox(form, 'require_image_evidence');
   payload.require_discount_signal = checkbox(form, 'require_discount_signal');
+  payload.require_price_evidence = checkbox(form, 'require_price_evidence');
   payload.deep_search = checkbox(form, 'deep_search');
   $('sellerDiscoveryResult').textContent = 'AI traži prodavce i priprema leadove...';
   try {

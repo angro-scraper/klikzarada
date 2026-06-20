@@ -106,18 +106,19 @@
       <p class="help-text">Baza prodavaca koje treba kontaktirati. Ovo je praktičnije od nasumičnog skeniranja interneta.</p>
       <div class="muted-box">
         <h3>AI pronalazak prodavaca</h3>
-        <p class="help-text">Zadaj grad, kategoriju i kriterijum. AI puni Lead CRM, a po potrebi upisuje kandidate kao neverifikovane prodavce.</p>
+        <p class="help-text">Zadaj grad, tip prodavca i kriterijum. AI radi dubinsku web pretragu kroz restorane, pekare, prodavnice, maloprodaje i domaću radinost, a prednost imaju samo kandidati sa slikom proizvoda i jasnim signalom akcije ili popusta.</p>
         <form id="sellerDiscoveryForm" class="grid-form">
           <label>Grad <input name="city" value="Beograd" placeholder="Beograd, Novi Sad..."></label>
-          <label>Kategorija <input name="category" value="pekara" placeholder="pekara, restoran, market, prodavnica, maloprodaja, domaća hrana..."></label>
+          <label>Kategorija <input name="category" value="prodavci hrane" placeholder="prodavci hrane, pekara, restoran, market, prodavnica, maloprodaja, domaća hrana..."></label>
           <label class="wide-field">Kriterijum <input name="query" placeholder="npr. centar, posle 18h, studentska zona, zdrava hrana, domaća radinost"></label>
           <label>Limit <input name="limit" type="number" value="12" min="1" max="50"></label>
           <label><input name="include_existing" type="checkbox" checked> Pretraži postojeću bazu</label>
           <label><input name="include_research_tasks" type="checkbox" checked> Dodaj istraživačke zadatke</label>
           <label><input name="import_to_stores" type="checkbox"> Upiši kao prodavce</label>
-          <label><input name="web_search" type="checkbox"> Pokušaj web pretragu</label>
+          <label><input name="web_search" type="checkbox" checked> Uključi duboku web pretragu</label>
           <label><input name="require_image_evidence" type="checkbox" checked> Samo kandidati sa dokazom o slici proizvoda</label>
           <label><input name="require_discount_signal" type="checkbox" checked> Samo kandidati sa akcijom / popustom</label>
+          <label><input name="require_price_evidence" type="checkbox" checked> Samo kandidati sa vidljivom cenom</label>
           <label><input name="deep_search" type="checkbox" checked> Dubinska pretraga sajta i podstranica</label>
           <button type="submit">AI pronađi prodavce</button>
         </form>
