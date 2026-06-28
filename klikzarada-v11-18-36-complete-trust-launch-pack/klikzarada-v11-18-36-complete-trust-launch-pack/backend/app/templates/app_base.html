@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{{ title if title else "KlikZarada panel" }}</title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/static/css/style.css?v=11813">
+  <link rel="stylesheet" href="/static/css/style.css?v=11817">
 </head>
 <body class="premium-app-body {% if user and user.role == 'admin' %}premium-admin{% endif %}">
 {% set path = request.url.path if request else '/' %}
 <header class="premium-app-topbar">
   <div class="premium-app-topbar-inner {% if user and user.role == 'admin' %}admin-mode{% endif %}">
     <a class="premium-app-brand" href="/">
-      <img src="/static/favicon.svg" alt="" style="width:44px;height:44px;flex:0 0 auto;border-radius:14px;display:block;">
-      <span style="display:grid;gap:2px;">
+      <img class="premium-app-brand-mark" src="/static/favicon.svg" alt="" style="width:44px;height:44px;flex:0 0 auto;border-radius:14px;display:block;">
+      <span class="premium-app-brand-copy">
         <strong>KlikZarada</strong>
         <small style="display:block;font-size:11px;line-height:1.2;font-weight:800;color:#64748b;">Mikro zadaci · merljivi rezultati</small>
       </span>
