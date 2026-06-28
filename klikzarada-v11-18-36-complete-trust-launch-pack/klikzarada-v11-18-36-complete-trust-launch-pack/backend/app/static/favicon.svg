@@ -1,1 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#2563eb"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><rect width="64" height="64" rx="18" fill="url(#g)"/><text x="32" y="39" text-anchor="middle" font-family="Arial" font-size="23" font-weight="900" fill="#fff">KZ</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="KlikZarada">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".95"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity=".72"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="18" fill="url(#bg)"/>
+  <rect x="10" y="10" width="44" height="44" rx="13" fill="rgba(7,23,47,.18)"/>
+  <path d="M18 21h11l-6 10 7 12h-5l-5-9-5 9h-5l7-12-6-10z" fill="url(#shine)"/>
+  <path d="M37 20h9l-11 24h-9l11-24zm-1 5-5 10h4l5-10h-4z" fill="#ffffff"/>
+  <circle cx="47" cy="17" r="3.2" fill="#ffffff" opacity=".95"/>
+</svg>

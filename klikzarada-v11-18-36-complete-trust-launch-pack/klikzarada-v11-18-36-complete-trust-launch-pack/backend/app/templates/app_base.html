@@ -12,8 +12,11 @@
 <header class="premium-app-topbar">
   <div class="premium-app-topbar-inner {% if user and user.role == 'admin' %}admin-mode{% endif %}">
     <a class="premium-app-brand" href="/">
-      <span>KZ</span>
-      <strong>KlikZarada</strong>
+      <img src="/static/favicon.svg" alt="" style="width:44px;height:44px;flex:0 0 auto;border-radius:14px;display:block;">
+      <span style="display:grid;gap:2px;">
+        <strong>KlikZarada</strong>
+        <small style="display:block;font-size:11px;line-height:1.2;font-weight:800;color:#64748b;">Mikro zadaci · merljivi rezultati</small>
+      </span>
       <em>{% if user and user.role == "admin" %}Admin{% elif user and user.role == "oglasivac" %}Oglašivač{% else %}Panel{% endif %}</em>
     </a>
 
@@ -31,7 +34,9 @@
       <div class="premium-admin-nav-row secondary">
         <a class="tone-green {% if path.startswith('/admin/promocija-v111') or path.startswith('/admin/banneri-v111') or path.startswith('/admin/reklame-v111') %}active{% endif %}" href="/admin/promocija-v111">Reklame</a>
         <a class="tone-green {% if path.startswith('/admin/finansije') %}active{% endif %}" href="/admin/finansije">Finansije</a>
+        <a class="tone-green {% if path.startswith('/admin/fakture') %}active{% endif %}" href="/admin/fakture">Fakture</a>
         <a class="tone-green {% if path.startswith('/admin/isplate') %}active{% endif %}" href="/admin/isplate">Isplate</a>
+        <a class="tone-green {% if path.startswith('/admin/payouts-v11') %}active{% endif %}" href="/admin/payouts-v11">Payout alati</a>
         <a class="tone-green {% if path.startswith('/admin/cene-v111') %}active{% endif %}" href="/admin/cene-v111">Cene</a>
         <a class="tone-amber {% if path.startswith('/admin/analitika-v117') %}active{% endif %}" href="/admin/analitika-v117">Analitika</a>
         <a class="tone-amber {% if path.startswith('/admin/korisnici-baza-v117') %}active{% endif %}" href="/admin/korisnici-baza-v117">Baza korisnika</a>

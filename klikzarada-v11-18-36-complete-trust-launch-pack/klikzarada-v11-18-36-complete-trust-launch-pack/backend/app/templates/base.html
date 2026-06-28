@@ -11,7 +11,13 @@
   {% set path = request.url.path if request else '/' %}
   <header class="kz117-header kz118-public-header">
     <div class="kz117-nav kz118-nav">
-      <a class="kz117-brand" href="/"><span>KZ</span><strong>KlikZarada</strong></a>
+      <a class="kz117-brand" href="/">
+        <img src="/static/favicon.svg" alt="" style="width:42px;height:42px;flex:0 0 auto;border-radius:13px;display:block;">
+        <span style="display:grid;gap:2px;">
+          <strong>KlikZarada</strong>
+          <small style="display:block;font-size:11px;line-height:1.2;font-weight:800;color:#64748b;">Mikro zadaci · merljivi rezultati</small>
+        </span>
+      </a>
       <nav class="kz118-public-nav">
         <a class="{% if path == '/' or path == '/pocetna' %}active{% endif %}" href="/">Početna</a>
         <a class="{% if path.startswith('/zadaci') %}active{% endif %}" href="/zadaci">Zadaci</a>
