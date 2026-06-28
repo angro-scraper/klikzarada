@@ -5644,7 +5644,7 @@ KZ115_USER_STATUSES = [
 KZ115_BADGE_LIBRARY = [
     ("first_task", "Prvi zadatak", "Završen prvi zadatak.", "🥇"),
     ("three_day_streak", "3 dana zaredom", "Aktivan 3 dana zaredom.", "🔥"),
-    ("seven_day_streak", "7 dana zaredom", "Aktivan 7 dana zaredom.", "⚡"),
+    ("seven_day_streak", "Nedelju dana zaredom", "Aktivan nedelju dana zaredom.", "⚡"),
     ("quality_80", "Pouzdan tester", "Quality score preko 80.", "✅"),
     ("quality_95", "Elite tester", "Quality score preko 95.", "💎"),
     ("ten_approved", "10 odobrenih", "Deset uspešno odobrenih dokaza.", "🏆"),
@@ -5822,7 +5822,7 @@ def kz115_seed_missions(db: Session, user):
         ("daily_1", "Završi 1 zadatak danas", "Dnevna misija za aktivnost.", 1, 20, 0),
         ("daily_3", "Završi 3 zadatka", "Bonus za aktivnije korisnike.", 3, 75, 10),
         ("feedback_2", "Pošalji 2 kvalitetna feedback-a", "Motiviše korisnike da daju bolji feedback.", 2, 60, 0),
-        ("week_streak", "Budi aktivan 7 dana", "Streak misija za lojalnost.", 7, 250, 50),
+        ("week_streak", "Budi aktivan nedelju dana", "Streak misija za lojalnost.", 7, 250, 50),
     ]
     for key,title,desc,target,points,rsd in defaults:
         exists = db.query(UserMissionV115).filter(UserMissionV115.user_id == user.id, UserMissionV115.mission_key == key, UserMissionV115.status == "active").first()
