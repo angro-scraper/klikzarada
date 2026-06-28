@@ -359,6 +359,21 @@ class SystemSetting(Base):
     updated_at = Column(DateTime, default=datetime.utcnow)
 
 
+class TaskSourceV11(Base):
+    __tablename__ = "task_sources_v11"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(180), nullable=False)
+    source_type = Column(String(60), default="partner_api")  # partner_api, rss, csv, manual
+    endpoint_url = Column(String(500), nullable=True)
+    contact_name = Column(String(180), nullable=True)
+    import_mode = Column(String(40), default="review")  # review, sync, manual
+    status = Column(String(40), default="active")  # active, paused, draft
+    instructions = Column(Text, nullable=True)
+    last_sync_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
 class SecurityEvent(Base):
     __tablename__ = "security_events"
     id = Column(Integer, primary_key=True, index=True)

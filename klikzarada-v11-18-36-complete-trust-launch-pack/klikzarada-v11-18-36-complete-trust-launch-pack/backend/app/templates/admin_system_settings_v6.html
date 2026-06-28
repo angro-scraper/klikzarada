@@ -20,6 +20,58 @@
     <button class="btn btn-primary">Sačuvaj finansijske podatke</button>
   </form>
 </div>
+<div class="card-box" id="task-sources" style="margin:18px 0;padding:18px">
+  <strong>Izvori zadataka</strong>
+  <p style="margin:8px 0 14px">Ovde držimo samo odobrene izvore: partner API, RSS, CSV ili ručni unos. To je bezbedniji put od preuzimanja sa tuđih sajtova bez dozvole.</p>
+  <form class="form-panel" method="post" action="/admin/system-settings/task-source-save">
+    <div class="form-grid">
+      <div><label>Naziv izvora</label><input name="name" required placeholder="Partner feed ili naziv sajta"></div>
+      <div><label>Tip izvora</label>
+        <select name="source_type">
+          <option value="partner_api">Partner API</option>
+          <option value="rss">RSS / feed</option>
+          <option value="csv">CSV import</option>
+          <option value="manual">Ručni unos</option>
+        </select>
+      </div>
+      <div><label>Endpoint / URL</label><input name="endpoint_url" placeholder="https://partner.example/api/tasks"></div>
+      <div><label>Kontakt / partner</label><input name="contact_name" placeholder="Ime partnera ili kontakta"></div>
+      <div><label>Način uvoza</label>
+        <select name="import_mode">
+          <option value="review">Pre objave - pregled</option>
+          <option value="sync">Automatski sync</option>
+          <option value="manual">Ručna obrada</option>
+        </select>
+      </div>
+    </div>
+    <label>Napomena za admin tim</label>
+    <textarea name="instructions" rows="3" placeholder="Uslovi korišćenja, dozvola za prikaz, mapping polja, frekvencija sinhronizacije..."></textarea>
+    <button class="btn btn-primary">Dodaj izvor zadataka</button>
+  </form>
+  <div class="table-card" style="margin-top:16px">
+    <table>
+      <thead><tr><th>Naziv</th><th>Tip</th><th>Endpoint</th><th>Način</th><th>Status</th><th>Akcija</th></tr></thead>
+      <tbody>
+      {% for source in task_sources %}
+        <tr>
+          <td>{{ source.name }}</td>
+          <td>{{ source.source_type }}</td>
+          <td>{{ source.endpoint_url or "—" }}</td>
+          <td>{{ source.import_mode }}</td>
+          <td>{{ source.status }}</td>
+          <td>
+            <form method="post" action="/admin/system-settings/task-source/{{ source.id }}/toggle" style="margin:0">
+              <button class="btn btn-primary" type="submit">{{ "Pauziraj" if source.status == "active" else "Aktiviraj" }}</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6">Još nema odobrenih izvora zadataka.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 <form class="form-panel" method="post" action="/admin/system-settings/save"><div class="form-grid"><div><label>Key</label><input name="key" required></div><div><label>Value</label><input name="value" required></div></div><label>Opis</label><textarea name="description"></textarea><button class="btn btn-primary">Sačuvaj</button></form>
 <div class="card-box" style="margin:18px 0;padding:18px">
   <strong>Predloženi ključevi za finansije</strong>

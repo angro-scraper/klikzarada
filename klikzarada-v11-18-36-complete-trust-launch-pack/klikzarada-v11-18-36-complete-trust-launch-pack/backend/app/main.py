@@ -19,7 +19,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from .database import Base, engine, get_db
-from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, SecurityEvent, KycDocument, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
+from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, TaskSourceV11, SecurityEvent, KycDocument, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
 from .security import create_session_token, hash_password, make_referral_code, read_session_token, verify_password
 
 app = FastAPI(title="KlikZarada V11.18.36 Complete Trust Launch Pack", version="11.18.36")
@@ -1567,7 +1567,8 @@ def admin_system_settings(request: Request, msg: str | None = None, db: Session 
     u = require(request, db)
     check_role(u, ["admin"])
     settings = db.query(SystemSetting).order_by(SystemSetting.key).all()
-    return templates.TemplateResponse("admin_system_settings_v6.html", {"request": request, "user": u, "settings": settings, "flash": flash(msg), "finance_accounts": v11836_public_accounts(db)})
+    task_sources = db.query(TaskSourceV11).order_by(TaskSourceV11.created_at.desc()).all()
+    return templates.TemplateResponse("admin_system_settings_v6.html", {"request": request, "user": u, "settings": settings, "task_sources": task_sources, "flash": flash(msg), "finance_accounts": v11836_public_accounts(db)})
 
 
 @app.post("/admin/system-settings/save")
@@ -1610,6 +1611,49 @@ def admin_finance_accounts_save(
     db.commit()
     target = next_url if next_url.startswith("/") else "/admin/system-settings"
     return RedirectResponse(f"{target}?msg=saved", 303)
+
+
+@app.post("/admin/system-settings/task-source-save")
+def admin_task_source_save(
+    request: Request,
+    name: str = Form(...),
+    source_type: str = Form("partner_api"),
+    endpoint_url: str = Form(""),
+    contact_name: str = Form(""),
+    import_mode: str = Form("review"),
+    instructions: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    u = require(request, db)
+    check_role(u, ["admin"])
+    item = TaskSourceV11(
+        name=name.strip(),
+        source_type=source_type.strip() or "partner_api",
+        endpoint_url=endpoint_url.strip() or None,
+        contact_name=contact_name.strip() or None,
+        import_mode=import_mode.strip() or "review",
+        status="active",
+        instructions=instructions.strip() or None,
+    )
+    db.add(item)
+    db.flush()
+    audit(db, u, "task_source_create", "TaskSourceV11", item.id, item.name)
+    db.commit()
+    return RedirectResponse("/admin/system-settings?msg=saved#task-sources", 303)
+
+
+@app.post("/admin/system-settings/task-source/{source_id}/toggle")
+def admin_task_source_toggle(source_id: int, request: Request, db: Session = Depends(get_db)):
+    u = require(request, db)
+    check_role(u, ["admin"])
+    source = db.query(TaskSourceV11).filter(TaskSourceV11.id == source_id).first()
+    if not source:
+        raise HTTPException(404)
+    source.status = "paused" if source.status == "active" else "active"
+    source.updated_at = datetime.utcnow()
+    audit(db, u, "task_source_toggle", "TaskSourceV11", source.id, source.name)
+    db.commit()
+    return RedirectResponse("/admin/system-settings?msg=saved#task-sources", 303)
 
 
 @app.get("/admin/sla", response_class=HTMLResponse)
