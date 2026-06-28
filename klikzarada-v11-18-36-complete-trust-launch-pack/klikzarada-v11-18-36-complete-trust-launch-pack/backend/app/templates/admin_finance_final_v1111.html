@@ -14,6 +14,45 @@
   </div>
 </section>
 
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Bankovni računi i reference</h2>
+    <span>uređivanje sa jednog mesta</span>
+  </div>
+  <form class="form-panel" method="post" action="/admin/system-settings/finance-save">
+    <input type="hidden" name="next_url" value="/admin/finansije">
+    <div class="form-grid">
+      <div>
+        <label>Račun za uplatu oglašivača</label>
+        <input name="advertiser_payment_account" value="{{ finance_accounts.advertiser_payment_account }}" required>
+      </div>
+      <div>
+        <label>Primaoc za uplatu oglašivača</label>
+        <input name="advertiser_payment_holder" value="{{ finance_accounts.advertiser_payment_holder }}" required>
+      </div>
+      <div>
+        <label>Račun za isplatu korisnika</label>
+        <input name="user_payout_account" value="{{ finance_accounts.user_payout_account }}" required>
+      </div>
+      <div>
+        <label>Primaoc za isplatu korisnika</label>
+        <input name="user_payout_holder" value="{{ finance_accounts.user_payout_holder }}" required>
+      </div>
+      <div>
+        <label>Namena za uplatu</label>
+        <input name="payment_reference" value="{{ finance_accounts.payment_reference }}" required>
+      </div>
+      <div>
+        <label>Namena za isplatu</label>
+        <input name="payout_reference" value="{{ finance_accounts.payout_reference }}" required>
+      </div>
+    </div>
+    <label>Napomena</label>
+    <textarea name="bank_note" rows="3">{{ finance_accounts.bank_note }}</textarea>
+    <button class="btn btn-primary">Sačuvaj račune</button>
+  </form>
+</section>
+
 <section class="kz1111-finance-grid">
   {% for r in rows %}
   <article class="kz1111-finance-card {{ r.color }}">

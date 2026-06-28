@@ -26,7 +26,7 @@
       <div class="kz114-avatars"><i></i><i></i><i></i><i></i></div>
       <div><b>+20.000</b><small>aktivnih korisnika</small></div>
       <em></em>
-      <div><b>4.8/5 ⭐⭐⭐⭐⭐</b><small>na osnovu 1.200+ ocena</small></div>
+      <div><b>4.8/5</b><small>na osnovu 1.200+ ocena korisnika</small></div>
     </div>
   </div>
 
@@ -35,15 +35,15 @@
       <div class="kz114-dashboard-main">
         <small>Dobrodošao nazad!</small>
         <div class="kz114-balance-card">
-          <span>Ukupan balans</span>
-          <strong>12.540 RSD</strong>
-          <p>Raspoloživo za isplatu i proveru</p>
-          <a class="kz114-inline-action" href="/korisnik/wallet">Isplati sredstva</a>
+          <span>Odobreno korisnicima</span>
+          <strong>{{ "%.0f"|format(stats.approved_rsd if stats is defined else 0) }} RSD</strong>
+          <p>Na osnovu verifikovanih zadataka i kampanja</p>
+          <a class="kz114-inline-action" href="{% if user and user.role == 'admin' %}/admin/finansije{% else %}/login{% endif %}">Otvori finansije</a>
         </div>
 
         <div class="kz114-mini-stats">
-          <div><span>Zarađeno danas</span><b>1.250 RSD</b></div>
-          <div><span>Zadataka danas</span><b>23</b></div>
+          <div><span>Aktivni zadaci</span><b>{{ stats.tasks if stats is defined else 0 }}</b></div>
+          <div><span>Aktivni korisnici</span><b>{{ stats.users if stats is defined else 0 }}</b></div>
         </div>
 
         <div class="kz114-chart-title">
@@ -56,14 +56,14 @@
       </div>
 
       <div class="kz114-dashboard-side">
-        <div class="kz114-secure">🛡 <b>Sigurno i proverljivo okruženje</b></div>
+        <div class="kz114-secure"><img src="/static/img/ad-target.svg" alt="" style="width:20px;height:20px;"><b>Sigurno i proverljivo okruženje</b></div>
         <h3>Nedavni zadaci</h3>
         <ul>
-          <li><span>Popuni anketu</span><b>+60 RSD</b></li>
-          <li><span>Poseti sajt</span><b>+40 RSD</b></li>
-          <li><span>Registracija</span><b>+120 RSD</b></li>
-          <li><span>Ostavi komentar</span><b>+50 RSD</b></li>
-          <li><span>Podeli na mreži</span><b>+30 RSD</b></li>
+          {% for task in tasks[:5] %}
+          <li><span>{{ task.title }}</span><b>+{{ "%.0f"|format(task.reward_rsd) }} RSD</b></li>
+          {% else %}
+          <li><span>Nema aktivnih zadataka</span><b>0 RSD</b></li>
+          {% endfor %}
         </ul>
         <a href="/zadaci">Svi zadaci</a>
       </div>
@@ -111,7 +111,7 @@
       <li>Više klikova i konverzija</li>
       <li>Brži i merljivi rezultati</li>
     </ul>
-    <a class="kz114-btn green" href="/oglasivac/boost-v111">Naruči kampanju 🚀</a>
+    <a class="kz114-btn green" href="/oglasivac/boost-v111">Naruči kampanju →</a>
   </div>
 
   <div class="kz114-campaign-preview">
@@ -139,14 +139,14 @@
   <div class="kz114-task-grid">
     {% for t in tasks[:5] %}
     <div class="kz114-task">
-      <div class="kz114-task-icon">{{ ["📋","👤","🌐","💬","🔗"][loop.index0] if loop.index0 < 5 else "✓" }}</div>
+      <div class="kz114-task-icon"><img src="{% if loop.index0 == 0 %}/static/img/icon-clipboard.svg{% elif loop.index0 == 1 %}/static/img/ad-target.svg{% elif loop.index0 == 2 %}/static/img/icon-bank.svg{% elif loop.index0 == 3 %}/static/img/icon-chart.svg{% else %}/static/img/icon-wallet.svg{% endif %}" alt="" style="width:40px;height:40px;"></div>
       <h3>{{ t.title }}</h3>
       <p>{{ t.description[:70] if t.description else "Podeli svoje mišljenje" }}</p>
-      <div class="kz114-task-meta"><span>Lako</span><span>⏱ 2–5 min</span></div>
+      <div class="kz114-task-meta"><span>Lako</span><span>Trajanje {{ t.estimated_minutes if t.estimated_minutes else 5 }} min</span></div>
       <div class="kz114-task-bottom"><b>{{ "%.0f"|format(t.reward_rsd) }} RSD</b><a href="/zadaci/{{ t.id }}">Zaradi</a></div>
     </div>
     {% else %}
-    <div class="kz114-task"><div class="kz114-task-icon">📋</div><h3>Popuni anketu</h3><p>Podeli svoje mišljenje.</p><div class="kz114-task-meta"><span>Lako</span><span>⏱ 3 min</span></div><div class="kz114-task-bottom"><b>60 RSD</b><a href="/zadaci">Zaradi</a></div></div>
+    <div class="kz114-task"><div class="kz114-task-icon"><img src="/static/img/icon-clipboard.svg" alt="" style="width:40px;height:40px;"></div><h3>Nema aktivnih zadataka</h3><p>Kada admin objavi novu kampanju, ovde će se pojaviti stvarni zadaci.</p><div class="kz114-task-meta"><span>Uskoro</span><span>Aktivacija</span></div><div class="kz114-task-bottom"><b>0 RSD</b><a href="/registracija">Registruj se</a></div></div>
     {% endfor %}
   </div>
 </section>
@@ -198,7 +198,7 @@
   </div>
   <div>
     <a class="kz114-btn green" href="/registracija">Registruj se besplatno</a>
-    <a class="kz114-btn dark" href="/registracija">Kreiraj kampanju</a>
+    <a class="kz114-btn dark" href="/registracija?role=oglasivac">Kreiraj kampanju</a>
   </div>
 </section>
 

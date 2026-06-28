@@ -35,10 +35,10 @@
       <p>KlikZarada povezuje brendove sa pravim ljudima kroz jasna pravila, uredan prikaz i brzo izvođenje koje deluje profesionalno.</p>
 
       <div class="feature-pills">
-        <span>⚡ Brza isplata</span>
-        <span>🛡️ Pošten sistem</span>
-        <span>🔒 Zaštita od prevara</span>
-        <span>🎧 Podrška 24/7</span>
+        <span><img src="/static/img/icon-bank.svg" alt="" style="width:16px;height:16px;"> Brza isplata</span>
+        <span><img src="/static/img/smart-target.svg" alt="" style="width:16px;height:16px;"> Pošten sistem</span>
+        <span><img src="/static/img/ad-target.svg" alt="" style="width:16px;height:16px;"> Zaštita od prevara</span>
+        <span><img src="/static/img/icon-clipboard.svg" alt="" style="width:16px;height:16px;"> Podrška 24/7</span>
       </div>
 
       <div class="hero-actions">
@@ -47,7 +47,7 @@
       </div>
 
       <div class="social-proof">
-        <div class="avatars"><i>👩</i><i>👨</i><i>🧑</i><i>👩</i><i>👨</i></div>
+        <div class="avatars"><i>KZ</i><i>KZ</i><i>KZ</i><i>KZ</i><i>KZ</i></div>
         <strong>20.000+</strong>
         <span>Uključenih korisnika i oglašivača u jedinstven sistem za zaradu i kampanje</span>
       </div>
@@ -56,19 +56,19 @@
     <aside class="dashboard-card">
       <div class="metric-row">
         <article>
-          <div><small>Ukupan balans</small><b>2.560 RSD</b></div>
+          <div><small>Aktivni zadaci</small><b>{{ stats.tasks if stats is defined else tasks|length }}</b></div>
           <img src="/static/img/icon-wallet.svg" alt="">
         </article>
         <article>
-          <div><small>Raspoloživo za isplatu</small><b class="green">1.980 RSD</b></div>
+          <div><small>Aktivni korisnici</small><b class="green">{{ stats.users if stats is defined else 0 }}</b></div>
           <img src="/static/img/icon-bank.svg" alt="">
         </article>
         <article>
-          <div><small>Zarađeno danas</small><b>320 RSD</b></div>
+          <div><small>Oglašivači</small><b>{{ stats.advertisers if stats is defined else 0 }}</b></div>
           <img src="/static/img/icon-chart.svg" alt="">
         </article>
         <article>
-          <div><small>Zadataka danas</small><b>12 / 25</b></div>
+          <div><small>Odobreno korisnicima</small><b>{{ "%.0f"|format(stats.approved_rsd if stats is defined else 0) }} RSD</b></div>
           <img src="/static/img/icon-clipboard.svg" alt="">
         </article>
       </div>
@@ -91,13 +91,15 @@
 
         <section class="recent-panel">
           <div class="panel-head"><h3>Nedavni zadaci</h3><a href="/zadaci">Pogledaj sve</a></div>
-          <article><i>🌐</i><div><b>Poseti sajt - CoolShop.rs</b><span>pre 5 minuta</span></div><strong>+40 RSD</strong></article>
-          <article><i>💬</i><div><b>Ostavi komentar</b><span>pre 18 minuta</span></div><strong>+50 RSD</strong></article>
-          <article><i>👤</i><div><b>Registracija na sajtu</b><span>pre 32 minuta</span></div><strong>+120 RSD</strong></article>
+          {% for task in tasks[:3] %}
+          <article><img src="{% if loop.index0 == 0 %}/static/img/ad-target.svg{% elif loop.index0 == 1 %}/static/img/smart-target.svg{% else %}/static/img/icon-clipboard.svg{% endif %}" alt="" style="width:28px;height:28px;"><div><b>{{ task.title }}</b><span>{{ task.category or 'Zadatak' }}</span></div><strong>+{{ "%.0f"|format(task.reward_rsd) }} RSD</strong></article>
+          {% else %}
+          <article><img src="/static/img/icon-clipboard.svg" alt="" style="width:28px;height:28px;"><div><b>Uskoro nove kampanje</b><span>Brendirani sadržaj će se pojaviti čim admin objavi aktivne zadatke.</span></div><strong>0 RSD</strong></article>
+          {% endfor %}
         </section>
       </div>
 
-      <a class="withdraw" href="/login">💵 Isplati sredstva</a>
+      <a class="withdraw" href="/login">Isplati sredstva →</a>
     </aside>
   </section>
 
@@ -143,7 +145,7 @@
     <article>
       <strong>Kontrola i sigurnost</strong>
       <span>Admin vidi budžet, dokaze i fraud signale pre nego što sve ode live.</span>
-      <a href="/admin/finansije">Vidi finansije →</a>
+      <a href="{% if user and user.role == 'admin' %}/admin/finansije{% else %}/login{% endif %}">Vidi finansije →</a>
     </article>
   </section>
 
@@ -179,37 +181,41 @@
   <section class="kz1189-tasks">
     <div class="section-head"><h3>ISTAKNUTI ZADACI</h3><a href="/zadaci">Pogledaj sve zadatke →</a></div>
     <div class="task-grid">
-      {% set demo_tasks = [
-        ('✅','Popuni anketu','Podeli svoje mišljenje i zaradi.',120,'10 min','Lako','green'),
-        ('👤','Registracija na sajtu','Registruj se i potvrdi nalog.',150,'5 min','Lako','violet'),
-        ('🌐','Poseti sajt','Poseti sajt i ostani 30 sekundi.',40,'1 min','Lako','blue'),
-        ('💬','Ostavi komentar','Ostavi komentar na članku.',80,'5 min','Srednje','orange'),
-        ('🔗','Podeli na mreži','Podeli objavu na društvenim mrežama.',60,'2 min','Lako','pink')
-      ] %}
-      {% for icon,title,desc,reward,time,level,color in demo_tasks %}
+      {% for task in tasks[:5] %}
       <article class="task-card">
-        <i class="{{ color }}">{{ icon }}</i>
+        <img src="{% if loop.index0 == 0 %}/static/img/icon-clipboard.svg{% elif loop.index0 == 1 %}/static/img/ad-target.svg{% elif loop.index0 == 2 %}/static/img/icon-bank.svg{% elif loop.index0 == 3 %}/static/img/icon-chart.svg{% else %}/static/img/icon-wallet.svg{% endif %}" alt="" style="width:36px;height:36px;">
         <div>
-          <h4>{{ title }}</h4>
-          <strong>{{ reward }} RSD</strong>
-          <p>{{ desc }}</p>
+          <h4>{{ task.title }}</h4>
+          <strong>{{ "%.0f"|format(task.reward_rsd) }} RSD</strong>
+          <p>{{ task.description[:90] if task.description else 'Realni zadatak iz admina, bez probnih sadržaja.' }}</p>
         </div>
-        <div class="meta"><span>🕒 {{ time }}</span><em class="{{ color }}">{{ level }}</em></div>
-        <a href="/zadaci">Zaradi</a>
+        <div class="meta"><span>Trajanje {{ task.estimated_minutes if task.estimated_minutes else 5 }} min</span><em class="green">{{ task.category or 'Lako' }}</em></div>
+        <a href="/zadaci/{{ task.id }}">Otvori</a>
+      </article>
+      {% else %}
+      <article class="task-card">
+        <img src="/static/img/icon-clipboard.svg" alt="" style="width:36px;height:36px;">
+        <div>
+          <h4>Nema aktivnih zadataka</h4>
+          <strong>0 RSD</strong>
+          <p>Kada admin objavi kampanju, ovde će se pojaviti stvarni zadaci za korisnike.</p>
+        </div>
+        <div class="meta"><span>⏱ Uskoro</span><em class="green">Aktivacija</em></div>
+        <a href="/registracija">Registruj se</a>
       </article>
       {% endfor %}
     </div>
   </section>
 
   <section class="kz1189-stats">
-    <article><i>👥</i><div><b>20.000+</b><span>aktivnih korisnika</span></div></article>
-    <article><i>✅</i><div><b>150.000+</b><span>završenih zadataka</span></div></article>
-    <article><i>📣</i><div><b>250+</b><span>aktivnih kampanja</span></div></article>
-    <article><i>⭐</i><div><b>4.8 / 5</b><span>prosečna ocena korisnika</span></div></article>
+    <article><img src="/static/img/icon-bank.svg" alt="" style="width:26px;height:26px;"><div><b>20.000+</b><span>aktivnih korisnika</span></div></article>
+    <article><img src="/static/img/icon-clipboard.svg" alt="" style="width:26px;height:26px;"><div><b>150.000+</b><span>završenih zadataka</span></div></article>
+    <article><img src="/static/img/ad-target.svg" alt="" style="width:26px;height:26px;"><div><b>250+</b><span>aktivnih kampanja</span></div></article>
+    <article><img src="/static/img/icon-chart.svg" alt="" style="width:26px;height:26px;"><div><b>4.8 / 5</b><span>prosečna ocena korisnika</span></div></article>
   </section>
 
   <section class="kz1189-cta">
-    <img src="/static/img/rocket.svg" alt="">
+    <img src="/static/img/premium-growth.svg" alt="" style="width:120px;height:auto;">
     <div><h2>Spremni za prvi ozbiljan rezultat?</h2><p>Pridružite se sada i pokrenite jasnu kampanju ili zaradu kroz platformu koja izgleda i radi profesionalno.</p></div>
     <a class="primary" href="/registracija">Registruj se besplatno</a>
     <a class="secondary" href="/registracija?role=oglasivac">Kreiraj kampanju</a>

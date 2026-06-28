@@ -70,29 +70,6 @@ def seed():
         if not admin:
             admin = User(full_name="Admin", email="admin@klikzarada.rs", password_hash=hash_password("Admin123!"), role="admin", referral_code="ADMIN", email_verified=True, phone_verified=True)
             db.add(admin)
-        adv = db.query(User).filter(User.email=="oglasivac@demo.rs").first()
-        if not adv:
-            adv = User(full_name="Demo Oglašivač", email="oglasivac@demo.rs", password_hash=hash_password("Demo123!"), role="oglasivac", referral_code="DEMOOGLAS", company_name="Demo Marketing DOO", company_pib="123456789", company_website="https://primer.rs", company_activity="Digitalne kampanje", company_city="Beograd", contact_person="Demo Oglašivač", advertiser_verified=True, advertiser_budget_rsd=100000)
-            db.add(adv); db.flush()
-            add_budget_tx(db, adv, 100000, "manual_topup", "Početni demo budžet.")
-        user = db.query(User).filter(User.email=="korisnik@demo.rs").first()
-        if not user:
-            user = User(full_name="Demo Korisnik", email="korisnik@demo.rs", password_hash=hash_password("Demo123!"), role="korisnik", referral_code="DEMOKORIS", city="Niš", phone="+381600000000", age_group="25-34", interests="online kupovina, aplikacije, hrana", device="Mobilni")
-            db.add(user)
-        if db.query(Task).count()==0:
-            demos = [
-                ("Popunite kratku anketu o online kupovini","Ankete","Anketa",60,150,"Kratka anketa za istraživanje navika online kupovine.","Otvorite link, popunite anketu iskreno i sačuvajte završni ekran.","Pošaljite potvrdu/kod sa kraja ankete.","ABC123"),
-                ("Testirajte početnu stranu novog sajta","Testiranje","Test sajta",100,80,"Oglašivač želi kratak korisnički utisak o početnoj strani.","Provedite najmanje 2 minuta na sajtu i pregledajte glavne sekcije.","Napišite šta je jasno, šta nije jasno i šta biste promenili.","Jasno: ponuda. Nejasno: cena."),
-                ("Registracija za beta listu aplikacije","Registracije","Registracija",120,60,"Prijava za beta test nove aplikacije.","Napravite nalog sa ispravnim emailom i potvrdite registraciju.","Pošaljite email i screenshot/tekst potvrde.","Registrovao/la sam se emailom..."),
-                ("Feedback za lokalnu dostavu hrane","Feedback","Feedback",85,100,"Kratak pregled ponude i komentar o jasnoći poručivanja.","Pregledajte stranicu i odgovorite da li biste naručili i zašto.","Pošaljite 3 konkretna komentara.","Dobro: slike. Nejasno: dostava."),
-            ]
-            for i,(title,cat,typ,reward,slots,desc,inst,proof,example) in enumerate(demos):
-                t = Task(advertiser_id=adv.id, title=title, category=cat, task_type=typ, target_url="https://primer.rs", description=desc, instructions=inst, proof_required=proof, example_proof=example, reward_rsd=reward, platform_fee_percent=20, total_slots=slots, estimated_minutes=5, target_city="Srbija", target_age_group="18+", target_interests="internet, kupovina", status="active", featured=i<2, proof_file_required=(typ=="Registracija"))
-                db.add(t)
-                c = cost_for_task(reward, slots)
-                adv.advertiser_budget_rsd -= c
-                adv.advertiser_reserved_rsd += c
-                add_budget_tx(db, adv, -c, "reserve_campaign", f"Rezervisan budžet za demo kampanju: {title}")
         db.commit()
     finally:
         db.close()
@@ -141,6 +118,19 @@ def flash(msg):
         "invoice_created":("success","Predračun/faktura je kreirana."),
     }
     return m.get(msg)
+
+def upsert_system_setting(db: Session, key: str, value: str, description: str | None = None):
+    item = db.query(SystemSetting).filter(SystemSetting.key == key.strip()).first()
+    if not item:
+        item = SystemSetting(key=key.strip(), value=value.strip(), description=description.strip() if description else None)
+        db.add(item)
+    else:
+        item.value = value.strip()
+        if description is not None:
+            item.description = description.strip() or item.description
+        item.updated_at = datetime.utcnow()
+    db.flush()
+    return item
 
 def save_file(file: Optional[UploadFile]):
     if not file or not file.filename: return None
@@ -219,7 +209,7 @@ def pravila(request:Request, db:Session=Depends(get_db)): return templates.Templ
 @app.get("/faq", response_class=HTMLResponse)
 def faq(request:Request, db:Session=Depends(get_db)): return templates.TemplateResponse("static_page.html", {"request":request,"user":current_user(request,db),"title":"FAQ","heading":"Česta pitanja","body":"Korisnik šalje dokaz, admin ga proverava, a oglašivač plaća samo validan rezultat. V3 koristi ručne isplate i ručnu dopunu budžeta."})
 # V11.7 disabled old route /kontakt
-def kontakt(request:Request, db:Session=Depends(get_db)): return templates.TemplateResponse("static_page.html", {"request":request,"user":current_user(request,db),"title":"Kontakt","heading":"Kontakt","body":"Demo kontakt stranica. U produkciji se dodaje email podrška, ticket sistem i obaveštenja."})
+def kontakt(request:Request, db:Session=Depends(get_db)): return templates.TemplateResponse("static_page.html", {"request":request,"user":current_user(request,db),"title":"Kontakt","heading":"Kontakt","body":"Kontaktirajte podršku kroz obrazac ili kroz panel poruke. Za produkciju se ovde povezuju email podrška, ticket sistem i obaveštenja."})
 
 # USER
 @app.get("/korisnik/panel", response_class=HTMLResponse)
@@ -1573,28 +1563,53 @@ def admin_feature_flag_toggle(flag_id: int, request: Request, db: Session = Depe
 
 
 @app.get("/admin/system-settings", response_class=HTMLResponse)
-def admin_system_settings(request: Request, db: Session = Depends(get_db)):
+def admin_system_settings(request: Request, msg: str | None = None, db: Session = Depends(get_db)):
     u = require(request, db)
     check_role(u, ["admin"])
     settings = db.query(SystemSetting).order_by(SystemSetting.key).all()
-    return templates.TemplateResponse("admin_system_settings_v6.html", {"request": request, "user": u, "settings": settings})
+    return templates.TemplateResponse("admin_system_settings_v6.html", {"request": request, "user": u, "settings": settings, "flash": flash(msg), "finance_accounts": v11836_public_accounts(db)})
 
 
 @app.post("/admin/system-settings/save")
 def admin_system_setting_save(request: Request, key: str = Form(...), value: str = Form(...), description: str = Form(""), db: Session = Depends(get_db)):
     u = require(request, db)
     check_role(u, ["admin"])
-    item = db.query(SystemSetting).filter(SystemSetting.key == key.strip()).first()
-    if not item:
-        item = SystemSetting(key=key.strip(), value=value.strip(), description=description.strip() or None)
-        db.add(item)
-    else:
-        item.value = value.strip()
-        item.description = description.strip() or item.description
-        item.updated_at = datetime.utcnow()
+    item = upsert_system_setting(db, key, value, description)
     audit(db, u, "system_setting_save", "SystemSetting", item.id, key)
     db.commit()
     return RedirectResponse("/admin/system-settings?msg=saved", 303)
+
+
+@app.post("/admin/system-settings/finance-save")
+def admin_finance_accounts_save(
+    request: Request,
+    advertiser_payment_account: str = Form(...),
+    advertiser_payment_holder: str = Form(...),
+    user_payout_account: str = Form(...),
+    user_payout_holder: str = Form(...),
+    payment_reference: str = Form(...),
+    payout_reference: str = Form(...),
+    bank_note: str = Form(""),
+    next_url: str = Form("/admin/system-settings"),
+    db: Session = Depends(get_db),
+):
+    u = require(request, db)
+    check_role(u, ["admin"])
+    payload = [
+        ("advertiser_payment_account", advertiser_payment_account, "Račun na koji oglašivači uplaćuju budžet"),
+        ("advertiser_payment_holder", advertiser_payment_holder, "Naziv primaoca za uplatu oglašivača"),
+        ("user_payout_account", user_payout_account, "Račun sa kog se isplaćuju korisnici"),
+        ("user_payout_holder", user_payout_holder, "Naziv primaoca za isplatu korisnicima"),
+        ("payment_reference", payment_reference, "Poziv na broj ili svrha uplate oglašivača"),
+        ("payout_reference", payout_reference, "Poziv na broj ili svrha isplate korisnicima"),
+        ("bank_note", bank_note, "Napomena za prikaz u finansijskim sekcijama"),
+    ]
+    for key, value, description in payload:
+        item = upsert_system_setting(db, key, value, description)
+        audit(db, u, "system_setting_save", "SystemSetting", item.id, key)
+    db.commit()
+    target = next_url if next_url.startswith("/") else "/admin/system-settings"
+    return RedirectResponse(f"{target}?msg=saved", 303)
 
 
 @app.get("/admin/sla", response_class=HTMLResponse)
@@ -5121,7 +5136,7 @@ def admin_withdrawals_final_v1111(request: Request, status: str | None = None, d
     })
 
 @app.get("/admin/finansije", response_class=HTMLResponse)
-def admin_finance_final_v1111(request: Request, db: Session = Depends(get_db)):
+def admin_finance_final_v1111(request: Request, msg: str | None = None, db: Session = Depends(get_db)):
     u = require(request, db); check_role(u, ["admin"])
     total_rewards = db.query(func.coalesce(func.sum(TaskSubmission.reward_rsd), 0)).filter(TaskSubmission.status == "approved").scalar() or 0
     total_fee = db.query(func.coalesce(func.sum(TaskSubmission.platform_fee_rsd), 0)).filter(TaskSubmission.status == "approved").scalar() or 0
@@ -5155,7 +5170,7 @@ def admin_finance_final_v1111(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("admin_finance_final_v1111.html", {
         "request": request,
         "user": u,
-        "flash": None,
+        "flash": flash(msg),
         "rows": rows,
         "invoices": invoices,
         "advertisers": advertisers,
@@ -6270,6 +6285,12 @@ def premium_home_v1161(request: Request, db: Session = Depends(get_db)):
     tasks = db.query(Task).filter(Task.status == "active").order_by(Task.featured.desc(), Task.reward_rsd.desc()).limit(20).all()
     banner_map = v11817_active_banner_map(db) if "v11817_active_banner_map" in globals() else {}
     pricing_summary = v11836_pricing_summary(db)
+    stats = {
+        "tasks": db.query(Task).filter(Task.status == "active").count(),
+        "users": db.query(User).filter(User.role == "korisnik").count(),
+        "advertisers": db.query(User).filter(User.role == "oglasivac").count(),
+        "approved_rsd": db.query(func.coalesce(func.sum(TaskSubmission.reward_rsd), 0)).filter(TaskSubmission.status == "approved").scalar() or 0,
+    }
     return templates.TemplateResponse(
         "home.html",
         {
@@ -6279,6 +6300,7 @@ def premium_home_v1161(request: Request, db: Session = Depends(get_db)):
             "banner_map": banner_map,
             "pricing_summary": pricing_summary,
             "finance_accounts": v11836_public_accounts(db),
+            "stats": stats,
         },
     )
 

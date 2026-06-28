@@ -2,10 +2,28 @@
 {% set title = "System settings - Admin" %}
 {% block app_content %}
 <div class="section-heading left"><span>V6 Settings</span><h2>Sistemska podešavanja</h2></div>
+<div class="card-box" style="margin:18px 0;padding:18px">
+  <strong>Brzi finansijski unos</strong>
+  <p style="margin:8px 0 14px">Ovo je isto polje koje koristi i admin finansije, pa računi ostaju usklađeni na oba mesta.</p>
+  <form class="form-panel" method="post" action="/admin/system-settings/finance-save">
+    <input type="hidden" name="next_url" value="/admin/system-settings">
+    <div class="form-grid">
+      <div><label>Račun za uplatu oglašivača</label><input name="advertiser_payment_account" value="{{ finance_accounts.advertiser_payment_account }}" required></div>
+      <div><label>Primaoc za uplatu oglašivača</label><input name="advertiser_payment_holder" value="{{ finance_accounts.advertiser_payment_holder }}" required></div>
+      <div><label>Račun za isplatu korisnika</label><input name="user_payout_account" value="{{ finance_accounts.user_payout_account }}" required></div>
+      <div><label>Primaoc za isplatu korisnika</label><input name="user_payout_holder" value="{{ finance_accounts.user_payout_holder }}" required></div>
+      <div><label>Namena za uplatu</label><input name="payment_reference" value="{{ finance_accounts.payment_reference }}" required></div>
+      <div><label>Namena za isplatu</label><input name="payout_reference" value="{{ finance_accounts.payout_reference }}" required></div>
+    </div>
+    <label>Napomena</label>
+    <textarea name="bank_note" rows="3">{{ finance_accounts.bank_note }}</textarea>
+    <button class="btn btn-primary">Sačuvaj finansijske podatke</button>
+  </form>
+</div>
 <form class="form-panel" method="post" action="/admin/system-settings/save"><div class="form-grid"><div><label>Key</label><input name="key" required></div><div><label>Value</label><input name="value" required></div></div><label>Opis</label><textarea name="description"></textarea><button class="btn btn-primary">Sačuvaj</button></form>
 <div class="card-box" style="margin:18px 0;padding:18px">
   <strong>Predloženi ključevi za finansije</strong>
-  <p style="margin:8px 0 0">Ako želiš da javna početna i cenovnik odmah prikazuju tvoje bankovne podatke, upiši ove ključeve:</p>
+  <p style="margin:8px 0 0">Računi i reference su sada uredive kroz gornji form, a ovde ostaju kao tehnička lista ključeva za napredne izmene:</p>
   <ul style="margin:10px 0 0 18px">
     <li><code>advertiser_payment_account</code> - račun za uplatu oglašivača</li>
     <li><code>advertiser_payment_holder</code> - naziv primaoca za uplatu oglašivača</li>
