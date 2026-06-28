@@ -1,0 +1,188 @@
+{% extends "app_base.html" %}
+{% set title = "Uvoz i moderacija - Admin" %}
+{% block app_content %}
+<section class="premium-panel-hero admin">
+  <div>
+    <span>UVOZ I MODERACIJA</span>
+    <h1>Feedovi, queue i kvalitet</h1>
+    <p>Ovo je radna tabla za odobrene izvore zadataka, ručnu moderaciju i proveru sadržaja pre objave. Spoljni feed se dodaje samo uz dozvolu partnera ili kada pošalješ tačan API ugovor.</p>
+  </div>
+  <div class="premium-panel-actions">
+    <a class="premium-btn blue" href="/admin/system-settings#task-sources">Task izvori</a>
+    <a class="premium-btn green" href="/admin/moderation-v10">Moderation queue</a>
+    <a class="premium-btn white" href="/admin/finansije">Finansije</a>
+  </div>
+</section>
+
+<section class="premium-stat-grid">
+  <article class="blue"><small>Aktivni izvori</small><strong>{{ summary.active_sources }}</strong><span>feedovi</span></article>
+  <article class="orange"><small>Pauzirani izvori</small><strong>{{ summary.paused_sources }}</strong><span>kontrola</span></article>
+  <article class="purple"><small>Open queue</small><strong>{{ summary.open_queue }}</strong><span>stavke</span></article>
+  <article class="green"><small>Pending proof</small><strong>{{ summary.pending_proofs }}</strong><span>na proveri</span></article>
+</section>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Dodaj izvor zadataka</h2><span>partner api / rss / csv / manual</span></div>
+    <form class="form-panel" method="post" action="/admin/system-settings/task-source-save">
+      <div class="form-grid">
+        <div><label>Naziv izvora</label><input name="name" required placeholder="Partner feed ili naziv sajta"></div>
+        <div>
+          <label>Tip izvora</label>
+          <select name="source_type">
+            <option value="partner_api">Partner API</option>
+            <option value="rss">RSS / feed</option>
+            <option value="csv">CSV import</option>
+            <option value="manual">Ručni unos</option>
+          </select>
+        </div>
+        <div><label>Endpoint / URL</label><input name="endpoint_url" placeholder="https://partner.example/api/tasks"></div>
+        <div><label>Kontakt / partner</label><input name="contact_name" placeholder="Ime partnera ili kontakta"></div>
+        <div>
+          <label>Način uvoza</label>
+          <select name="import_mode">
+            <option value="review">Pre objave - pregled</option>
+            <option value="sync">Automatski sync</option>
+            <option value="manual">Ručna obrada</option>
+          </select>
+        </div>
+      </div>
+      <label>Napomena za admin tim</label>
+      <textarea name="instructions" rows="4" placeholder="Uslovi korišćenja, dozvola za prikaz, mapping polja, frekvencija sinhronizacije..."></textarea>
+      <button class="btn btn-primary">Sačuvaj izvor</button>
+    </form>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Dodaj u queue</h2><span>ručna moderacija</span></div>
+    <form class="form-panel" method="post" action="/admin/moderation-v10/item">
+      <div class="form-grid">
+        <div><label>Item type</label><input name="item_type" required placeholder="submission / campaign / source"></div>
+        <div><label>Item ID</label><input type="number" name="item_id" value="0"></div>
+        <div>
+          <label>Priority</label>
+          <select name="priority">
+            <option>low</option>
+            <option selected>medium</option>
+            <option>high</option>
+            <option>critical</option>
+          </select>
+        </div>
+      </div>
+      <label>Reason</label>
+      <textarea name="reason" rows="4" placeholder="Zašto stavka ide na proveru..."></textarea>
+      <button class="btn btn-primary">Dodaj u queue</button>
+    </form>
+  </section>
+</div>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Aktivni izvori</h2><a href="/admin/system-settings#task-sources">Svi izvori</a></div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Naziv</th><th>Tip</th><th>Endpoint</th><th>Način</th><th>Status</th><th>Akcija</th></tr>
+        </thead>
+        <tbody>
+        {% for source in sources %}
+          <tr>
+            <td><b>{{ source.name }}</b><br><small>{{ source.contact_name or "" }}</small></td>
+            <td>{{ source.source_type }}</td>
+            <td style="max-width:280px;word-break:break-word;">{{ source.endpoint_url or "—" }}</td>
+            <td>{{ source.import_mode }}</td>
+            <td><span class="status status-{{ source.status }}">{{ source.status }}</span></td>
+            <td>
+              <form method="post" action="/admin/system-settings/task-source/{{ source.id }}/toggle" style="margin:0">
+                <button class="btn btn-mini btn-primary" type="submit">{{ "Pauziraj" if source.status == "active" else "Aktiviraj" }}</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6">Još nema odobrenih izvora zadataka.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Moderation queue</h2><a href="/admin/moderation-v10">Puni queue</a></div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Item</th><th>Priority</th><th>Status</th><th>Reason</th><th>Akcije</th></tr>
+        </thead>
+        <tbody>
+        {% for q in queue %}
+          <tr>
+            <td>{{ q.item_type }} #{{ q.item_id or "" }}</td>
+            <td>{{ q.priority }}</td>
+            <td><span class="status status-{{ q.status }}">{{ q.status }}</span></td>
+            <td style="max-width:240px;word-break:break-word;">{{ q.reason or "" }}</td>
+            <td class="actions">
+              <form method="post" action="/admin/moderation-v10/item/{{ q.id }}/doing"><button class="btn btn-mini btn-primary">Doing</button></form>
+              <form method="post" action="/admin/moderation-v10/item/{{ q.id }}/done"><button class="btn btn-mini btn-secondary">Done</button></form>
+              <form method="post" action="/admin/moderation-v10/item/{{ q.id }}/ignored"><button class="btn btn-mini btn-danger">Ignore</button></form>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5">Nema queue stavki.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Quality rules</h2><span>rules engine</span></div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>Naziv</th><th>Primena</th><th>Threshold</th><th>Akcija</th></tr></thead>
+        <tbody>
+        {% for r in rules %}
+          <tr>
+            <td><b>{{ r.name }}</b></td>
+            <td>{{ r.applies_to }}</td>
+            <td>{{ r.threshold }}</td>
+            <td>{{ r.action }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">Nema quality pravila.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Proof reviews</h2><span>poslednjih 40</span></div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Status</th><th>Hash</th><th>Napomena</th></tr></thead>
+        <tbody>
+        {% for p in proof_reviews %}
+          <tr>
+            <td>#{{ p.id }}</td>
+            <td><span class="status status-{{ p.status }}">{{ p.status }}</span></td>
+            <td style="max-width:220px;word-break:break-word;">{{ p.file_hash or "—" }}</td>
+            <td style="max-width:260px;word-break:break-word;">{{ p.note or "" }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">Nema proof review stavki.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<section class="premium-card">
+  <div class="premium-card-head"><h2>Napomena za feed integracije</h2><span>pre nego što povežemo spoljne izvore</span></div>
+  <p style="margin:0;max-width:980px;line-height:1.6;color:#475569;">
+    Spoljni zadaci treba da dolaze samo iz izvora koje si odobrio ili za koje imaš eksplicitnu dozvolu. Ako pošalješ API dokumentaciju, mapiranje polja i primer odgovora, mogu odmah da povežem uvozni adapter i da ga vežem za ovaj ekran.
+  </p>
+</section>
+{% endblock %}

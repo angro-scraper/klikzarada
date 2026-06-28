@@ -1657,6 +1657,37 @@ def admin_task_source_toggle(source_id: int, request: Request, db: Session = Dep
     return RedirectResponse("/admin/system-settings?msg=saved#task-sources", 303)
 
 
+@app.get("/admin/import-moderation", response_class=HTMLResponse)
+def admin_import_moderation(request: Request, db: Session = Depends(get_db)):
+    u = require(request, db)
+    check_role(u, ["admin"])
+    sources = db.query(TaskSourceV11).order_by(TaskSourceV11.created_at.desc()).all()
+    queue = db.query(ModerationQueueV10).order_by(ModerationQueueV10.created_at.desc()).limit(80).all()
+    rules = db.query(QualityRuleV10).order_by(QualityRuleV10.created_at.desc()).all()
+    segments = db.query(SmartSegmentRuleV10).order_by(SmartSegmentRuleV10.created_at.desc()).all()
+    proof_reviews = db.query(ProofFileReviewV11).order_by(ProofFileReviewV11.created_at.desc()).limit(40).all()
+    summary = {
+        "active_sources": sum(1 for s in sources if s.status == "active"),
+        "paused_sources": sum(1 for s in sources if s.status == "paused"),
+        "open_queue": sum(1 for q in queue if q.status == "open"),
+        "pending_proofs": sum(1 for p in proof_reviews if p.status == "pending"),
+    }
+    return templates.TemplateResponse(
+        "admin_import_moderation_v1.html",
+        {
+            "request": request,
+            "user": u,
+            "sources": sources,
+            "queue": queue,
+            "rules": rules,
+            "segments": segments,
+            "proof_reviews": proof_reviews,
+            "summary": summary,
+            "finance_accounts": v11836_public_accounts(db),
+        },
+    )
+
+
 @app.get("/admin/sla", response_class=HTMLResponse)
 def admin_sla(request: Request, db: Session = Depends(get_db)):
     u = require(request, db)
