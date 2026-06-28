@@ -11445,6 +11445,76 @@ body.kz1189-home-premium .kz1189-hero .social-proof strong{
   border-radius:999px!important;
 }
 
+body.kz1189-home-premium .dashboard-banner,
+body.kz1189-home-premium .kz114-inline-banner{
+  display:grid!important;
+  grid-template-columns:88px 1fr auto!important;
+  align-items:center!important;
+  gap:14px!important;
+  width:100%!important;
+  margin-top:16px!important;
+  padding:14px 16px!important;
+  border:1px solid rgba(11,103,241,.10)!important;
+  border-radius:18px!important;
+  background:linear-gradient(135deg,#f7fbff,#eef4ff)!important;
+  color:#071a3f!important;
+  text-decoration:none!important;
+  box-shadow:0 12px 22px rgba(15,23,42,.05)!important;
+}
+
+body.kz1189-home-premium .dashboard-banner img,
+body.kz1189-home-premium .kz114-inline-banner img{
+  width:88px!important;
+  height:88px!important;
+  object-fit:cover!important;
+  border-radius:16px!important;
+  display:block!important;
+  background:#fff!important;
+}
+
+body.kz1189-home-premium .dashboard-banner small,
+body.kz1189-home-premium .kz114-inline-banner small{
+  display:block!important;
+  color:#4d6787!important;
+  font-size:11px!important;
+  font-weight:900!important;
+  letter-spacing:.04em!important;
+  text-transform:uppercase!important;
+  margin-bottom:4px!important;
+}
+
+body.kz1189-home-premium .dashboard-banner strong,
+body.kz1189-home-premium .kz114-inline-banner strong{
+  display:block!important;
+  color:#071a3f!important;
+  font-size:15px!important;
+  line-height:1.15!important;
+  font-weight:1000!important;
+}
+
+body.kz1189-home-premium .dashboard-banner p,
+body.kz1189-home-premium .kz114-inline-banner p{
+  margin:5px 0 0!important;
+  color:#5a6e8b!important;
+  font-size:12px!important;
+  line-height:1.35!important;
+  max-width:460px!important;
+}
+
+body.kz1189-home-premium .dashboard-banner span,
+body.kz1189-home-premium .kz114-inline-banner span{
+  color:#0b67f1!important;
+  font-weight:1000!important;
+  font-size:13px!important;
+  white-space:nowrap!important;
+}
+
+body.kz1189-home-premium .dashboard-banner:hover,
+body.kz1189-home-premium .kz114-inline-banner:hover{
+  transform:translateY(-1px)!important;
+  box-shadow:0 16px 28px rgba(11,103,241,.09)!important;
+}
+
 body.kz1189-home-premium .kz1189-hero .dashboard-card{
   background:linear-gradient(180deg,#f8fbff,#edf3fb)!important;
   color:#071a3f!important;

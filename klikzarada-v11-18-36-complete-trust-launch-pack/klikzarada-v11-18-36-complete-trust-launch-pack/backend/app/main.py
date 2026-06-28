@@ -147,6 +147,7 @@ def save_file(file: Optional[UploadFile]):
 def home(request: Request, msg: str|None=None, db: Session=Depends(get_db)):
     u=current_user(request,db)
     banners = v111_active_home_banners(db) if "v111_active_home_banners" in globals() else []
+    banner_map = v11817_active_banner_map(db) if "v11817_active_banner_map" in globals() else {}
     tasks = v111_featured_tasks(db) if "v111_featured_tasks" in globals() else db.query(Task).filter(Task.status=="active").order_by(Task.featured.desc(),Task.created_at.desc()).limit(8).all()
     pricing_summary = v11836_pricing_summary(db)
     stats = {
@@ -155,7 +156,7 @@ def home(request: Request, msg: str|None=None, db: Session=Depends(get_db)):
         "advertisers": db.query(User).filter(User.role=="oglasivac").count(),
         "approved_rsd": db.query(func.coalesce(func.sum(TaskSubmission.reward_rsd),0)).filter(TaskSubmission.status=="approved").scalar()
     }
-    return templates.TemplateResponse("home_pro_v114.html", {"request":request,"user":u,"flash":flash(msg),"banners":banners,"tasks":tasks,"stats":stats,"pricing_summary":pricing_summary})
+    return templates.TemplateResponse("home_pro_v114.html", {"request":request,"user":u,"flash":flash(msg),"banners":banners,"banner_map":banner_map,"tasks":tasks,"stats":stats,"pricing_summary":pricing_summary})
 
 # V11.9 disabled old route /zadaci
 def tasks_page(request: Request, q:str|None=None, category:str|None=None, db:Session=Depends(get_db)):
@@ -6617,6 +6618,7 @@ def v11815_banner_slot_definitions():
         ("home_sponsor_2", "Početna — sponzorski banner 2", "home_sponsor", "quarter", 3000),
         ("home_sponsor_3", "Početna — sponzorski banner 3", "home_sponsor", "quarter", 3000),
         ("home_sponsor_4", "Početna — sponzorski banner 4", "home_sponsor", "quarter", 3000),
+        ("home_dashboard_banner", "Početna — banner ispod isplate", "home_dashboard", "wide", 4500),
         ("home_bottom_1", "Početna — donji banner 1", "home_bottom", "third", 2500),
         ("home_bottom_2", "Početna — donji banner 2", "home_bottom", "third", 2500),
         ("home_bottom_3", "Početna — donji banner 3", "home_bottom", "third", 2500),
@@ -6646,7 +6648,7 @@ def v11815_banner_slots_health(db: Session = Depends(get_db)):
     slots = db.query(HomeBannerSlotV111).filter(HomeBannerSlotV111.code.in_([x[0] for x in v11815_banner_slot_definitions()])).order_by(HomeBannerSlotV111.id.asc()).all()
     return {
         "version": "11.18.15",
-        "expected": 9,
+        "expected": 10,
         "count": len(slots),
         "slots": [{"id": s.id, "code": s.code, "title": s.title, "placement": s.placement, "width_label": s.width_label, "price_rsd": s.price_rsd, "is_active": s.is_active} for s in slots],
     }
@@ -6699,6 +6701,7 @@ def v11818_default_banner_image(slot_code: str | None):
         "home_sponsor_2": "/static/img/banner_home_sponsor_2.svg",
         "home_sponsor_3": "/static/img/banner_home_sponsor_3.svg",
         "home_sponsor_4": "/static/img/banner_home_sponsor_4.svg",
+        "home_dashboard_banner": "/static/img/banner_generic.svg",
         "home_bottom_1": "/static/img/banner_home_bottom_1.svg",
         "home_bottom_2": "/static/img/banner_home_bottom_2.svg",
         "home_bottom_3": "/static/img/banner_home_bottom_3.svg",
@@ -6716,6 +6719,8 @@ def v11819_banner_canvas(slot_code: str | None):
         return (1400, 360, "top")
     if code in ["home_sponsor_1", "home_sponsor_2", "home_sponsor_3", "home_sponsor_4"]:
         return (900, 300, "sponsor")
+    if code in ["home_dashboard_banner"]:
+        return (1200, 220, "dashboard")
     if code in ["home_bottom_1", "home_bottom_2", "home_bottom_3"]:
         return (900, 260, "bottom")
     return (900, 260, "generic")
@@ -7354,6 +7359,8 @@ def v11828_slot_size(slot_code: str | None):
         return 1400, 360
     if code in ["home_sponsor_1", "home_sponsor_2", "home_sponsor_3", "home_sponsor_4"]:
         return 900, 300
+    if code in ["home_dashboard_banner"]:
+        return 1200, 220
     if code in ["home_bottom_1", "home_bottom_2", "home_bottom_3"]:
         return 900, 260
     return 900, 260
