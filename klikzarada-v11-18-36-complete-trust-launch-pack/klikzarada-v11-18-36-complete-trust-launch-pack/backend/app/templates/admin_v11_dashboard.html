@@ -26,23 +26,52 @@
     <div class="stat-card"><strong>{{ finance_accounts.user_payout_holder }}</strong><span>primaoc za isplatu korisnika</span></div>
   </div>
 </div>
-<div class="panel-group-v111">
-  <h2>Brza dugmad za nove funkcije</h2>
-  <div class="panel-grid-v111">
-    <a class="shortcut-card-v111" href="/admin/finansije"><strong>Finansije</strong><span>Fakture, isplate i računi.</span></a>
-    <a class="shortcut-card-v111" href="/admin/fakture"><strong>Fakture</strong><span>Predračuni i fakture za oglašivače.</span></a>
-    <a class="shortcut-card-v111" href="/admin/isplate"><strong>Isplate</strong><span>Pending, paid i rejected zahtevi.</span></a>
-    <a class="shortcut-card-v111" href="/admin/payouts-v11"><strong>Payout alati</strong><span>Metode, exporti i verifikacija.</span></a>
-    <a class="shortcut-card-v111" href="/admin/system-settings"><strong>Računi</strong><span>Uplatni i payout podaci.</span></a>
-    <a class="shortcut-card-v111" href="/admin/kampanje"><strong>Kampanje</strong><span>Nove kampanje i moderacija.</span></a>
-    <a class="shortcut-card-v111" href="/admin/dokazi"><strong>Dokazi</strong><span>Auto / ručno / odbijeno.</span></a>
-    <a class="shortcut-card-v111" href="/admin/fraud-v11"><strong>Anti-fraud</strong><span>Device, IP i risk signali.</span></a>
-    <a class="shortcut-card-v111" href="/admin/smart-v115"><strong>Smart auto</strong><span>Automation i rule engine.</span></a>
-    <a class="shortcut-card-v111" href="/admin/cene-v111"><strong>Cene</strong><span>24h banneri i provizije.</span></a>
-    <a class="shortcut-card-v111" href="/admin/promocija-v111"><strong>Reklame</strong><span>Baneri, slotovi i isticanja.</span></a>
-    <a class="shortcut-card-v111" href="/admin/import-moderation"><strong>Uvoz i moderacija</strong><span>Partner feedovi i queue.</span></a>
-    <a class="shortcut-card-v111" href="/admin/deploy-v11"><strong>Produkcija</strong><span>Deploy, backup i smoke.</span></a>
-    <a class="shortcut-card-v111" href="/admin/system-settings#task-sources"><strong>Task izvori</strong><span>Partner API, RSS i CSV import.</span></a>
+<section class="premium-command-hub">
+  <div class="premium-card-head">
+    <h2>Admin komande</h2>
+    <span>grupisani radni tokovi</span>
   </div>
-</div>
+  <div class="premium-command-grid">
+    <article class="premium-command-card">
+      <h3>Finansije</h3>
+      <p>Računi, fakture, isplate i payout alati.</p>
+      <div class="premium-command-links">
+        <a href="/admin/finansije">Finansije</a>
+        <a href="/admin/fakture">Fakture</a>
+        <a href="/admin/isplate">Isplate</a>
+        <a href="/admin/payouts-v11">Payout alati</a>
+      </div>
+    </article>
+    <article class="premium-command-card">
+      <h3>Kampanje</h3>
+      <p>Objava, dokazi, reklame i moderacija.</p>
+      <div class="premium-command-links">
+        <a href="/admin/kampanje">Kampanje</a>
+        <a href="/admin/dokazi">Dokazi</a>
+        <a href="/admin/promocija-v111">Reklame</a>
+        <a href="/admin/import-moderation">Uvoz</a>
+      </div>
+    </article>
+    <article class="premium-command-card">
+      <h3>Ljudi</h3>
+      <p>Korisnici, oglašivači i rast.</p>
+      <div class="premium-command-links">
+        <a href="/admin/korisnici">Korisnici</a>
+        <a href="/admin/oglasivaci">Oglašivači</a>
+        <a href="/admin/referral">Referral</a>
+        <a href="/admin/growth">Growth</a>
+      </div>
+    </article>
+    <article class="premium-command-card">
+      <h3>Operacije</h3>
+      <p>Deploy, sigurnost i automatizacija.</p>
+      <div class="premium-command-links">
+        <a href="/admin/deploy-v11">Produkcija</a>
+        <a href="/admin/daily-desk-v11">Daily desk</a>
+        <a href="/admin/fraud-v11">Anti-fraud</a>
+        <a href="/admin/system-settings#task-sources">Task izvori</a>
+      </div>
+    </article>
+  </div>
+</section>
 {% endblock %}

@@ -7748,6 +7748,76 @@ a{text-decoration:none!important}
   padding:10px 12px;
 }
 
+.premium-command-hub{
+  border:1px solid rgba(15,23,42,.06);
+  border-radius:26px;
+  background:linear-gradient(180deg,#fff,#f8fbff);
+  box-shadow:0 14px 34px rgba(15,23,42,.05);
+  padding:22px;
+  margin:0 0 22px;
+}
+.premium-command-hub .premium-card-head{
+  margin-bottom:16px;
+}
+.premium-command-hub .premium-card-head h2{
+  margin:0;
+  font-size:24px;
+  color:#071a3f;
+}
+.premium-command-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;
+}
+.premium-command-card{
+  border:1px solid rgba(15,23,42,.06);
+  border-radius:20px;
+  background:#fff;
+  padding:18px;
+  display:grid;
+  gap:12px;
+  box-shadow:0 12px 28px rgba(15,23,42,.04);
+}
+.premium-command-card h3{
+  margin:0;
+  font-size:17px;
+  color:#071a3f;
+}
+.premium-command-card p{
+  margin:0;
+  color:#64748b;
+  line-height:1.55;
+  font-size:14px;
+}
+.premium-command-links{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+.premium-command-links a{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:48px;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid rgba(15,23,42,.08);
+  background:linear-gradient(180deg,#f9fbff,#eef4ff);
+  color:#102448!important;
+  text-decoration:none;
+  font-weight:1000;
+  font-size:13px;
+  text-align:center;
+  transition:.16s ease;
+}
+.premium-command-links a:hover{
+  transform:translateY(-1px);
+  background:linear-gradient(135deg,#1769f5,#3b82f6);
+  color:#fff!important;
+  border-color:transparent;
+  box-shadow:0 14px 28px rgba(23,105,245,.18);
+}
+
 @media(max-width:1280px){
   .premium-app-topbar-inner.admin-mode{
     flex-wrap:wrap;
@@ -7759,12 +7829,19 @@ a{text-decoration:none!important}
   .premium-group-grid{
     grid-template-columns:1fr;
   }
+  .premium-command-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
 }
 @media(max-width:900px){
   .premium-app-topbar-inner.admin-mode{width:calc(100vw - 28px);min-height:auto;padding:14px 0}
   .premium-admin-nav-row{gap:8px}
   .premium-admin-nav-row a{min-height:40px;padding:0 14px;font-size:14px}
   .premium-group-card .premium-action-grid{grid-template-columns:1fr}
+  .premium-command-grid,
+  .premium-command-links{
+    grid-template-columns:1fr;
+  }
 }
 
 /* ======================================================

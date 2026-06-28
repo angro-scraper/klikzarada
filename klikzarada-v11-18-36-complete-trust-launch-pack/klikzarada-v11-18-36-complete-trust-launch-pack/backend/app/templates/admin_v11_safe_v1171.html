@@ -112,24 +112,64 @@
   </div>
 </section>
 
-<div class="premium-dashboard-grid">
-  <section class="premium-card gradient">
-    <div class="premium-card-head">
-      <h2>Brze akcije</h2>
-      <span>admin</span>
-    </div>
-    <div class="premium-action-grid">
-      <a href="/admin/kampanje">Kampanje</a>
-      <a href="/admin/dokazi">Dokazi</a>
-      <a href="/admin/isplate">Isplate</a>
-      <a href="/admin/promocija-v111">Banneri</a>
-      <a href="/admin/cene-v111">Cene i provizije</a>
-      <a href="/admin/fraud-v11">Anti-fraud</a>
-      <a href="/admin/workflows-v10">Automatizacija</a>
-      <a href="/admin/deploy-v11">Produkcija</a>
-    </div>
-  </section>
+<section class="premium-command-hub">
+  <div class="premium-card-head">
+    <h2>Admin komande</h2>
+    <span>grupisano po oblastima</span>
+  </div>
+  <div class="premium-command-grid">
+    <article class="premium-command-card">
+      <h3>Finansije</h3>
+      <p>Budžeti, fakture, isplate i payout alati.</p>
+      <div class="premium-command-links">
+        <a href="/admin/finansije">Finansije</a>
+        <a href="/admin/fakture">Fakture</a>
+        <a href="/admin/isplate">Isplate</a>
+        <a href="/admin/payouts-v11">Payout alati</a>
+        <a href="/admin/cene-v111">Cene</a>
+        <a href="/admin/system-settings">Računi</a>
+      </div>
+    </article>
+    <article class="premium-command-card">
+      <h3>Kampanje</h3>
+      <p>Objava, pregled, dokazi i promocije.</p>
+      <div class="premium-command-links">
+        <a href="/admin/kampanje">Kampanje</a>
+        <a href="/admin/dokazi">Dokazi</a>
+        <a href="/admin/promocija-v111">Reklame</a>
+        <a href="/admin/import-moderation">Uvoz i moderacija</a>
+        <a href="/admin/fraud-v11">Anti-fraud</a>
+        <a href="/admin/workflows-v10">Automation</a>
+      </div>
+    </article>
+    <article class="premium-command-card">
+      <h3>Ljudi</h3>
+      <p>Upravljanje korisnicima, oglašivačima i rastom.</p>
+      <div class="premium-command-links">
+        <a href="/admin/korisnici">Korisnici</a>
+        <a href="/admin/oglasivaci">Oglašivači</a>
+        <a href="/admin/referral">Referral</a>
+        <a href="/admin/growth">Growth</a>
+        <a href="/admin/planovi">Planovi</a>
+        <a href="/admin/analitika">Analitika</a>
+      </div>
+    </article>
+    <article class="premium-command-card">
+      <h3>Operacije</h3>
+      <p>Deploy, daily desk, bezbednost i setup.</p>
+      <div class="premium-command-links">
+        <a href="/admin/deploy-v11">Produkcija</a>
+        <a href="/admin/daily-desk-v11">Daily desk</a>
+        <a href="/admin/security-v11">Security</a>
+        <a href="/admin/feature-flags">Feature flags</a>
+        <a href="/admin/smart-v115">Smart auto</a>
+        <a href="/admin/auto-engine-v114">Auto engine</a>
+      </div>
+    </article>
+  </div>
+</section>
 
+<div class="premium-dashboard-grid">
   <section class="premium-card">
     <div class="premium-card-head">
       <h2>Finansije</h2>
@@ -139,6 +179,19 @@
       <article><small>Rezervisani budžet</small><strong>{{ "%.0f"|format(stats.reserved_budget) }} RSD</strong></article>
       <article><small>Potrošeno</small><strong>{{ "%.0f"|format(stats.spent_budget) }} RSD</strong></article>
       <article><small>Ukupan budžet</small><strong>{{ "%.0f"|format(stats.total_budget) }} RSD</strong></article>
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Brza kontrola</h2>
+      <span>u jednoj kartici</span>
+    </div>
+    <div class="premium-command-links" style="grid-template-columns:repeat(2,minmax(0,1fr));">
+      <a href="/admin/system-settings#task-sources">Task izvori</a>
+      <a href="/admin/moderation-v10">Queue</a>
+      <a href="/admin/finansije">Računi</a>
+      <a href="/admin/promocija-v111">Banner slotovi</a>
     </div>
   </section>
 </div>
