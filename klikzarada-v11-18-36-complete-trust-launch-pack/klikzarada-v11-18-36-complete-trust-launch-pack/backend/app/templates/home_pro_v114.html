@@ -74,7 +74,7 @@
 <section class="kz114-metrics">
   <div><b>{{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}%</b><span>provizija platforme</span></div>
   <div><b>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}%</b><span>ide korisnicima</span></div>
-  <div><b>{{ "%.0f"|format(pricing_summary.banner_top_7d if pricing_summary is defined else 9500) }} RSD</b><span>veliki banner / 7 dana</span></div>
+  <div><b>{{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }} RSD</b><span>veliki banner / 24 sata</span></div>
   <div><b>{{ "%.0f"|format(pricing_summary.boost_top_3d if pricing_summary is defined else 2500) }} RSD</b><span>top pozicija / 3 dana</span></div>
 </section>
 

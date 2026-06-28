@@ -31,8 +31,8 @@
         <li>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}% ostaje korisniku</li>
       {% else %}
         <li>Provizija platforme: {{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}%</li>
-        <li>Veliki banner od {{ "%.0f"|format(pricing_summary.banner_top_7d if pricing_summary is defined else 9500) }} RSD</li>
-        <li>Srednji banner od {{ "%.0f"|format(pricing_summary.banner_mid_7d if pricing_summary is defined else 5500) }} RSD</li>
+        <li>Veliki banner od {{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }} RSD / 24 sata</li>
+        <li>Srednji banner od {{ "%.0f"|format(pricing_summary.banner_mid_day if pricing_summary is defined else 785) }} RSD / 24 sata</li>
         <li>Top pozicija od {{ "%.0f"|format(pricing_summary.boost_top_3d if pricing_summary is defined else 2500) }} RSD</li>
       {% endif %}
     </ul>

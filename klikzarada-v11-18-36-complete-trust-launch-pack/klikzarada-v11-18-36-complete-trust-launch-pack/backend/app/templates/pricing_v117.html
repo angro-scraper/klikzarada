@@ -53,8 +53,8 @@
   <div class="kz117-check-card">
     <h3>Najtraženije opcije</h3>
     <ul>
-      <li>Veliki banner: od {{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }} RSD / dan</li>
-      <li>Srednji banner: od {{ "%.0f"|format(pricing_summary.banner_mid_day if pricing_summary is defined else 785) }} RSD / dan</li>
+      <li>Veliki banner: od {{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }} RSD / 24 sata</li>
+      <li>Srednji banner: od {{ "%.0f"|format(pricing_summary.banner_mid_day if pricing_summary is defined else 785) }} RSD / 24 sata</li>
       <li>Top pozicija: od {{ "%.0f"|format(pricing_summary.boost_top_3d if pricing_summary is defined else 2500) }} RSD / 3 dana</li>
       <li>Validno gledanje: {{ "%.0f"|format(pricing_summary.ad_view_cost_rsd if pricing_summary is defined else 8) }} RSD po prikazu</li>
     </ul>

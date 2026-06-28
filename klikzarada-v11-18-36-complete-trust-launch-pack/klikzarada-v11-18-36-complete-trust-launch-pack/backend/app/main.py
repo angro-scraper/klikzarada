@@ -537,8 +537,8 @@ def pricing_page(request: Request, db: Session = Depends(get_db)):
         {"label": "Premium zadaci", "reward": "250+ RSD", "desc": "Kompleksniji ili specijalni zadaci."},
     ]
     banner_packages = [
-        {"title": "Početna - veliki banner", "price": f"od {pricing_summary['banner_top_day']:.0f} RSD / dan", "desc": "Najvidljiviji prostor odmah ispod hero sekcije."},
-        {"title": "Početna - srednji banner", "price": f"od {pricing_summary['banner_mid_day']:.0f} RSD / dan", "desc": "Uredan format za brendove i kampanje."},
+        {"title": "Početna - veliki banner", "price": f"od {pricing_summary['banner_top_day']:.0f} RSD / 24 sata", "desc": "Najvidljiviji prostor odmah ispod hero sekcije."},
+        {"title": "Početna - srednji banner", "price": f"od {pricing_summary['banner_mid_day']:.0f} RSD / 24 sata", "desc": "Uredan format za brendove i kampanje."},
         {"title": "Top pozicija kampanje", "price": f"od {pricing_summary['boost_top_3d']:.0f} RSD / 3 dana", "desc": "Kampanja se izdvaja na vrhu liste zadataka."},
     ]
     return templates.TemplateResponse("pricing_v117.html", {"request": request, "user": current_user(request, db), "prices": prices, "pricing_summary": pricing_summary, "task_price_ranges": task_price_ranges, "banner_packages": banner_packages, "fee": PLATFORM_FEE_PERCENT, "min_withdrawal": MIN_WITHDRAWAL_RSD})
@@ -3959,7 +3959,7 @@ def admin_slot_save_v111(request: Request, code: str = Form(...), title: str = F
     if not s:
         s = HomeBannerSlotV111(code=code.strip(), title=title.strip())
         db.add(s)
-    s.title = title.strip(); s.placement = placement; s.width_label = width_label; s.price_rsd = price_rsd; s.is_active = True
+    s.title = title.strip(); s.placement = placement; s.width_label = width_label; s.price_rsd = float(price_rsd or 0) * 7; s.is_active = True
     db.commit()
     return RedirectResponse("/admin/cene-v111?msg=saved", 303)
 
@@ -4341,7 +4341,7 @@ def admin_slot_edit_v1142(
     slot.title = title.strip()
     slot.placement = placement.strip()
     slot.width_label = width_label.strip()
-    slot.price_rsd = price_rsd
+    slot.price_rsd = float(price_rsd or 0) * 7
     slot.is_active = is_active == "yes"
     db.commit()
     return RedirectResponse("/admin/reklame-v111?msg=slot_saved", 303)
@@ -4442,8 +4442,8 @@ def pricing_public_v117(request: Request, db: Session = Depends(get_db)):
         {"label": "Premium zadaci", "reward": "250+ RSD", "desc": "Kompleksniji ili specijalni zadaci."},
     ]
     banner_packages = [
-        {"title": "Početna - veliki banner", "price": f"od {pricing_summary['banner_top_day']:.0f} RSD / dan", "desc": "Najvidljiviji prostor odmah ispod hero sekcije."},
-        {"title": "Početna - srednji banner", "price": f"od {pricing_summary['banner_mid_day']:.0f} RSD / dan", "desc": "Uredan format za brendove i kampanje."},
+        {"title": "Početna - veliki banner", "price": f"od {pricing_summary['banner_top_day']:.0f} RSD / 24 sata", "desc": "Najvidljiviji prostor odmah ispod hero sekcije."},
+        {"title": "Početna - srednji banner", "price": f"od {pricing_summary['banner_mid_day']:.0f} RSD / 24 sata", "desc": "Uredan format za brendove i kampanje."},
         {"title": "Top pozicija kampanje", "price": f"od {pricing_summary['boost_top_3d']:.0f} RSD / 3 dana", "desc": "Kampanja se izdvaja na vrhu liste zadataka."},
     ]
     pricing_summary["ad_view_cost_rsd"] = pricing_summary.get("ad_view_cost", 8)

@@ -98,7 +98,7 @@
           <h3 style="margin:6px 0 6px;color:#071a3f">{{ p.title }}</h3>
           <p style="margin:0;color:#64748b;line-height:1.55">{{ p.description or "" }}</p>
           {% if p.key.startswith("BANNER_HOME_") %}
-          <p style="margin:8px 0 0;color:#2d64ce;font-weight:900">≈ {{ "%.0f"|format(p.value_rsd / 7 if p.value_rsd else 0) }} RSD / dan</p>
+          <p style="margin:8px 0 0;color:#2d64ce;font-weight:900">≈ {{ "%.0f"|format(p.value_rsd / 7 if p.value_rsd else 0) }} RSD / 24 sata</p>
           {% endif %}
         </div>
         <label>Iznos</label>

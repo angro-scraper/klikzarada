@@ -41,12 +41,12 @@
   <article class="blue">
     <small>Veliki banner</small>
     <strong>{{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }}</strong>
-    <span>RSD / dan</span>
+    <span>RSD / 24 sata</span>
   </article>
   <article class="green">
     <small>Srednji banner</small>
     <strong>{{ "%.0f"|format(pricing_summary.banner_mid_day if pricing_summary is defined else 785) }}</strong>
-    <span>RSD / dan</span>
+    <span>RSD / 24 sata</span>
   </article>
   <article class="purple">
     <small>Top pozicija</small>
@@ -88,7 +88,7 @@
         <label>Banner slot</label>
         <select name="slot_id">
           {% for s in slots %}
-            <option value="{{ s.id }}">{{ loop.index }}. {{ s.title }} · {{ "%.0f"|format(s.price_rsd / 7 if s.price_rsd else 0) }} RSD / dan</option>
+            <option value="{{ s.id }}">{{ loop.index }}. {{ s.title }} · {{ "%.0f"|format(s.price_rsd / 7 if s.price_rsd else 0) }} RSD / 24 sata</option>
           {% endfor %}
         </select>
         <label>Naslov reklame</label>
@@ -174,7 +174,7 @@
         <label>Banner slot</label>
         <select name="slot_id">
           {% for s in slots %}
-            <option value="{{ s.id }}">{{ loop.index }}. {{ s.title }} · {{ "%.0f"|format(s.price_rsd / 7 if s.price_rsd else 0) }} RSD / dan</option>
+            <option value="{{ s.id }}">{{ loop.index }}. {{ s.title }} · {{ "%.0f"|format(s.price_rsd / 7 if s.price_rsd else 0) }} RSD / 24 sata</option>
           {% endfor %}
         </select>
         <label>Naslov reklame</label>

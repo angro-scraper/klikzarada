@@ -27,7 +27,7 @@
   <div class="kz117-feature">
     <h3>Brza objava bannera</h3>
     <p>Postavi vizuelni identitet, izaberi slot i pošalji reklamu u pregled.</p>
-    <span>od {{ "%.0f"|format(pricing_summary.banner_top_7d if pricing_summary is defined else 9500) }} RSD / 7 dana</span>
+    <span>od {{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }} RSD / 24 sata</span>
   </div>
   <div class="kz117-feature">
     <h3>Isticanje kampanje</h3>
@@ -45,7 +45,7 @@
   <a class="kz117-feature" href="/oglasivac/promocija-v111">
     <h3>Baner reklame</h3>
     <p>Početna strana i dodatni promo slotovi za brendove.</p>
-    <span>od {{ "%.0f"|format(pricing_summary.banner_top_7d if pricing_summary is defined else 9500) }} RSD / 7 dana</span>
+    <span>od {{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }} RSD / 24 sata</span>
   </a>
   <a class="kz117-feature" href="/oglasivac/boost-v111">
     <h3>Kampanja na prvom mestu</h3>

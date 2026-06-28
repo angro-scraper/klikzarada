@@ -34,13 +34,13 @@
 <section class="kz-admin-prices-summary">
   <article>
     <small>Veliki banner</small>
-    <strong>{{ "%.0f"|format(pricing_summary.banner_top_7d if pricing_summary is defined else 9500) }} RSD</strong>
-    <span>7 dana na početnoj</span>
+    <strong>{{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }} RSD</strong>
+    <span>24 sata na početnoj</span>
   </article>
   <article>
     <small>Srednji banner</small>
-    <strong>{{ "%.0f"|format(pricing_summary.banner_mid_7d if pricing_summary is defined else 5500) }} RSD</strong>
-    <span>7 dana na početnoj</span>
+    <strong>{{ "%.0f"|format(pricing_summary.banner_mid_day if pricing_summary is defined else 785) }} RSD</strong>
+    <span>24 sata na početnoj</span>
   </article>
   <article>
     <small>Top pozicija</small>
@@ -97,7 +97,7 @@
       <li>RSD vrednosti su za reklame, gledanja i slotove.</li>
       <li>Procente koristi za raspodelu između korisnika i platforme.</li>
       <li>Javni cenovnik vuče iste vrednosti, pa nema ručnog prepisivanja.</li>
-      <li>Banner slotovi na početnoj treba da ostanu u skladu sa ovim cenama.</li>
+      <li>Banner slotovi na početnoj treba da ostanu u skladu sa dnevnim cenama.</li>
     </ul>
   </aside>
 </section>
@@ -148,7 +148,7 @@
         <input name="width_label" value="wide">
       </div>
     </div>
-    <label>Cena RSD / 7 dana</label>
+    <label>Cena RSD / 24 sata</label>
     <input type="number" name="price_rsd" required>
     <button class="btn btn-primary">Sačuvaj slot</button>
   </form>
@@ -170,7 +170,7 @@
           <td>{{ s.title }}</td>
           <td>{{ s.placement }}</td>
           <td>{{ s.width_label }}</td>
-          <td>{{ "%.0f"|format(s.price_rsd) }} RSD</td>
+          <td>{{ "%.0f"|format(s.price_rsd / 7 if s.price_rsd else 0) }} RSD / 24 sata</td>
           <td>{{ "aktivno" if s.is_aktivno else "off" }}</td>
         </tr>
         {% endfor %}
