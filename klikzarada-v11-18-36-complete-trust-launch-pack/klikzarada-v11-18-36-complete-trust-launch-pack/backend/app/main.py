@@ -450,7 +450,14 @@ def admin_sub_action(sub_id: int, action: str, request: Request, note: str = For
     return RedirectResponse(f"/admin/dokazi?msg={result}", 303)
 
 @app.post("/admin/withdrawals/{wid}/{action}")
-def admin_withdrawal_action(wid: int, action: str, request: Request, note: str = Form(""), db: Session = Depends(get_db)):
+def admin_withdrawal_action(
+    wid: int,
+    action: str,
+    request: Request,
+    note: str = Form(""),
+    next_url: str | None = None,
+    db: Session = Depends(get_db),
+):
     admin = require(request, db); check_role(admin, ["admin"])
     w = db.query(Withdrawal).filter(Withdrawal.id == wid).first()
     if action in ["paid", "pay", "approve"]:
@@ -459,7 +466,9 @@ def admin_withdrawal_action(wid: int, action: str, request: Request, note: str =
         result = v11832_reject_withdrawal(db, admin, w, note)
     else:
         result = "bad_action"
-    return RedirectResponse(f"/admin/isplate?msg={result}", 303)
+    target = next_url or "/admin/isplate"
+    separator = "&" if "?" in target else "?"
+    return RedirectResponse(f"{target}{separator}msg={result}", 303)
 
 @app.post("/admin/users/{uid}/{action}")
 def admin_user_action(uid:int, action:str, request:Request, amount_rsd:float=Form(0), reason:str=Form(""), db:Session=Depends(get_db)):
@@ -705,24 +714,38 @@ def admin_invoices(request:Request, msg:str|None=None, db:Session=Depends(get_db
     return templates.TemplateResponse("invoices_v4.html", {"request":request,"user":u,"invoices":invoices,"advertisers":advertisers,"mode":"admin","flash":flash(msg)})
 
 @app.post("/admin/fakture/nova")
-def admin_create_invoice(request:Request, advertiser_id:int=Form(...), invoice_type:str=Form("predracun"), amount_rsd:float=Form(...), description:str=Form(""), db:Session=Depends(get_db)):
+def admin_create_invoice(
+    request: Request,
+    advertiser_id: int = Form(...),
+    invoice_type: str = Form("predracun"),
+    amount_rsd: float = Form(...),
+    description: str = Form(""),
+    next_url: str | None = None,
+    db: Session = Depends(get_db),
+):
     u=require(request,db); check_role(u,["admin"])
     adv=db.query(User).filter(User.id==advertiser_id, User.role=="oglasivac").first()
     if not adv: raise HTTPException(404)
     number=f"KZ-{datetime.utcnow().strftime('%Y%m%d')}-{db.query(Invoice).count()+1:04d}"
     inv=Invoice(advertiser_id=adv.id, invoice_no=number, invoice_type=invoice_type, amount_rsd=amount_rsd, description=description, status="issued", issued_at=datetime.utcnow())
     db.add(inv); notify(db, adv, None, "Nova faktura/predračun", f"Kreiran je dokument {number} na iznos {amount_rsd:.0f} RSD."); audit(db,u,"invoice_create","Invoice",None,number)
-    db.commit(); return RedirectResponse("/admin/fakture?msg=invoice_created",303)
+    db.commit()
+    target = next_url or "/admin/fakture"
+    separator = "&" if "?" in target else "?"
+    return RedirectResponse(f"{target}{separator}msg=invoice_created", 303)
 
 @app.post("/admin/fakture/{invoice_id}/{action}")
-def admin_invoice_action(invoice_id:int, action:str, request:Request, db:Session=Depends(get_db)):
+def admin_invoice_action(invoice_id:int, action:str, request:Request, next_url: str | None = None, db:Session=Depends(get_db)):
     u=require(request,db); check_role(u,["admin"])
     inv=db.query(Invoice).filter(Invoice.id==invoice_id).first()
     if not inv: raise HTTPException(404)
     if action in ["paid","cancelled","draft","issued"]:
         inv.status=action
     audit(db,u,f"invoice_{action}","Invoice",inv.id,inv.invoice_no)
-    db.commit(); return RedirectResponse("/admin/fakture?msg=saved",303)
+    db.commit()
+    target = next_url or "/admin/fakture"
+    separator = "&" if "?" in target else "?"
+    return RedirectResponse(f"{target}{separator}msg=saved", 303)
 
 @app.get("/admin/marketing", response_class=HTMLResponse)
 def admin_marketing(request:Request, db:Session=Depends(get_db)):
@@ -5106,6 +5129,20 @@ def admin_finance_final_v1111(request: Request, db: Session = Depends(get_db)):
     reserved_budget = db.query(func.coalesce(func.sum(User.advertiser_reserved_rsd), 0)).filter(User.role == "oglasivac").scalar() or 0
     withdrawals_pending = db.query(func.coalesce(func.sum(Withdrawal.amount_rsd), 0)).filter(Withdrawal.status == "pending").scalar() or 0
     withdrawals_paid = db.query(func.coalesce(func.sum(Withdrawal.amount_rsd), 0)).filter(Withdrawal.status == "paid").scalar() or 0
+    invoice_total = db.query(func.coalesce(func.sum(Invoice.amount_rsd), 0)).scalar() or 0
+    invoice_count = db.query(Invoice).count()
+    invoices = db.query(Invoice).order_by(Invoice.created_at.desc()).limit(10).all()
+    advertisers = db.query(User).filter(User.role == "oglasivac").order_by(User.full_name).all()
+    pending_withdrawals = db.query(Withdrawal).filter(Withdrawal.status == "pending").order_by(Withdrawal.created_at.asc()).limit(12).all()
+    withdrawals_recent = db.query(Withdrawal).order_by(Withdrawal.created_at.desc()).limit(12).all()
+    withdrawal_counts = {
+        "pending": db.query(Withdrawal).filter(Withdrawal.status == "pending").count(),
+        "paid": db.query(Withdrawal).filter(Withdrawal.status == "paid").count(),
+        "rejected": db.query(Withdrawal).filter(Withdrawal.status == "rejected").count(),
+    }
+    payout_methods = db.query(PayoutMethodV11).order_by(PayoutMethodV11.created_at.desc()).limit(8).all()
+    payout_exports = db.query(PayoutExportV11).order_by(PayoutExportV11.created_at.desc()).limit(6).all()
+    finance_accounts = v11836_public_accounts(db)
     rows = [
         {"title":"Provizija platforme", "amount": total_fee, "desc":"Ukupna odobrena provizija iz zadataka.", "color":"blue"},
         {"title":"Odobreno korisnicima", "amount": total_rewards, "desc":"Ukupno odobrene nagrade korisnicima.", "color":"green"},
@@ -5113,12 +5150,23 @@ def admin_finance_final_v1111(request: Request, db: Session = Depends(get_db)):
         {"title":"Rezervisan budžet", "amount": reserved_budget, "desc":"Rezervisano za aktivne kampanje.", "color":"orange"},
         {"title":"Isplate na čekanju", "amount": withdrawals_pending, "desc":"Zahtevi koje admin treba da obradi.", "color":"red"},
         {"title":"Isplaćeno korisnicima", "amount": withdrawals_paid, "desc":"Već označeno kao isplaćeno.", "color":"green"},
+        {"title":"Vrednost faktura", "amount": invoice_total, "desc":"Ukupna vrednost svih izdatih dokumenata.", "color":"blue"},
     ]
     return templates.TemplateResponse("admin_finance_final_v1111.html", {
         "request": request,
         "user": u,
         "flash": None,
         "rows": rows,
+        "invoices": invoices,
+        "advertisers": advertisers,
+        "pending_withdrawals": pending_withdrawals,
+        "withdrawals_recent": withdrawals_recent,
+        "payout_methods": payout_methods,
+        "payout_exports": payout_exports,
+        "finance_accounts": finance_accounts,
+        "invoice_total": invoice_total,
+        "invoice_count": invoice_count,
+        "withdrawal_counts": withdrawal_counts,
     })
 
 @app.get("/api/v1/v11/perfect-ui-audit")

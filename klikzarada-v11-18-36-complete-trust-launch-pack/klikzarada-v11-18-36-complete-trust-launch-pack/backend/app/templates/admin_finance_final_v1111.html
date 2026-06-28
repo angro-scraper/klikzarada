@@ -2,9 +2,18 @@
 {% set title = "Finansije - Admin" %}
 {% block app_content %}
 <section class="kz1111-hero finance">
-  <div><span>FINANSIJE</span><h1>Finansijski pregled</h1><p>Budžeti, provizije, rezervisana sredstva, isplate i ukupna slika platforme na jednom mestu.</p></div>
-  <div class="kz1111-hero-actions"><a class="btn btn-primary" href="/admin/cene-v111">Cene</a><a class="btn btn-secondary" href="/admin/isplate">Isplate</a></div>
+  <div>
+    <span>FINANSIJE</span>
+    <h1>Fakture, isplate i računi</h1>
+    <p>Jedno mesto za izdavanje faktura oglašivačima, obradu isplata korisnicima i pregled bankovnih računa koji pogone platformu.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/admin/fakture">Fakture</a>
+    <a class="btn btn-secondary" href="/admin/isplate">Isplate</a>
+    <a class="btn btn-secondary" href="/admin/payouts-v11">Payout alati</a>
+  </div>
 </section>
+
 <section class="kz1111-finance-grid">
   {% for r in rows %}
   <article class="kz1111-finance-card {{ r.color }}">
@@ -14,33 +23,230 @@
   </article>
   {% endfor %}
 </section>
+
 <section class="kz1111-section">
-  <div class="kz1111-section-head"><h2>Novčani tok u 3 koraka</h2><span>uplata / potrošnja / isplata</span></div>
-  <div class="kz1111-process-strip">
-    <div>
-      <small>Uplata</small>
-      <strong>Oglašivač puni budžet</strong>
-      <p>Sredstva ulaze u dostupni budžet i mogu da se koriste za kampanje i banere.</p>
-    </div>
-    <div>
-      <small>Potrošnja</small>
-      <strong>Sistem rezerviše i skida po potrebi</strong>
-      <p>Aktivne kampanje drže deo budžeta zaključanim dok traje prikaz ili zadatak.</p>
-    </div>
-    <div>
-      <small>Isplata</small>
-      <strong>Korisnici dobijaju tek posle provere</strong>
-      <p>Finansijski tok ostaje čist jer se isplaćuju samo odobreni i provereni zahtevi.</p>
+  <div class="kz1111-section-head">
+    <h2>Računi i referenca plaćanja</h2>
+    <span>uplatni i payout tok</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">
+    <article class="kz1111-proof-card">
+      <div class="kz1111-card-top"><span class="status status-approved">Uplata oglašivača</span></div>
+      <h3>{{ finance_accounts.advertiser_payment_holder }}</h3>
+      <p>{{ finance_accounts.advertiser_payment_account }}</p>
+      <div class="kz1111-proof-meta">
+        <div><small>Namena</small><b>{{ finance_accounts.payment_reference }}</b></div>
+      </div>
+    </article>
+    <article class="kz1111-proof-card">
+      <div class="kz1111-card-top"><span class="status status-pending">Isplata korisnika</span></div>
+      <h3>{{ finance_accounts.user_payout_holder }}</h3>
+      <p>{{ finance_accounts.user_payout_account }}</p>
+      <div class="kz1111-proof-meta">
+        <div><small>Namena</small><b>{{ finance_accounts.payout_reference }}</b></div>
+      </div>
+    </article>
+    <article class="kz1111-proof-card">
+      <div class="kz1111-card-top"><span class="status status-verified">Napomena</span></div>
+      <h3>Operativni podaci</h3>
+      <p>{{ finance_accounts.bank_note }}</p>
+      <div class="kz1111-proof-meta">
+        <div><small>Admin podešavanje</small><b>/admin/system-settings</b></div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Brze komande</h2>
+    <span>admin</span>
+  </div>
+  <div class="kz1111-command-grid">
+    <a href="/admin/fakture">Pregled faktura</a>
+    <a href="/admin/isplate">Pregled isplata</a>
+    <a href="/admin/payouts-v11">Payout metode</a>
+    <a href="/admin/cene-v111">Cene i provizije</a>
+    <a href="/admin/system-settings">Računi i bank podaci</a>
+    <a href="/admin/dokazi">Dokazi</a>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Izdavanje fakture oglašivaču</h2>
+    <span>{{ invoice_count }} izdatih dokumenata</span>
+  </div>
+  <div style="display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:18px;align-items:start;">
+    <form class="form-panel" method="post" action="/admin/fakture/nova?next=/admin/finansije">
+      <label>Oglašivač</label>
+      <select name="advertiser_id" required>
+        {% for a in advertisers %}
+        <option value="{{ a.id }}">{{ a.company_name or a.full_name }}</option>
+        {% endfor %}
+      </select>
+      <label>Tip dokumenta</label>
+      <select name="invoice_type">
+        <option value="predracun">Predračun</option>
+        <option value="faktura">Faktura</option>
+        <option value="izvestaj">Izveštaj</option>
+      </select>
+      <label>Iznos RSD</label>
+      <input type="number" step="1" name="amount_rsd" min="1" required>
+      <label>Opis</label>
+      <textarea name="description" placeholder="Npr. banner slot 24h, kampanja, izveštaj..."></textarea>
+      <button class="btn btn-primary">Kreiraj fakturu</button>
+    </form>
+    <div class="premium-card">
+      <div class="premium-card-head"><h2>Poslednje fakture</h2><a href="/admin/fakture">Sve fakture</a></div>
+      <div class="premium-table-wrap">
+        <table>
+          <thead>
+            <tr><th>Broj</th><th>Oglašivač</th><th>Iznos</th><th>Status</th><th>Akcija</th></tr>
+          </thead>
+          <tbody>
+          {% for i in invoices %}
+            <tr>
+              <td><b>{{ i.invoice_no }}</b><br><small>{{ i.invoice_type }}</small></td>
+              <td>{{ i.advertiser.company_name or i.advertiser.full_name }}</td>
+              <td>{{ "%.0f"|format(i.amount_rsd) }} RSD</td>
+              <td><span class="status {{ i.status }}">{{ i.status }}</span></td>
+              <td style="white-space:nowrap;">
+                <a class="mini-btn" target="_blank" href="/fakture/{{ i.id }}">Otvori</a>
+                <form style="display:inline-block;margin-left:6px;" method="post" action="/admin/fakture/{{ i.id }}/paid?next=/admin/finansije">
+                  <button class="btn btn-mini btn-primary" type="submit">Plaćeno</button>
+                </form>
+                <form style="display:inline-block;margin-left:6px;" method="post" action="/admin/fakture/{{ i.id }}/cancelled?next=/admin/finansije">
+                  <button class="btn btn-mini btn-danger" type="submit">Storno</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5">Nema izdatih faktura.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </section>
+
 <section class="kz1111-section">
-  <div class="kz1111-section-head"><h2>Brze finansijske komande</h2><span>admin</span></div>
-  <div class="kz1111-command-grid">
-    <a href="/admin/cene-v111">Promeni cene i provizije</a>
-    <a href="/admin/banneri-v111">Uredi reklame</a>
-    <a href="/admin/isplate">Obradi isplate</a>
-    <a href="/admin/budget-v11">Budžeti oglašivača</a>
+  <div class="kz1111-section-head">
+    <h2>Isplate korisnicima</h2>
+    <span>pending / paid / rejected</span>
+  </div>
+  <div class="kz1111-stat-grid colored" style="margin-bottom:18px;">
+    <a class="kz1111-stat orange" href="/admin/isplate?status=pending"><small>Na čekanju</small><strong>{{ withdrawal_counts.pending }}</strong><span>obrada</span></a>
+    <a class="kz1111-stat green" href="/admin/isplate?status=paid"><small>Paid</small><strong>{{ withdrawal_counts.paid }}</strong><span>završeno</span></a>
+    <a class="kz1111-stat red" href="/admin/isplate?status=rejected"><small>Rejected</small><strong>{{ withdrawal_counts.rejected }}</strong><span>odbijeno</span></a>
+    <a class="kz1111-stat blue" href="/admin/payouts-v11"><small>Metode</small><strong>{{ payout_methods|length }}</strong><span>verifikacija</span></a>
+  </div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead>
+        <tr><th>Korisnik</th><th>Iznos</th><th>Metod</th><th>Detalji</th><th>Status</th><th>Akcija</th></tr>
+      </thead>
+      <tbody>
+      {% for w in pending_withdrawals %}
+        <tr>
+          <td><b>{{ w.user.full_name if w.user else "Korisnik" }}</b><br><small>{{ w.created_at }}</small></td>
+          <td>{{ "%.0f"|format(w.amount_rsd) }} RSD</td>
+          <td>{{ w.payment_method }}</td>
+          <td style="max-width:320px;word-break:break-word;">{{ w.payment_details }}</td>
+          <td><span class="status {{ w.status }}">{{ w.status }}</span></td>
+          <td style="white-space:nowrap;">
+            <form style="display:inline-block;" method="post" action="/admin/withdrawals/{{ w.id }}/paid?next=/admin/finansije">
+              <input type="hidden" name="note" value="Odobreno iz finansija">
+              <button class="btn btn-mini btn-primary" type="submit">Plaćeno</button>
+            </form>
+            <form style="display:inline-block;margin-left:6px;" method="post" action="/admin/withdrawals/{{ w.id }}/reject?next=/admin/finansije">
+              <input type="hidden" name="note" value="Odbijeno iz finansija">
+              <button class="btn btn-mini btn-danger" type="submit">Odbij</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6">Nema zahteva za isplatu.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Istorija isplata</h2>
+    <span>poslednjih 12</span>
+  </div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead>
+        <tr><th>Korisnik</th><th>Iznos</th><th>Metod</th><th>Status</th><th>Datum</th></tr>
+      </thead>
+      <tbody>
+      {% for w in withdrawals_recent %}
+        <tr>
+          <td>{{ w.user.full_name if w.user else "Korisnik" }}</td>
+          <td>{{ "%.0f"|format(w.amount_rsd) }} RSD</td>
+          <td>{{ w.payment_method }}</td>
+          <td><span class="status {{ w.status }}">{{ w.status }}</span></td>
+          <td>{{ w.created_at }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5">Nema istorije isplata.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Payout metode i export</h2>
+    <span>alatke</span>
+  </div>
+  <div style="display:grid;grid-template-columns:1.2fr 0.8fr;gap:18px;align-items:start;">
+    <div class="premium-card">
+      <div class="premium-card-head"><h2>Najnovije payout metode</h2><a href="/admin/payouts-v11">Otvori alat</a></div>
+      <div class="premium-table-wrap">
+        <table>
+          <thead>
+            <tr><th>Korisnik</th><th>Metod</th><th>Status</th><th>Podaci</th></tr>
+          </thead>
+          <tbody>
+          {% for m in payout_methods %}
+            <tr>
+              <td>{{ m.user.full_name if m.user else "Korisnik" }}</td>
+              <td>{{ m.method_type }}</td>
+              <td><span class="status status-{{ m.status }}">{{ m.status }}</span></td>
+              <td style="max-width:260px;word-break:break-word;">{{ m.account_data }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4">Nema metoda.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="premium-card">
+      <div class="premium-card-head"><h2>Exporti isplata</h2><a href="/admin/payouts-v11">Sve isplate</a></div>
+      <div class="premium-list">
+        {% for e in payout_exports %}
+          <article>
+            <div>
+              <b>{{ e.title }}</b>
+              <small>{{ e.status }} · {{ e.rows_count }} redova · {{ "%.0f"|format(e.total_amount_rsd) }} RSD</small>
+            </div>
+          </article>
+        {% else %}
+          <div class="premium-empty">
+            <h3>Nema exporta</h3>
+            <p>Kada pokreneš batch export, pojaviće se ovde.</p>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
   </div>
 </section>
 {% endblock %}
