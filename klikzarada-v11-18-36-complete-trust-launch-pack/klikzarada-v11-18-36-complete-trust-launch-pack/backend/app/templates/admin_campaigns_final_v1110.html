@@ -8,9 +8,118 @@
     <p>Kampanje su razvrstane po statusu i prikazane u karticama. Akcije su kompaktne i čitljive.</p>
   </div>
   <div class="kz1110-hero-actions">
-    <a class="btn btn-primary" href="/oglasivac/nova-kampanja">Nova kampanja</a>
+    <a class="btn btn-primary" href="#nova-kampanja">Nova kampanja</a>
     <a class="btn btn-secondary" href="/admin/mapa-platforme">Mapa platforme</a>
   </div>
+</section>
+
+<section class="kz1110-filter-card" id="nova-kampanja">
+  <form method="post" action="/admin/kampanje/novo">
+    <div>
+      <label>Naziv zadatka</label>
+      <input name="title" required placeholder="npr. Poseti sajt i ostavi feedback">
+    </div>
+    <div>
+      <label>Oglašivač</label>
+      <select name="advertiser_id">
+        <option value="0">Bez oglašivača / admin task</option>
+        {% for a in advertisers %}
+          <option value="{{ a.id }}">{{ a.full_name }}{% if a.company_name %} · {{ a.company_name }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Kategorija</label>
+      <select name="category">
+        {% for c in categories %}
+          <option value="{{ c.title }}">{{ c.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Tip</label>
+      <select name="task_type">
+        <option value="visit_site">Poseta sajtu</option>
+        <option value="survey">Anketa</option>
+        <option value="registration">Registracija</option>
+        <option value="feedback">Feedback</option>
+        <option value="comment">Komentar</option>
+      </select>
+    </div>
+    <div>
+      <label>Nagrada RSD</label>
+      <input type="number" name="reward_rsd" value="60" min="1">
+    </div>
+    <div>
+      <label>Mesta</label>
+      <input type="number" name="total_slots" value="50" min="1">
+    </div>
+    <div>
+      <label>Trajanje / procena</label>
+      <input type="number" name="estimated_minutes" value="5" min="1">
+    </div>
+    <div>
+      <label>Status</label>
+      <select name="status">
+        <option value="active">Aktivno</option>
+        <option value="pending" selected>Na čekanju</option>
+        <option value="paused">Pauzirano</option>
+      </select>
+    </div>
+    <div style="grid-column:1/-1">
+      <label>Target URL</label>
+      <input name="target_url" placeholder="https://...">
+    </div>
+    <div style="grid-column:1/-1">
+      <label>Opis</label>
+      <textarea name="description" placeholder="Kratak opis kampanje"></textarea>
+    </div>
+    <div style="grid-column:1/-1">
+      <label>Instrukcije</label>
+      <textarea name="instructions" placeholder="Šta korisnik treba da uradi"></textarea>
+    </div>
+    <div style="grid-column:1/-1">
+      <label>Dokaz</label>
+      <textarea name="proof_required" placeholder="Koji dokaz je potreban"></textarea>
+    </div>
+    <div style="grid-column:1/-1">
+      <label>Primer dokaza</label>
+      <textarea name="example_proof" placeholder="Opciono"></textarea>
+    </div>
+    <div>
+      <label>Grad</label>
+      <input name="target_city" placeholder="Srbija">
+    </div>
+    <div>
+      <label>Starosna grupa</label>
+      <input name="target_age_group" placeholder="18+">
+    </div>
+    <div>
+      <label>Interesi</label>
+      <input name="target_interests" placeholder="internet, kupovina">
+    </div>
+    <div>
+      <label>Minimalni nivo</label>
+      <input name="min_user_level" value="Bronza">
+    </div>
+    <div>
+      <label>Featured</label>
+      <select name="featured">
+        <option value="">Ne</option>
+        <option value="yes">Da</option>
+      </select>
+    </div>
+    <div>
+      <label>Proof file required</label>
+      <select name="proof_file_required">
+        <option value="">Ne</option>
+        <option value="yes">Da</option>
+      </select>
+    </div>
+    <div style="grid-column:1/-1">
+      <button class="btn btn-primary">Kreiraj zadatak kao admin</button>
+    </div>
+  </form>
 </section>
 
 <section class="kz1110-stat-grid">

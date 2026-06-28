@@ -4871,6 +4871,7 @@ def admin_campaigns_final_v1110(request: Request, status: str | None = None, cat
         "pending": db.query(Task).filter(Task.status == "pending").count(),
         "rejected": db.query(Task).filter(Task.status == "rejected").count(),
     }
+    advertisers = db.query(User).filter(User.role == "oglasivac").order_by(User.full_name.asc()).all()
     grouped = {"active": [], "pending": [], "rejected": [], "other": []}
     for t in tasks:
         grouped[t.status if t.status in grouped else "other"].append(t)
@@ -4881,10 +4882,66 @@ def admin_campaigns_final_v1110(request: Request, status: str | None = None, cat
         "tasks": tasks,
         "grouped_tasks": grouped,
         "stats": stats,
+        "advertisers": advertisers,
         "categories": KZ119_TASK_CATEGORIES,
         "active_status": status or "",
         "active_category": category or "",
     })
+
+@app.post("/admin/kampanje/novo")
+def admin_campaign_create_v1110(
+    request: Request,
+    title: str = Form(...),
+    category: str = Form("Promo"),
+    task_type: str = Form("visit_site"),
+    target_url: str = Form("/"),
+    description: str = Form(""),
+    instructions: str = Form(""),
+    proof_required: str = Form("Pošaljite kratak dokaz o izvršenju."),
+    example_proof: str = Form(""),
+    reward_rsd: float = Form(50),
+    total_slots: int = Form(50),
+    estimated_minutes: int = Form(5),
+    target_city: str = Form(""),
+    target_age_group: str = Form(""),
+    target_interests: str = Form(""),
+    min_user_level: str = Form("Bronza"),
+    proof_file_required: str = Form(""),
+    featured: str = Form(""),
+    status: str = Form("pending"),
+    advertiser_id: int = Form(0),
+    db: Session = Depends(get_db),
+):
+    admin = require(request, db)
+    check_role(admin, ["admin"])
+    advertiser = None
+    if advertiser_id:
+        advertiser = db.query(User).filter(User.id == advertiser_id, User.role == "oglasivac").first()
+    task = Task(
+        advertiser_id=advertiser.id if advertiser else admin.id,
+        title=title.strip(),
+        category=category.strip() or "Promo",
+        task_type=task_type.strip() or "visit_site",
+        target_url=target_url.strip() or "/",
+        description=description.strip() or "Kampanja kreirana iz admin panela.",
+        instructions=instructions.strip() or "Pratite instrukcije i pošaljite dokaz.",
+        proof_required=proof_required.strip() or "Pošaljite dokaz.",
+        example_proof=example_proof.strip() or None,
+        reward_rsd=max(1, float(reward_rsd or 1)),
+        total_slots=max(1, int(total_slots or 1)),
+        estimated_minutes=max(1, int(estimated_minutes or 1)),
+        target_city=target_city.strip() or None,
+        target_age_group=target_age_group.strip() or None,
+        target_interests=target_interests.strip() or None,
+        min_user_level=min_user_level.strip() or "Bronza",
+        proof_file_required=bool(proof_file_required),
+        featured=bool(featured),
+        status=status if status in ["active", "pending", "rejected", "paused", "closed", "returned"] else "pending",
+    )
+    db.add(task)
+    audit(db, admin, "admin_task_create", "Task", None, f"{task.title} / status={task.status} / advertiser={advertiser.id if advertiser else 'admin'}")
+    db.commit()
+    return RedirectResponse("/admin/kampanje?msg=created", 303)
 
 @app.get("/admin/reklame-v111", response_class=HTMLResponse)
 def admin_ads_final_v1110(request: Request, db: Session = Depends(get_db)):
