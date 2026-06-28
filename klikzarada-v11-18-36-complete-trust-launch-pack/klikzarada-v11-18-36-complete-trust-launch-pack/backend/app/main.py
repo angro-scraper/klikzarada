@@ -6180,6 +6180,7 @@ def admin_v11_premium_dashboard_v116(request: Request, db: Session = Depends(get
         banners = db.query(PaidAdBannerV111).order_by(PaidAdBannerV111.created_at.desc()).limit(6).all()
     if "PaidPromotionRequestV111" in globals():
         boosts = db.query(PaidPromotionRequestV111).order_by(PaidPromotionRequestV111.created_at.desc()).limit(20).all()
+    admin_dashboard_banner = v11817_active_banner_for_code(db, "admin_dashboard_banner") if "v11817_active_banner_for_code" in globals() else None
     automation_summary = {
         "auto_approved": db.query(AutoEngineLogV114).filter(AutoEngineLogV114.event_type == "submission_auto_approved").count(),
         "auto_rejected": db.query(AutoEngineLogV114).filter(AutoEngineLogV114.event_type == "submission_auto_rejected").count(),
@@ -6242,6 +6243,7 @@ def admin_v11_premium_dashboard_v116(request: Request, db: Session = Depends(get
         "latest_withdrawals": pending_withdrawals[:8],
         "banners": banners[:6],
         "boosts": boosts[:6],
+        "admin_dashboard_banner": admin_dashboard_banner,
         "automation_summary": automation_summary,
         "dashboard_mix": dashboard_mix,
         "proof_mix": proof_mix,
@@ -6609,7 +6611,7 @@ def v11814_withdrawal_request(request: Request, amount_rsd: float = Form(0), met
     return RedirectResponse(f"/korisnik/isplate?msg={status}", status_code=303)
 
 
-# V11.18.15 function-only: 9 banner slots on homepage
+# V11.18.15 function-only: homepage and dashboard banner slots
 def v11815_banner_slot_definitions():
     return [
         ("home_top_left", "Početna — gornji levi premium banner", "home_top", "half", 5000),
@@ -6619,6 +6621,7 @@ def v11815_banner_slot_definitions():
         ("home_sponsor_3", "Početna — sponzorski banner 3", "home_sponsor", "quarter", 3000),
         ("home_sponsor_4", "Početna — sponzorski banner 4", "home_sponsor", "quarter", 3000),
         ("home_dashboard_banner", "Početna — banner ispod isplate", "home_dashboard", "wide", 4500),
+        ("admin_dashboard_banner", "Admin — premium banner za dashboard", "admin_dashboard", "wide", 6500),
         ("home_bottom_1", "Početna — donji banner 1", "home_bottom", "third", 2500),
         ("home_bottom_2", "Početna — donji banner 2", "home_bottom", "third", 2500),
         ("home_bottom_3", "Početna — donji banner 3", "home_bottom", "third", 2500),
@@ -6648,7 +6651,7 @@ def v11815_banner_slots_health(db: Session = Depends(get_db)):
     slots = db.query(HomeBannerSlotV111).filter(HomeBannerSlotV111.code.in_([x[0] for x in v11815_banner_slot_definitions()])).order_by(HomeBannerSlotV111.id.asc()).all()
     return {
         "version": "11.18.15",
-        "expected": 10,
+        "expected": 11,
         "count": len(slots),
         "slots": [{"id": s.id, "code": s.code, "title": s.title, "placement": s.placement, "width_label": s.width_label, "price_rsd": s.price_rsd, "is_active": s.is_active} for s in slots],
     }
@@ -6668,7 +6671,7 @@ def v11815_startup_banner_slots():
 V11817_BANNER_RESERVED_MARK = "[BANNER_RESERVED_PAID]"
 
 def v11817_active_banner_map(db: Session):
-    """Return latest active banner for each of the 9 homepage slot codes."""
+    """Return latest active banner for each configured public/admin slot code."""
     if "v11815_ensure_9_banner_slots" in globals():
         v11815_ensure_9_banner_slots(db)
     expected_codes = [x[0] for x in v11815_banner_slot_definitions()] if "v11815_banner_slot_definitions" in globals() else []
@@ -6684,6 +6687,22 @@ def v11817_active_banner_map(db: Session):
         if banner:
             out[slot.code] = banner
     return out
+
+def v11817_active_banner_for_code(db: Session, slot_code: str):
+    code = (slot_code or "").strip()
+    if not code:
+        return None
+    if "v11815_ensure_9_banner_slots" in globals():
+        v11815_ensure_9_banner_slots(db)
+    slot = db.query(HomeBannerSlotV111).filter(HomeBannerSlotV111.code == code).first()
+    if not slot:
+        return None
+    return (
+        db.query(PaidAdBannerV111)
+        .filter(PaidAdBannerV111.slot_id == slot.id, PaidAdBannerV111.status == "active")
+        .order_by(PaidAdBannerV111.created_at.desc())
+        .first()
+    )
 
 def v11817_banner_url(url: str | None):
     url = (url or "/").strip()
@@ -6702,6 +6721,7 @@ def v11818_default_banner_image(slot_code: str | None):
         "home_sponsor_3": "/static/img/banner_home_sponsor_3.svg",
         "home_sponsor_4": "/static/img/banner_home_sponsor_4.svg",
         "home_dashboard_banner": "/static/img/banner_generic.svg",
+        "admin_dashboard_banner": "/static/img/banner_generic.svg",
         "home_bottom_1": "/static/img/banner_home_bottom_1.svg",
         "home_bottom_2": "/static/img/banner_home_bottom_2.svg",
         "home_bottom_3": "/static/img/banner_home_bottom_3.svg",
@@ -6721,6 +6741,8 @@ def v11819_banner_canvas(slot_code: str | None):
         return (900, 300, "sponsor")
     if code in ["home_dashboard_banner"]:
         return (1200, 220, "dashboard")
+    if code in ["admin_dashboard_banner"]:
+        return (1200, 220, "admin-dashboard")
     if code in ["home_bottom_1", "home_bottom_2", "home_bottom_3"]:
         return (900, 260, "bottom")
     return (900, 260, "generic")
@@ -6775,6 +6797,11 @@ def v11819_make_banner_svg(slot_code: str | None, title: str, body: str, cta: st
         ix = width - 250
         iy = 60
     elif kind == "sponsor":
+        title_size, body_size, icon_box = 46, 22, 124
+        tx, ty = 38, 96
+        ix = width - 190
+        iy = 44
+    elif kind == "admin-dashboard":
         title_size, body_size, icon_box = 46, 22, 124
         tx, ty = 38, 96
         ix = width - 190
@@ -7360,6 +7387,8 @@ def v11828_slot_size(slot_code: str | None):
     if code in ["home_sponsor_1", "home_sponsor_2", "home_sponsor_3", "home_sponsor_4"]:
         return 900, 300
     if code in ["home_dashboard_banner"]:
+        return 1200, 220
+    if code in ["admin_dashboard_banner"]:
         return 1200, 220
     if code in ["home_bottom_1", "home_bottom_2", "home_bottom_3"]:
         return 900, 260

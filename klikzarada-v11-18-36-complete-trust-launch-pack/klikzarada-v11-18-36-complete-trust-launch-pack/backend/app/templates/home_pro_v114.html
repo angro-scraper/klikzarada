@@ -43,13 +43,13 @@
 
         {% set dashboard_banner = banner_map.get('home_dashboard_banner') if banner_map else none %}
         <a class="kz114-inline-banner" href="{{ dashboard_banner.target_url if dashboard_banner else '/za-oglasivace' }}">
-          <img src="{{ dashboard_banner.image_url if dashboard_banner and dashboard_banner.image_url else '/static/img/banner_generic.svg' }}" alt="{{ dashboard_banner.title if dashboard_banner else 'Rezerviši banner prostor' }}">
+          <img src="{{ dashboard_banner.image_url if dashboard_banner and dashboard_banner.image_url else '/static/img/banner_generic.svg' }}" alt="{{ dashboard_banner.title if dashboard_banner else 'Premium banner prostor' }}">
           <div>
-            <small>{{ dashboard_banner.slot.title if dashboard_banner and dashboard_banner.slot else 'Reklamni prostor' }}</small>
-            <strong>{{ dashboard_banner.title if dashboard_banner else 'Rezerviši banner prostor' }}</strong>
-            <p>{{ dashboard_banner.body if dashboard_banner and dashboard_banner.body else 'Ovaj prostor je povezan sa admin reklamama i može se podesiti iz panela za reklame.' }}</p>
+            <small>{{ dashboard_banner.slot.title if dashboard_banner and dashboard_banner.slot else 'Premium prostor' }}</small>
+            <strong>{{ dashboard_banner.title if dashboard_banner else 'Pozicioniraj svoj brend u fokusu' }}</strong>
+            <p>{{ dashboard_banner.body if dashboard_banner and dashboard_banner.body else 'Ovaj premium slot je namenjen istaknutim kampanjama, prodajnim porukama i oglasima koje admin kontroliše.' }}</p>
           </div>
-          <span>Podesi u reklamama →</span>
+          <span>Rezerviši prostor →</span>
         </a>
 
         <div class="kz114-mini-stats">

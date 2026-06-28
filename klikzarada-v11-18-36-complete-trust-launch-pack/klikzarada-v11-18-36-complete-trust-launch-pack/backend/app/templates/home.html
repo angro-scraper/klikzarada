@@ -111,11 +111,11 @@
       <a class="dashboard-banner" href="{{ dashboard_banner.target_url if dashboard_banner else '/za-oglasivace' }}">
         <img src="{{ dashboard_banner.image_url if dashboard_banner and dashboard_banner.image_url else '/static/img/banner_generic.svg' }}" alt="{{ dashboard_banner.title if dashboard_banner else 'Rezerviši banner prostor' }}">
         <div>
-          <small>{{ dashboard_banner.slot.title if dashboard_banner and dashboard_banner.slot else 'Reklamni prostor' }}</small>
-          <strong>{{ dashboard_banner.title if dashboard_banner else 'Rezerviši banner prostor' }}</strong>
-          <p>{{ dashboard_banner.body if dashboard_banner and dashboard_banner.body else 'Ovaj prostor je povezan sa admin reklamama i može se podesiti u panelu za reklame.' }}</p>
+          <small>{{ dashboard_banner.slot.title if dashboard_banner and dashboard_banner.slot else 'Premium prostor' }}</small>
+          <strong>{{ dashboard_banner.title if dashboard_banner else 'Pozicioniraj brend u središtu pažnje' }}</strong>
+          <p>{{ dashboard_banner.body if dashboard_banner and dashboard_banner.body else 'Ovaj slot je namenjen premium kampanjama, istaknutim ponudama i direktnom oglasnom prostoru kojim upravlja admin.' }}</p>
         </div>
-        <span>Podesi u reklamama →</span>
+        <span>Rezerviši prostor →</span>
       </a>
     </aside>
   </section>

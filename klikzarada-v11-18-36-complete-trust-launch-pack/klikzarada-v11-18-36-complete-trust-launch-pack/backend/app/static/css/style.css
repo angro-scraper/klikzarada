@@ -11563,6 +11563,61 @@ body.kz1189-home-premium .kz114-inline-banner:hover{
   box-shadow:0 16px 28px rgba(11,103,241,.09)!important;
 }
 
+body.premium-admin .admin-dashboard-banner{
+  display:grid;
+  grid-template-columns:96px 1fr auto;
+  align-items:center;
+  gap:16px;
+  width:100%;
+  margin:18px 0 22px;
+  padding:18px 20px;
+  border:1px solid rgba(45,100,206,.16);
+  border-radius:24px;
+  background:linear-gradient(135deg,#081227,#132a59 55%,#0f172a)!important;
+  color:#fff!important;
+  text-decoration:none!important;
+  box-shadow:0 20px 40px rgba(15,23,42,.12);
+}
+body.premium-admin .admin-dashboard-banner img{
+  width:96px;
+  height:96px;
+  object-fit:cover;
+  border-radius:18px;
+  background:#fff;
+  display:block;
+}
+body.premium-admin .admin-dashboard-banner small{
+  display:block;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:#bfdbfe;
+  margin-bottom:6px;
+}
+body.premium-admin .admin-dashboard-banner strong{
+  display:block;
+  font-size:18px;
+  line-height:1.15;
+  font-weight:1000;
+  color:#fff;
+}
+body.premium-admin .admin-dashboard-banner p{
+  margin:8px 0 0;
+  max-width:520px;
+  color:#dbe7ff;
+  line-height:1.45;
+}
+body.premium-admin .admin-dashboard-banner span{
+  color:#93c5fd;
+  font-weight:1000;
+  white-space:nowrap;
+}
+body.premium-admin .admin-dashboard-banner:hover{
+  transform:translateY(-1px);
+  box-shadow:0 24px 46px rgba(15,23,42,.18);
+}
+
 body.kz1189-home-premium .kz1189-hero .dashboard-card{
   background:linear-gradient(180deg,#f8fbff,#edf3fb)!important;
   color:#071a3f!important;

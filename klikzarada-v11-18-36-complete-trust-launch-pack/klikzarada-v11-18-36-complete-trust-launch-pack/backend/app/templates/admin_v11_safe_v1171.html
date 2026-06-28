@@ -27,6 +27,17 @@
   </div>
 </section>
 
+{% set admin_banner = admin_dashboard_banner if admin_dashboard_banner is defined else none %}
+<a class="premium-card admin-dashboard-banner" href="{{ admin_banner.target_url if admin_banner else '/admin/reklame-v111' }}">
+  <img src="{{ admin_banner.image_url if admin_banner and admin_banner.image_url else '/static/img/banner_generic.svg' }}" alt="{{ admin_banner.title if admin_banner else 'Premium admin dashboard slot' }}">
+  <div>
+    <small>{{ admin_banner.slot.title if admin_banner and admin_banner.slot else 'Prodajni prostor' }}</small>
+    <strong>{{ admin_banner.title if admin_banner else 'Premium prostor za admin dashboard' }}</strong>
+    <p>{{ admin_banner.body if admin_banner and admin_banner.body else 'Poseban oglasni prostor za premium kampanje, ekskluzivne ponude i direktnu vidljivost u admin prikazu.' }}</p>
+  </div>
+  <span>Podesi u reklamama →</span>
+</a>
+
 <section class="premium-stat-grid">
   <article class="blue"><small>Aktivne kampanje</small><strong>{{ stats.active_tasks }}</strong><span>na mreži</span></article>
   <article class="orange"><small>Kampanje na čekanju</small><strong>{{ stats.pending_tasks }}</strong><span>moderacija</span></article>
