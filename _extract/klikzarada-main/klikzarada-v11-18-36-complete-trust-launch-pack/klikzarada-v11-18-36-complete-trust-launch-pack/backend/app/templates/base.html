@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="sr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ title if title else "KlikZarada" }}</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/static/css/style.css?v=11816">
+</head>
+<body class="kz117-public-body{% if extra_body_class %} {{ extra_body_class }}{% endif %}">
+  {% set path = request.url.path if request else '/' %}
+  <header class="kz117-header kz118-public-header">
+    <div class="kz117-nav kz118-nav">
+    <a class="kz117-brand" href="/">
+        <img class="kz117-brand-mark" src="/static/favicon.svg" alt="" style="width:42px;height:42px;flex:0 0 auto;border-radius:13px;display:block;">
+        <span class="kz117-brand-copy" style="display:grid;gap:2px;">
+          <strong>KlikZarada</strong>
+          <small style="display:block;font-size:11px;line-height:1.2;font-weight:800;color:#64748b;">Mikro zadaci · merljivi rezultati</small>
+        </span>
+      </a>
+      <nav class="kz118-public-nav">
+        <a class="{% if path == '/' or path == '/pocetna' %}active{% endif %}" href="/">Početna</a>
+        <a class="{% if path.startswith('/zadaci') %}active{% endif %}" href="/zadaci">Zadaci</a>
+        <a class="{% if path.startswith('/za-korisnike') %}active{% endif %}" href="/za-korisnike">Za korisnike</a>
+        <a class="{% if path.startswith('/za-oglasivace') %}active{% endif %}" href="/za-oglasivace">Za oglašivače</a>
+        <a class="{% if path.startswith('/cenovnik') %}active{% endif %}" href="/cenovnik">Cenovnik</a>
+        <a class="{% if path.startswith('/blog') %}active{% endif %}" href="/blog">Blog</a>
+        <a class="{% if path.startswith('/kontakt') %}active{% endif %}" href="/kontakt">Kontakt</a>
+      </nav>
+      <div class="kz117-actions kz118-actions">
+        {% if user %}
+          <a class="kz117-btn ghost" href="{% if user.role=='admin' %}/admin/v11{% elif user.role=='oglasivac' %}/oglasivac/panel{% else %}/korisnik/panel{% endif %}">Moj panel</a>
+          <a class="kz117-btn outline" href="/logout">Odjava</a>
+        {% else %}
+          <a class="kz117-btn outline" href="/login">Prijava</a>
+          <a class="kz117-btn green" href="/registracija">Registracija</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  {% if flash %}
+    <div class="flash {{ flash[0] }}">{{ flash[1] }}</div>
+  {% endif %}
+
+  <main class="kz117-public-main">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
