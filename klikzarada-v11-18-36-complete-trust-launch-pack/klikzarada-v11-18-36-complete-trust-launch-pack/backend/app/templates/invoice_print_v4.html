@@ -1,0 +1,4 @@
+
+{% extends "base.html" %}{% set title=invoice.invoice_no %}{% block content %}
+<section class="section text-page"><div class="card"><h1>{{ invoice.invoice_type|upper }} {{ invoice.invoice_no }}</h1><p><b>Oglašivač:</b> {{ invoice.advertiser.company_name or invoice.advertiser.full_name }}</p><p><b>Email:</b> {{ invoice.advertiser.email }}</p><p><b>PIB:</b> {{ invoice.advertiser.company_pib or '-' }}</p><p><b>Iznos:</b> {{ "%.0f"|format(invoice.amount_rsd) }} RSD</p><p><b>Status:</b> {{ invoice.status }}</p><p><b>Opis:</b> {{ invoice.description or '' }}</p><p><b>Datum:</b> {{ invoice.issued_at or invoice.created_at }}</p><button onclick="window.print()" class="btn">Štampaj / PDF</button></div></section>
+{% endblock %}

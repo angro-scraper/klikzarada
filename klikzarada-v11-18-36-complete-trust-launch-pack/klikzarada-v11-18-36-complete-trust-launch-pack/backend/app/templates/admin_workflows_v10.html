@@ -1,0 +1,7 @@
+{% extends "app_base.html" %}{% set title="Tok radas V10" %}{% block app_content %}
+<div class="section-heading left"><span>V10 Tok radas</span><h2>Automatizacija tokova rada</h2></div>
+<form class="form-panel" method="post" action="/admin/workflows-v10/template">
+<label>Naziv</label><input name="name" required><label>Okidač</label><input name="trigger_type" value="manual"><label>Opis</label><textarea name="description"></textarea><button class="btn btn-primary">Dodaj workflow</button></form>
+<div class="grid-2"><div class="table-card"><table><thead><tr><th>Tok rada</th><th>Okidač</th><th>Status</th><th>Pokreni</th></tr></thead><tbody>{% for t in templates_ %}<tr><td>{{ t.name }}</td><td>{{ t.trigger_type }}</td><td>{{ t.status }}</td><td><form method="post" action="/admin/workflows-v10/{{ t.id }}/run"><input class="mini-input" name="context" value="Ručno pokretanje"><button class="btn btn-mini btn-primary">Pokreni</button></form></td></tr>{% endfor %}</tbody></table></div>
+<div class="table-card"><table><thead><tr><th>Pokreni</th><th>Tok rada</th><th>Status</th><th>Context</th></tr></thead><tbody>{% for r in runs %}<tr><td>#{{ r.id }}</td><td>{{ r.template.name }}</td><td><span class="status status-{{ r.status }}">{{ r.status }}</span></td><td>{{ r.context or "" }}</td></tr>{% else %}<tr><td colspan="4">Nema runova.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

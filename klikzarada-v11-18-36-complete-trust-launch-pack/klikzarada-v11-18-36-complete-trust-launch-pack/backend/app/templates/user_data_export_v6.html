@@ -1,0 +1,10 @@
+{% extends "app_base.html" %}
+{% set title = "Export podataka - KlikZarada" %}
+{% block app_content %}
+<div class="section-heading left"><span>V6 Data Rights</span><h2>Export mojih podataka</h2></div>
+<form class="form-panel" method="post" action="/korisnik/export-podataka">
+  <label>Format</label><select name="export_format"><option value="csv">CSV</option><option value="json">JSON</option></select>
+  <button class="btn btn-primary" type="submit">Zatraži export</button>
+</form>
+<div class="table-card"><table><thead><tr><th>Format</th><th>Status</th><th>Napomena</th><th>Datum</th></tr></thead><tbody>{% for r in requests %}<tr><td>{{ r.export_format }}</td><td><span class="status status-{{ r.status }}">{{ r.status }}</span></td><td>{{ r.admin_note or "" }}</td><td>{{ r.created_at }}</td></tr>{% else %}<tr><td colspan="4">Nema zahteva.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

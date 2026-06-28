@@ -1,0 +1,11 @@
+{% extends "app_base.html" %}
+{% set title = "Tim - Oglašivač" %}
+{% block app_content %}
+<div class="section-heading left"><span>V6 Team</span><h2>Tim oglašivača</h2></div>
+<form class="form-panel" method="post" action="/oglasivac/tim/novi">
+  <div class="form-grid"><div><label>Ime</label><input name="full_name" required></div><div><label>Email</label><input type="email" name="email" required></div></div>
+  <label>Uloga</label><select name="role"><option value="manager">Manager</option><option value="finance">Finance</option><option value="viewer">Viewer</option></select>
+  <button class="btn btn-primary">Dodaj člana tima</button>
+</form>
+<div class="table-card"><table><thead><tr><th>Ime</th><th>Email</th><th>Uloga</th><th>Status</th><th>Akcija</th></tr></thead><tbody>{% for m in members %}<tr><td>{{ m.full_name }}</td><td>{{ m.email }}</td><td>{{ m.role }}</td><td>{{ "aktivno" if m.is_aktivno else "inaktivno" }}</td><td><form method="post" action="/oglasivac/tim/{{ m.id }}/toggle"><button class="btn btn-mini btn-ghost">Toggle</button></form></td></tr>{% else %}<tr><td colspan="5">Nema članova.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

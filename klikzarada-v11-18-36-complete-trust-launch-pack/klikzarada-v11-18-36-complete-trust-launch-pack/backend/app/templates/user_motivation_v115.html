@@ -1,0 +1,100 @@
+{% extends "app_base.html" %}
+{% set title = "Motivacija - KlikZarada" %}
+{% block app_content %}
+<section class="kz115-hero user compact">
+  <div>
+    <span>MOTIVACIJA</span>
+    <h1>Tvoj status, bedževi i dnevne nagrade</h1>
+    <p>Što si pouzdaniji, dobijaš bolje zadatke, više prioriteta i posebne misije. Sve je pregledno i bez grešaka u rasporedu.</p>
+  </div>
+  <div class="kz115-hero-actions">
+    <form method="post" action="/korisnik/dnevna-nagrada-v115"><button class="btn btn-primary">Preuzmi dnevnu nagradu</button></form>
+    <a class="btn btn-secondary" href="/korisnik/panel">Nazad na panel</a>
+  </div>
+</section>
+
+<div class="kz-user-dashboard-grid motivation-top">
+  <section class="kz-user-main-card slim">
+    <div class="kz-user-main-inner">
+      <p class="muted-title">Tvoj status</p>
+      <div class="kz-motivation-status-row">
+        <div>
+          <strong>{{ score.status_name }}</strong>
+          <span>{{ score.level_name }}</span>
+          <small>{{ score.total_points }} poena · {{ score.streak_days }} dana streak</small>
+        </div>
+        <div class="kz-motivation-badge-big">🏆</div>
+      </div>
+      <div class="kz115-meter-wrap">
+        <label>Quality score {{ "%.1f"|format(score.quality_score) }}</label>
+        <div class="kz115-meter"><i style="width:{{ score.quality_score }}%"></i></div>
+        <label>Risk score {{ "%.1f"|format(score.risk_score) }}</label>
+        <div class="kz115-meter risk"><i style="width:{{ score.risk_score }}%"></i></div>
+      </div>
+    </div>
+  </section>
+  <aside class="kz-user-side-card">
+    <div class="kz-user-safe-box">🎁 Dnevna nagrada i misije</div>
+    <h2>Brzi pregled</h2>
+    <div class="kz-user-recent-list compact">
+      <article><div><b>Bedževi</b><small>osvojeno</small></div><strong>{{ badges|length }}</strong></article>
+      <article><div><b>Aktivne misije</b><small>u toku</small></div><strong>{{ missions|length }}</strong></article>
+      <article><div><b>Nagrade</b><small>preuzeto</small></div><strong>{{ rewards|length }}</strong></article>
+    </div>
+  </aside>
+</div>
+
+<div class="kz-user-content-grid">
+  <div>
+    <section class="kz115-section">
+      <div class="kz115-head"><h2>Dnevne misije</h2><span>{{ missions|length }}</span></div>
+      <div class="kz115-mission-list">
+        {% for m in missions %}
+        <article>
+          <div><b>{{ m.title }}</b><p>{{ m.description }}</p></div>
+          <div class="progress"><span>{{ m.current_count }}/{{ m.target_count }}</span><div><i style="width:{{ (m.current_count / m.target_count * 100) if m.target_count else 0 }}%"></i></div><small>+{{ m.reward_points }} poena{% if m.reward_rsd %} · {{ "%.0f"|format(m.reward_rsd) }} RSD{% endif %}</small></div>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="kz115-section">
+      <div class="kz115-head"><h2>Leaderboard</h2><span>top 10</span></div>
+      <div class="kz115-leaderboard">
+        {% for s in leaderboard %}
+        <article><span>#{{ loop.index }}</span><div><b>{{ s.user.full_name }}</b><small>{{ "%.1f"|format(s.quality_score) }} quality · {{ s.total_points }} poena</small></div></article>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+
+  <aside>
+    <section class="kz115-section">
+      <div class="kz115-head"><h2>Bedževi</h2><span>{{ badges|length }}</span></div>
+      <div class="kz115-badge-grid single-col">
+        {% for b in all_badges %}
+        <article class="{% if not b.earned %}locked{% endif %}"><strong>{{ b.icon }}</strong><b>{{ b.title }}</b><p>{{ b.description }}</p><small>{% if b.earned %}Osvojeno{% else %}Zaključano{% endif %}</small></article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="kz115-section">
+      <div class="kz115-head"><h2>Nedavni zadaci</h2><span>{{ recent_tasks|length }}</span></div>
+      <div class="kz-user-recent-list">
+        {% for t in recent_tasks %}
+        <article><div><b>{{ t.title }}</b><small>{{ t.category }}</small></div><strong>+{{ "%.0f"|format(t.reward_rsd) }} RSD</strong></article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="kz115-section">
+      <div class="kz115-head"><h2>Statusi korisnika</h2><span>{{ statuses|length }}</span></div>
+      <div class="kz115-status-list">
+        {% for st in statuses %}
+        <article><b>{{ st.name }}</b><p>{{ st.desc }}</p></article>
+        {% endfor %}
+      </div>
+    </section>
+  </aside>
+</div>
+{% endblock %}

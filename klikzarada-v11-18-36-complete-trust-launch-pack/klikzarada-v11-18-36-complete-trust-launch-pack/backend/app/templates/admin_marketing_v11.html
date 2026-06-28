@@ -1,0 +1,5 @@
+{% extends "app_base.html" %}{% set title="Marketing V11" %}{% block app_content %}
+<div class="section-heading left"><span>V11 Marketing Pages</span><h2>Javne landing stranice</h2></div>
+<form class="form-panel" method="post" action="/admin/marketing-v11/page"><label>Slug</label><input name="slug" required><label>Title</label><input name="title" required><label>Headline</label><input name="headline" required><label>Body</label><textarea name="body" required></textarea><div class="form-grid"><div><label>CTA text</label><input name="cta_text" value="Registracija"></div><div><label>CTA URL</label><input name="cta_url" value="/registracija"></div></div><button class="btn btn-primary">Sačuvaj landing</button></form>
+<div class="grid-3">{% for p in pages %}<div class="info-card"><span class="pill">{{ p.slug }}</span><h3>{{ p.title }}</h3><p>{{ p.headline }}</p><a class="btn btn-mini btn-primary" href="/lp/{{ p.slug }}">Otvori</a></div>{% endfor %}</div>
+{% endblock %}

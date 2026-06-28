@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% set title = category.title ~ " - KlikZarada" %}
+{% block content %}
+<section class="kz119-page-hero compact">
+  <div>
+    <span class="kz119-eyebrow">{{ category.title }}</span>
+    <h1>{{ category.icon }} {{ category.title }}</h1>
+    <p>{{ category.description }}</p>
+    <div class="kz119-actions">
+      <a class="kz119-btn outline" href="/zadaci">Sve kategorije</a>
+      <a class="kz119-btn green" href="/registracija">Registracija</a>
+    </div>
+  </div>
+  <div class="kz119-hero-panel"><strong>{{ tasks|length }}</strong><span>zadataka u kategoriji</span></div>
+</section>
+<section class="kz119-task-grid wide">
+  {% for t in tasks %}
+  <article class="kz119-task-card">
+    <span class="kz119-tag">{{ t.category }} · {{ t.task_type }}</span>
+    <h3>{{ t.title }}</h3>
+    <p>{{ t.description }}</p>
+    <div class="kz119-task-footer"><strong>{{ "%.0f"|format(t.reward_rsd) }} RSD</strong><a class="kz119-btn blue small" href="/zadaci/{{ t.id }}">Detalji</a></div>
+  </article>
+  {% else %}
+  <div class="kz119-empty"><h3>Trenutno nema zadataka</h3><p>Ova kategorija je spremna za buduće zadatke.</p></div>
+  {% endfor %}
+</section>
+{% endblock %}

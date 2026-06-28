@@ -1,0 +1,6 @@
+{% extends "app_base.html" %}
+{% set title = "Plaćanjes V8 - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>Plaćanjes</span><h2>Potvrda dopuna budžeta</h2></div>
+<div class="table-card"><table><thead><tr><th>Ref</th><th>Oglašivač</th><th>Iznos</th><th>Status</th><th>Akcije</th></tr></thead><tbody>{% for i in intents %}<tr><td>{{ i.reference }}</td><td>{{ i.advertiser.full_name }}</td><td>{{ "%.0f"|format(i.amount_rsd) }} RSD</td><td><span class="status status-{{ i.status }}">{{ i.status }}</span></td><td class="actions">{% if i.status == "na čekanju" %}<form method="post" action="/admin/payments-v8/{{ i.id }}/confirm"><input class="mini-input" name="admin_note" placeholder="note"><button class="btn btn-mini btn-primary">Confirm</button></form><form method="post" action="/admin/payments-v8/{{ i.id }}/reject"><input class="mini-input" name="admin_note" placeholder="reason"><button class="btn btn-mini btn-danger">Reject</button></form>{% endif %}</td></tr>{% else %}<tr><td colspan="5">Nema zahteva.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

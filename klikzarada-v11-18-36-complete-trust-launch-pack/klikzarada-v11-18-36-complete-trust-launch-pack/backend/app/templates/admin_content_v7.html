@@ -1,0 +1,7 @@
+{% extends "app_base.html" %}
+{% set title = "Content CMS - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>V7 CMS</span><h2>Content stranice</h2></div>
+<form class="form-panel" method="post" action="/admin/content/save"><div class="form-grid"><div><label>Slug</label><input name="slug" required></div><div><label>Status</label><select name="status"><option>draft</option><option>published</option></select></div></div><label>Naslov</label><input name="title" required><label>Body</label><textarea name="body" required></textarea><div class="form-grid"><div><label>SEO title</label><input name="seo_title"></div><div><label>SEO description</label><input name="seo_description"></div></div><button class="btn btn-primary">Sačuvaj</button></form>
+<div class="table-card"><table><thead><tr><th>Slug</th><th>Naslov</th><th>Status</th><th>Javni link</th><th>Updated</th></tr></thead><tbody>{% for p in pages %}<tr><td>{{ p.slug }}</td><td>{{ p.title }}</td><td><span class="status status-{{ p.status }}">{{ p.status }}</span></td><td>{% if p.status == "published" %}<a href="/strana/{{ p.slug }}">Otvori</a>{% endif %}</td><td>{{ p.updated_at }}</td></tr>{% else %}<tr><td colspan="5">Nema stranica.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

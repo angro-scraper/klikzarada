@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% set title = "Zadaci - KlikZarada" %}
+{% block content %}
+<section class="kz119-page-hero">
+  <div>
+    <span class="kz119-eyebrow">ZADACI</span>
+    <h1>Zadaci razvrstani po kategorijama</h1>
+    <p>Kada bude mnogo zadataka, korisnici neće listati beskonačno. Sve je podeljeno po kategorijama, sa pretragom i istaknutim zadacima.</p>
+    <div class="kz119-actions">
+      <a class="kz119-btn green" href="/registracija">Počni da zarađuješ</a>
+      <a class="kz119-btn outline" href="/za-korisnike">Kako funkcioniše</a>
+    </div>
+  </div>
+  <div class="kz119-hero-panel">
+    <strong>{{ tasks|length }}</strong>
+    <span>prikazanih zadataka</span>
+    <small>{{ categories|length }} kategorija</small>
+  </div>
+</section>
+
+<section class="kz119-filter">
+  <form method="get" action="/zadaci">
+    <div>
+      <label>Pretraga</label>
+      <input name="q" value="{{ q }}" placeholder="Pretraži po nazivu, opisu ili tipu zadatka">
+    </div>
+    <div>
+      <label>Kategorija</label>
+      <select name="category">
+        <option value="">Sve kategorije</option>
+        {% for c in categories %}
+          <option value="{{ c.slug }}" {% if active_category == c.slug %}selected{% endif %}>{{ c.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="kz119-btn blue">Pretraži</button>
+  </form>
+</section>
+
+<section class="kz119-category-grid">
+  {% for c in categories %}
+  <a class="kz119-category-card" href="/zadaci-kategorija/{{ c.slug }}">
+    <div class="kz119-category-icon">{{ c.icon }}</div>
+    <strong>{{ c.title }}</strong>
+    <p>{{ c.description }}</p>
+    <span>{{ counts[c.slug] if counts else 0 }} zadataka</span>
+  </a>
+  {% endfor %}
+</section>
+
+<section class="kz119-content-grid">
+  <div>
+    <div class="kz119-section-head">
+      <h2>Lista zadataka</h2>
+      <a href="/zadaci">Reset filtera</a>
+    </div>
+    <div class="kz119-task-grid">
+      {% for t in tasks %}
+      <article class="kz119-task-card">
+        <div>
+          <span class="kz119-tag">{{ t.category }} · {{ t.task_type }} · {{ t.estimated_minutes }} min</span>
+          <h3>{{ t.title }}</h3>
+          <p>{{ t.description }}</p>
+          <div class="kz119-meta">
+            <span>Cilj: {{ t.targeting or "Srbija" }}</span>
+            <span>Mesta: {{ t.total_slots }}</span>
+          </div>
+        </div>
+        <div class="kz119-task-footer">
+          <strong>{{ "%.0f"|format(t.reward_rsd) }} RSD</strong>
+          <a class="kz119-btn blue small" href="/zadaci/{{ t.id }}">Detalji</a>
+        </div>
+      </article>
+      {% else %}
+      <div class="kz119-empty">
+        <h3>Nema zadataka za ovaj filter</h3>
+        <p>Probajte drugu kategoriju ili resetujte filtere.</p>
+        <a class="kz119-btn outline" href="/zadaci">Svi zadaci</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <aside class="kz119-side-panel">
+    <h2>Istaknuti zadaci</h2>
+    {% for t in featured %}
+    <a href="/zadaci/{{ t.id }}">
+      <span>{{ t.category }}</span>
+      <strong>{{ t.title }}</strong>
+      <small>{{ "%.0f"|format(t.reward_rsd) }} RSD</small>
+    </a>
+    {% endfor %}
+  </aside>
+</section>
+{% endblock %}

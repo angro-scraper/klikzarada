@@ -1,0 +1,17 @@
+{% extends "app_base.html" %}
+{% set title = "Scale V5 - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>V5 Scale</span><h2>Scale & Automation Kontrolna tabla</h2></div>
+<div class="stats small in-app-stats">
+  <div class="stat-card"><strong>{{ plans|length }}</strong><span>planova</span></div>
+  <div class="stat-card"><strong>{{ segments }}</strong><span>segmenata</span></div>
+  <div class="stat-card"><strong>{{ api_keys }}</strong><span>API ključeva</span></div>
+  <div class="stat-card"><strong>{{ automation_rules }}</strong><span>pravila</span></div>
+  <div class="stat-card"><strong>{{ disputes_open }}</strong><span>otvorenih prigovora</span></div>
+</div>
+<div class="grid-3">
+  <div class="panel"><h2>API</h2><p>Javni i oglašivački JSON API za integracije.</p><a class="btn btn-primary" href="/admin/api-kljucevi">API ključevi</a></div>
+  <div class="panel panel-purple"><h2>Planovi</h2><p>Start, Pro i Business paketi za monetizaciju oglašivača.</p><a class="btn btn-primary" href="/admin/planovi">Planovi</a></div>
+  <div class="panel panel-green"><h2>Automatizacija</h2><p>Pravila za upozorenja, prioritete i operativne procese.</p><a class="btn btn-primary" href="/admin/automatizacija">Automatizacija</a></div>
+</div>
+{% endblock %}

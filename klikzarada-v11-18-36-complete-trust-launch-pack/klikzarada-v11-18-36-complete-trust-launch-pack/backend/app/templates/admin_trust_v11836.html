@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="max-width:1240px;margin:24px auto;padding:0 16px;">
+  <h1>Trust / KYC / Fraud</h1>
+  <p style="color:#64748b;">KYC status, risk score, quality score i verifikacija korisnika za isplate.</p>
+  <div style="background:#fff;border:1px solid #d8e5f5;border-radius:16px;overflow:hidden;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead style="background:#f8fafc;"><tr><th style="padding:12px;text-align:left;">Korisnik</th><th>KYC</th><th>Risk</th><th>Quality</th><th>Status</th><th>Level</th><th>Akcija</th></tr></thead>
+      <tbody>
+      {% for r in rows %}
+        <tr style="border-top:1px solid #e5edf7;">
+          <td style="padding:10px 12px;"><b>{{ r.user.full_name }}</b><br><small>{{ r.user.email }}</small></td>
+          <td style="padding:10px 12px;">{{ r.kyc }}</td>
+          <td style="padding:10px 12px;font-weight:900;">{{ r.risk.risk_score }}</td>
+          <td style="padding:10px 12px;">{{ r.risk.quality_score }}</td>
+          <td style="padding:10px 12px;">{{ r.risk.status }}</td>
+          <td style="padding:10px 12px;">{{ r.risk.level }}</td>
+          <td style="padding:10px 12px;text-align:right;">
+            <form method="post" action="/admin/trust-v11836/users/{{ r.user.id }}/verify">
+              <button style="background:#0b67f1;color:#fff;border:0;border-radius:10px;padding:8px 12px;font-weight:800;">Verifikuj</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

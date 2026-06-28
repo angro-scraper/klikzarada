@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% set title = "Cenovnik - KlikZarada" %}
+{% set extra_body_class = "kz1189-campaign-premium" %}
+{% block content %}
+<section class="kz117-page-hero compact">
+  <div>
+    <span class="kz117-eyebrow">CENOVNIK</span>
+    <h1>Jasan model naplate, zarade i rasta</h1>
+    <p>Oglašivači plaćaju samo ono što donosi rezultat. Korisnici dobijaju fer nagradu, a platforma uzima svoj deo za automatizaciju, kontrolu i antifiksni radni tok.</p>
+    <div class="kz117-hero-actions">
+      <a class="kz117-btn blue" href="/registracija?role=oglasivac">Pokreni kampanju</a>
+      <a class="kz117-btn outline" href="/oglasivac/promocija-v111">Baner reklame</a>
+    </div>
+  </div>
+  <div class="kz117-check-card">
+    <h3>Brza ekonomija</h3>
+    <ul>
+      <li>{{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}% provizije platforme</li>
+      <li>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}% ide korisnicima</li>
+      <li>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD minimalna isplata</li>
+      <li>Baneri, top pozicije i zadaci imaju odvojene cene</li>
+    </ul>
+  </div>
+</section>
+
+<section class="kz117-grid-3">
+  <div class="kz117-price-card">
+    <h3>Platforma</h3>
+    <strong>{{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}%</strong>
+    <p>Provizija platforme na validne kampanje i rad sistema.</p>
+    <span>Transparentno i menjivo iz admina</span>
+  </div>
+  <div class="kz117-price-card">
+    <h3>Korisnici</h3>
+    <strong>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}%</strong>
+    <p>Udeo koji ide korisnicima nakon odobrenja zadatka.</p>
+    <span>Brza isplata za proverene naloge</span>
+  </div>
+  <div class="kz117-price-card">
+    <h3>Isplata</h3>
+    <strong>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD</strong>
+    <p>Minimalni prag isplate za korisnike.</p>
+    <span>Zaštita od previše mikro transakcija</span>
+  </div>
+</section>
+
+<section class="kz117-page-hero compact" style="margin-top:18px">
+  <div>
+    <span class="kz117-eyebrow">BANNER PAKETI</span>
+    <h1>Koliko košta prava vidljivost</h1>
+    <p>Najvidljiviji format je veliki banner na početnoj, zatim srednji slot i top pozicija za kampanje koje žele dodatni domet i bolji CTR.</p>
+  </div>
+  <div class="kz117-check-card">
+    <h3>Najtraženije opcije</h3>
+    <ul>
+      <li>Veliki banner: od {{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }} RSD / dan</li>
+      <li>Srednji banner: od {{ "%.0f"|format(pricing_summary.banner_mid_day if pricing_summary is defined else 785) }} RSD / dan</li>
+      <li>Top pozicija: od {{ "%.0f"|format(pricing_summary.boost_top_3d if pricing_summary is defined else 2500) }} RSD / 3 dana</li>
+      <li>Validno gledanje: {{ "%.0f"|format(pricing_summary.ad_view_cost_rsd if pricing_summary is defined else 8) }} RSD po prikazu</li>
+    </ul>
+  </div>
+</section>
+
+<section class="kz117-grid-3">
+  <div class="kz117-feature">
+    <h3>Šta plaćaš</h3>
+    <p>Plaćaš prikaz, isticanje ili top poziciju samo onda kada to donosi merljiv rezultat.</p>
+    <span>Bez skrivenih stavki</span>
+  </div>
+  <div class="kz117-feature">
+    <h3>Šta dobija korisnik</h3>
+    <p>Korisnik vidi jasnu nagradu po zadatku, a platforma lako vodi automatsku obradu i proveru.</p>
+    <span>Fer raspodela</span>
+  </div>
+  <div class="kz117-feature">
+    <h3>Šta dobija admin</h3>
+    <p>Manje ručnog rada jer su cene, provizije i banner tokovi centralizovani u jednom panelu.</p>
+    <span>Brža kontrola</span>
+  </div>
+</section>
+
+<section class="kz117-grid-3">
+  {% for pkg in banner_packages %}
+  <div class="kz117-feature">
+    <h3>{{ pkg.title }}</h3>
+    <p>{{ pkg.desc }}</p>
+    <span>{{ pkg.price }}</span>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="kz117-grid-3">
+  {% for band in task_price_ranges %}
+  <div class="kz117-feature">
+    <h3>{{ band.label }}</h3>
+    <p>{{ band.desc }}</p>
+    <span>{{ band.reward }}</span>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="kz117-page-hero compact" style="margin-top:18px">
+  <div>
+    <span class="kz117-eyebrow">ADMIN KONTROLA</span>
+    <h1>Sve cene na jednom mestu</h1>
+    <p>Platforma koristi isti cenovnik kroz javni deo, banner prodaju i administraciju. Tako nema ručnog prepisivanja, a prikaz ostaje isti svuda.</p>
+  </div>
+  <div class="kz117-check-card">
+    <h3>Brza akcija</h3>
+    <ul>
+      <li><a href="/registracija?role=oglasivac">Pokreni kampanju</a></li>
+      <li><a href="/oglasivac/promocija-v111">Postavi banner</a></li>
+      <li><a href="/admin/cene-v111">Uredi cene kao admin</a></li>
+      <li><a href="/admin/promocija-v111">Pogledaj reklame u adminu</a></li>
+    </ul>
+  </div>
+</section>
+
+<section class="kz117-grid-3">
+  {% for p in prices %}
+  <div class="kz117-price-card">
+    <h3>{{ p.title }}</h3>
+    <strong>{% if p.value_percent %}{{ p.value_percent }}%{% else %}{{ "%.0f"|format(p.value_rsd) }} RSD{% endif %}</strong>
+    <p>{{ p.description or "" }}</p>
+    <span>{{ p.key }}</span>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

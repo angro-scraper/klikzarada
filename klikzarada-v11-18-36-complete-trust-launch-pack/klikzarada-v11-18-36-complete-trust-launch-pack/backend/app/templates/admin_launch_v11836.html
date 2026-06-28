@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="max-width:960px;margin:24px auto;padding:0 16px;">
+  <h1>Launch checklist</h1>
+  <p style="color:#64748b;">Kontrola spremnosti pre ozbiljnog puštanja platforme.</p>
+  <div style="background:#fff;border:1px solid #d8e5f5;border-radius:16px;padding:16px;margin-bottom:14px;">
+    <h2>Status: {{ 'READY' if checklist.ready else 'NOT READY' }}</h2>
+  </div>
+  {% for c in checklist.checks %}
+    <div style="background:#fff;border:1px solid {{ '#bbf7d0' if c.ok else '#fecaca' }};border-radius:14px;padding:14px;margin-bottom:10px;">
+      <b>{{ '✅' if c.ok else '❌' }} {{ c.title }}</b><br>
+      <small style="color:#64748b;">{{ c.detail }}</small>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

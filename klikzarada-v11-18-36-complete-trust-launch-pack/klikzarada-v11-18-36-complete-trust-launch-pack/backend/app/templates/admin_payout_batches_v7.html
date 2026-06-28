@@ -1,0 +1,9 @@
+{% extends "app_base.html" %}
+{% set title = "Batch isplate - Admin" %}
+{% block app_content %}
+<div class="dashboard-head in-app"><div><span class="pill">V7 Isplatas</span><h1>Batch isplate</h1><p>Grupisanje na čekanju isplata u jedan batch.</p></div><form method="post" action="/admin/payout-batches/create"><input name="title" value="Batch isplate"><button class="btn btn-primary">Napravi batch od na čekanju isplata</button></form></div>
+<div class="grid-2">
+<div><div class="section-heading left"><span>Batch</span><h2>Batch lista</h2></div><div class="table-card"><table><thead><tr><th>Naslov</th><th>Status</th><th>Ukupno</th><th>Akcija</th></tr></thead><tbody>{% for b in batches %}<tr><td>{{ b.title }}</td><td><span class="status status-{{ b.status }}">{{ b.status }}</span></td><td>{{ "%.0f"|format(b.total_amount_rsd) }} RSD</td><td>{% if b.status != "paid" %}<form method="post" action="/admin/payout-batches/{{ b.id }}/paid"><button class="btn btn-mini btn-primary">Označi plaćeno</button></form>{% endif %}</td></tr>{% else %}<tr><td colspan="4">Nema batch-eva.</td></tr>{% endfor %}</tbody></table></div></div>
+<div><div class="section-heading left"><span>Pending</span><h2>Pending isplate</h2></div><div class="table-card"><table><thead><tr><th>Korisnik</th><th>Iznos</th><th>Metod</th></tr></thead><tbody>{% for w in na čekanju %}<tr><td>{{ w.user.full_name }}</td><td>{{ "%.0f"|format(w.amount_rsd) }} RSD</td><td>{{ w.payment_method }}</td></tr>{% else %}<tr><td colspan="3">Nema na čekanju isplata.</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+{% endblock %}

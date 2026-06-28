@@ -1,0 +1,102 @@
+{% extends "app_base.html" %}
+{% set title = "Kampanje - Admin" %}
+{% block app_content %}
+<section class="kz1110-hero">
+  <div>
+    <span>KAMPANJE</span>
+    <h1>Pregled kampanja</h1>
+    <p>Kampanje su razvrstane po statusu i prikazane u karticama. Akcije su kompaktne i čitljive.</p>
+  </div>
+  <div class="kz1110-hero-actions">
+    <a class="btn btn-primary" href="/oglasivac/nova-kampanja">Nova kampanja</a>
+    <a class="btn btn-secondary" href="/admin/mapa-platforme">Mapa platforme</a>
+  </div>
+</section>
+
+<section class="kz1110-stat-grid">
+  <a href="/admin/kampanje" class="kz1110-stat"><small>Ukupno</small><strong>{{ stats.all }}</strong><span>kampanja</span></a>
+  <a href="/admin/kampanje?status=active" class="kz1110-stat"><small>Aktivne</small><strong>{{ stats.active }}</strong><span>u radu</span></a>
+  <a href="/admin/kampanje?status=pending" class="kz1110-stat"><small>Na čekanju</small><strong>{{ stats.pending }}</strong><span>moderacija</span></a>
+  <a href="/admin/kampanje?status=rejected" class="kz1110-stat"><small>Odbijene</small><strong>{{ stats.rejected }}</strong><span>arhiva</span></a>
+</section>
+
+<section class="kz1110-filter-card">
+  <form method="get" action="/admin/kampanje">
+    <div>
+      <label>Status</label>
+      <select name="status">
+        <option value="">Svi statusi</option>
+        <option value="active" {% if active_status=="active" %}selected{% endif %}>Aktivno</option>
+        <option value="pending" {% if active_status=="pending" %}selected{% endif %}>Na čekanju</option>
+        <option value="rejected" {% if active_status=="rejected" %}selected{% endif %}>Odbijeno</option>
+      </select>
+    </div>
+    <div>
+      <label>Kategorija</label>
+      <select name="category">
+        <option value="">Sve kategorije</option>
+        {% for c in categories %}
+          <option value="{{ c.slug }}" {% if active_category==c.slug %}selected{% endif %}>{{ c.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-primary">Filtriraj</button>
+    <a class="btn btn-secondary" href="/admin/kampanje">Reset</a>
+  </form>
+</section>
+
+<section class="kz1110-section">
+  <div class="kz1110-section-head">
+    <h2>Sve kampanje</h2>
+    <span>{{ tasks|length }} prikazano</span>
+  </div>
+
+  <div class="kz1110-campaign-grid">
+    {% for t in tasks %}
+    <article class="kz1110-campaign-card">
+      <div class="kz1110-card-top">
+        <span class="status status-{{ t.status }}">{{ t.status }}</span>
+        <strong>{{ "%.0f"|format(t.reward_rsd * t.total_slots * 1.2) }} RSD</strong>
+      </div>
+
+      <h3>{{ t.title }}</h3>
+      <p>{{ t.category }} · {{ t.task_type }}</p>
+
+      <div class="kz1110-card-meta">
+        <div><small>Oglašivač</small><b>{{ t.advertiser.full_name if t.advertiser else "Demo oglašivač" }}</b></div>
+        <div><small>Nagrada</small><b>{{ "%.0f"|format(t.reward_rsd) }} RSD</b></div>
+        <div><small>Mesta</small><b>{{ t.total_slots }}</b></div>
+      </div>
+
+      <div class="kz1110-actions-compact">
+        <form method="post" action="/admin/tasks/{{ t.id }}/active"><button class="btn btn-mini btn-primary">Aktiviraj</button></form>
+        <form method="post" action="/admin/tasks/{{ t.id }}/returned"><button class="btn btn-mini btn-secondary">Vrati</button></form>
+        <form method="post" action="/admin/tasks/{{ t.id }}/rejected"><button class="btn btn-mini btn-danger">Odbij</button></form>
+        <form method="post" action="/admin/tasks/{{ t.id }}/paused"><button class="btn btn-mini btn-secondary">Pauziraj</button></form>
+        <form method="post" action="/admin/tasks/{{ t.id }}/feature"><button class="btn btn-mini btn-primary">Istakni</button></form>
+      </div>
+    </article>
+    {% else %}
+    <div class="kz1110-empty">
+      <h3>Nema kampanja</h3>
+      <p>Za izabrani filter nema rezultata.</p>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="kz1110-section">
+  <div class="kz1110-section-head">
+    <h2>Kategorije za budući veliki broj zadataka</h2>
+    <span>{{ categories|length }} kategorija</span>
+  </div>
+  <div class="kz1110-category-mini-grid">
+    {% for c in categories %}
+    <a href="/zadaci-kategorija/{{ c.slug }}">
+      <b>{{ c.icon }} {{ c.title }}</b>
+      <small>{{ c.description }}</small>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

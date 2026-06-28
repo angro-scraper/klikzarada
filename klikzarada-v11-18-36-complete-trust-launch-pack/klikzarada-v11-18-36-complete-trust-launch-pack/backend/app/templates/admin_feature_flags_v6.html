@@ -1,0 +1,7 @@
+{% extends "app_base.html" %}
+{% set title = "Feature flags - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>V6 Flags</span><h2>Feature flags</h2></div>
+<form class="form-panel" method="post" action="/admin/feature-flags/novi"><div class="form-grid"><div><label>Key</label><input name="key" required></div><div><label>Naziv</label><input name="name" required></div></div><label>Opis</label><textarea name="description"></textarea><button class="btn btn-primary">Dodaj flag</button></form>
+<div class="table-card"><table><thead><tr><th>Key</th><th>Naziv</th><th>Opis</th><th>Status</th><th>Akcija</th></tr></thead><tbody>{% for f in flags %}<tr><td>{{ f.key }}</td><td>{{ f.name }}</td><td>{{ f.description }}</td><td>{{ "ON" if f.is_enabled else "OFF" }}</td><td><form method="post" action="/admin/feature-flags/{{ f.id }}/toggle"><button class="btn btn-mini btn-ghost">Toggle</button></form></td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

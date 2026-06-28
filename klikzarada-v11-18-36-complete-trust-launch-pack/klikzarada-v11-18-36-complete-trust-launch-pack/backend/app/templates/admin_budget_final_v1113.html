@@ -1,0 +1,165 @@
+{% extends "app_base.html" %}
+{% set title="Budžet V11" %}
+{% block app_content %}
+<section class="kz1111-hero finance budget">
+  <div>
+    <span>BUDŽET</span>
+    <h1>Kontrola budžeta oglašivača</h1>
+    <p>Jedan pregled za dostupna sredstva, rezervacije, potrošnju i upozorenja. Cilj je da admin odmah vidi ko je zdrav, ko je blizu limita i gde treba reagovati.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/admin/finansije">Finansije</a>
+    <a class="btn btn-secondary" href="/admin/isplate">Isplate</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Oglašivači</small><strong>{{ summary.count }}</strong><span>aktivni nalozi</span></div>
+  <div class="kz1111-stat green"><small>Dostupno</small><strong>{{ "%.0f"|format(total_available) }}</strong><span>RSD slobodno</span></div>
+  <div class="kz1111-stat orange"><small>Rezervisano</small><strong>{{ "%.0f"|format(total_reserved) }}</strong><span>RSD zaključano</span></div>
+  <div class="kz1111-stat purple"><small>Potrošeno</small><strong>{{ "%.0f"|format(total_spent) }}</strong><span>RSD emitovano</span></div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Kontrolna tabla budžeta</h2>
+    <span>alerti / logovi / prioriteti</span>
+  </div>
+  <div class="kz1111-process-strip kz1111-process-strip-budget">
+    <div>
+      <small>Alarmi</small>
+      <strong>{{ summary.alerts_active }} aktivnih alertova</strong>
+      <p>Prati pragove i brzo označava oglašivače kojima pada raspoloživ budžet.</p>
+    </div>
+    <div>
+      <small>Status tok</small>
+      <strong>{{ summary.logs_total }} status logova</strong>
+      <p>Svaka promena kampanje ostavlja trag za kasniju reviziju i analizu.</p>
+    </div>
+    <div>
+      <small>Kapacitet</small>
+      <strong>{{ summary.alerts_total }} alert pravila ukupno</strong>
+      <p>Možeš brzo da dodaš nove pragove bez menjanja ostatka sistema.</p>
+    </div>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Dodaj budžet alert</h2>
+    <span>prag po oglašivaču</span>
+  </div>
+  <div class="kz1111-ledger-grid">
+    <form class="form-panel kz1111-ledger-form" method="post" action="/admin/budget-v11/alert">
+      <label>Oglašivač</label>
+      <select name="advertiser_id">
+        {% for a in advertisers %}
+        <option value="{{ a.id }}">{{ a.full_name }} · budžet {{ "%.0f"|format(a.advertiser_budget_rsd) }} RSD</option>
+        {% endfor %}
+      </select>
+      <label>Threshold RSD</label>
+      <input type="number" name="threshold_rsd" value="5000" min="0" step="1">
+      <button class="btn btn-primary">Dodaj alert</button>
+    </form>
+    <div class="kz1111-ledger-card">
+      <small>Kako radi</small>
+      <strong>Budžet se ne čita ručno, nego kroz signal</strong>
+      <p>Admin vidi da li je nalog zdrav, rezervisan ili blizu limita. Time je lakše automatski aktivirati alarm pre nego što se kampanja zaustavi.</p>
+      <div class="kz1111-proof-legend">
+        <span>Dostupno predstavlja slobodan budžet za nove kampanje.</span>
+        <span>Rezervisano je vezano za aktivne ili zakazane kampanje.</span>
+        <span>Potrošeno pokazuje šta je već prošlo kroz platformu.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Top oglašivači po prometu</h2>
+    <span>budžet / rezervacija / potrošnja</span>
+  </div>
+  <div class="kz1111-proof-grid">
+    {% for a in top_advertisers %}
+    <article class="kz1111-proof-card variant-approved">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-approved">oglašivač</span>
+          <span class="kz1111-proof-tiny approved">Budžet</span>
+        </div>
+        <strong>{{ "%.0f"|format(a.advertiser_budget_rsd) }} RSD</strong>
+      </div>
+      <h3>{{ a.full_name }}</h3>
+      <p>{{ a.company_name or "Bez naziva firme" }}</p>
+      <div class="kz1111-proof-meta">
+        <div><small>Dostupno</small><b>{{ "%.0f"|format(a.advertiser_budget_rsd) }}</b></div>
+        <div><small>Rezervisano</small><b>{{ "%.0f"|format(a.advertiser_reserved_rsd) }}</b></div>
+        <div><small>Potrošeno</small><b>{{ "%.0f"|format(a.advertiser_spent_rsd) }}</b></div>
+      </div>
+    </article>
+    {% else %}
+    <div class="kz1111-empty">
+      <h3>Nema oglašivača</h3>
+      <p>Čim se pojave oglašivački nalozi, biće prikazani ovde.</p>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Alerti i logovi</h2>
+    <span>{{ alerts|length }} alerta / {{ logs|length }} logova</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <div class="premium-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Oglašivač</th>
+            <th>Threshold</th>
+            <th>Status</th>
+            <th>Last</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in alerts %}
+          <tr>
+            <td><b>{{ a.advertiser.full_name }}</b></td>
+            <td>{{ "%.0f"|format(a.threshold_rsd) }} RSD</td>
+            <td><span class="status status-{{ a.status }}">{{ a.status }}</span></td>
+            <td>{{ a.last_triggered_at or "-" }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">Nema alert-a.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Kampanja</th>
+            <th>Old</th>
+            <th>New</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in logs %}
+          <tr>
+            <td><b>{{ l.task.title }}</b></td>
+            <td>{{ l.old_status or "-" }}</td>
+            <td>{{ l.new_status }}</td>
+            <td>{{ l.reason or "-" }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">Nema logova.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

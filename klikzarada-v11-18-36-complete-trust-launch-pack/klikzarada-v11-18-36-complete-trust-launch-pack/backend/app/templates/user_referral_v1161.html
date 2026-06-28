@@ -1,0 +1,29 @@
+{% extends "app_base.html" %}
+{% set title="Referral - KlikZarada" %}
+{% block app_content %}
+<section class="premium-panel-hero">
+  <div>
+    <span>REFERRAL</span>
+    <h1>Pozovi korisnike</h1>
+    <p>Podeli referral link i dobij bonus kada pozvani korisnik završi prvi odobren zadatak.</p>
+  </div>
+  <div class="premium-panel-actions"><a class="premium-btn white" href="/korisnik/panel">Moj panel</a></div>
+</section>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card gradient">
+    <div class="premium-card-head"><h2>Tvoj referral link</h2><span>{{ refs|length }} pozvanih</span></div>
+    <div class="premium-copy-box">http://127.0.0.1:8000/registracija?ref={{ user.referral_code }}</div>
+  </section>
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Pozvani korisnici</h2><span>{{ refs|length }}</span></div>
+    <div class="premium-list">
+      {% for r in refs %}
+      <article><div><b>{{ r.full_name }}</b><small>{{ r.email }}</small></div><strong>{{ r.created_at }}</strong></article>
+      {% else %}
+      <div class="premium-empty"><h3>Nema pozvanih korisnika</h3><p>Podeli link i počni da skupljaš referral bonus.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,6 @@
+{% extends "app_base.html" %}{% set title="Security V11" %}{% block app_content %}
+<div class="section-heading left"><span>V11 Security</span><h2>Login attempts, devices i admin 2FA</h2></div>
+<div class="grid-2"><div class="table-card"><table><thead><tr><th>Email</th><th>Success</th><th>IP</th><th>Note</th><th>Datum</th></tr></thead><tbody>{% for a in attempts %}<tr><td>{{ a.email or "" }}</td><td>{{ a.success }}</td><td>{{ a.ip_address or "" }}</td><td>{{ a.note or "" }}</td><td>{{ a.created_at }}</td></tr>{% else %}<tr><td colspan="5">Nema attempt-a.</td></tr>{% endfor %}</tbody></table></div>
+<div class="table-card"><table><thead><tr><th>Korisnik</th><th>IP</th><th>Status</th><th>Last seen</th></tr></thead><tbody>{% for d in devices %}<tr><td>{{ d.user.full_name }}</td><td>{{ d.ip_address or "" }}</td><td>{{ d.status }}</td><td>{{ d.last_seen_at }}</td></tr>{% else %}<tr><td colspan="4">Nema device session-a.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="section-heading left panel-space"><span>Admin 2FA demo</span><h2>2FA kodovi</h2></div><div class="table-card"><table><thead><tr><th>Admin</th><th>Code</th><th>Status</th><th>Created</th></tr></thead><tbody>{% for c in codes %}<tr><td>{{ c.admin.full_name }}</td><td>{{ c.code }}</td><td>{{ c.status }}</td><td>{{ c.created_at }}</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

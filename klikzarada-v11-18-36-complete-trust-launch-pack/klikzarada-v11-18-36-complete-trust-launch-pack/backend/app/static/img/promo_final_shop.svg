@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#061a44"/>
+      <stop offset="100%" stop-color="#0b67f1"/>
+    </linearGradient>
+    <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="3" cy="3" r="2" fill="rgba(255,255,255,.13)"/>
+    </pattern>
+  </defs>
+  <rect width="900" height="520" rx="36" fill="url(#g)"/>
+  <rect width="900" height="520" rx="36" fill="url(#dots)" opacity=".55"/>
+  <circle cx="820" cy="96" r="130" fill="#fff" opacity=".08"/>
+  <circle cx="92" cy="450" r="180" fill="#000" opacity=".10"/>
+  
+          <g transform="translate(575 155)">
+            <rect x="10" y="58" width="190" height="130" rx="26" fill="rgba(255,255,255,.16)"/>
+            <path d="M38 95 h36 l24 76 h118" stroke="#fff" stroke-width="14" fill="none" stroke-linecap="round"/>
+            <rect x="104" y="92" width="84" height="58" rx="14" fill="#60a5fa"/>
+            <rect x="124" y="70" width="44" height="26" rx="10" fill="#bfdbfe"/>
+            <circle cx="118" cy="194" r="15" fill="#fff"/>
+            <circle cx="186" cy="194" r="15" fill="#fff"/>
+          </g>
+</svg>

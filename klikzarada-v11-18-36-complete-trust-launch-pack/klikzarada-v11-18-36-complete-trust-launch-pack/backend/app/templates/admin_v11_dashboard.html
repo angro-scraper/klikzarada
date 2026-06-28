@@ -1,0 +1,15 @@
+{% extends "app_base.html" %}{% set title="V11 Real Launch - Admin" %}{% block app_content %}
+<div class="section-heading left"><span>V11 Real Launch Pack</span><h2>Launch readiness</h2></div>
+<div class="stats small in-app-stats">
+<div class="stat-card"><strong>{{ score }}%</strong><span>readiness score</span></div>
+<div class="stat-card"><strong>{{ na čekanju_submissions }}</strong><span>na čekanju dokaza</span></div>
+<div class="stat-card"><strong>{{ na čekanju_withdrawals }}</strong><span>na čekanju isplata</span></div>
+<div class="stat-card"><strong>{{ na čekanju_payments }}</strong><span>na čekanju uplata</span></div>
+<div class="stat-card"><strong>{{ fraud_open }}</strong><span>fraud signals</span></div>
+</div>
+<div class="grid-3">
+<div class="panel"><h2>Admin Daily Desk</h2><p>Jedan radni sto za dnevne operacije.</p><a class="btn btn-primary" href="/admin/daily-desk-v11">Otvori</a></div>
+<div class="panel panel-purple"><h2>Deploy & Smoke</h2><p>Production checks, backup i smoke test.</p><a class="btn btn-primary" href="/admin/deploy-v11">Otvori</a></div>
+<div class="panel panel-green"><h2>Legal & Marketing</h2><p>Pravne i javne prodajne stranice.</p><a class="btn btn-primary" href="/admin/legal-v11">Otvori</a></div>
+</div>
+{% endblock %}

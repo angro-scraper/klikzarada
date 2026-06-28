@@ -1,0 +1,4 @@
+{% extends "app_base.html" %}{% set title="Client Portal" %}{% block app_content %}
+<div class="section-heading left"><span>V10 Client Portal</span><h2>Moji projekti</h2></div>
+<div class="grid-2">{% for p in projects %}<div class="info-card"><span class="pill">{{ p.health }}</span><h3>{{ p.title }}</h3><p>{{ p.summary or "" }}</p><small>Status: {{ p.status }} · Budžet: {{ "%.0f"|format(p.budget_rsd) }} RSD</small></div>{% else %}<div class="empty">Nema projekata za vaš nalog.</div>{% endfor %}</div>
+{% endblock %}

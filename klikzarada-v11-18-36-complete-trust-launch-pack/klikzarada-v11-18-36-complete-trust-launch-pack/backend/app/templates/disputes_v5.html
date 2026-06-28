@@ -1,0 +1,26 @@
+{% extends "app_base.html" %}
+{% set title = "Prigovori - KlikZarada" %}
+{% block app_content %}
+<div class="section-heading left"><span>V5 Dispute Center</span><h2>Prigovori na dokaze</h2></div>
+<div class="table-card"><table><thead><tr><th>Dokaz</th><th>Kampanja</th><th>Otvorio</th><th>Razlog</th><th>Status</th><th>Odluka</th><th>Akcije</th></tr></thead><tbody>
+{% for d in disputes %}
+<tr>
+<td>#{{ d.submission_id }}</td>
+<td>{{ d.submission.task.title if d.submission and d.submission.task else "" }}</td>
+<td>{{ d.opened_by.full_name if d.opened_by else "" }}</td>
+<td>{{ d.reason }}</td>
+<td><span class="status status-{{ d.status }}">{{ d.status }}</span></td>
+<td>{{ d.admin_decision or "" }}</td>
+<td class="actions">
+{% if mode == "admin" and d.status == "open" %}
+<form method="post" action="/admin/prigovori/{{ d.id }}/accepted"><input class="mini-input" name="decision" placeholder="odluka"><button class="btn btn-mini btn-primary">Prihvati</button></form>
+<form method="post" action="/admin/prigovori/{{ d.id }}/odbijeno"><input class="mini-input" name="decision" placeholder="odluka"><button class="btn btn-mini btn-danger">Odbij</button></form>
+<form method="post" action="/admin/prigovori/{{ d.id }}/closed"><input class="mini-input" name="decision" placeholder="napomena"><button class="btn btn-mini btn-ghost">Zatvori</button></form>
+{% endif %}
+</td>
+</tr>
+{% else %}
+<tr><td colspan="7">Nema prigovora.</td></tr>
+{% endfor %}
+</tbody></table></div>
+{% endblock %}

@@ -1,0 +1,4 @@
+{% extends "app_base.html" %}{% set title="Smart panel - KlikZarada" %}{% block app_content %}
+<div class="dashboard-head in-app"><div><span class="pill">V11.1 panel</span><h1>Funkcije složene po grupama</h1><p>Brz pristup najvažnijim delovima bez beskonačnog listanja.</p></div></div>
+{% for group, items in grouped.items() %}<div class="panel-group-v111"><h2>{{ group }}</h2><div class="panel-grid-v111">{% for i in items %}<a class="shortcut-card-v111" href="{{ i.url }}"><strong>{{ i.title }}</strong><span>{{ i.description or "" }}</span></a>{% endfor %}</div></div>{% endfor %}
+{% endblock %}

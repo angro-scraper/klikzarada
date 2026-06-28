@@ -1,0 +1,11 @@
+{% extends "app_base.html" %}
+{% set title = "Verifikacija - KlikZarada" %}
+{% block app_content %}
+<div class="section-heading left"><span>V6 Compliance</span><h2>Verifikacija korisnika</h2></div>
+<form class="form-panel" method="post" action="/korisnik/verifikacija" enctype="multipart/form-data">
+  <label>Tip dokumenta</label><select name="doc_type"><option value="identity">Identitet</option><option value="payment">Podaci za isplatu</option><option value="company">Firma</option></select>
+  <label>Dokument / fajl</label><input type="file" name="proof_file" accept=".png,.jpg,.jpeg,.webp,.pdf">
+  <button class="btn btn-primary" type="submit">Pošalji na proveru</button>
+</form>
+<div class="table-card"><table><thead><tr><th>Tip</th><th>Fajl</th><th>Status</th><th>Napomena</th><th>Datum</th></tr></thead><tbody>{% for d in docs %}<tr><td>{{ d.doc_type }}</td><td>{% if d.file_path %}<a href="{{ d.file_path }}" target="_blank">Otvori</a>{% else %}-{% endif %}</td><td><span class="status status-{{ d.status }}">{{ d.status }}</span></td><td>{{ d.admin_note or "" }}</td><td>{{ d.created_at }}</td></tr>{% else %}<tr><td colspan="5">Nema dokumenata.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "app_base.html" %}
+{% set title = "AI Review - Admin" %}
+{% block app_content %}
+<div class="dashboard-head in-app"><div><span class="pill">V7 AI Review</span><h1>AI asistencija za moderaciju</h1><p>Heuristički review dokaza: skor, rizik i predlog odluke.</p></div><form method="post" action="/admin/ai-review/run"><button class="btn btn-primary">Pokreni AI review za na čekanju dokaze</button></form></div>
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Na čekanju</small><strong>{{ stats.pending }}</strong><span>za proveru</span></div>
+  <div class="kz1111-stat green"><small>Pregledano</small><strong>{{ stats.reviewed }}</strong><span>AI rezultata</span></div>
+  <div class="kz1111-stat orange"><small>Auto odobreno</small><strong>{{ stats.auto_approved }}</strong><span>bez admina</span></div>
+  <div class="kz1111-stat red"><small>Auto odbijeno</small><strong>{{ stats.auto_rejected }}</strong><span>sumnjivo</span></div>
+</section>
+<form class="form-panel" method="post" action="/admin/ai-review/rule"><div class="form-grid"><div><label>Naziv pravila</label><input name="name" required></div><div><label>Severity</label><select name="severity"><option>low</option><option>medium</option><option>high</option></select></div></div><label>Opis</label><textarea name="description"></textarea><label>Tip</label><select name="rule_type"><option>proof_quality</option><option>fraud</option><option>campaign_quality</option></select><button class="btn btn-primary">Dodaj pravilo</button></form>
+<div class="grid-2">
+<div><div class="section-heading left"><span>Rezultati</span><h2>AI review rezultati</h2></div><div class="table-card"><table><thead><tr><th>Dokaz</th><th>Score</th><th>Rizik</th><th>Predlog</th><th>Razlozi</th></tr></thead><tbody>{% for r in results %}<tr><td>#{{ r.submission_id }}</td><td>{{ "%.0f"|format(r.score) }}</td><td><span class="status status-{{ 'odbijeno' if r.risk_level == 'high' else 'na čekanju' }}">{{ r.risk_level }}</span></td><td>{{ r.suggestion }}</td><td>{{ r.reasons }}</td></tr>{% else %}<tr><td colspan="5">Nema rezultata.</td></tr>{% endfor %}</tbody></table></div></div>
+<div><div class="section-heading left"><span>Pravila</span><h2>AI pravila</h2></div><div class="table-card"><table><thead><tr><th>Pravilo</th><th>Tip</th><th>Severity</th><th>Status</th></tr></thead><tbody>{% for r in rules %}<tr><td>{{ r.name }}</td><td>{{ r.rule_type }}</td><td>{{ r.severity }}</td><td>{{ "aktivno" if r.is_active else "off" }}</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "app_base.html" %}{% set title="V10 Automation - Admin" %}{% block app_content %}
+<div class="section-heading left"><span>V10 Automation OS</span><h2>Automation, Data Studio & Client Portal</h2></div>
+<div class="stats small in-app-stats">
+<div class="stat-card"><strong>{{ workflows }}</strong><span>workflows</span></div>
+<div class="stat-card"><strong>{{ surveys }}</strong><span>anketa</span></div>
+<div class="stat-card"><strong>{{ utm }}</strong><span>UTM kampanja</span></div>
+<div class="stat-card"><strong>{{ contracts }}</strong><span>ugovora</span></div>
+<div class="stat-card"><strong>{{ moderation_open }}</strong><span>moderation open</span></div>
+</div>
+<div class="grid-3">
+<div class="panel"><h2>Tok radas</h2><p>Automatski tokovi za operacije.</p><a class="btn btn-primary" href="/admin/workflows-v10">Otvori</a></div>
+<div class="panel panel-purple"><h2>Data Studio</h2><p>Kontrolna tablai i widgeti za metrike.</p><a class="btn btn-primary" href="/admin/data-studio-v10">Otvori</a></div>
+<div class="panel panel-green"><h2>Client Portal</h2><p>Projekti, update-i i ugovori za klijente.</p><a class="btn btn-primary" href="/admin/client-portal-v10">Otvori</a></div>
+</div>
+{% endblock %}

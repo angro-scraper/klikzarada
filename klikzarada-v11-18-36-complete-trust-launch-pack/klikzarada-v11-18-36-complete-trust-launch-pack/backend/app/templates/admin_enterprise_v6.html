@@ -1,0 +1,17 @@
+{% extends "app_base.html" %}
+{% set title = "Enterprise V6 - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>V6 Enterprise</span><h2>Enterprise & Production dashboard</h2></div>
+<div class="stats small in-app-stats">
+<div class="stat-card"><strong>{{ security_events }}</strong><span>security events</span></div>
+<div class="stat-card"><strong>{{ critical_events }}</strong><span>high/critical</span></div>
+<div class="stat-card"><strong>{{ kyc_na čekanju }}</strong><span>KYC na čekanju</span></div>
+<div class="stat-card"><strong>{{ exports_na čekanju }}</strong><span>export na čekanju</span></div>
+<div class="stat-card"><strong>{{ leads_open }}</strong><span>open leads</span></div>
+</div>
+<div class="grid-3">
+<div class="panel"><h2>Security</h2><p>Prati događaje, rizike i produkcione kontrole.</p><a class="btn btn-primary" href="/admin/security">Otvori</a></div>
+<div class="panel panel-purple"><h2>Compliance</h2><p>KYC dokumenti i zahtevi za export podataka.</p><a class="btn btn-primary" href="/admin/compliance">Otvori</a></div>
+<div class="panel panel-green"><h2>CRM</h2><p>Sales pipeline za nove oglašivače.</p><a class="btn btn-primary" href="/admin/crm">Otvori</a></div>
+</div>
+{% endblock %}

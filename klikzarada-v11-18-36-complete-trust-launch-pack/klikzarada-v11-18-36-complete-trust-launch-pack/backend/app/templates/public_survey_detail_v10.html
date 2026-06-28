@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% set title=survey.title %}{% block content %}
+<section class="page-head"><span>Anketa</span><h1>{{ survey.title }}</h1><p>{{ survey.description or "" }}</p></section>
+<section class="section"><div class="form-panel"><h2>Pitanja</h2>{% for q in questions %}<div class="detail-box"><strong>{{ q.question_text }}</strong><p>Tip: {{ q.question_type }} {% if q.options_text %}· Opcije: {{ q.options_text }}{% endif %}</p></div>{% endfor %}<form method="post" action="/ankete-v10/{{ survey.id }}/submit"><label>Vaši odgovori</label><textarea name="answers_text" required placeholder="Unesite odgovore redom..."></textarea><button class="btn btn-primary">Pošalji odgovore</button></form></div></section>
+{% endblock %}

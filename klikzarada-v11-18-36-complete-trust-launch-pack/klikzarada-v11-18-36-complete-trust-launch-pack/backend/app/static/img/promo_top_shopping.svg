@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="260" viewBox="0 0 900 260">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#064ccf"/>
+      <stop offset="100%" stop-color="#1577ff"/>
+    </linearGradient>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="2" fill="rgba(255,255,255,.18)"/>
+    </pattern>
+  </defs>
+  <rect width="900" height="260" rx="28" fill="url(#g)"/>
+  <rect width="900" height="260" rx="28" fill="url(#dots)" opacity=".35"/>
+  <circle cx="850" cy="40" r="96" fill="#fff" opacity=".08"/>
+  <circle cx="70" cy="240" r="130" fill="#000" opacity=".08"/>
+  
+        <g opacity=".95">
+          <rect x="690" y="82" width="190" height="130" rx="28" fill="rgba(255,255,255,.16)"/>
+          <path d="M718 116 h32 l22 64 h118" stroke="#fff" stroke-width="13" fill="none" stroke-linecap="round"/>
+          <rect x="778" y="108" width="78" height="50" rx="14" fill="#fbbf24" opacity=".95"/>
+          <circle cx="792" cy="192" r="14" fill="#fff"/>
+          <circle cx="850" cy="192" r="14" fill="#fff"/>
+          <path d="M118 62 l44 22 -44 22 -44-22z" fill="#fff" opacity=".16"/>
+          <circle cx="168" cy="168" r="48" fill="#fff" opacity=".10"/>
+        </g>
+</svg>

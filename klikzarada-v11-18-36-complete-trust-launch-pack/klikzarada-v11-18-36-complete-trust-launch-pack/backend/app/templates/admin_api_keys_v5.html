@@ -1,0 +1,9 @@
+{% extends "app_base.html" %}
+{% set title = "API ključevi - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>V5 API</span><h2>Svi API ključevi</h2></div>
+<div class="table-card"><table><thead><tr><th>Oglašivač</th><th>Naziv</th><th>Token</th><th>Status</th><th>Datum</th></tr></thead><tbody>
+{% for k in keys %}<tr><td>{{ k.advertiser.full_name }}</td><td>{{ k.name }}</td><td><code>{{ k.token }}</code></td><td>{{ "aktivno" if k.is_aktivno else "inaktivno" }}</td><td>{{ k.created_at }}</td></tr>
+{% else %}<tr><td colspan="5">Nema API ključeva.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

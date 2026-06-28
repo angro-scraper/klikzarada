@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="260" viewBox="0 0 900 260">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#18925e"/><stop offset="100%" stop-color="#31c17d"/>
+        </linearGradient>
+      </defs>
+      <rect width="900" height="260" rx="30" fill="url(#bg)"/>
+      <circle cx="74" cy="56" r="22" fill="rgba(255,255,255,.16)"/>
+      <text x="54" y="162" font-family="Arial" font-size="22" font-weight="700" fill="rgba(255,255,255,.94)">KLIKZARADA</text>
+      <text x="54" y="102" font-family="Arial" font-size="44" font-weight="800" fill="#ffffff">TRAVEL WORLD</text>
+      <text x="54" y="138" font-family="Arial" font-size="22" fill="rgba(255,255,255,.92)">Otkrij svet po najboljim cenama.</text>
+      
+        <rect x="628" y="62" rx="26" width="182" height="136" fill="rgba(255,255,255,.18)"/>
+        <circle cx="720" cy="104" r="26" fill="#fef3c7"/>
+        <path d="M706 132 C692 150 690 172 720 182 C750 172 748 150 734 132 Z" fill="#1f2937" opacity="0.18"/>
+        <circle cx="720" cy="122" r="34" fill="#8b5cf6" opacity="0.16"/>
+        <path d="M700 168 L740 168" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+        <path d="M720 76 L720 160" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+        <circle cx="720" cy="94" r="8" fill="#fff"/>
+        
+      
+    </svg>

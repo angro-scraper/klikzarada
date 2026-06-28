@@ -1,0 +1,176 @@
+{% extends "app_base.html" %}
+{% set title = "Dokazi - Admin" %}
+{% block app_content %}
+<section class="kz1111-hero proofs">
+  <div>
+    <span>DOKAZI</span>
+    <h1>Provera dokaza</h1>
+    <p>Admin proverava dokaze korisnika, odobrava zaradu ili odbija loš dokaz uz razlog. Stranica je sada jasnija za brzi pregled velikog broja prijava.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/admin/kampanje">Kampanje</a>
+    <a class="btn btn-secondary" href="/admin/mapa-platforme">Mapa platforme</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <a href="/admin/dokazi" class="kz1111-stat blue"><small>Ukupno</small><strong>{{ stats.all }}</strong><span>dokaza</span></a>
+  <a href="/admin/dokazi?status=pending" class="kz1111-stat orange"><small>Na čekanju</small><strong>{{ stats.pending }}</strong><span>za proveru</span></a>
+  <a href="/admin/dokazi?status=approved" class="kz1111-stat green"><small>Odobreno</small><strong>{{ stats.approved }}</strong><span>isplaćuje se</span></a>
+  <a href="/admin/dokazi?status=rejected" class="kz1111-stat red"><small>Odbijeno</small><strong>{{ stats.rejected }}</strong><span>problem</span></a>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>AI pregledi</small><strong>{{ stats.ai_reviews }}</strong><span>skorirano</span></div>
+  <div class="kz1111-stat green"><small>Auto odobreno</small><strong>{{ stats.auto_approved }}</strong><span>bez admina</span></div>
+  <div class="kz1111-stat orange"><small>Auto odbijeno</small><strong>{{ stats.auto_rejected }}</strong><span>sumnjivo</span></div>
+  <a href="/admin/ai-review" class="kz1111-stat purple"><small>AI review</small><strong>Otvori</strong><span>pravila i rezultat</span></a>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Workflow dokaza</h2>
+    <span>auto → ručno → finalno</span>
+  </div>
+  <div class="kz1111-process-strip">
+    <div>
+      <small>1. Auto signal</small>
+      <strong>AI odmah odvaja sigurne prijave</strong>
+      <p>Dokazi sa jasnim signalom dobijaju brži prolaz, bez ručnog gušenja reda.</p>
+    </div>
+    <div>
+      <small>2. Ručna kontrola</small>
+      <strong>Sporne prijave ostaju u fokusu</strong>
+      <p>Admin vidi razlog, fajl, meta podatke i identitet pre odluke.</p>
+    </div>
+    <div>
+      <small>3. Finalna odluka</small>
+      <strong>Odobri, odbij ili označi sporno</strong>
+      <p>Jedan klik menja status i čuva čist tok obrade.</p>
+    </div>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Status pregled</h2>
+    <span>auto / ručno / odbijeno</span>
+  </div>
+  <div class="premium-mini-bars compact">
+    <div><label>Auto <b>{{ stats.variant_auto }}</b></label><span><i class="green" style="width:{{ [stats.variant_auto * 12, 100]|min }}%"></i></span></div>
+    <div><label>Ručno <b>{{ stats.variant_manual }}</b></label><span><i class="orange" style="width:{{ [stats.variant_manual * 12, 100]|min }}%"></i></span></div>
+    <div><label>Odbijeno <b>{{ stats.variant_rejected }}</b></label><span><i class="purple" style="width:{{ [stats.variant_rejected * 12, 100]|min }}%"></i></span></div>
+    <div><label>Odobreno <b>{{ stats.variant_approved }}</b></label><span><i class="blue" style="width:{{ [stats.variant_approved * 12, 100]|min }}%"></i></span></div>
+  </div>
+  <div class="kz1111-proof-legend">
+    <span>Auto znači da je AI signal dovoljan za brzo odobrenje.</span>
+    <span>Ručno ostavlja prostor za dodatnu proveru dokaza.</span>
+    <span>Odbijeno odmah sklanja problematične prijave.</span>
+  </div>
+</section>
+
+<section class="kz1111-filter">
+  <form method="get" action="/admin/dokazi">
+    <div>
+      <label>Status dokaza</label>
+      <select name="status">
+        <option value="">Svi dokazi</option>
+        <option value="pending" {% if active_status=="pending" %}selected{% endif %}>Na čekanju</option>
+        <option value="approved" {% if active_status=="approved" %}selected{% endif %}>Odobreno</option>
+        <option value="rejected" {% if active_status=="rejected" %}selected{% endif %}>Odbijeno</option>
+        <option value="disputed" {% if active_status=="disputed" %}selected{% endif %}>Sporno</option>
+      </select>
+    </div>
+    <button class="btn btn-primary">Filtriraj</button>
+    <a class="btn btn-secondary" href="/admin/dokazi">Reset</a>
+  </form>
+  <div class="kz1111-quick-filters">
+    <a class="kz1111-filter-chip {% if active_variant=='auto' %}is-active{% endif %}" href="/admin/dokazi{% if active_status %}?status={{ active_status }}&variant=auto{% else %}?variant=auto{% endif %}">Auto <b>{{ stats.variant_auto }}</b></a>
+    <a class="kz1111-filter-chip {% if active_variant=='manual' %}is-active{% endif %}" href="/admin/dokazi{% if active_status %}?status={{ active_status }}&variant=manual{% else %}?variant=manual{% endif %}">Ručno <b>{{ stats.variant_manual }}</b></a>
+    <a class="kz1111-filter-chip {% if active_variant=='rejected' %}is-active{% endif %}" href="/admin/dokazi{% if active_status %}?status={{ active_status }}&variant=rejected{% else %}?variant=rejected{% endif %}">Odbijeno <b>{{ stats.variant_rejected }}</b></a>
+    <a class="kz1111-filter-chip {% if active_variant=='approved' %}is-active{% endif %}" href="/admin/dokazi{% if active_status %}?status={{ active_status }}&variant=approved{% else %}?variant=approved{% endif %}">Odobreno <b>{{ stats.variant_approved }}</b></a>
+  </div>
+</section>
+
+<section class="kz1111-section" id="admin-proofs-layout-marker" data-layout="kz1111-proof-grid">
+  <div class="kz1111-section-head">
+    <h2>Lista dokaza</h2>
+    <span>{{ submissions|length }} prikazano</span>
+  </div>
+
+  {% if submissions %}
+  <div class="kz1111-proof-grid" data-layout="kz1111-proof-grid">
+    {% for s in submissions %}
+    {% set ai = ai_map.get(s.id) if ai_map else None %}
+    {% set proof_variant = "manual" %}
+    {% if s.status == "approved" %}
+      {% set proof_variant = "auto" if ai and ai.suggestion and "Automatski" in ai.suggestion else "approved" %}
+    {% elif s.status == "rejected" %}
+      {% set proof_variant = "rejected" %}
+    {% endif %}
+    <article class="kz1111-proof-card variant-{{ proof_variant }}">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-{{ s.status }}">{{ s.status }}</span>
+          {% if proof_variant == "auto" %}
+          <span class="kz1111-proof-tiny auto">Auto</span>
+          {% elif proof_variant == "manual" %}
+          <span class="kz1111-proof-tiny manual">Ručno</span>
+          {% elif proof_variant == "approved" %}
+          <span class="kz1111-proof-tiny approved">Odobreno</span>
+          {% else %}
+          <span class="kz1111-proof-tiny rejected">Stop</span>
+          {% endif %}
+        </div>
+        <strong>{{ "%.0f"|format(s.reward_rsd) }} RSD</strong>
+      </div>
+      <h3>{{ s.task.title if s.task else "Zadatak" }}</h3>
+      <p>{{ s.proof or "Nema tekstualnog dokaza." }}</p>
+      {% if ai %}
+      <div class="kz1111-proof-meta">
+        <div><small>AI skor</small><b>{{ "%.0f"|format(ai.score) }}</b></div>
+        <div><small>Rizik</small><b>{{ ai.risk_level }}</b></div>
+        <div><small>Predlog</small><b>{{ ai.suggestion }}</b></div>
+      </div>
+      <p>{{ ai.reasons }}</p>
+      {% endif %}
+      {% if ai and ai.identity is defined %}
+      <div class="kz1111-proof-meta">
+        <div><small>Uređaj</small><b>{{ ai.identity.device_label or ai.identity.session_device or "-" }}</b></div>
+        <div><small>IP</small><b>{{ ai.identity.ip_address or "-" }}</b></div>
+        <div><small>Payment</small><b>{{ "ima" if ai.identity.payment_details else "nema" }}</b></div>
+      </div>
+      {% endif %}
+      <div class="kz1111-proof-meta">
+        <div><small>Korisnik</small><b>{{ s.user.full_name if s.user else "-" }}</b></div>
+        <div><small>Kampanja</small><b>{{ s.task.category if s.task else "-" }}</b></div>
+        <div><small>Datum</small><b>{{ s.created_at }}</b></div>
+      </div>
+      {% if s.proof_file %}
+        <a class="kz1111-file" href="/static/uploads/{{ s.proof_file }}" target="_blank">Otvori fajl dokaza</a>
+      {% endif %}
+      <div class="kz1111-actions">
+        <form method="post" action="/admin/submissions/{{ s.id }}/approve">
+          <input name="admin_note" placeholder="napomena">
+          <button class="btn btn-mini btn-primary">Odobri</button>
+        </form>
+        <form method="post" action="/admin/submissions/{{ s.id }}/reject">
+          <input name="admin_note" placeholder="razlog">
+          <button class="btn btn-mini btn-danger">Odbij</button>
+        </form>
+        <form method="post" action="/admin/submissions/{{ s.id }}/dispute">
+          <button class="btn btn-mini btn-secondary">Sporno</button>
+        </form>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="kz1111-empty">
+    <h3>Nema dokaza za izabrani filter</h3>
+    <p>Kada korisnici pošalju dokaze, pojaviće se ovde u preglednim karticama.</p>
+    <a class="btn btn-primary" href="/admin/kampanje">Otvori kampanje</a>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

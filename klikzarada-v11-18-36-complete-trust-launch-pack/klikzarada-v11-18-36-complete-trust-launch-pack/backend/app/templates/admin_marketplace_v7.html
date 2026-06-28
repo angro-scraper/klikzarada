@@ -1,0 +1,13 @@
+{% extends "app_base.html" %}
+{% set title = "Marketplace - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>V7 Marketplace</span><h2>Marketplace administracija</h2></div>
+<div class="grid-2">
+<form class="form-panel" method="post" action="/admin/marketplace/kategorija"><h3>Kategorija</h3><label>Naziv</label><input name="name" required><label>Opis</label><textarea name="description"></textarea><button class="btn btn-primary">Dodaj kategoriju</button></form>
+<form class="form-panel" method="post" action="/admin/marketplace/ponuda"><h3>Ponuda</h3><label>Kategorija</label><select name="category_id"><option value="0">Bez kategorije</option>{% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select><label>Naslov</label><input name="title" required><label>Opis</label><textarea name="description" required></textarea><div class="form-grid"><div><label>Cena RSD</label><input type="number" name="price_rsd" required></div><div><label>Dana</label><input type="number" name="delivery_days" value="3"></div></div><button class="btn btn-primary">Dodaj ponudu</button></form>
+</div>
+<div class="section-heading left"><span>Ponude</span><h2>Marketplace ponude</h2></div>
+<div class="table-card"><table><thead><tr><th>Ponuda</th><th>Kategorija</th><th>Cena</th><th>Status</th></tr></thead><tbody>{% for o in offers %}<tr><td>{{ o.title }}</td><td>{{ o.category.name if o.category else "" }}</td><td>{{ "%.0f"|format(o.price_rsd) }}</td><td>{{ o.status }}</td></tr>{% endfor %}</tbody></table></div>
+<div class="section-heading left panel-space"><span>Narudžbine</span><h2>Orders</h2></div>
+<div class="table-card"><table><thead><tr><th>Oglašivač</th><th>Ponuda</th><th>Status</th><th>Akcije</th></tr></thead><tbody>{% for o in orders %}<tr><td>{{ o.advertiser.full_name }}</td><td>{{ o.offer.title }}</td><td><span class="status status-{{ o.status }}">{{ o.status }}</span></td><td class="actions"><form method="post" action="/admin/marketplace/order/{{ o.id }}/in_progress"><button class="btn btn-mini btn-primary">In progress</button></form><form method="post" action="/admin/marketplace/order/{{ o.id }}/delivered"><button class="btn btn-mini btn-secondary">Delivered</button></form><form method="post" action="/admin/marketplace/order/{{ o.id }}/cancelled"><button class="btn btn-mini btn-danger">Cancel</button></form></td></tr>{% else %}<tr><td colspan="4">Nema narudžbina.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

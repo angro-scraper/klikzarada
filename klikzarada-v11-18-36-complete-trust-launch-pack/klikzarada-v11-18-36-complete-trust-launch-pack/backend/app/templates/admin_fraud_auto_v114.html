@@ -1,0 +1,120 @@
+{% extends "app_base.html" %}
+{% set title = "Anti-fraud - Admin" %}
+{% block app_content %}
+<section class="kz114-hero fraud">
+  <div>
+    <span>ANTI-FRAUD</span>
+    <h1>Automatska kontrola rizika</h1>
+    <p>Sistem sada gleda i korisnike i kampanje: duplikate, previše odbijenih dokaza, prebrze prijave i loš kvalitet evidencije.</p>
+  </div>
+  <div class="kz114-hero-actions">
+    <a class="btn btn-primary" href="/admin/dokazi">Dokazi</a>
+    <a class="btn btn-secondary" href="/admin/auto-engine-v114">Auto engine</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Open signali</small><strong>{{ fraud_summary.open_signals }}</strong><span>ukupno</span></div>
+  <div class="kz1111-stat orange"><small>Korisnici na vrhu</small><strong>{{ fraud_summary.user_high }}</strong><span>score 70+</span></div>
+  <div class="kz1111-stat green"><small>Kampanje na vrhu</small><strong>{{ fraud_summary.campaign_high }}</strong><span>score 70+</span></div>
+  <div class="kz1111-stat purple"><small>Identitet signali</small><strong>{{ fraud_summary.identity_rows }}</strong><span>duplikati</span></div>
+</section>
+
+<section class="kz114-summary-grid">
+  <article class="kz114-summary-card">
+    <small>Signal pokrivenost</small>
+    <strong>{{ fraud_summary.user_medium + fraud_summary.campaign_medium }}</strong>
+    <p>Broj srednje rizičnih korisnika i kampanja koje vredi ručno proveriti pre eskalacije.</p>
+  </article>
+  <article class="kz114-summary-card">
+    <small>Pravila aktivna</small>
+    <strong>{{ fraud_summary.rules }}</strong>
+    <p>Set pravila koji pokriva duplirane uređaje, IP adrese, payment detalje i prebrze dokaze.</p>
+  </article>
+  <a class="kz1111-stat green" href="/admin/dokazi"><small>Dokazi</small><strong>Otvori</strong><span>detaljna provera</span></a>
+  <a class="kz1111-stat purple" href="/admin/ai-review"><small>AI review</small><strong>Otvori</strong><span>heuristika i pravila</span></a>
+</section>
+
+<section class="kz114-section">
+  <div class="kz114-head"><h2>Risk center mapa</h2><span>korisnik / kampanja / identitet</span></div>
+  <div class="kz1111-process-strip kz114-process-strip">
+    <div>
+      <small>Signal 1</small>
+      <strong>Korisnički score</strong>
+      <p>Gledamo odbijene dokaze, pending gomilu i blokade naloga.</p>
+    </div>
+    <div>
+      <small>Signal 2</small>
+      <strong>Identitet duplikati</strong>
+      <p>Istovremeni uređaj, IP ili payment detalji podižu rizik.</p>
+    </div>
+    <div>
+      <small>Signal 3</small>
+      <strong>Kampanjski obrazac</strong>
+      <p>Rizične kampanje se izdvajaju po neuravnoteženoj distribuciji prijava.</p>
+    </div>
+  </div>
+</section>
+
+<section class="kz114-section"><div class="kz114-head"><h2>Pravila rizika</h2><span>{{ rules|length }}</span></div><div class="kz114-chip-grid">{% for r in rules %}<span>{{ r }}</span>{% endfor %}</div></section>
+
+<section class="kz114-section">
+  <div class="kz114-head"><h2>Top rizični korisnici</h2><span>{{ top_users|length }}</span></div>
+  <div class="kz114-risk-grid">
+    {% for s in top_users %}
+    <article class="risk-{{ 'high' if s.risk_score >= 70 else 'medium' if s.risk_score >= 40 else 'low' }}">
+      <strong>{{ s.risk_score }}</strong>
+      <h3>{{ s.user.full_name }}</h3>
+      <p>{{ s.reasons|join(", ") }}</p>
+      <small>Odobreno: {{ s.approved }} · Odbijeno: {{ s.rejected }} · Pending: {{ s.pending }} · Sporovi: {{ s.disputed }}</small>
+      <small>Uređaj: {{ s.identity.device_label or s.identity.session_device or "-" }} · IP: {{ s.identity.ip_address or "-" }}</small>
+      <a class="btn btn-secondary" href="/admin/korisnici">Pregled korisnika</a>
+    </article>
+    {% else %}
+    <div class="kz1111-empty"><h3>Nema kritičnih signala</h3><p>Trenutno nema korisnika za intervenciju.</p></div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="kz114-section">
+  <div class="kz114-head"><h2>Sumnjivi korisnici</h2><span>{{ suspicious|length }}</span></div>
+  <div class="kz114-risk-grid">{% for s in suspicious %}<article class="risk-{{ 'high' if s.risk_score >= 70 else 'medium' if s.risk_score >= 40 else 'low' }}"><strong>{{ s.risk_score }}</strong><h3>{{ s.user.full_name }}</h3><p>{{ s.reasons|join(", ") }}</p><small>Odobreno: {{ s.approved }} · Odbijeno: {{ s.rejected }} · Pending: {{ s.pending }} · Sporovi: {{ s.disputed }}</small><small>Uređaj: {{ s.identity.device_label or s.identity.session_device or "-" }} · IP: {{ s.identity.ip_address or "-" }} · Payment: {{ "da" if s.identity.payment_details else "ne" }}</small><a class="btn btn-secondary" href="/admin/korisnici">Pregled korisnika</a></article>{% else %}<div class="kz1111-empty"><h3>Nema kritičnih signala</h3><p>Trenutno nema korisnika za intervenciju.</p></div>{% endfor %}</div>
+</section>
+
+<section class="kz114-section">
+  <div class="kz114-head"><h2>Identitet signali</h2><span>{{ identity_rows|length }}</span></div>
+  <div class="premium-table-wrap kz114-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Korisnik</th>
+          <th>Signali</th>
+          <th>Uređaj</th>
+          <th>IP</th>
+          <th>Payment</th>
+          <th>Rizik</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in identity_rows %}
+        <tr>
+          <td><b>{{ row.user.full_name }}</b><br><small>{{ row.user.email }}</small></td>
+          <td><span class="kz114-flag-list">{% for flag in row.flags %}<i>{{ flag }}</i>{% endfor %}</span></td>
+          <td>{{ row.identity.device_label or row.identity.session_device or "-" }}</td>
+          <td>{{ row.identity.ip_address or "-" }}</td>
+          <td>{{ row.identity.payment_details or "-" }}</td>
+          <td><span class="status {{ 'rejected' if row.risk_score >= 70 else 'pending' if row.risk_score >= 40 else 'approved' }}">{{ row.risk_score }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">Nema posebnih identitetskih signala.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="kz114-section">
+  <div class="kz114-head"><h2>Rizične kampanje</h2><span>{{ campaign_risks|length }}</span></div>
+  <div class="kz114-risk-grid">{% for c in top_campaigns %}<article class="risk-{{ 'high' if c.risk_score >= 70 else 'medium' if c.risk_score >= 40 else 'low' }}"><strong>{{ c.risk_score }}</strong><h3>{{ c.task.title }}</h3><p>{{ c.reasons|join(", ") }}</p><small>Ukupno: {{ c.total }} · Odobreno: {{ c.approved }} · Odbijeno: {{ c.rejected }} · Pending: {{ c.pending }}</small><small>Kampanja: {{ c.task.category }} · Uređaj/IP signal kroz korisnike i payment detektovanje</small><a class="btn btn-secondary" href="/admin/kampanje">Pregled kampanja</a></article>{% else %}<div class="kz1111-empty"><h3>Nema rizičnih kampanja</h3><p>Trenutno nema kampanja sa izraženim anti-fraud signalom.</p></div>{% endfor %}</div>
+</section>
+{% endblock %}

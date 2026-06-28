@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="max-width:1180px;margin:24px auto;padding:0 16px;">
+  <h1>Performance dashboard</h1>
+  <p style="color:#64748b;">Pregled kampanja, dokaza, budžeta i rezultata.</p>
+  <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px;">
+    {% for k,v in summary.items() %}
+      <div style="background:#fff;border:1px solid #d8e5f5;border-radius:16px;padding:16px;"><small>{{ k }}</small><h2>{{ v }}</h2></div>
+    {% endfor %}
+  </div>
+  <div style="background:#fff;border:1px solid #d8e5f5;border-radius:16px;overflow:hidden;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead style="background:#f8fafc;"><tr><th style="padding:12px;text-align:left;">Kampanja</th><th>Status</th><th>Reward</th><th>Slots</th><th>Used</th></tr></thead>
+      <tbody>
+      {% for t in tasks %}
+        <tr style="border-top:1px solid #e5edf7;">
+          <td style="padding:10px 12px;font-weight:800;">{{ t.title }}</td>
+          <td style="padding:10px 12px;">{{ t.status }}</td>
+          <td style="padding:10px 12px;">{{ t.reward_rsd }} RSD</td>
+          <td style="padding:10px 12px;">{{ t.total_slots }}</td>
+          <td style="padding:10px 12px;">{{ t.used_slots }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

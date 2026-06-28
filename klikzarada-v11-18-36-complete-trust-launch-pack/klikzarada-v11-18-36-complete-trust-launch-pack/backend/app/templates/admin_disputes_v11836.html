@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="max-width:1180px;margin:24px auto;padding:0 16px;">
+  <h1>Dispute / žalbe</h1>
+  <p style="color:#64748b;">Pregled žalbi korisnika na odbijene dokaze.</p>
+  <div style="background:#fff;border:1px solid #d8e5f5;border-radius:16px;overflow:hidden;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead style="background:#f8fafc;"><tr><th style="padding:12px;text-align:left;">ID</th><th>Korisnik</th><th>Dokaz</th><th>Razlog</th><th>Status</th><th>Akcije</th></tr></thead>
+      <tbody>
+      {% for d in disputes %}
+        <tr style="border-top:1px solid #e5edf7;">
+          <td style="padding:10px 12px;">#{{ d.id }}</td>
+          <td style="padding:10px 12px;">{{ d.opened_by.email if d.opened_by else '' }}</td>
+          <td style="padding:10px 12px;">#{{ d.submission_id }}</td>
+          <td style="padding:10px 12px;">{{ d.reason }}</td>
+          <td style="padding:10px 12px;font-weight:900;">{{ d.status }}</td>
+          <td style="padding:10px 12px;">
+            {% if d.status == 'open' %}
+            <form method="post" action="/admin/disputes-v11836/{{ d.id }}/accept" style="display:inline;"><button style="background:#16a34a;color:#fff;border:0;border-radius:8px;padding:7px 10px;">Prihvati</button></form>
+            <form method="post" action="/admin/disputes-v11836/{{ d.id }}/reject" style="display:inline;"><button style="background:#dc2626;color:#fff;border:0;border-radius:8px;padding:7px 10px;">Odbij</button></form>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

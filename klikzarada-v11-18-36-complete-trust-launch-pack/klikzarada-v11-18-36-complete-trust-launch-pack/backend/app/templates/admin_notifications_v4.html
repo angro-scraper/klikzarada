@@ -1,0 +1,6 @@
+
+{% extends "app_base.html" %}{% set title="Admin notifikacije" %}{% block app_content %}
+<div class="head"><div><span class="eyebrow">Notifikacije</span><h1>Broadcast centar</h1><p>Pošalji obaveštenje korisnicima, oglašivačima ili svima.</p></div></div>
+<form class="formcard" method="post" action="/admin/notifikacije/posalji"><div class="cols"><div><label>Cilj</label><select name="role_target"><option value="all">Svi</option><option value="korisnik">Korisnici</option><option value="oglasivac">Oglašivači</option><option value="admin">Admini</option></select></div><div><label>Naslov</label><input name="title" required></div></div><label>Poruka</label><textarea name="body" required></textarea><button class="btn">Pošalji</button></form>
+<div class="table"><table><tr><th>Datum</th><th>Cilj</th><th>Korisnik</th><th>Naslov</th><th>Poruka</th></tr>{% for n in notes %}<tr><td>{{ n.created_at }}</td><td>{{ n.role_target or '-' }}</td><td>{{ n.user.full_name if n.user else '-' }}</td><td>{{ n.title }}</td><td>{{ n.body }}</td></tr>{% else %}<tr><td colspan="5">Nema notifikacija.</td></tr>{% endfor %}</table></div>
+{% endblock %}

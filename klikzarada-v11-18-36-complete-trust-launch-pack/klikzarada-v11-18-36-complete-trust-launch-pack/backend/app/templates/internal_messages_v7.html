@@ -1,0 +1,14 @@
+{% extends "app_base.html" %}
+{% set title = "Poruke - KlikZarada" %}
+{% block app_content %}
+<div class="section-heading left"><span>V7 Messages</span><h2>Interna komunikacija</h2></div>
+<form class="form-panel" method="post" action="/poruke/posalji">
+  <div class="form-grid"><div><label>Primaoc</label><select name="recipient_id">{% for u in users %}<option value="{{ u.id }}">{{ u.full_name }} · {{ u.email }}</option>{% endfor %}</select></div><div><label>Naslov</label><input name="subject" required></div></div>
+  <label>Poruka</label><textarea name="body" required></textarea>
+  <button class="btn btn-primary">Pošalji</button>
+</form>
+<div class="grid-2">
+<div><div class="section-heading left"><span>Inbox</span><h2>Primljeno</h2></div><div class="table-card"><table><thead><tr><th>Od</th><th>Naslov</th><th>Poruka</th><th>Datum</th></tr></thead><tbody>{% for m in inbox %}<tr><td>{{ m.sender.full_name if m.sender else "Sistem" }}</td><td>{{ m.subject }}</td><td>{{ m.body }}</td><td>{{ m.created_at }}</td></tr>{% else %}<tr><td colspan="4">Nema poruka.</td></tr>{% endfor %}</tbody></table></div></div>
+<div><div class="section-heading left"><span>Sent</span><h2>Poslato</h2></div><div class="table-card"><table><thead><tr><th>Za</th><th>Naslov</th><th>Poruka</th><th>Datum</th></tr></thead><tbody>{% for m in sent %}<tr><td>{{ m.recipient.full_name if m.recipient else "" }}</td><td>{{ m.subject }}</td><td>{{ m.body }}</td><td>{{ m.created_at }}</td></tr>{% else %}<tr><td colspan="4">Nema poslatih poruka.</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,34 @@
+
+{% extends "app_base.html" %}
+{% set title = "Admin centar - KlikZarada" %}
+{% block app_content %}
+<section class="kz112-admin-hero">
+  <div>
+    <span>ADMIN CENTAR</span>
+    <h1>Kontrola platforme bez levog menija</h1>
+    <p>Sve admin funkcije su raspoređene kao dugmad i kartice preko cele širine ekrana.</p>
+  </div>
+  <div class="kz112-admin-hero-actions">
+    <a class="btn btn-primary" href="/admin/v11">Dashboard</a>
+    <a class="btn btn-secondary" href="/admin/mapa-platforme">Mapa platforme</a>
+  </div>
+</section>
+
+{% for group, items in groups.items() %}
+<section class="kz112-admin-section">
+  <div class="kz112-admin-section-head">
+    <h2>{{ group }}</h2>
+    <span>{{ items|length }} funkcija</span>
+  </div>
+  <div class="kz112-admin-button-grid">
+    {% for item in items %}
+    <a class="kz112-admin-button-card" href="{{ item.url }}">
+      <strong>{{ item.title }}</strong>
+      <p>{{ item.desc }}</p>
+      <span>Otvori →</span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

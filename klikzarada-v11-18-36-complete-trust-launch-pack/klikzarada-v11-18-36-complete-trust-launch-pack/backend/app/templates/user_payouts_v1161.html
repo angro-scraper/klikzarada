@@ -1,0 +1,57 @@
+{% extends "app_base.html" %}
+{% set title="Isplate - KlikZarada" %}
+{% block app_content %}
+<section class="premium-panel-hero">
+  <div>
+    <span>ISPLATE</span>
+    <h1>Zahtev za isplatu</h1>
+    <p>Ovo je posebna stranica samo za isplate. Novčanik je odvojen i služi za pregled transakcija.</p>
+  </div>
+  <div class="premium-panel-actions">
+    <a class="premium-btn white" href="/korisnik/wallet">Novčanik</a>
+    <a class="premium-btn blue" href="/korisnik/panel">Moj panel</a>
+  </div>
+</section>
+
+<section class="premium-stat-grid">
+  <article class="green"><small>Dostupno za isplatu</small><strong>{{ "%.0f"|format(user.balance_rsd or 0) }}</strong><span>RSD</span></article>
+  <article class="blue"><small>Minimum</small><strong>{{ "%.0f"|format(min_withdrawal) }}</strong><span>RSD</span></article>
+  <article class="orange"><small>Na čekanju</small><strong>{{ withdrawals|selectattr("status","equalto","pending")|list|length }}</strong><span>zahteva</span></article>
+  <article class="purple"><small>Ukupno zahteva</small><strong>{{ withdrawals|length }}</strong><span>isplate</span></article>
+</section>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card gradient">
+    <div class="premium-card-head"><h2>Novi zahtev</h2><span>ručna obrada</span></div>
+    <form method="post" action="/korisnik/isplata" class="premium-form">
+      <label>Iznos za isplatu</label>
+      <input type="number" name="amount_rsd" min="{{ min_withdrawal }}" step="1" placeholder="500">
+      <label>Metod isplate</label>
+      <select name="payment_method">
+        <option value="bank_transfer">Bankovni račun</option>
+        <option value="paypal">PayPal</option>
+        <option value="manual">Drugo</option>
+      </select>
+      <label>Podaci za isplatu</label>
+      <textarea name="payment_details" placeholder="Upiši račun, ime primaoca ili PayPal email" required></textarea>
+      <button class="premium-btn green full">Pošalji zahtev za isplatu</button>
+    </form>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Istorija isplata</h2><span>{{ withdrawals|length }}</span></div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>Iznos</th><th>Metod</th><th>Status</th><th>Datum</th></tr></thead>
+        <tbody>
+        {% for w in withdrawals %}
+          <tr><td><b>{{ "%.0f"|format(w.amount_rsd) }} RSD</b></td><td>{{ w.payment_method }}</td><td><span class="status {{ w.status }}">{{ w.status }}</span></td><td>{{ w.created_at }}</td></tr>
+        {% else %}
+          <tr><td colspan="4">Nema zahteva za isplatu.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

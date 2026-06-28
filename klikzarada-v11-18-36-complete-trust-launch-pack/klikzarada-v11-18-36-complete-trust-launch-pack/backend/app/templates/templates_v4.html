@@ -1,0 +1,5 @@
+
+{% extends "app_base.html" %}{% set title="Šabloni kampanja" %}{% block app_content %}
+<div class="head"><div><span class="eyebrow">Šabloni</span><h1>Šabloni kampanja</h1><p>Izaberite gotov šablon i ubrzajte kreiranje kampanje.</p></div></div>
+<section class="grid2">{% for i in items %}<div class="card"><span class="pill">{{ i.category }} · {{ i.task_type }}</span><h2>{{ i.name }}</h2><p>{{ i.description }}</p><p><b>Predlog:</b> {{ "%.0f"|format(i.suggested_reward_rsd) }} RSD × {{ i.suggested_slots }} izvršenja</p><a class="btn" href="/oglasivac/nova-kampanja/sablon/{{ i.id }}">Koristi šablon</a></div>{% endfor %}</section>
+{% endblock %}

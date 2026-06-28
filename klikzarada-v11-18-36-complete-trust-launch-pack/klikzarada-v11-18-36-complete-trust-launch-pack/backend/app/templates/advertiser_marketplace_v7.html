@@ -1,0 +1,12 @@
+{% extends "app_base.html" %}
+{% set title = "Marketplace - Oglašivač" %}
+{% block app_content %}
+<div class="dashboard-head in-app"><div><span class="pill">V7 Marketplace</span><h1>Marketplace usluge</h1><p>Naručite gotove pakete kampanja, istraživanja i testiranja.</p></div><div class="balance-card"><span>Budžet</span><strong>{{ "%.0f"|format(user.advertiser_budget_rsd) }} RSD</strong></div></div>
+<div class="grid-3">
+{% for o in offers %}
+<div class="panel"><span class="pill">{{ o.category.name if o.category else "Usluga" }}</span><h2>{{ o.title }}</h2><p>{{ o.description }}</p><p><strong>{{ "%.0f"|format(o.price_rsd) }} RSD</strong> · {{ o.delivery_days }} dana</p><form method="post" action="/oglasivac/marketplace/{{ o.id }}/naruci"><input name="note" placeholder="Napomena" style="margin-bottom:10px"><button class="btn btn-primary">Naruči</button></form></div>
+{% else %}<div class="empty">Nema ponuda.</div>{% endfor %}
+</div>
+<div class="section-heading left panel-space"><span>Narudžbine</span><h2>Moje narudžbine</h2></div>
+<div class="table-card"><table><thead><tr><th>Ponuda</th><th>Status</th><th>Napomena</th><th>Datum</th></tr></thead><tbody>{% for o in orders %}<tr><td>{{ o.offer.title }}</td><td><span class="status status-{{ o.status }}">{{ o.status }}</span></td><td>{{ o.note or "" }}</td><td>{{ o.created_at }}</td></tr>{% else %}<tr><td colspan="4">Nema narudžbina.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "app_base.html" %}
+{% set title="Baza korisnika - Admin" %}
+{% block app_content %}
+<section class="premium-panel-hero admin">
+  <div>
+    <span>BAZA KORISNIKA</span>
+    <h1>Registrovani korisnici</h1>
+    <p>Posebna baza samo za korisnike: kontakt podaci, balans, status, nivo, dokazi i referral kod. Nije pomešano sa oglašivačima.</p>
+  </div>
+  <div class="premium-panel-actions">
+    <a class="premium-btn green" href="/admin/korisnici-baza-v117.csv">Export CSV</a>
+    <a class="premium-btn white" href="/admin/analitika-v117">Analitika</a>
+  </div>
+</section>
+
+<section class="premium-stat-grid analytics">
+  <article class="green"><small>Korisnika</small><strong>{{ totals.count }}</strong><span>ukupno</span></article>
+  <article class="blue"><small>Balans</small><strong>{{ "%.0f"|format(totals.balance) }}</strong><span>RSD</span></article>
+  <article class="orange"><small>Pending zarada</small><strong>{{ "%.0f"|format(totals.pending) }}</strong><span>RSD</span></article>
+  <article class="purple"><small>Ukupno zarađeno</small><strong>{{ "%.0f"|format(totals.earned) }}</strong><span>RSD</span></article>
+</section>
+
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Pretraga korisnika</h2>
+    <span>{{ rows|length }} prikazano</span>
+  </div>
+  <form class="analytics-search" method="get" action="/admin/korisnici-baza-v117">
+    <input name="q" value="{{ q }}" placeholder="Pretraga po imenu, emailu, telefonu ili gradu">
+    <button class="premium-btn blue">Pretraži</button>
+  </form>
+  <div class="premium-table-wrap">
+    <table>
+      <thead><tr><th>Korisnik</th><th>Kontakt</th><th>Status</th><th>Novac</th><th>Dokazi</th><th>Preporuke</th><th>Registrovan</th></tr></thead>
+      <tbody>
+      {% for r in rows %}
+      <tr>
+        <td><b>{{ r.full_name }}</b><br><small>ID {{ r.user_id }}</small></td>
+        <td>{{ r.email }}<br><small>{{ r.phone or "-" }} · {{ r.city or "-" }}</small></td>
+        <td><span class="status active">{{ r.status_name or "Nov" }}</span><br><small>{{ r.level_name }}</small></td>
+        <td><b>{{ "%.0f"|format(r.balance_rsd) }} RSD</b><br><small>pending {{ "%.0f"|format(r.pending_rsd) }} RSD</small></td>
+        <td>✅ {{ r.approved_count }} · ⏳ {{ r.pending_count }} · ❌ {{ r.rejected_count }}</td>
+        <td>{{ r.referral_code }}</td>
+        <td>{{ r.created_at_original }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7">Nema korisnika.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

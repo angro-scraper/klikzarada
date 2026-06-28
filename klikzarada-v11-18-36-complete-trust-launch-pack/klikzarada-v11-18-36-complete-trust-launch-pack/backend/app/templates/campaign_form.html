@@ -1,0 +1,20 @@
+
+{% extends "app_base.html" %}{% set title="Nova kampanja" %}{% block app_content %}
+<div class="head"><div><span class="eyebrow">Oglašavanje</span><h1>Nova kampanja</h1><p>Koristite šablon ili unesite kampanju ručno. Budžet se rezerviše pri slanju.</p></div><a class="ghost" href="/oglasivac/sabloni">Šabloni kampanja</a></div>
+<form class="formcard" method="post" action="/oglasivac/nova-kampanja">
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+<label>Naziv</label><input name="title" required value="{{ tpl.name if tpl is defined and tpl else '' }}">
+<div class="cols"><div><label>Kategorija</label><input name="category" required value="{{ tpl.category if tpl is defined and tpl else 'Ankete' }}"></div><div><label>Tip</label><input name="task_type" required value="{{ tpl.task_type if tpl is defined and tpl else 'Anketa' }}"></div></div>
+<label>Link</label><input name="target_url" placeholder="https://...">
+<label>Kratak opis</label><textarea name="description" required>{{ tpl.description if tpl is defined and tpl else '' }}</textarea>
+<label>Instrukcije</label><textarea name="instructions" required>{{ tpl.instructions if tpl is defined and tpl else '' }}</textarea>
+<label>Dokaz</label><textarea name="proof_required" required>{{ tpl.proof_required if tpl is defined and tpl else '' }}</textarea>
+<label>Primer dokaza</label><textarea name="example_proof"></textarea>
+<div class="cols"><div><label>Nagrada / RSD</label><input type="number" step="1" min="10" name="reward_rsd" required value="{{ tpl.suggested_reward_rsd if tpl is defined and tpl else 60 }}"></div><div><label>Broj izvršenja</label><input type="number" step="1" min="1" name="total_slots" required value="{{ tpl.suggested_slots if tpl is defined and tpl else 100 }}"></div></div>
+<div class="cols"><div><label>Ciljani grad</label><input name="target_city" value="Srbija"></div><div><label>Starost</label><input name="target_age_group" value="18+"></div></div>
+<label>Interesovanja</label><input name="target_interests" placeholder="hrana, aplikacije, online kupovina...">
+<label class="check"><input type="checkbox" name="proof_file_required" value="1"> Obavezan upload slike/fajla</label>
+<p class="hint">Platforma dodaje {{ fee }}% provizije na nagradu korisniku.</p>
+<button class="btn">Pošalji kampanju</button>
+</form>
+{% endblock %}

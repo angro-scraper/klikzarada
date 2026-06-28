@@ -1,0 +1,58 @@
+{% extends "app_base.html" %}
+{% set title = "Mapa platforme - KlikZarada" %}
+{% block app_content %}
+<section class="kz119-admin-hero">
+  <div>
+    <span>MAPA PLATFORME</span>
+    <h1>Jedna stranica za sve funkcije</h1>
+    <p>Svaka funkcija ima svoju stranicu, opis i dugme za otvaranje. Ovo je centralna mapa za administraciju platforme.</p>
+  </div>
+  <div class="kz119-admin-actions">
+    <a class="btn btn-primary" href="/admin/v11">Admin dashboard</a>
+    <a class="btn btn-secondary" href="/api/v1/v11/design-map">API mapa</a>
+  </div>
+</section>
+
+<section class="kz119-map-stats">
+  <div><small>Funkcija</small><strong>{{ functions|length }}</strong><span>u mapi</span></div>
+  <div><small>Kategorija zadataka</small><strong>{{ categories|length }}</strong><span>spremno</span></div>
+  <div><small>Dizajn</small><strong>V11.9</strong><span>unified</span></div>
+  <div><small>Jezik</small><strong>SR</strong><span>latinica</span></div>
+</section>
+
+{% for group, items in grouped.items() %}
+<section class="kz119-map-section">
+  <div class="kz119-section-head">
+    <h2>{{ group }}</h2>
+    <span>{{ items|length }} funkcija</span>
+  </div>
+  <div class="kz119-function-grid">
+    {% for f in items %}
+    <article class="kz119-function-card">
+      <div>
+        <span>{{ f.group }}</span>
+        <h3>{{ f.title }}</h3>
+        <p>{{ f.description }}</p>
+      </div>
+      <div class="kz119-function-actions">
+        <a class="btn btn-primary" href="{{ f.url }}">Otvori</a>
+        <a class="btn btn-secondary" href="/admin/funkcija/{{ f.slug }}">Detalji</a>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+<section class="kz119-map-section">
+  <div class="kz119-section-head"><h2>Kategorije zadataka</h2><span>{{ categories|length }} kategorija</span></div>
+  <div class="kz119-category-admin-grid">
+    {% for c in categories %}
+    <a href="/zadaci-kategorija/{{ c.slug }}">
+      <b>{{ c.icon }} {{ c.title }}</b>
+      <small>{{ c.description }}</small>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

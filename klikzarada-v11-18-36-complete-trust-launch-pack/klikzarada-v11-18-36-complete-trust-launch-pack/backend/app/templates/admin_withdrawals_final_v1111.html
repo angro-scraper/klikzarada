@@ -1,0 +1,60 @@
+{% extends "app_base.html" %}
+{% set title = "Isplate - Admin" %}
+{% block app_content %}
+<section class="kz1111-hero payout">
+  <div><span>ISPLATE</span><h1>Zahtevi za isplatu</h1><p>Pregled i obrada isplata korisnicima, sa jasnim redosledom od čekanja do plaćanja.</p></div>
+  <div class="kz1111-hero-actions"><a class="btn btn-primary" href="/admin/finansije">Finansije</a><a class="btn btn-secondary" href="/admin/mapa-platforme">Mapa</a></div>
+</section>
+<section class="kz1111-stat-grid colored">
+  <a class="kz1111-stat blue" href="/admin/isplate"><small>Ukupno</small><strong>{{ stats.all }}</strong><span>zahteva</span></a>
+  <a class="kz1111-stat orange" href="/admin/isplate?status=pending"><small>Na čekanju</small><strong>{{ stats.pending }}</strong><span>obrada</span></a>
+  <a class="kz1111-stat green" href="/admin/isplate?status=paid"><small>Isplaćeno</small><strong>{{ stats.paid }}</strong><span>završeno</span></a>
+  <a class="kz1111-stat red" href="/admin/isplate?status=rejected"><small>Odbijeno</small><strong>{{ stats.rejected }}</strong><span>vraćeno</span></a>
+</section>
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Payout workflow</h2>
+    <span>pending → kontrola → paid</span>
+  </div>
+  <div class="kz1111-process-strip">
+    <div>
+      <small>1. Pending</small>
+      <strong>Zahtev ulazi u red</strong>
+      <p>Prvo se proverava da li je uplata dovoljno stara i da li ima svih potrebnih podataka.</p>
+    </div>
+    <div>
+      <small>2. Kontrola</small>
+      <strong>Admin pregleda signal i rizik</strong>
+      <p>Ako postoji sumnja, zahtev se može odbiti ili vratiti na dodatnu proveru.</p>
+    </div>
+    <div>
+      <small>3. Isplata</small>
+      <strong>Odobren zahtev ide u paid status</strong>
+      <p>Odobrena isplata ostaje zabeležena u finansijama i na korisničkom saldu.</p>
+    </div>
+  </div>
+</section>
+<section class="kz1111-section">
+  <div class="kz1111-section-head"><h2>Lista zahteva</h2><span>{{ withdrawals|length }}</span></div>
+  <div class="kz1111-proof-grid">
+    {% for w in withdrawals %}
+    <article class="kz1111-proof-card">
+      <div class="kz1111-card-top"><span class="status status-{{ w.status }}">{{ w.status }}</span><strong>{{ "%.0f"|format(w.amount_rsd) }} RSD</strong></div>
+      <h3>{{ w.user.full_name if w.user else "Korisnik" }}</h3>
+      <p>{{ w.method }} · {{ w.payment_details }}</p>
+      <div class="kz1111-proof-meta">
+        <div><small>Metod</small><b>{{ w.method }}</b></div>
+        <div><small>Status</small><b>{{ w.status }}</b></div>
+        <div><small>Datum</small><b>{{ w.created_at }}</b></div>
+      </div>
+      <div class="kz1111-actions">
+        <form method="post" action="/admin/withdrawals/{{ w.id }}/paid"><button class="btn btn-mini btn-primary">Označi plaćeno</button></form>
+        <form method="post" action="/admin/withdrawals/{{ w.id }}/reject"><button class="btn btn-mini btn-danger">Odbij</button></form>
+      </div>
+    </article>
+    {% else %}
+    <div class="kz1111-empty"><h3>Nema zahteva za isplatu</h3><p>Kada korisnik zatraži isplatu, zahtev će biti ovde.</p></div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

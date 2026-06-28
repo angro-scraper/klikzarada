@@ -1,0 +1,181 @@
+{% extends "app_base.html" %}
+{% set title = "Cene i provizije - Admin" %}
+{% block app_content %}
+<section class="kz-admin-prices-hero">
+  <div>
+    <span class="pill">Admin cenovnik</span>
+    <h1>Cene reklama, gledanja i provizije</h1>
+    <p>Ovo je kontrolni centar za monetizaciju platforme. Ovde brzo menjaš odnos između korisnika, platforme i oglašivača bez gubljenja vremena po više ekrana.</p>
+    <div class="kz-admin-prices-hero-actions">
+      <a class="btn btn-primary" href="/cenovnik">Otvori javni cenovnik</a>
+      <a class="ghost" href="/admin/v11">Nazad na dashboard</a>
+    </div>
+  </div>
+
+  <div class="kz-admin-prices-hero-box">
+    <article>
+      <small>Platforma</small>
+      <strong>{{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}%</strong>
+      <span>uzima platforma</span>
+    </article>
+    <article>
+      <small>Korisnici</small>
+      <strong>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}%</strong>
+      <span>ide korisnicima</span>
+    </article>
+    <article>
+      <small>Isplata</small>
+      <strong>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD</strong>
+      <span>minimalni prag</span>
+    </article>
+  </div>
+</section>
+
+<section class="kz-admin-prices-summary">
+  <article>
+    <small>Veliki banner</small>
+    <strong>{{ "%.0f"|format(pricing_summary.banner_top_7d if pricing_summary is defined else 9500) }} RSD</strong>
+    <span>7 dana na početnoj</span>
+  </article>
+  <article>
+    <small>Srednji banner</small>
+    <strong>{{ "%.0f"|format(pricing_summary.banner_mid_7d if pricing_summary is defined else 5500) }} RSD</strong>
+    <span>7 dana na početnoj</span>
+  </article>
+  <article>
+    <small>Top pozicija</small>
+    <strong>{{ "%.0f"|format(pricing_summary.boost_top_3d if pricing_summary is defined else 2500) }} RSD</strong>
+    <span>3 dana izdvajanja</span>
+  </article>
+  <article>
+    <small>Validno gledanje</small>
+    <strong>{{ "%.0f"|format(pricing_summary.ad_view_cost_rsd if pricing_summary is defined else 10) }} RSD</strong>
+    <span>Cena po prikazu</span>
+  </article>
+</section>
+
+<section class="kz-admin-prices-layout">
+  <form class="form-panel kz-admin-prices-form" method="post" action="/admin/cene-v111/save">
+    <div class="kz-admin-form-head">
+      <div>
+        <h3>Dodaj ili promeni cenu</h3>
+        <p>Unesi ključ, naziv i vrednost. Ako menjaš postojeći ključ, sistem će ga ažurirati odmah.</p>
+      </div>
+      <span class="pill">Brza izmena</span>
+    </div>
+
+    <div class="form-grid">
+      <div>
+        <label>Key</label>
+        <input name="key" required placeholder="npr. banner_home_top_7d">
+      </div>
+      <div>
+        <label>Naziv</label>
+        <input name="title" required>
+      </div>
+    </div>
+
+    <div class="form-grid">
+      <div>
+        <label>Vrednost RSD</label>
+        <input type="number" step="0.01" name="value_rsd" value="0">
+      </div>
+      <div>
+        <label>Vrednost %</label>
+        <input type="number" step="0.01" name="value_percent" value="0">
+      </div>
+    </div>
+
+    <label>Opis</label>
+    <textarea name="description" placeholder="Kratko objasni gde se cena koristi i zašto postoji."></textarea>
+    <button class="btn btn-primary">Sačuvaj cenu</button>
+  </form>
+
+  <aside class="kz-admin-prices-note">
+    <h3>Kako da koristiš ovaj panel</h3>
+    <ul>
+      <li>RSD vrednosti su za reklame, gledanja i slotove.</li>
+      <li>Procente koristi za raspodelu između korisnika i platforme.</li>
+      <li>Javni cenovnik vuče iste vrednosti, pa nema ručnog prepisivanja.</li>
+      <li>Banner slotovi na početnoj treba da ostanu u skladu sa ovim cenama.</li>
+    </ul>
+  </aside>
+</section>
+
+<section class="panel-group-v111">
+  <div class="section-heading left panel-space">
+    <span>Aktuelne tarife</span>
+    <h2>Pregled svih aktivnih cena</h2>
+  </div>
+  <div class="kz-admin-prices-grid">
+    {% for p in prices %}
+    <div class="kz-admin-prices-card">
+      <div class="kz-admin-prices-card-top">
+        <span class="pill">{{ p.key }}</span>
+        <strong>{% if p.value_percent %}{{ p.value_percent }}%{% else %}{{ "%.2f"|format(p.value_rsd) }} RSD{% endif %}</strong>
+      </div>
+      <h3>{{ p.title }}</h3>
+      <p>{{ p.description or "Bez dodatnog opisa." }}</p>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="panel-group-v111">
+  <div class="section-heading left panel-space">
+    <span>Banner slotovi</span>
+    <h2>Cene slotova na početnoj</h2>
+  </div>
+
+  <form class="form-panel kz-admin-slot-form" method="post" action="/admin/cene-v111/slot">
+    <div class="form-grid">
+      <div>
+        <label>Code</label>
+        <input name="code" required>
+      </div>
+      <div>
+        <label>Title</label>
+        <input name="title" required>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div>
+        <label>Placement</label>
+        <input name="placement" value="home_top">
+      </div>
+      <div>
+        <label>Width</label>
+        <input name="width_label" value="wide">
+      </div>
+    </div>
+    <label>Cena RSD / 7 dana</label>
+    <input type="number" name="price_rsd" required>
+    <button class="btn btn-primary">Sačuvaj slot</button>
+  </form>
+
+  <div class="table-card compact-table-v111 kz-admin-prices-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Slot</th>
+          <th>Placement</th>
+          <th>Width</th>
+          <th>Cena</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in slots %}
+        <tr>
+          <td>{{ s.title }}</td>
+          <td>{{ s.placement }}</td>
+          <td>{{ s.width_label }}</td>
+          <td>{{ "%.0f"|format(s.price_rsd) }} RSD</td>
+          <td>{{ "aktivno" if s.is_aktivno else "off" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

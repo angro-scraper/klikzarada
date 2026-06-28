@@ -1,0 +1,7 @@
+{% extends "app_base.html" %}
+{% set title = "Automatizacija - Admin" %}
+{% block app_content %}
+<section class="kz113-hero automation"><div><span>AUTOMATIZACIJA</span><h1>Automatski tokovi rada</h1><p>Što više kontrole prebacujemo na sistem: tajmeri, validacija, top pozicija i anti-fraud signali.</p></div><div class="kz113-hero-actions"><a class="btn btn-primary" href="/admin/fraud-v11">Anti-fraud</a><a class="btn btn-secondary" href="/admin/deploy-v11">Produkcija</a></div></section>
+<section class="kz113-section"><div class="kz113-section-head"><h2>Automatska pravila</h2><span>{{ rules|length }}</span></div><div class="kz113-rule-grid">{% for r in rules %}<article><span>{{ r.status }}</span><h3>{{ r.title }}</h3><p>{{ r.desc }}</p><small>Okidač: {{ r.trigger }}</small></article>{% endfor %}</div></section>
+<section class="kz113-section"><div class="kz113-section-head"><h2>Postojeći workflow zapisi</h2><span>{{ workflows|length }}</span></div><div class="kz113-clean-table"><table><thead><tr><th>Naziv</th><th>Okidač</th><th>Status</th></tr></thead><tbody>{% for w in workflows %}<tr><td>{{ w.name }}</td><td>{{ w.trigger }}</td><td>{{ w.status }}</td></tr>{% else %}<tr><td colspan="3">Nema dodatnih workflow zapisa.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "app_base.html" %}
+{% set title = "Security - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>V6 Security</span><h2>Security events</h2></div>
+<form class="form-panel" method="post" action="/admin/security/event">
+<div class="form-grid"><div><label>Event type</label><input name="event_type" required></div><div><label>Severity</label><select name="severity"><option>low</option><option>medium</option><option>high</option><option>critical</option></select></div></div>
+<label>Detalji</label><textarea name="details"></textarea><button class="btn btn-primary">Dodaj event</button></form>
+<div class="table-card"><table><thead><tr><th>Datum</th><th>Korisnik</th><th>Tip</th><th>Severity</th><th>IP</th><th>Detalji</th></tr></thead><tbody>{% for e in events %}<tr><td>{{ e.created_at }}</td><td>{{ e.user.full_name if e.user else "-" }}</td><td>{{ e.event_type }}</td><td><span class="status status-{{ 'odbijeno' if e.severity in ['high','critical'] else 'na čekanju' }}">{{ e.severity }}</span></td><td>{{ e.ip_address or "" }}</td><td>{{ e.details or "" }}</td></tr>{% else %}<tr><td colspan="6">Nema eventa.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

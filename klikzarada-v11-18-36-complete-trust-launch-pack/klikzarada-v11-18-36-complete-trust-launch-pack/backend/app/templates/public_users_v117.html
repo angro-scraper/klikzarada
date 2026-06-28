@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% set title = "Za korisnike - KlikZarada" %}
+{% block content %}
+<section class="kz117-page-hero compact">
+  <div>
+    <span class="kz117-eyebrow">ZA KORISNIKE</span>
+    <h1>Zaradi kroz jednostavne proverljive zadatke</h1>
+    <p>Izaberi zadatak, uradi instrukcije i pošalji dokaz. Korisnici sa boljim kvalitetom dobijaju više auto-odobrenja i bržu isplatu.</p>
+    <div class="kz117-hero-actions">
+      <a class="kz117-btn green" href="/registracija">Želim da zarađujem</a>
+      <a class="kz117-btn outline" href="/zadaci">Pogledaj zadatke</a>
+    </div>
+  </div>
+  <div class="kz117-check-card">
+    <h3>Koliko se može zaraditi?</h3>
+    <ul>
+      <li>Kratki zadaci: 20-40 RSD</li>
+      <li>Standardni zadaci: 50-120 RSD</li>
+      <li>Viši zadaci: 120-250 RSD</li>
+      <li>Premium zadaci: 250+ RSD</li>
+    </ul>
+  </div>
+</section>
+
+<section class="kz117-grid-3">
+  <div class="kz117-feature">
+    <h3>Brža isplata</h3>
+    <p>Provereni nalozi sa dobrom istorijom dobijaju manje čekanja i više auto-odobrenja.</p>
+    <span>Automatizacija + sigurnosna provera</span>
+  </div>
+  <div class="kz117-feature">
+    <h3>Fera raspodela</h3>
+    <p>Platforma zadržava malu proviziju, a najveći deo ostaje korisnicima na odobrenim zadacima.</p>
+    <span>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}% korisniku</span>
+  </div>
+  <div class="kz117-feature">
+    <h3>Minimalni prag</h3>
+    <p>Isplate nisu zaključane na visoke sume, ali ostaju dovoljno ozbiljne da sistem ostane zdrav.</p>
+    <span>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD</span>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "app_base.html" %}
+{% set title = "CRM - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>V6 CRM</span><h2>Sales pipeline</h2></div>
+<form class="form-panel" method="post" action="/admin/crm/novi">
+<div class="form-grid"><div><label>Firma</label><input name="company_name" required></div><div><label>Kontakt</label><input name="contact_name"></div></div>
+<div class="form-grid"><div><label>Email</label><input name="email"></div><div><label>Telefon</label><input name="phone"></div></div>
+<div class="form-grid"><div><label>Source</label><input name="source" value="manual"></div><div><label>Potencijalni budžet</label><input type="number" name="potential_budget_rsd" value="0"></div></div>
+<label>Napomene</label><textarea name="notes"></textarea><button class="btn btn-primary">Dodaj lead</button></form>
+<div class="table-card"><table><thead><tr><th>Firma</th><th>Kontakt</th><th>Status</th><th>Budžet</th><th>Napomene</th><th>Promeni status</th></tr></thead><tbody>{% for l in leads %}<tr><td>{{ l.company_name }}</td><td>{{ l.contact_name or "" }}<br><small>{{ l.email or "" }} {{ l.phone or "" }}</small></td><td><span class="status status-{{ l.status }}">{{ l.status }}</span></td><td>{{ "%.0f"|format(l.potential_budget_rsd) }} RSD</td><td>{{ l.notes or "" }}</td><td><form method="post" action="/admin/crm/{{ l.id }}/status"><select name="status"><option>new</option><option>contacted</option><option>demo</option><option>proposal</option><option>won</option><option>lost</option></select><input class="mini-input" name="notes" placeholder="note"><button class="btn btn-mini btn-primary">Sačuvaj</button></form></td></tr>{% else %}<tr><td colspan="6">Nema leadova.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

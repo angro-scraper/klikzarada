@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% set title = "Reklame - KlikZarada" %}
+{% block content %}
+<section class="kz117-page-hero compact">
+  <div>
+    <span class="kz117-eyebrow">REKLAME</span>
+    <h1>Banneri i plaćena isticanja</h1>
+    <p>Kupite prostor na početnoj, istaknite kampanju na vrh liste ili pokrenite stabilan promotivni tok kroz pregledne pakete.</p>
+  </div>
+  <div class="kz117-hero-card">
+    <strong>{{ "%.0f"|format(pricing_summary.banner_top_7d if pricing_summary is defined else 9500) }} RSD</strong>
+    <span>veliki banner / 7 dana</span>
+    <a class="kz117-btn blue" href="/oglasivac/banneri-v111">Rezerviši</a>
+  </div>
+</section>
+
+<section class="kz117-grid-3">
+  <div class="kz117-feature">
+    <h3>Početna - veliki banner</h3>
+    <p>Najvidljiviji prostor odmah ispod hero sekcije.</p>
+    <span>od {{ "%.0f"|format(pricing_summary.banner_top_7d if pricing_summary is defined else 9500) }} RSD / 7 dana</span>
+  </div>
+  <div class="kz117-feature">
+    <h3>Početna - srednji banner</h3>
+    <p>Uredan format za brendove i promotivne poruke.</p>
+    <span>od {{ "%.0f"|format(pricing_summary.banner_mid_7d if pricing_summary is defined else 5500) }} RSD / 7 dana</span>
+  </div>
+  <div class="kz117-feature">
+    <h3>Top pozicija kampanje</h3>
+    <p>Izdvajanje kampanje na vrhu aktivnih zadataka.</p>
+    <span>od {{ "%.0f"|format(pricing_summary.boost_top_3d if pricing_summary is defined else 2500) }} RSD / 3 dana</span>
+  </div>
+</section>
+
+<section class="kz117-grid-3">
+  {% if banners %}
+    {% for b in banners[:3] %}
+    <a class="kz117-price-card" href="/reklama-v111/{{ b.id }}/view">
+      <h3>{{ b.title }}</h3>
+      <strong>{{ "%.0f"|format(b.price_rsd) }} RSD</strong>
+      <p>{{ b.body or "Promotivni prostor oglašivača." }}</p>
+      <span>Pogledaj reklamu →</span>
+    </a>
+    {% endfor %}
+  {% else %}
+    <div class="kz117-price-card">
+      <h3>Aktivni banneri</h3>
+      <strong>0</strong>
+      <p>Trenutno nema aktivnih bannera, ali prostor je spreman za zakup.</p>
+      <span>Otvorite cenovnik ili admin panel</span>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

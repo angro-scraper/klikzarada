@@ -1,0 +1,16 @@
+{% extends "app_base.html" %}
+{% set title = "Segmenti publike - KlikZarada" %}
+{% block app_content %}
+<div class="section-heading left"><span>V5 Audience Builder</span><h2>Segmenti publike</h2></div>
+<form class="form-panel" method="post" action="/oglasivac/segmenti/novi">
+  <div class="form-grid"><div><label>Naziv segmenta</label><input name="name" required placeholder="npr. Mladi iz Niša"></div><div><label>Grad</label><input name="city" placeholder="Niš, Beograd, Srbija..."></div></div>
+  <div class="form-grid"><div><label>Starosna grupa</label><input name="age_group" placeholder="18-34"></div><div><label>Minimalni nivo</label><select name="min_user_level"><option>Bronza</option><option>Srebro</option><option>Zlato</option><option>Premium</option></select></div></div>
+  <label>Interesovanja</label><textarea name="interests" placeholder="hrana, aplikacije, kupovina..."></textarea>
+  <div class="form-grid"><div><label>Minimalni kvalitet %</label><input type="number" name="min_quality_score" value="80"></div><div><label>Napomena</label><input name="notes"></div></div>
+  <button class="btn btn-primary" type="submit">Sačuvaj segment</button>
+</form>
+<div class="table-card"><table><thead><tr><th>Naziv</th><th>Grad</th><th>Godine</th><th>Interesovanja</th><th>Nivo</th><th>Kvalitet</th></tr></thead><tbody>
+{% for s in segments %}<tr><td>{{ s.name }}</td><td>{{ s.city or "-" }}</td><td>{{ s.age_group or "-" }}</td><td>{{ s.interests or "-" }}</td><td>{{ s.min_user_level }}</td><td>{{ "%.0f"|format(s.min_quality_score) }}%</td></tr>
+{% else %}<tr><td colspan="6">Nema segmenata.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

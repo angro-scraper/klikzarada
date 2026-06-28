@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% set title = "Production readiness - KlikZarada" %}
+{% block content %}
+<section class="page-head"><span>V6 Production</span><h1>Production readiness</h1><p>Kontrolna lista za prelazak sa lokalnog MVP-a na javni sistem.</p></section>
+<section class="section grid-3">
+<div class="info-card"><div class="icon">1</div><h3>Bezbednost</h3><p>HTTPS, SECRET_KEY, email verifikacija, rate limit, backup i monitoring.</p></div>
+<div class="info-card"><div class="icon">2</div><h3>Pravno</h3><p>Uslovi korišćenja, privatnost, poreski model, isplate i računovodstvo.</p></div>
+<div class="info-card"><div class="icon">3</div><h3>Operacije</h3><p>SLA za dokaze, isplate, prigovore, tikete i anti-fraud kontrole.</p></div>
+</section>
+<section class="section grid-2">
+<div class="table-card"><table><thead><tr><th>Setting</th><th>Vrednost</th><th>Opis</th></tr></thead><tbody>{% for s in settings %}<tr><td>{{ s.key }}</td><td>{{ s.value }}</td><td>{{ s.description }}</td></tr>{% endfor %}</tbody></table></div>
+<div class="table-card"><table><thead><tr><th>Feature</th><th>Status</th><th>Opis</th></tr></thead><tbody>{% for f in flags %}<tr><td>{{ f.name }}</td><td>{{ "ON" if f.is_enabled else "OFF" }}</td><td>{{ f.description }}</td></tr>{% endfor %}</tbody></table></div>
+</section>
+{% endblock %}

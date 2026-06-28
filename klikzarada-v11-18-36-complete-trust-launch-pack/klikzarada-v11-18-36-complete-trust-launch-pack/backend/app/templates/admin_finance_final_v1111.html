@@ -1,0 +1,46 @@
+{% extends "app_base.html" %}
+{% set title = "Finansije - Admin" %}
+{% block app_content %}
+<section class="kz1111-hero finance">
+  <div><span>FINANSIJE</span><h1>Finansijski pregled</h1><p>Budžeti, provizije, rezervisana sredstva, isplate i ukupna slika platforme na jednom mestu.</p></div>
+  <div class="kz1111-hero-actions"><a class="btn btn-primary" href="/admin/cene-v111">Cene</a><a class="btn btn-secondary" href="/admin/isplate">Isplate</a></div>
+</section>
+<section class="kz1111-finance-grid">
+  {% for r in rows %}
+  <article class="kz1111-finance-card {{ r.color }}">
+    <small>{{ r.title }}</small>
+    <strong>{{ "%.0f"|format(r.amount) }} RSD</strong>
+    <p>{{ r.desc }}</p>
+  </article>
+  {% endfor %}
+</section>
+<section class="kz1111-section">
+  <div class="kz1111-section-head"><h2>Novčani tok u 3 koraka</h2><span>uplata / potrošnja / isplata</span></div>
+  <div class="kz1111-process-strip">
+    <div>
+      <small>Uplata</small>
+      <strong>Oglašivač puni budžet</strong>
+      <p>Sredstva ulaze u dostupni budžet i mogu da se koriste za kampanje i banere.</p>
+    </div>
+    <div>
+      <small>Potrošnja</small>
+      <strong>Sistem rezerviše i skida po potrebi</strong>
+      <p>Aktivne kampanje drže deo budžeta zaključanim dok traje prikaz ili zadatak.</p>
+    </div>
+    <div>
+      <small>Isplata</small>
+      <strong>Korisnici dobijaju tek posle provere</strong>
+      <p>Finansijski tok ostaje čist jer se isplaćuju samo odobreni i provereni zahtevi.</p>
+    </div>
+  </div>
+</section>
+<section class="kz1111-section">
+  <div class="kz1111-section-head"><h2>Brze finansijske komande</h2><span>admin</span></div>
+  <div class="kz1111-command-grid">
+    <a href="/admin/cene-v111">Promeni cene i provizije</a>
+    <a href="/admin/banneri-v111">Uredi reklame</a>
+    <a href="/admin/isplate">Obradi isplate</a>
+    <a href="/admin/budget-v11">Budžeti oglašivača</a>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "app_base.html" %}
+{% set title = "Release V8" %}
+{% block app_content %}
+<div class="section-heading left"><span>Release</span><h2>Production checklist</h2></div>
+<form class="form-panel" method="post" action="/admin/release-v8/create"><div class="form-grid"><div><label>Item</label><input name="title" required></div><div><label>Owner</label><input name="owner" value="admin"></div></div><button class="btn btn-primary">Dodaj item</button></form>
+<div class="table-card"><table><thead><tr><th>Item</th><th>Owner</th><th>Status</th><th>Akcije</th></tr></thead><tbody>{% for c in checklist %}<tr><td>{{ c.title }}</td><td>{{ c.owner }}</td><td><span class="status status-{{ c.status }}">{{ c.status }}</span></td><td class="actions"><form method="post" action="/admin/release-v8/{{ c.id }}/done"><button class="btn btn-mini btn-primary">Done</button></form><form method="post" action="/admin/release-v8/{{ c.id }}/blocked"><button class="btn btn-mini btn-danger">Blocked</button></form></td></tr>{% else %}<tr><td colspan="4">Nema checklist itema.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

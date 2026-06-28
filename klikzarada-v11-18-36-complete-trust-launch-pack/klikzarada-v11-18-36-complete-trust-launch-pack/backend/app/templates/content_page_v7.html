@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% set title = page.seo_title or page.title %}
+{% block content %}
+<section class="page-head"><span>Info</span><h1>{{ page.title }}</h1><p>{{ page.seo_description or "" }}</p></section>
+<section class="section text-page"><p>{{ page.body }}</p></section>
+{% endblock %}

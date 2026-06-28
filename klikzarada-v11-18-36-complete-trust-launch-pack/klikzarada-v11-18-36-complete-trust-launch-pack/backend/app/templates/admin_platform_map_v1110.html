@@ -1,0 +1,53 @@
+{% extends "app_base.html" %}
+{% set title = "Mapa platforme - KlikZarada" %}
+{% block app_content %}
+<section class="kz1110-hero">
+  <div>
+    <span>MAPA PLATFORME</span>
+    <h1>Sve funkcije na jednoj stranici</h1>
+    <p>Centralni pregled za admina. Svaka funkcija ima svoju stranicu i dugme za otvaranje.</p>
+  </div>
+  <div class="kz1110-hero-actions">
+    <a class="btn btn-primary" href="/admin/v11">Admin dashboard</a>
+    <a class="btn btn-secondary" href="/api/v1/v11/design-map">API mapa</a>
+  </div>
+</section>
+
+<section class="kz1110-stat-grid">
+  <div class="kz1110-stat"><small>Funkcije</small><strong>{{ functions|length }}</strong><span>u mapi</span></div>
+  <div class="kz1110-stat"><small>Kategorije</small><strong>{{ categories|length }}</strong><span>zadataka</span></div>
+  <div class="kz1110-stat"><small>Dizajn</small><strong>V11.10</strong><span>unified</span></div>
+  <div class="kz1110-stat"><small>Status</small><strong>OK</strong><span>spremno</span></div>
+</section>
+
+{% for group, items in grouped.items() %}
+<section class="kz1110-section">
+  <div class="kz1110-section-head">
+    <h2>{{ group }}</h2>
+    <span>{{ items|length }} funkcija</span>
+  </div>
+  <div class="kz1110-function-grid">
+    {% for f in items %}
+    <article class="kz1110-function-card">
+      <span>{{ f.group }}</span>
+      <h3>{{ f.title }}</h3>
+      <p>{{ f.description }}</p>
+      <div class="kz1110-function-actions">
+        <a class="btn btn-primary" href="{{ f.url }}">Otvori</a>
+        <a class="btn btn-secondary" href="/admin/funkcija/{{ f.slug }}">Detalji</a>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+<section class="kz1110-section">
+  <div class="kz1110-section-head"><h2>Kategorije zadataka</h2><span>{{ categories|length }}</span></div>
+  <div class="kz1110-category-mini-grid">
+    {% for c in categories %}
+    <a href="/zadaci-kategorija/{{ c.slug }}"><b>{{ c.icon }} {{ c.title }}</b><small>{{ c.description }}</small></a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "app_base.html" %}
+{% set title = "SLA centar - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>V6 SLA</span><h2>Operativni SLA centar</h2></div>
+<div class="grid-2">
+<div><div class="section-heading left"><span>Dokazi</span><h2>Pending dokazi</h2></div><div class="table-card"><table><thead><tr><th>Datum</th><th>Korisnik</th><th>Zadatak</th></tr></thead><tbody>{% for s in na čekanju_submissions %}<tr><td>{{ s.created_at }}</td><td>{{ s.user.full_name }}</td><td>{{ s.task.title }}</td></tr>{% else %}<tr><td colspan="3">Nema na čekanju dokaza.</td></tr>{% endfor %}</tbody></table></div></div>
+<div><div class="section-heading left"><span>Isplate</span><h2>Pending isplate</h2></div><div class="table-card"><table><thead><tr><th>Datum</th><th>Korisnik</th><th>Iznos</th></tr></thead><tbody>{% for w in na čekanju_withdrawals %}<tr><td>{{ w.created_at }}</td><td>{{ w.user.full_name }}</td><td>{{ "%.0f"|format(w.amount_rsd) }} RSD</td></tr>{% else %}<tr><td colspan="3">Nema na čekanju isplata.</td></tr>{% endfor %}</tbody></table></div></div>
+<div><div class="section-heading left"><span>Tiketi</span><h2>Otvoreni tiketi</h2></div><div class="table-card"><table><thead><tr><th>Datum</th><th>Korisnik</th><th>Naslov</th></tr></thead><tbody>{% for t in open_tickets %}<tr><td>{{ t.created_at }}</td><td>{{ t.user.full_name if t.user else "" }}</td><td>{{ t.subject }}</td></tr>{% else %}<tr><td colspan="3">Nema otvorenih tiketa.</td></tr>{% endfor %}</tbody></table></div></div>
+<div><div class="section-heading left"><span>Prigovori</span><h2>Otvoreni prigovori</h2></div><div class="table-card"><table><thead><tr><th>Datum</th><th>Dokaz</th><th>Razlog</th></tr></thead><tbody>{% for d in open_disputes %}<tr><td>{{ d.created_at }}</td><td>#{{ d.submission_id }}</td><td>{{ d.reason }}</td></tr>{% else %}<tr><td colspan="3">Nema prigovora.</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+{% endblock %}

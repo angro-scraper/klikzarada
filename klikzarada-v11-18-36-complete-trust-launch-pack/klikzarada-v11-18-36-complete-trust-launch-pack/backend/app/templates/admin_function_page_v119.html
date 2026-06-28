@@ -1,0 +1,39 @@
+{% extends "app_base.html" %}
+{% set title = fn.title ~ " - funkcija" %}
+{% block app_content %}
+<section class="kz119-admin-hero">
+  <div>
+    <span>{{ fn.group }}</span>
+    <h1>{{ fn.title }}</h1>
+    <p>{{ fn.description }}</p>
+  </div>
+  <div class="kz119-admin-actions">
+    <a class="btn btn-primary" href="{{ fn.url }}">Otvori funkciju</a>
+    <a class="btn btn-secondary" href="/admin/mapa-platforme">Nazad na mapu</a>
+  </div>
+</section>
+
+<section class="kz119-map-section">
+  <div class="kz119-section-head"><h2>Opis funkcije</h2><span>namena</span></div>
+  <div class="kz119-function-detail">
+    <p>{{ fn.description }}</p>
+    <ul>
+      <li>Stranica je deo jedinstvenog dizajna platforme.</li>
+      <li>Dugme “Otvori funkciju” vodi na realnu radnu stranicu.</li>
+      <li>Ova stranica služi kao objašnjenje za admina i budući onboarding.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="kz119-map-section">
+  <div class="kz119-section-head"><h2>Povezane funkcije</h2><span>{{ related|length }}</span></div>
+  <div class="kz119-function-grid">
+    {% for f in related %}
+    <article class="kz119-function-card">
+      <div><span>{{ f.group }}</span><h3>{{ f.title }}</h3><p>{{ f.description }}</p></div>
+      <div class="kz119-function-actions"><a class="btn btn-primary" href="{{ f.url }}">Otvori</a><a class="btn btn-secondary" href="/admin/funkcija/{{ f.slug }}">Detalji</a></div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

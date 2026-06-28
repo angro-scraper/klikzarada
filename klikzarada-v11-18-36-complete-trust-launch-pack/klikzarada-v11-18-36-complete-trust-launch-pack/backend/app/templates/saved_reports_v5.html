@@ -1,0 +1,14 @@
+{% extends "app_base.html" %}
+{% set title = "Sačuvani izveštaji - KlikZarada" %}
+{% block app_content %}
+<div class="section-heading left"><span>V5 Reports</span><h2>Sačuvani izveštaji</h2></div>
+<form class="form-panel" method="post" action="/oglasivac/sacuvani-izvestaji/novo">
+  <div class="form-grid"><div><label>Naziv</label><input name="name" required></div><div><label>Tip</label><select name="report_type"><option value="campaigns">Kampanje</option><option value="submissions">Dokazi</option><option value="finance">Finansije</option></select></div></div>
+  <label>Opis/filter</label><textarea name="query_text" placeholder="npr. samo aktivne kampanje, prošli mesec..."></textarea>
+  <button class="btn btn-primary" type="submit">Sačuvaj izveštaj</button>
+</form>
+<div class="table-card"><table><thead><tr><th>Naziv</th><th>Tip</th><th>Filter</th><th>Datum</th></tr></thead><tbody>
+{% for r in reports %}<tr><td>{{ r.name }}</td><td>{{ r.report_type }}</td><td>{{ r.query_text or "" }}</td><td>{{ r.created_at }}</td></tr>
+{% else %}<tr><td colspan="4">Nema sačuvanih izveštaja.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% set title = "Help - KlikZarada" %}
+{% block content %}
+<section class="page-head"><span>Help</span><h1>Centar za pomoć</h1><p>Uputstva za korisnike, oglašivače i admin tokove.</p></section>
+<section class="filter-card"><form method="get"><input name="q" value="{{ q }}" placeholder="Pretraga pomoći..."><button class="btn btn-primary">Pretraži</button></form></section>
+<section class="section grid-3">{% for a in articles %}<a class="info-card" href="/help/{{ a.slug }}"><span class="pill">{{ a.audience }}</span><h3>{{ a.title }}</h3><p>{{ a.body[:150] }}...</p></a>{% else %}<div class="empty">Nema članaka.</div>{% endfor %}</section>
+{% endblock %}

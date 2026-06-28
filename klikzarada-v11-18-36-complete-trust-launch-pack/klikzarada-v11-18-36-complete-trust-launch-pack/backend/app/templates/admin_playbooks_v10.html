@@ -1,0 +1,5 @@
+{% extends "app_base.html" %}{% set title="Playbooks V10" %}{% block app_content %}
+<div class="section-heading left"><span>V10 Ops Playbooks</span><h2>Operativni playbooks</h2></div>
+<form class="form-panel" method="post" action="/admin/playbooks-v10/create"><label>Title</label><input name="title" required><label>Okidač</label><textarea name="trigger_text"></textarea><label>Steps</label><textarea name="steps_text" required></textarea><button class="btn btn-primary">Dodaj playbook</button></form>
+<div class="grid-2">{% for i in items %}<div class="info-card"><span class="pill">{{ i.status }}</span><h3>{{ i.title }}</h3><p><strong>Okidač:</strong> {{ i.trigger_text or "-" }}</p><p>{{ i.steps_text }}</p></div>{% else %}<div class="empty">Nema playbookova.</div>{% endfor %}</div>
+{% endblock %}

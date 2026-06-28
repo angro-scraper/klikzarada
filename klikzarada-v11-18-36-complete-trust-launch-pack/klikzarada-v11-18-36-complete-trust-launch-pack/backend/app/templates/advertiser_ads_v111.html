@@ -1,0 +1,299 @@
+{% extends "app_base.html" %}
+{% set title = "Moje reklame - Oglašivač" %}
+{% set active_banners = banners|selectattr("status", "equalto", "active")|list|length %}
+{% set pending_banners = banners|selectattr("status", "equalto", "pending")|list|length %}
+{% block app_content %}
+<section class="premium-panel-hero advertiser banner-launch-hero">
+  <div>
+    <span>PLAĆENI BANERI</span>
+    <h1>Postavi banner na početnoj</h1>
+    <p>Izaberi poziciju, dodaj vizuelni identitet i pošalji na objavu. Ako ne dodaš svoju sliku, sistem će napraviti uredan preview koji i dalje izgleda profesionalno.</p>
+    <div class="premium-panel-actions">
+      <a class="premium-btn green" href="#banner-maker">BannerMaker</a>
+      <a class="premium-btn blue" href="/oglasivac/budzet">Budžet</a>
+      <a class="premium-btn white" href="/cenovnik">Cenovnik</a>
+      <a class="premium-btn white" href="/admin/promocija-v111">Pogledaj admin</a>
+    </div>
+  </div>
+  <div class="premium-card banner-launch-hero-card">
+    <div class="premium-card-head">
+      <h2>Budžet i prostor</h2>
+      <span>uživo</span>
+    </div>
+    <div class="premium-money-grid">
+      <article>
+        <small>Slobodan budžet</small>
+        <strong>{{ "%.0f"|format(user.advertiser_budget_rsd or 0) }} RSD</strong>
+      </article>
+      <article>
+        <small>Aktivni banneri</small>
+        <strong>{{ active_banners }}</strong>
+      </article>
+      <article>
+        <small>Na čekanju</small>
+        <strong>{{ pending_banners }}</strong>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="premium-stat-grid banner-launch-stats">
+  <article class="blue">
+    <small>Veliki banner</small>
+    <strong>{{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }}</strong>
+    <span>RSD / dan</span>
+  </article>
+  <article class="green">
+    <small>Srednji banner</small>
+    <strong>{{ "%.0f"|format(pricing_summary.banner_mid_day if pricing_summary is defined else 785) }}</strong>
+    <span>RSD / dan</span>
+  </article>
+  <article class="purple">
+    <small>Top pozicija</small>
+    <strong>{{ "%.0f"|format(pricing_summary.boost_top_3d if pricing_summary is defined else 2500) }}</strong>
+    <span>RSD / 3 dana</span>
+  </article>
+  <article class="orange">
+    <small>Udeo korisniku</small>
+    <strong>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}%</strong>
+    <span>od validnih zadataka</span>
+  </article>
+</section>
+
+<div class="premium-dashboard-grid banner-launch-grid">
+  <section class="premium-card gradient banner-launch-panel" id="banner-maker">
+    <div class="premium-card-head">
+      <h2>BannerMaker i ručni unos</h2>
+      <span>objava</span>
+    </div>
+
+    <div class="kz-maker-note banner-launch-note">
+      <div>
+        <b>Brz tok objave</b>
+        <span>Prvo probaj BannerMaker, a ako imaš gotov vizual koristi ručni unos. Oba toka vode do iste objave i istog pregleda.</span>
+      </div>
+      <div class="kz-size-chips">
+        <span>Top: 1400×360</span>
+        <span>Srednji: 900×300</span>
+        <span>Donji: 900×260</span>
+      </div>
+    </div>
+
+    <div class="banner-launch-form-wrap">
+      <div class="section-heading left compact">
+        <span>BannerMaker</span>
+        <h2>Napravi banner sa slikom i pošalji na objavu</h2>
+      </div>
+      <form class="premium-form banner-launch-form" method="post" action="/oglasivac/promocija-v111/maker" enctype="multipart/form-data">
+        <label>Banner slot</label>
+        <select name="slot_id">
+          {% for s in slots %}
+            <option value="{{ s.id }}">{{ loop.index }}. {{ s.title }} · {{ "%.0f"|format(s.price_rsd / 7 if s.price_rsd else 0) }} RSD / dan</option>
+          {% endfor %}
+        </select>
+        <label>Naslov reklame</label>
+        <input name="title" required placeholder="npr. Letnji popust 20%">
+        <label>Tekst reklame</label>
+        <textarea name="body" placeholder="Kratak opis ponude koji će se prikazati na početnoj"></textarea>
+        <div class="form-grid">
+          <div>
+            <label>Image URL</label>
+            <input name="image_url" placeholder="https://.../slika.png">
+          </div>
+          <div>
+            <label>Target URL</label>
+            <input name="target_url" value="/" placeholder="https://vas-sajt.rs">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div>
+            <label>Theme</label>
+            <select name="theme">
+              <option value="blue">Plava</option>
+              <option value="green">Zelena</option>
+              <option value="violet">Ljubičasta</option>
+              <option value="orange">Narandžasta</option>
+              <option value="dark">Tamna</option>
+              <option value="pink">Roze</option>
+            </select>
+          </div>
+          <div>
+            <label>Ikonica</label>
+            <select name="icon">
+              <option value="megaphone">Megafon</option>
+              <option value="cart">Korpa</option>
+              <option value="chart">Grafik</option>
+              <option value="travel">Putovanje</option>
+              <option value="fit">Fit / lifestyle</option>
+              <option value="chat">Komentar</option>
+              <option value="link">Link</option>
+              <option value="rocket">Raketa</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div>
+            <label>CTA tekst</label>
+            <input name="cta" value="Saznaj više">
+          </div>
+          <div>
+            <label>Boja teksta</label>
+            <input name="accent" value="#ffffff" placeholder="#ffffff">
+          </div>
+        </div>
+        <div class="kz-upload-box">
+          <label>Upload slike sa računara</label>
+          <input type="file" name="upload_image" accept="image/png,image/jpeg,image/webp,image/svg+xml" data-preview-target="adv-maker-preview">
+          <small>Opciono. Ako ne uploaduješ sliku, BannerMaker generiše profesionalnu SVG sliku.</small>
+        </div>
+        <label>Prikaz slike</label>
+        <select name="image_fit">
+          <option value="cover">Popuni ceo banner</option>
+          <option value="contain">Cela slika vidljiva</option>
+        </select>
+        <div class="kz-live-preview" id="adv-maker-preview">
+          <div><b>Live preview</b><span>Izaberi sliku ili napravi banner preko teme i ikonice.</span></div>
+        </div>
+        <div class="form-grid">
+          <div>
+            <label>Broj dana</label>
+            <input type="number" name="days_count" value="7" min="1">
+          </div>
+          <div></div>
+        </div>
+        <button class="btn btn-primary">Napravi banner i pošalji na objavu</button>
+      </form>
+
+      <div class="banner-launch-divider"></div>
+
+      <div class="section-heading left compact">
+        <span>Ručni unos</span>
+        <h2>Ili postavi svoj image URL</h2>
+      </div>
+      <form class="premium-form banner-launch-form" method="post" action="/oglasivac/promocija-v111" enctype="multipart/form-data">
+        <label>Banner slot</label>
+        <select name="slot_id">
+          {% for s in slots %}
+            <option value="{{ s.id }}">{{ loop.index }}. {{ s.title }} · {{ "%.0f"|format(s.price_rsd / 7 if s.price_rsd else 0) }} RSD / dan</option>
+          {% endfor %}
+        </select>
+        <label>Naslov reklame</label>
+        <input name="title" required placeholder="npr. Letnji popust 20%">
+        <label>Tekst reklame</label>
+        <textarea name="body" placeholder="Kratak opis ponude koji će se prikazati na početnoj"></textarea>
+        <div class="form-grid">
+          <div>
+            <label>Image URL</label>
+            <input name="image_url" placeholder="https://.../slika.png">
+          </div>
+          <div>
+            <label>Target URL</label>
+            <input name="target_url" value="/" placeholder="https://vas-sajt.rs">
+          </div>
+        </div>
+        <div class="kz-upload-box">
+          <label>Upload slike sa računara</label>
+          <input type="file" name="upload_image" accept="image/png,image/jpeg,image/webp,image/svg+xml" data-preview-target="adv-manual-preview">
+          <small>Ako uploaduješ sliku, ona ima prednost u odnosu na Image URL.</small>
+        </div>
+        <label>Prikaz slike</label>
+        <select name="image_fit">
+          <option value="cover">Popuni ceo banner</option>
+          <option value="contain">Cela slika vidljiva</option>
+        </select>
+        <div class="kz-live-preview" id="adv-manual-preview">
+          <div><b>Live preview</b><span>Ovde će se pojaviti slika pre slanja.</span></div>
+        </div>
+        <div class="form-grid">
+          <div>
+            <label>Broj dana</label>
+            <input type="number" name="days_count" value="7" min="1">
+          </div>
+          <div></div>
+        </div>
+        <button class="btn btn-ghost">Pošalji ručno pripremljen banner</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="premium-card banner-launch-side">
+    <div class="premium-card-head">
+      <h2>Proces objave</h2>
+      <span>workflow</span>
+    </div>
+    <div class="premium-empty">
+      <h3>Kako banner prolazi kroz sistem</h3>
+      <p>1. Izabereš slot i tekst.</p>
+      <p>2. Dodaš sliku ili prepustiš sistemu da generiše preview.</p>
+      <p>3. Budžet se rezerviše i banner ide na pregled.</p>
+      <p>4. Admin ga objavljuje ili vraća na doradu.</p>
+      <p>5. Nakon objave prikazuje se na početnoj u izabranom slotu.</p>
+    </div>
+    <div class="banner-launch-price-grid">
+      <article>
+        <small>Veliki banner</small>
+        <strong>{{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }} RSD</strong>
+        <span>po danu</span>
+      </article>
+      <article>
+        <small>Srednji banner</small>
+        <strong>{{ "%.0f"|format(pricing_summary.banner_mid_day if pricing_summary is defined else 785) }} RSD</strong>
+        <span>po danu</span>
+      </article>
+      <article>
+        <small>Top pozicija</small>
+        <strong>{{ "%.0f"|format(pricing_summary.boost_top_3d if pricing_summary is defined else 2500) }} RSD</strong>
+        <span>3 dana</span>
+      </article>
+      <article>
+        <small>Validno gledanje</small>
+        <strong>{{ "%.0f"|format(pricing_summary.ad_view_cost_rsd if pricing_summary is defined else 10) }} RSD</strong>
+        <span>po prikazu</span>
+      </article>
+    </div>
+    <a class="btn btn-ghost full" href="/oglasivac/budzet">Dopuni budžet</a>
+  </section>
+</div>
+
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Moji banneri</h2>
+    <span>Statusi i objave</span>
+  </div>
+  <div class="table-card compact-table-v111">
+    <table>
+      <thead><tr><th>Preview</th><th>Banner</th><th>Slot</th><th>Cena</th><th>Status</th><th>Start</th><th>Napomena</th></tr></thead>
+      <tbody>
+        {% for b in banners %}
+        <tr>
+          <td><img class="kz-table-banner-preview" src="{{ b.image_url or '/static/img/banner_generic.svg' }}" alt="{{ b.title }}"></td>
+          <td><strong>{{ b.title }}</strong><br><small>{{ b.body or "" }}</small></td>
+          <td>{{ b.slot.title if b.slot else "-" }}</td>
+          <td>{{ "%.0f"|format(b.price_rsd) }} RSD<br><small>{{ "%.0f"|format(b.price_rsd / b.days_count if b.days_count else b.price_rsd) }} / dan · {{ b.days_count }} dana</small></td>
+          <td><span class="status status-{{ b.status }}">{{ b.status }}</span></td>
+          <td>{{ b.starts_at or "-" }}</td>
+          <td>{{ (b.admin_note or "").replace("[BANNER_RESERVED_PAID]", "plaćeno / čeka objavu") }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">Nema banner zahteva.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+(function kzBannerPreviewInit(){
+  document.querySelectorAll('input[type="file"][data-preview-target]').forEach(function(input){
+    input.addEventListener('change', function(){
+      const target = document.getElementById(input.dataset.previewTarget);
+      if(!target || !input.files || !input.files[0]) return;
+      const file = input.files[0];
+      const url = URL.createObjectURL(file);
+      target.innerHTML = '<img src="'+url+'" alt="Preview slike bannera"><div><b>Preview slike</b><span>'+file.name+'</span></div>';
+      target.classList.add('has-image');
+    });
+  });
+})();
+</script>
+{% endblock %}

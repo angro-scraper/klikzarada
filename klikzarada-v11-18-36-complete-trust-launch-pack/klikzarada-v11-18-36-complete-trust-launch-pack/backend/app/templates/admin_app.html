@@ -1,0 +1,165 @@
+{% extends "app_base.html" %}
+{% set title="Admin dashboard" %}
+{% block app_content %}
+<section class="premium-panel-hero admin">
+  <div>
+    <span>ADMIN</span>
+    <h1>Kontrola platforme</h1>
+    <p>Jedan pregled za kampanje, dokaze, isplate, budžete, reklame, automatizaciju, monetizaciju i korisničke signale.</p>
+  </div>
+  <div class="premium-panel-actions">
+    <a class="premium-btn blue" href="/admin/smart-v115">Smart auto</a>
+    <a class="premium-btn green" href="/admin/auto-engine-v114">Auto engine</a>
+    <a class="premium-btn white" href="/admin/mapa-platforme">Mapa platforme</a>
+  </div>
+</section>
+
+<section class="premium-stat-grid">
+  <article class="blue"><small>Nalozi</small><strong>{{ users|length if users is defined else users_count if users_count is defined else "0" }}</strong><span>ukupno</span></article>
+  <article class="orange"><small>Kampanje na čekanju</small><strong>{{ pending_tasks|length if pending_tasks is defined else "0" }}</strong><span>moderacija</span></article>
+  <article class="purple"><small>Dokazi na čekanju</small><strong>{{ pending_subs|length if pending_subs is defined else "0" }}</strong><span>provera</span></article>
+  <article class="green"><small>Isplate na čekanju</small><strong>{{ pending_withdrawals|length if pending_withdrawals is defined else "0" }}</strong><span>obrada</span></article>
+</section>
+
+{% if automation_summary is defined %}
+<section class="premium-card">
+  <div class="premium-card-head"><h2>Automation summary</h2><span>sistem</span></div>
+  <div class="premium-mini-bars">
+    <div><label>Auto odobreno <b>{{ automation_summary.auto_approved }}</b></label><span><i class="blue" style="width:{{ [automation_summary.auto_approved * 12, 100]|min }}%"></i></span></div>
+    <div><label>Ručno čekanje <b>{{ automation_summary.manual_queue }}</b></label><span><i class="orange" style="width:{{ [automation_summary.manual_queue * 12, 100]|min }}%"></i></span></div>
+    <div><label>AI pregledi <b>{{ automation_summary.ai_reviews }}</b></label><span><i class="green" style="width:{{ [automation_summary.ai_reviews * 6, 100]|min }}%"></i></span></div>
+    <div><label>Auto odbijeno <b>{{ automation_summary.auto_rejected }}</b></label><span><i class="purple" style="width:{{ [automation_summary.auto_rejected * 12, 100]|min }}%"></i></span></div>
+  </div>
+</section>
+<section class="premium-card">
+  <div class="premium-card-head"><h2>Dokazi: pending vs auto</h2><span>brzi graf</span></div>
+  <div class="premium-mini-bars compact">
+    <div><label>Pending <b>{{ dashboard_mix.pending_subs if dashboard_mix is defined else 0 }}</b></label><span><i class="orange" style="width:{{ [((dashboard_mix.pending_subs if dashboard_mix is defined else 0) * 12), 100]|min }}%"></i></span></div>
+    <div><label>Auto odobreno <b>{{ dashboard_mix.auto_approved if dashboard_mix is defined else 0 }}</b></label><span><i class="green" style="width:{{ [((dashboard_mix.auto_approved if dashboard_mix is defined else 0) * 12), 100]|min }}%"></i></span></div>
+  </div>
+</section>
+<div class="premium-dashboard-grid">
+  <section class="premium-card gradient">
+    <div class="premium-card-head"><h2>Fraud snapshot</h2><span>rizični signali</span></div>
+    <div class="premium-money-grid">
+      <article><small>Visok rizik korisnici</small><strong>{{ fraud_summary.high_risk_users if fraud_summary is defined else 0 }}</strong></article>
+      <article><small>Srednji rizik korisnici</small><strong>{{ fraud_summary.medium_risk_users if fraud_summary is defined else 0 }}</strong></article>
+      <article><small>Visok rizik kampanje</small><strong>{{ fraud_summary.high_risk_campaigns if fraud_summary is defined else 0 }}</strong></article>
+      <article><small>Srednji rizik kampanje</small><strong>{{ fraud_summary.medium_risk_campaigns if fraud_summary is defined else 0 }}</strong></article>
+    </div>
+  </section>
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Status dokaza</h2><span>auto / ručno / odbijeno</span></div>
+    <div class="premium-mini-bars compact">
+      <div><label>Pending <b>{{ proof_mix.pending if proof_mix is defined else 0 }}</b></label><span><i class="orange" style="width:{{ [((proof_mix.pending if proof_mix is defined else 0) * 12), 100]|min }}%"></i></span></div>
+      <div><label>Odobreno <b>{{ proof_mix.approved if proof_mix is defined else 0 }}</b></label><span><i class="green" style="width:{{ [((proof_mix.approved if proof_mix is defined else 0) * 12), 100]|min }}%"></i></span></div>
+      <div><label>Odbijeno <b>{{ proof_mix.rejected if proof_mix is defined else 0 }}</b></label><span><i class="purple" style="width:{{ [((proof_mix.rejected if proof_mix is defined else 0) * 12), 100]|min }}%"></i></span></div>
+      <div><label>Sporno <b>{{ proof_mix.disputed if proof_mix is defined else 0 }}</b></label><span><i class="blue" style="width:{{ [((proof_mix.disputed if proof_mix is defined else 0) * 12), 100]|min }}%"></i></span></div>
+    </div>
+    <div class="kz1111-proof-legend">
+      <span>Auto znači da sistem već smanjuje ručni rad.</span>
+      <span>Ručno ostavlja prostor za dodatnu proveru.</span>
+      <span>Odbijeno odmah sklanja problematične prijave.</span>
+    </div>
+  </section>
+</div>
+<section class="premium-card">
+  <div class="premium-card-head"><h2>Monetization snapshot</h2><span>ekonomija</span></div>
+  <div class="premium-money-grid">
+    <article><small>Provizija platforme</small><strong>{{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}%</strong></article>
+    <article><small>Udeo korisnika</small><strong>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}%</strong></article>
+    <article><small>Minimalna isplata</small><strong>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD</strong></article>
+  </div>
+</section>
+<section class="premium-stat-grid">
+  <article class="blue"><small>Auto odobreno</small><strong>{{ automation_summary.auto_approved }}</strong><span>bez admina</span></article>
+  <article class="orange"><small>Ručno čekanje</small><strong>{{ automation_summary.manual_queue }}</strong><span>izuzeci</span></article>
+  <article class="green"><small>AI pregledi</small><strong>{{ automation_summary.ai_reviews }}</strong><span>rezultati</span></article>
+  <article class="purple"><small>Auto odbijeno</small><strong>{{ automation_summary.auto_rejected }}</strong><span>sumnjivo</span></article>
+</section>
+{% endif %}
+
+<div class="premium-admin-grid">
+  <section class="premium-card gradient">
+    <div class="premium-card-head"><h2>Brze akcije</h2><span>admin</span></div>
+    <div class="premium-action-grid">
+      <a href="/admin/kampanje">Kampanje</a>
+      <a href="/admin/dokazi">Dokazi</a>
+      <a href="/admin/isplate">Isplate</a>
+      <a href="/admin/promocija-v111">Reklame</a>
+      <a href="/admin/cene-v111">Cene</a>
+      <a href="/admin/fraud-v11">Anti-fraud</a>
+      <a href="/admin/ai-review">AI review</a>
+      <a href="/admin/smart-v115">Smart auto</a>
+      <a href="/admin/deploy-v11">Produkcija</a>
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Finansije</h2><a href="/admin/finansije">Otvori</a></div>
+    <div class="premium-money-grid">
+      <article><small>Provizija platforme</small><strong>{{ "%.0f"|format(platform_fee_total if platform_fee_total is defined else 0) }} RSD</strong></article>
+      <article><small>Odobreno korisnicima</small><strong>{{ "%.0f"|format(approved_total if approved_total is defined else 0) }} RSD</strong></article>
+      <article><small>Budžet oglašivača</small><strong>{{ "%.0f"|format(advertiser_budget_total if advertiser_budget_total is defined else 0) }} RSD</strong></article>
+    </div>
+  </section>
+</div>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Najnovije kampanje</h2><a href="/admin/kampanje">Sve kampanje</a></div>
+    <div class="premium-table-wrap">
+      <table><thead><tr><th>Naziv</th><th>Status</th><th>Nagrada</th><th>Akcija</th></tr></thead><tbody>
+      {% for t in tasks[:8] if tasks is defined %}
+      <tr><td><b>{{ t.title }}</b><br><small>{{ t.category }}</small></td><td><span class="status {{ t.status }}">{{ t.status }}</span></td><td>{{ "%.0f"|format(t.reward_rsd) }} RSD</td><td><a class="mini-btn" href="/admin/kampanje">Uredi</a></td></tr>
+      {% else %}
+      <tr><td colspan="4">Nema kampanja.</td></tr>
+      {% endfor %}
+      </tbody></table>
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Reklame i isticanja</h2><a href="/admin/promocija-v111">Uredi reklame</a></div>
+    <div class="premium-list">
+      {% if boosts is defined %}
+        {% for b in boosts[:5] %}
+        <article><div><b>{{ b.title }}</b><small>{{ b.status }} · {{ "%.0f"|format(b.price_rsd) }} RSD</small></div><a class="mini-btn" href="/admin/promocija-v111">Otvori</a></article>
+        {% else %}
+        <div class="premium-empty"><h3>Nema aktivnih isticanja</h3><p>Kada oglašivač naruči top poziciju, pojaviće se ovde.</p></div>
+        {% endfor %}
+      {% else %}
+      <div class="premium-empty"><h3>Reklame spremne</h3><p>Otvorite panel za banner slotove i top pozicije.</p></div>
+      {% endif %}
+    </div>
+  </section>
+</div>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Dokazi na proveri</h2><a href="/admin/dokazi">Svi dokazi</a></div>
+    <div class="premium-table-wrap">
+      <table><thead><tr><th>Korisnik</th><th>Zadatak</th><th>Status</th></tr></thead><tbody>
+      {% for s in pending_subs[:8] if pending_subs is defined %}
+      <tr><td>{{ s.user.full_name }}</td><td>{{ s.task.title }}</td><td><span class="status {{ s.status }}">{{ s.status }}</span></td></tr>
+      {% else %}
+      <tr><td colspan="3">Nema dokaza na čekanju.</td></tr>
+      {% endfor %}
+      </tbody></table>
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Zahtevi za isplatu</h2><a href="/admin/isplate">Sve isplate</a></div>
+    <div class="premium-table-wrap">
+      <table><thead><tr><th>Korisnik</th><th>Iznos</th><th>Status</th></tr></thead><tbody>
+      {% for w in pending_withdrawals[:8] if pending_withdrawals is defined %}
+      <tr><td>{{ w.user.full_name }}</td><td>{{ "%.0f"|format(w.amount_rsd) }} RSD</td><td>{{ w.status }}</td></tr>
+      {% else %}
+      <tr><td colspan="3">Nema zahteva za isplatu.</td></tr>
+      {% endfor %}
+      </tbody></table>
+    </div>
+  </section>
+</div>
+{% endblock %}

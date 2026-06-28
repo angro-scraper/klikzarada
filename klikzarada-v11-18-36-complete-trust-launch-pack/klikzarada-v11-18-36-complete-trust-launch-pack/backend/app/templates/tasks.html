@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% set title="Zadaci" %}{% block content %}
+<section class="page"><span class="eyebrow">Zadaci</span><h1>Dostupni zadaci</h1><p>Pretraži zadatke i pošalji dokaz kada završiš.</p></section>
+<form class="filters" method="get"><input name="q" value="{{ q }}" placeholder="Pretraga"><select name="category">{% for c in cats %}<option {% if c==category %}selected{% endif %}>{{ c }}</option>{% endfor %}</select><button class="btn">Pretraži</button></form>
+<section class="list">{% for t in tasks %}<article class="task"><div><span class="pill">{{ t.category }} · {{ t.task_type }} · {{ t.estimated_minutes }} min</span><h3>{{ t.title }}</h3><p>{{ t.description }}</p><small>Cilj: {{ t.target_city or "Srbija" }} · preostalo {{ t.total_slots-t.used_slots }}</small></div><div class="price"><b>{{ "%.0f"|format(t.reward_rsd) }} RSD</b><a class="btn" href="/zadaci/{{ t.id }}">Detalji</a></div></article>{% else %}<div class="empty">Nema zadataka.</div>{% endfor %}</section>
+{% endblock %}

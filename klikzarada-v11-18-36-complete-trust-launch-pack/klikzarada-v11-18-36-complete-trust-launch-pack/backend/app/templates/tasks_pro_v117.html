@@ -1,0 +1,64 @@
+
+{% extends "base.html" %}
+{% set title = "Zadaci - KlikZarada" %}
+{% set extra_body_class = "kz1189-tasks-premium" %}
+{% block content %}
+<section class="kz117-page-hero compact">
+  <div>
+    <span class="kz117-eyebrow">ZADACI</span>
+    <h1>Dostupni mikro-zadaci</h1>
+    <p>Izaberite zadatak, pročitajte instrukcije i pošaljite dokaz. Sve je pregledno, proverljivo i na srpskom.</p>
+  </div>
+  <div class="kz117-hero-card">
+    <strong>{{ tasks|length if tasks else 0 }}</strong>
+    <span>aktivnih zadataka</span>
+    <a class="kz117-btn blue" href="/registracija">Počni da zarađuješ</a>
+  </div>
+</section>
+
+<section class="kz117-filter-card">
+  <form method="get" action="/zadaci" class="kz117-filter-form">
+    <div>
+      <label>Pretraga</label>
+      <input name="q" value="{{ q if q is defined else '' }}" placeholder="Pretraži zadatke...">
+    </div>
+    <div>
+      <label>Kategorija</label>
+      <select name="category">
+        <option value="">Sve kategorije</option>
+        <option>Ankete</option>
+        <option>Testiranje</option>
+        <option>Registracije</option>
+        <option>Povratne informacije</option>
+      </select>
+    </div>
+    <button class="kz117-btn blue" type="submit">Pretraži</button>
+  </form>
+</section>
+
+<section class="kz117-task-list">
+  {% for t in tasks %}
+  <article class="kz117-task-item">
+    <div class="kz117-task-main">
+      <span class="kz117-tag">{{ t.category }} · {{ t.task_type }} · {{ t.estimated_minutes }} min</span>
+      <h2>{{ t.title }}</h2>
+      <p>{{ t.description }}</p>
+      <div class="kz117-task-meta">
+        <span>Cilj: {{ t.targeting or "Srbija" }}</span>
+        <span>Preostalo: {{ t.total_slots if t.total_slots is defined else "—" }}</span>
+      </div>
+    </div>
+    <div class="kz117-task-side">
+      <strong>{{ "%.0f"|format(t.reward_rsd) }} RSD</strong>
+      <a class="kz117-btn blue" href="/zadaci/{{ t.id }}">Detalji</a>
+    </div>
+  </article>
+  {% else %}
+  <div class="kz117-empty">
+    <h2>Nema dostupnih zadataka</h2>
+    <p>Vratite se kasnije ili se registrujte da dobijete obaveštenje kada se pojave novi zadaci.</p>
+    <a class="kz117-btn green" href="/registracija">Registracija</a>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

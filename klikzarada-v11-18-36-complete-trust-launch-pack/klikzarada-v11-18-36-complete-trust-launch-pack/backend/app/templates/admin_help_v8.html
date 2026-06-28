@@ -1,0 +1,7 @@
+{% extends "app_base.html" %}
+{% set title = "Help CMS V8" %}
+{% block app_content %}
+<div class="section-heading left"><span>Help CMS</span><h2>Help članci</h2></div>
+<form class="form-panel" method="post" action="/admin/help-v8/save"><label>Slug</label><input name="slug" required><label>Naslov</label><input name="title" required><label>Body</label><textarea name="body" required></textarea><label>Audience</label><select name="audience"><option>all</option><option>users</option><option>advertisers</option><option>admins</option></select><label>Status</label><select name="status"><option>published</option><option>draft</option></select><button class="btn btn-primary">Sačuvaj</button></form>
+<div class="table-card"><table><thead><tr><th>Slug</th><th>Naslov</th><th>Audience</th><th>Status</th><th>Link</th></tr></thead><tbody>{% for a in articles %}<tr><td>{{ a.slug }}</td><td>{{ a.title }}</td><td>{{ a.audience }}</td><td>{{ a.status }}</td><td><a href="/help/{{ a.slug }}">Otvori</a></td></tr>{% else %}<tr><td colspan="5">Nema članaka.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "app_base.html" %}
+{% set title = "Anti-fraud - Admin" %}
+{% block app_content %}
+<section class="kz113-hero fraud"><div><span>ANTI-FRAUD</span><h1>Automatska kontrola rizika</h1><p>Sistem označava naloge i dokaze koji odstupaju od normalnog ponašanja.</p></div><div class="kz113-hero-actions"><a class="btn btn-primary" href="/admin/dokazi">Dokazi</a><a class="btn btn-secondary" href="/admin/workflows-v10">Automatizacija</a></div></section>
+<section class="kz113-section"><div class="kz113-section-head"><h2>Aktivna pravila</h2><span>{{ rules|length }}</span></div><div class="kz113-rule-grid">{% for r in rules %}<article><span>{{ r.status }}</span><h3>{{ r.title }}</h3><p>{{ r.desc }}</p><small>{{ r.trigger }}</small></article>{% endfor %}</div></section>
+<section class="kz113-section"><div class="kz113-section-head"><h2>Sumnjivi signali</h2><span>{{ suspicious|length }}</span></div><div class="kz113-risk-grid">{% for s in suspicious %}<article><div class="risk-score">{{ s.risk }}</div><h3>{{ s.user.full_name }}</h3><p>{{ s.reasons }}</p><a class="btn btn-secondary" href="/admin/korisnici">Otvori korisnike</a></article>{% else %}<div class="kz1111-empty"><h3>Nema kritičnih signala</h3><p>Automatska kontrola trenutno nema ozbiljne prijave.</p></div>{% endfor %}</div></section>
+{% endblock %}

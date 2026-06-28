@@ -1,0 +1,69 @@
+{% extends "app_base.html" %}
+{% set title="Admin analitika - KlikZarada" %}
+{% block app_content %}
+<section class="premium-panel-hero admin">
+  <div>
+    <span>ANALITIKA PLATFORME</span>
+    <h1>Posete, registracije i aktivnost</h1>
+    <p>Admin sada vidi koliko ljudi posećuje platformu, koliko ima korisnika, koliko ima oglašivača i koje stranice se najviše koriste.</p>
+  </div>
+  <div class="premium-panel-actions">
+    <a class="premium-btn blue" href="/admin/korisnici-baza-v117">Baza korisnika</a>
+    <a class="premium-btn green" href="/admin/oglasivaci-baza-v117">Baza oglašivača</a>
+  </div>
+</section>
+
+<section class="premium-stat-grid analytics">
+  <article class="blue"><small>Posete ukupno</small><strong>{{ stats.total_visits }}</strong><span>sve vreme</span></article>
+  <article class="green"><small>Posete danas</small><strong>{{ stats.today_visits }}</strong><span>danas</span></article>
+  <article class="purple"><small>Jedinstveni posetioci</small><strong>{{ stats.unique_total }}</strong><span>visitor ID</span></article>
+  <article class="orange"><small>Jedinstveni danas</small><strong>{{ stats.unique_today }}</strong><span>danas</span></article>
+</section>
+
+<section class="premium-stat-grid analytics">
+  <article class="green"><small>Registrovani korisnici</small><strong>{{ stats.registered_users }}</strong><span>posebna baza</span></article>
+  <article class="blue"><small>Registrovani oglašivači</small><strong>{{ stats.registered_advertisers }}</strong><span>posebna baza</span></article>
+  <article class="purple"><small>Admin nalozi</small><strong>{{ stats.admins }}</strong><span>kontrola</span></article>
+  <article class="orange"><small>Odnos</small><strong>{{ stats.registered_users }} / {{ stats.registered_advertisers }}</strong><span>korisnici / oglašivači</span></article>
+</section>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Najposećenije stranice</h2><span>{{ stats.top_routes|length }}</span></div>
+    <div class="analytics-route-list">
+      {% for path,count in stats.top_routes %}
+      <article><b>{{ path }}</b><span>{{ count }} poseta</span></article>
+      {% else %}
+      <div class="premium-empty"><h3>Nema poseta</h3><p>Kada se otvore stranice, podaci se automatski upisuju.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Posete po ulozi</h2><span>{{ stats.role_visits|length }}</span></div>
+    <div class="analytics-role-grid">
+      {% for role,count in stats.role_visits %}
+      <article><strong>{{ count }}</strong><span>{{ role }}</span></article>
+      {% else %}
+      <div class="premium-empty"><h3>Nema podataka</h3></div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<section class="premium-card">
+  <div class="premium-card-head"><h2>Poslednje posete</h2><span>{{ stats.recent|length }}</span></div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead><tr><th>Vreme</th><th>Uloga</th><th>Putanja</th><th>Status</th><th>Trajanje</th><th>Referrer</th></tr></thead>
+      <tbody>
+      {% for v in stats.recent %}
+      <tr><td>{{ v.created_at }}</td><td>{{ v.role }}</td><td>{{ v.path }}</td><td>{{ v.status_code }}</td><td>{{ "%.0f"|format(v.duration_ms or 0) }} ms</td><td>{{ v.referrer or "-" }}</td></tr>
+      {% else %}
+      <tr><td colspan="6">Nema poseta.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

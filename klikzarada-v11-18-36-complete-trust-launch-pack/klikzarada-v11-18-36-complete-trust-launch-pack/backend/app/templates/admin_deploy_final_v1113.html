@@ -1,0 +1,6 @@
+{% extends "app_base.html" %}
+{% set title = "Produkcija - Admin" %}
+{% block app_content %}
+<section class="kz113-hero deploy"><div><span>PRODUKCIJA</span><h1>Deploy, konfiguracija i backup</h1><p>Pregled spremnosti sistema pre izlaska na produkciju.</p></div><div class="kz113-hero-actions"><a class="btn btn-primary" href="/admin/smoke-v11">Smoke test</a><a class="btn btn-secondary" href="/admin/mapa-platforme">Mapa</a></div></section>
+<section class="kz113-section"><div class="kz113-section-head"><h2>Checklist</h2><span>{{ checks|length }}</span></div><div class="kz113-check-grid">{% for c in checks %}<article><span class="{% if c.status == 'OK' %}ok{% else %}warn{% endif %}">{{ c.status }}</span><h3>{{ c.title }}</h3><p>{{ c.desc }}</p></article>{% endfor %}</div></section>
+{% endblock %}

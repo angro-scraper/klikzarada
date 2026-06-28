@@ -1,0 +1,11 @@
+{% extends "app_base.html" %}{% set title="Daily Desk V11" %}{% block app_content %}
+<div class="section-heading left"><span>V11 Admin Daily Desk</span><h2>Dnevni radni sto</h2></div>
+<form class="form-panel" method="post" action="/admin/daily-desk-v11/note"><div class="form-grid"><div><label>Naslov</label><input name="title" required></div><div><label>Prioritet</label><select name="priority"><option>low</option><option>medium</option><option>high</option><option>critical</option></select></div></div><label>Napomena</label><textarea name="note"></textarea><button class="btn btn-primary">Dodaj note</button></form>
+<div class="grid-2">
+<div class="table-card"><table><thead><tr><th>Pending dokazi</th><th>Korisnik</th><th>Zadatak</th></tr></thead><tbody>{% for s in na čekanju_submissions %}<tr><td>#{{ s.id }}</td><td>{{ s.user.full_name }}</td><td>{{ s.task.title }}</td></tr>{% else %}<tr><td colspan="3">Nema na čekanju dokaza.</td></tr>{% endfor %}</tbody></table></div>
+<div class="table-card"><table><thead><tr><th>Pending isplate</th><th>Korisnik</th><th>Iznos</th></tr></thead><tbody>{% for w in na čekanju_withdrawals %}<tr><td>#{{ w.id }}</td><td>{{ w.user.full_name }}</td><td>{{ "%.0f"|format(w.amount_rsd) }} RSD</td></tr>{% else %}<tr><td colspan="3">Nema na čekanju isplata.</td></tr>{% endfor %}</tbody></table></div>
+</div>
+<div class="section-heading left panel-space"><span>Fraud / Notes</span><h2>Rizici i prioriteti</h2></div>
+<div class="grid-2"><div class="table-card"><table><thead><tr><th>Signal</th><th>Korisnik</th><th>Score</th><th>Details</th></tr></thead><tbody>{% for f in fraud %}<tr><td>{{ f.signal_type }}</td><td>{{ f.user.full_name if f.user else "-" }}</td><td>{{ f.risk_score }}</td><td>{{ f.details or "" }}</td></tr>{% else %}<tr><td colspan="4">Nema fraud signala.</td></tr>{% endfor %}</tbody></table></div>
+<div class="grid-1">{% for n in notes %}<div class="info-card"><span class="pill">{{ n.priority }}</span><h3>{{ n.title }}</h3><p>{{ n.note or "" }}</p></div>{% endfor %}</div></div>
+{% endblock %}

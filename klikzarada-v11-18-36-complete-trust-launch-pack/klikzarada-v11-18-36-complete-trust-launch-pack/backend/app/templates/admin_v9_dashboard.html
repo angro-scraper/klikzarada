@@ -1,0 +1,14 @@
+{% extends "app_base.html" %}{% set title="V9 Launch OS - Admin" %}{% block app_content %}
+<div class="section-heading left"><span>V9 Launch & Revenue OS</span><h2>Go-to-market kontrola</h2></div>
+<div class="stats small in-app-stats">
+<div class="stat-card"><strong>{{ campaigns }}</strong><span>launch kampanja</span></div>
+<div class="stat-card"><strong>{{ tasks_open }}</strong><span>open taskova</span></div>
+<div class="stat-card"><strong>{{ partners }}</strong><span>partnera</span></div>
+<div class="stat-card"><strong>{{ contacts }}</strong><span>outreach kontakata</span></div>
+<div class="stat-card"><strong>{{ "%.0f"|format(forecast) }}</strong><span>forecast RSD</span></div>
+</div>
+<div class="grid-3">
+<div class="panel"><h2>Launch</h2><p>Kampanje i taskovi za lansiranje.</p><a class="btn btn-primary" href="/admin/launch-v9">Otvori</a></div>
+<div class="panel panel-purple"><h2>Revenue</h2><p>Forecast prihoda i pricing eksperimenti.</p><a class="btn btn-primary" href="/admin/revenue-v9">Otvori</a></div>
+<div class="panel panel-green"><h2>Go-live</h2><p>Kontrolna lista i backup snapshoti.</p><a class="btn btn-primary" href="/admin/golive-v9">Otvori</a></div>
+</div>{% endblock %}

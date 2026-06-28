@@ -1,0 +1,11 @@
+{% extends "app_base.html" %}
+{% set title = "Funnel - Oglašivač" %}
+{% block app_content %}
+<div class="section-heading left"><span>V7 Funnel</span><h2>Funnel kampanja</h2></div>
+<div class="grid-3">
+{% for key, value in totals.items() %}
+<div class="stat-card"><strong>{{ "%.0f"|format(value) }}</strong><span>{{ key }}</span></div>
+{% else %}<div class="empty">Još nema funnel eventa.</div>{% endfor %}
+</div>
+<div class="table-card panel-space"><table><thead><tr><th>Datum</th><th>Kampanja</th><th>Event</th><th>Value</th><th>Napomena</th></tr></thead><tbody>{% for e in events %}<tr><td>{{ e.created_at }}</td><td>{{ e.task.title if e.task else "" }}</td><td>{{ e.event_type }}</td><td>{{ e.value }}</td><td>{{ e.note or "" }}</td></tr>{% else %}<tr><td colspan="5">Nema eventa.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

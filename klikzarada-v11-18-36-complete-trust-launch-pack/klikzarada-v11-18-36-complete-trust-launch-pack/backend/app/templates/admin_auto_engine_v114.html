@@ -1,0 +1,19 @@
+{% extends "app_base.html" %}
+{% set title = "Auto engine - Admin" %}
+{% block app_content %}
+<section class="kz114-hero">
+  <div><span>AUTO ENGINE</span><h1>Automatski rad platforme</h1><p>Ovde admin prati šta je sistem sam uradio: top pozicija, odobravanje dokaza, tajmeri i obaveštenja.</p></div>
+  <div class="kz114-hero-actions"><a class="btn btn-primary" href="/admin/workflows-v10">Workflow</a><a class="btn btn-secondary" href="/admin/fraud-v11">Anti-fraud</a></div>
+</section>
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Auto logovi</small><strong>{{ stats.logs }}</strong><span>ukupno</span></div>
+  <div class="kz1111-stat orange"><small>Poruke u redu</small><strong>{{ stats.queued }}</strong><span>email/sms</span></div>
+  <div class="kz1111-stat purple"><small>Sesije zadataka</small><strong>{{ stats.sessions }}</strong><span>tajmeri</span></div>
+  <div class="kz1111-stat green"><small>Završeno</small><strong>{{ stats.completed_sessions }}</strong><span>tajmera</span></div>
+</section>
+<section class="kz114-grid-2">
+  <div class="kz114-section"><div class="kz114-head"><h2>Auto log</h2><span>{{ logs|length }}</span></div><div class="kz114-log-list">{% for l in logs %}<article><b>{{ l.event_type }}</b><p>{{ l.message }}</p><small>{{ l.status }} · {{ "%.0f"|format(l.amount_rsd or 0) }} RSD · {{ l.created_at }}</small></article>{% else %}<div class="kz1111-empty"><h3>Nema logova</h3><p>Kada sistem nešto automatski uradi, pojaviće se ovde.</p></div>{% endfor %}</div></div>
+  <div class="kz114-section"><div class="kz114-head"><h2>Email/SMS queue</h2><span>{{ queue|length }}</span></div><div class="kz114-log-list">{% for q in queue %}<article><b>{{ q.channel }} · {{ q.subject }}</b><p>{{ q.body }}</p><small>{{ q.status }} · {{ q.recipient }}</small></article>{% else %}<div class="kz1111-empty"><h3>Nema poruka</h3><p>Queue je spreman za email/SMS integraciju.</p></div>{% endfor %}</div></div>
+</section>
+<section class="kz114-section"><div class="kz114-head"><h2>Sesije gledanja zadataka</h2><span>{{ sessions|length }}</span></div><div class="kz114-clean-table"><table><thead><tr><th>Zadatak</th><th>Korisnik</th><th>Aktivno</th><th>Potrebno</th><th>Status</th></tr></thead><tbody>{% for s in sessions %}<tr><td>{{ s.task.title if s.task else "-" }}</td><td>{{ s.user.full_name if s.user else "Gost" }}</td><td>{{ s.active_seconds }}s</td><td>{{ s.required_seconds }}s</td><td>{{ s.status }}</td></tr>{% else %}<tr><td colspan="5">Nema sesija.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

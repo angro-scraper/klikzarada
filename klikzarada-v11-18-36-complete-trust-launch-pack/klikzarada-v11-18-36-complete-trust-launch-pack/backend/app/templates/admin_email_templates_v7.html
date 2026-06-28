@@ -1,0 +1,7 @@
+{% extends "app_base.html" %}
+{% set title = "Email templates - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>V7 Email Ops</span><h2>Email template centar</h2></div>
+<form class="form-panel" method="post" action="/admin/email-templates/save"><label>Key</label><input name="key" required><label>Subject</label><input name="subject" required><label>Body</label><textarea name="body" required></textarea><button class="btn btn-primary">Sačuvaj template</button></form>
+<div class="table-card"><table><thead><tr><th>Key</th><th>Subject</th><th>Body</th><th>Status</th></tr></thead><tbody>{% for i in items %}<tr><td>{{ i.key }}</td><td>{{ i.subject }}</td><td>{{ i.body }}</td><td>{{ "aktivno" if i.is_aktivno else "off" }}</td></tr>{% else %}<tr><td colspan="4">Nema template-a.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

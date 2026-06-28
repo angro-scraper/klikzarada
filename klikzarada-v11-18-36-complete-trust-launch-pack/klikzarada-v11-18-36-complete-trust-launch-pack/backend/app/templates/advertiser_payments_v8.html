@@ -1,0 +1,7 @@
+{% extends "app_base.html" %}
+{% set title = "Plaćanjes V8 - Oglašivač" %}
+{% block app_content %}
+<div class="dashboard-head in-app"><div><span class="pill">V8 Plaćanjes</span><h1>Dopuna budžeta</h1><p>Kreirajte zahtev, admin potvrđuje uplatu i budžet se dodaje.</p></div><div class="balance-card"><span>Budžet</span><strong>{{ "%.0f"|format(user.advertiser_budget_rsd) }} RSD</strong></div></div>
+<form class="form-panel" method="post" action="/oglasivac/payments-v8/create"><div class="form-grid"><div><label>Iznos RSD</label><input type="number" name="amount_rsd" min="1" required></div><div><label>Metod</label><select name="method"><option>manual</option><option>bank</option><option>paypal_demo</option></select></div></div><button class="btn btn-primary">Kreiraj zahtev</button></form>
+<div class="table-card"><table><thead><tr><th>Ref</th><th>Iznos</th><th>Metod</th><th>Status</th><th>Napomena</th></tr></thead><tbody>{% for i in intents %}<tr><td>{{ i.reference }}</td><td>{{ "%.0f"|format(i.amount_rsd) }} RSD</td><td>{{ i.method }}</td><td><span class="status status-{{ i.status }}">{{ i.status }}</span></td><td>{{ i.admin_note or "" }}</td></tr>{% else %}<tr><td colspan="5">Nema zahteva.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "app_base.html" %}
+{% set title = "Jobs V8 - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>Jobs</span><h2>Job queue</h2></div>
+<form class="form-panel" method="post" action="/admin/jobs-v8/create"><label>Job type</label><input name="job_type" required><label>Payload</label><textarea name="payload"></textarea><button class="btn btn-primary">Dodaj job</button></form>
+<div class="table-card"><table><thead><tr><th>Job</th><th>Status</th><th>Attempts</th><th>Payload</th><th>Akcije</th></tr></thead><tbody>{% for j in jobs %}<tr><td>{{ j.job_type }}</td><td><span class="status status-{{ j.status }}">{{ j.status }}</span></td><td>{{ j.attempts }}</td><td>{{ j.payload or "" }}</td><td class="actions"><form method="post" action="/admin/jobs-v8/{{ j.id }}/running"><button class="btn btn-mini btn-primary">Pokreni</button></form><form method="post" action="/admin/jobs-v8/{{ j.id }}/done"><button class="btn btn-mini btn-secondary">Done</button></form><form method="post" action="/admin/jobs-v8/{{ j.id }}/failed"><input class="mini-input" name="last_error" placeholder="error"><button class="btn btn-mini btn-danger">Fail</button></form></td></tr>{% else %}<tr><td colspan="5">Nema jobova.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "app_base.html" %}
+{% set title="Novčanik - KlikZarada" %}
+{% block app_content %}
+<section class="premium-panel-hero">
+  <div>
+    <span>NOVČANIK</span>
+    <h1>Tvoj novčanik</h1>
+    <p>Ovde vidiš balans, odobrenu zaradu, zaradu na čekanju i sve transakcije. Ovo je odvojeno od stranice za isplatu.</p>
+  </div>
+  <div class="premium-panel-actions">
+    <a class="premium-btn green" href="/korisnik/isplate">Zatraži isplatu</a>
+    <a class="premium-btn white" href="/korisnik/panel">Moj panel</a>
+  </div>
+</section>
+
+<section class="premium-stat-grid">
+  <article class="green"><small>Dostupno</small><strong>{{ "%.0f"|format(user.balance_rsd or 0) }}</strong><span>RSD</span></article>
+  <article class="orange"><small>Na čekanju</small><strong>{{ "%.0f"|format(user.pending_rsd or 0) }}</strong><span>RSD</span></article>
+  <article class="blue"><small>Ukupno odobreno</small><strong>{{ "%.0f"|format(approved_total) }}</strong><span>RSD</span></article>
+  <article class="purple"><small>Ukupno ušlo</small><strong>{{ "%.0f"|format(total_in) }}</strong><span>RSD</span></article>
+</section>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Transakcije</h2><span>{{ txs|length }}</span></div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>Tip</th><th>Opis</th><th>Iznos</th><th>Datum</th></tr></thead>
+        <tbody>
+        {% for tx in txs %}
+          <tr><td>{{ tx.tx_type }}</td><td>{{ tx.description }}</td><td><b>{{ "%.0f"|format(tx.amount_rsd) }} RSD</b></td><td>{{ tx.created_at }}</td></tr>
+        {% else %}
+          <tr><td colspan="4">Još nema transakcija.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="premium-card gradient">
+    <div class="premium-card-head"><h2>Kako povećati zaradu?</h2><span>saveti</span></div>
+    <div class="premium-suggestion-box">
+      <h3>Radi zadatke sa većom nagradom</h3>
+      <p>Bolji quality score i aktivan streak otvaraju bolje zadatke i bržu proveru dokaza.</p>
+      <a class="premium-btn blue" href="/korisnik/motivacija-v115">Otvori motivaciju</a>
+    </div>
+  </section>
+</div>
+{% endblock %}

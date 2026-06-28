@@ -1,0 +1,38 @@
+{% extends "app_base.html" %}
+{% set title="Bedževi - KlikZarada" %}
+{% block app_content %}
+<section class="premium-panel-hero">
+  <div>
+    <span>BEDŽEVI</span>
+    <h1>Bedževi i dostignuća</h1>
+    <p>Bedževi motivišu korisnike da budu aktivni, pouzdani i kvalitetni. Zaključani bedževi pokazuju šta još možeš da osvojiš.</p>
+  </div>
+  <div class="premium-panel-actions">
+    <a class="premium-btn green" href="/korisnik/motivacija-v115">Motivacija</a>
+    <a class="premium-btn white" href="/korisnik/zadaci">Radi zadatke</a>
+  </div>
+</section>
+
+<section class="premium-stat-grid">
+  <article class="green"><small>Osvojeno</small><strong>{{ earned|length }}</strong><span>bedževa</span></article>
+  <article class="blue"><small>Ukupno dostupno</small><strong>{{ all_badges|length }}</strong><span>bedževa</span></article>
+  <article class="purple"><small>Status</small><strong>{{ user.level }}</strong><span>nivo</span></article>
+  <article class="orange"><small>Kvalitet</small><strong>{{ "%.0f"|format(user.quality_score or 0) }}</strong><span>%</span></article>
+</section>
+
+<section class="premium-card">
+  <div class="premium-card-head"><h2>Svi bedževi</h2><span>{{ all_badges|length }}</span></div>
+  <div class="premium-badges-grid">
+    {% for b in all_badges %}
+      <article class="{% if not b.earned %}locked{% endif %}">
+        <strong>{{ b.icon }}</strong>
+        <div>
+          <h3>{{ b.title }}</h3>
+          <p>{{ b.description }}</p>
+          <span>{% if b.earned %}Osvojeno{% else %}Zaključano{% endif %}</span>
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

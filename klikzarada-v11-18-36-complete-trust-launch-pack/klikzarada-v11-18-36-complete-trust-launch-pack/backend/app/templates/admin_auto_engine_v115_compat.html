@@ -1,0 +1,71 @@
+{% extends "app_base.html" %}
+{% set title = "Auto engine - Admin" %}
+{% block app_content %}
+<section class="kz115-hero">
+  <div>
+    <span>AUTO ENGINE</span>
+    <h1>Automatski rad platforme</h1>
+    <p>Centralni pregled automatike: logovi, notification queue, sesije gledanja zadataka, istekli banneri, rezervisan budžet i sistemske akcije.</p>
+  </div>
+  <div class="kz115-hero-actions">
+    <form method="post" action="/admin/automation/run-v11823" style="display:inline"><button class="btn btn-primary">Pokreni automatizaciju</button></form>
+    <a class="btn btn-primary" href="/admin/smart-v115">Smart auto</a>
+    <a class="btn btn-secondary" href="/admin/workflows-v10">Workflow</a>
+    <a class="btn btn-secondary" href="/api/v1/v11/automation-health">Health JSON</a>
+    <a class="btn btn-secondary" href="/api/v1/v11/automation-report">Report JSON</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Auto logovi</small><strong>{{ stats.logs }}</strong><span>ukupno</span></div>
+  <div class="kz1111-stat orange"><small>Poruke u redu</small><strong>{{ stats.queued }}</strong><span>email/sms</span></div>
+  <div class="kz1111-stat purple"><small>Sesije</small><strong>{{ stats.sessions }}</strong><span>tajmeri</span></div>
+  <div class="kz1111-stat green"><small>Završeno</small><strong>{{ stats.completed_sessions }}</strong><span>tajmera</span></div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Pending dokazi</small><strong>{{ stats.submissions_pending }}</strong><span>čekaju ručno</span></div>
+  <div class="kz1111-stat green"><small>Auto odobreno</small><strong>{{ stats.submissions_auto_approved }}</strong><span>dokazi</span></div>
+  <div class="kz1111-stat orange"><small>Auto odbijeno</small><strong>{{ stats.submissions_auto_rejected }}</strong><span>sumnjivi</span></div>
+  <a class="kz1111-stat purple" href="/admin/ai-review"><small>AI review</small><strong>Otvori</strong><span>pravila i predlozi</span></a>
+</section>
+
+<section class="kz115-grid-2">
+  <div class="kz115-section">
+    <div class="kz115-head"><h2>Auto log</h2><span>{{ logs|length }}</span></div>
+    <div class="kz115-list kz114-log-list">
+      {% for l in logs %}
+      <article><b>{{ l.event_type }}</b><p>{{ l.message }}</p><small>{{ l.status }} · {{ "%.0f"|format(l.amount_rsd or 0) }} RSD</small></article>
+      {% else %}
+      <div class="kz1111-empty"><h3>Nema auto logova</h3><p>Kada sistem automatski nešto uradi, pojaviće se ovde.</p></div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="kz115-section">
+    <div class="kz115-head"><h2>Email/SMS queue</h2><span>{{ queue|length }}</span></div>
+    <div class="kz115-list">
+      {% for q in queue %}
+      <article><b>{{ q.channel }} · {{ q.subject }}</b><p>{{ q.body }}</p><small>{{ q.status }} · {{ q.recipient }}</small></article>
+      {% else %}
+      <div class="kz1111-empty"><h3>Nema poruka</h3><p>Queue je spreman za realno email/SMS slanje.</p></div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="kz115-section">
+  <div class="kz115-head"><h2>Sesije gledanja zadataka</h2><span>{{ sessions|length }}</span></div>
+  <div class="kz114-clean-table">
+    <table>
+      <thead><tr><th>Zadatak</th><th>Korisnik</th><th>Aktivno</th><th>Potrebno</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for s in sessions %}
+      <tr><td>{{ s.task.title if s.task else "-" }}</td><td>{{ s.user.full_name if s.user else "Gost" }}</td><td>{{ s.active_seconds }}s</td><td>{{ s.required_seconds }}s</td><td>{{ s.status }}</td></tr>
+      {% else %}
+      <tr><td colspan="5">Nema sesija.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

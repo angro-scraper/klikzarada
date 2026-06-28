@@ -1,0 +1,164 @@
+{% extends "app_base.html" %}
+{% set title = "Reklame - Admin" %}
+{% block app_content %}
+<section class="kz1110-hero">
+  <div>
+    <span>REKLAME</span>
+    <h1>Banneri i plaćena isticanja</h1>
+    <p>Upravljanje banner slotovima, zahtevima za reklame, top pozicijom i gledanjima reklama.</p>
+  </div>
+  <div class="kz1110-hero-actions">
+    <a class="btn btn-primary" href="/admin/cene-v111">Cene reklama</a>
+    <a class="btn btn-secondary" href="/admin/mapa-platforme">Mapa platforme</a>
+  </div>
+</section>
+
+<section class="kz1110-stat-grid">
+  <div class="kz1110-stat"><small>Slotovi</small><strong>{{ slots|length }}</strong><span>pozicija</span></div>
+  <div class="kz1110-stat"><small>Banner zahtevi</small><strong>{{ banners|length }}</strong><span>ukupno</span></div>
+  <div class="kz1110-stat"><small>Top pozicija</small><strong>{{ boosts|length }}</strong><span>zahteva</span></div>
+  <div class="kz1110-stat"><small>Gledanja</small><strong>{{ views|length }}</strong><span>logova</span></div>
+</section>
+
+<section class="kz1110-section">
+  <div class="kz1110-section-head"><h2>Brzo dodavanje bannera</h2><span>admin</span></div>
+  <form class="kz1110-form-grid" method="post" action="/admin/reklame-v111/quick-banner">
+    <div>
+      <label>Oglašivač</label>
+      <select name="advertiser_id">
+        {% for a in advertisers %}
+          <option value="{{ a.id }}">{{ a.full_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Slot</label>
+      <select name="slot_id">
+        {% for s in slots %}
+          <option value="{{ s.id }}">{{ s.title }} · {{ "%.0f"|format(s.price_rsd) }} RSD</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Naslov</label>
+      <input name="title" placeholder="Naslov bannera" required>
+    </div>
+    <div>
+      <label>Link</label>
+      <input name="target_url" value="/" placeholder="/ ili https://...">
+    </div>
+    <div class="full">
+      <label>Tekst</label>
+      <textarea name="body" placeholder="Kratak tekst reklame"></textarea>
+    </div>
+    <div>
+      <label>Cena RSD</label>
+      <input type="number" step="0.01" name="price_rsd" value="0">
+    </div>
+    <div>
+      <label>Status</label>
+      <select name="status"><option value="active">Aktivno</option><option value="pending">Na čekanju</option></select>
+    </div>
+    <div class="full">
+      <button class="btn btn-primary">Dodaj banner</button>
+    </div>
+  </form>
+</section>
+
+<section class="kz1110-section">
+  <div class="kz1110-section-head"><h2>Banner slotovi</h2><span>{{ slots|length }}</span></div>
+  <div class="kz1110-slot-grid">
+    {% for s in slots %}
+    <form class="kz1110-slot-card" method="post" action="/admin/reklame-v111/slot/{{ s.id }}/edit">
+      <div>
+        <span>{{ s.code }}</span>
+        <h3>{{ s.title }}</h3>
+        <p>{{ s.placement }} · {{ s.width_label }}</p>
+      </div>
+      <label>Cena / 7 dana</label>
+      <input name="price_rsd" type="number" step="0.01" value="{{ s.price_rsd }}">
+      <input type="hidden" name="title" value="{{ s.title }}">
+      <input type="hidden" name="placement" value="{{ s.placement }}">
+      <input type="hidden" name="width_label" value="{{ s.width_label }}">
+      <input type="hidden" name="is_active" value="{{ 'yes' if s.is_active else 'no' }}">
+      <button class="btn btn-primary">Sačuvaj cenu</button>
+    </form>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="kz1110-section">
+  <div class="kz1110-section-head"><h2>Banner zahtevi</h2><span>{{ banners|length }}</span></div>
+  {% if banners %}
+  <div class="kz1110-ad-grid">
+    {% for b in banners %}
+    <article class="kz1110-ad-card">
+      <div class="kz1110-card-top">
+        <span class="status status-{{ b.status }}">{{ b.status }}</span>
+        <strong>{{ "%.0f"|format(b.price_rsd) }} RSD</strong>
+      </div>
+      <h3>{{ b.title }}</h3>
+      <p>{{ b.body or "Bez teksta" }}</p>
+      <small>{{ b.advertiser.full_name }} · {{ b.slot.title if b.slot else "Bez slota" }}</small>
+      <div class="kz1110-actions-compact">
+        <form method="post" action="/admin/reklame-v111/banner/{{ b.id }}/active"><input name="admin_note" placeholder="napomena"><button class="btn btn-mini btn-primary">Aktiviraj</button></form>
+        <form method="post" action="/admin/reklame-v111/banner/{{ b.id }}/rejected"><input name="admin_note" placeholder="razlog"><button class="btn btn-mini btn-danger">Odbij</button></form>
+        <form method="post" action="/admin/reklame-v111/banner/{{ b.id }}/expired"><button class="btn btn-mini btn-secondary">Isteklo</button></form>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="kz1110-empty wide">
+    <h3>Nema banner zahteva</h3>
+    <p>Kada oglašivač pošalje banner, zahtev će se pojaviti ovde u preglednoj kartici.</p>
+    <a class="btn btn-primary" href="/oglasivac/reklame-v111">Otvori stranicu za oglašivača</a>
+  </div>
+  {% endif %}
+</section>
+
+<section class="kz1110-section">
+  <div class="kz1110-section-head"><h2>Top pozicija</h2><span>{{ boosts|length }}</span></div>
+  {% if boosts %}
+  <div class="kz1110-ad-grid">
+    {% for b in boosts %}
+    <article class="kz1110-ad-card">
+      <div class="kz1110-card-top">
+        <span class="status status-{{ b.status }}">{{ b.status }}</span>
+        <strong>{{ "%.0f"|format(b.price_rsd) }} RSD</strong>
+      </div>
+      <h3>{{ b.title }}</h3>
+      <p>{{ b.task.title if b.task else "Bez kampanje" }}</p>
+      <small>{{ b.advertiser.full_name }}</small>
+      <div class="kz1110-actions-compact">
+        <form method="post" action="/admin/reklame-v111/boost/{{ b.id }}/active"><input name="admin_note" placeholder="napomena"><button class="btn btn-mini btn-primary">Aktiviraj</button></form>
+        <form method="post" action="/admin/reklame-v111/boost/{{ b.id }}/rejected"><input name="admin_note" placeholder="razlog"><button class="btn btn-mini btn-danger">Odbij</button></form>
+        <form method="post" action="/admin/reklame-v111/boost/{{ b.id }}/expired"><button class="btn btn-mini btn-secondary">Isteklo</button></form>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="kz1110-empty wide">
+    <h3>Nema zahteva za top poziciju</h3>
+    <p>Zahtevi za isticanje kampanja će se pojaviti ovde.</p>
+  </div>
+  {% endif %}
+</section>
+
+<section class="kz1110-section">
+  <div class="kz1110-section-head"><h2>Gledanja reklama</h2><span>{{ views|length }}</span></div>
+  <div class="kz1110-clean-table">
+    <table>
+      <thead><tr><th>Banner</th><th>Korisnik</th><th>Cena</th><th>Nagrada</th><th>Fee</th><th>Datum</th></tr></thead>
+      <tbody>
+      {% for v in views %}
+        <tr><td>{{ v.banner.title }}</td><td>{{ v.user.full_name if v.user else "-" }}</td><td>{{ "%.0f"|format(v.cost_rsd) }}</td><td>{{ "%.0f"|format(v.reward_rsd) }}</td><td>{{ "%.0f"|format(v.platform_fee_rsd) }}</td><td>{{ v.created_at }}</td></tr>
+      {% else %}
+        <tr><td colspan="6">Nema gledanja reklama.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

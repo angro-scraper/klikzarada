@@ -1,0 +1,47 @@
+{% extends "app_base.html" %}
+{% set title = "Kampanje - Admin" %}
+{% block app_content %}
+<section class="kz119-admin-hero">
+  <div><span>KAMPANJE</span><h1>Pregled kampanja</h1><p>Kampanje su grupisane i pregledne, bez ogromnih dugmića i nepreglednog listanja.</p></div>
+  <div class="kz119-admin-actions"><a class="btn btn-primary" href="/oglasivac/nova-kampanja">Nova kampanja</a><a class="btn btn-secondary" href="/admin/mapa-platforme">Mapa platforme</a></div>
+</section>
+<section class="kz119-map-stats">
+  <div><small>Ukupno</small><strong>{{ stats.all }}</strong><span>kampanja</span></div>
+  <div><small>Aktivne</small><strong>{{ stats.active }}</strong><span>u radu</span></div>
+  <div><small>Na čekanju</small><strong>{{ stats.pending }}</strong><span>moderacija</span></div>
+  <div><small>Odbijene</small><strong>{{ stats.rejected }}</strong><span>arhiva</span></div>
+</section>
+<section class="kz119-filter admin">
+  <form method="get" action="/admin/kampanje">
+    <div><label>Status</label><select name="status"><option value="">Svi statusi</option><option value="active" {% if active_status=="active" %}selected{% endif %}>Aktivno</option><option value="pending" {% if active_status=="pending" %}selected{% endif %}>Na čekanju</option><option value="rejected" {% if active_status=="rejected" %}selected{% endif %}>Odbijeno</option></select></div>
+    <div><label>Kategorija</label><select name="category"><option value="">Sve kategorije</option>{% for c in categories %}<option value="{{ c.slug }}" {% if active_category==c.slug %}selected{% endif %}>{{ c.title }}</option>{% endfor %}</select></div>
+    <button class="btn btn-primary">Filtriraj</button>
+  </form>
+</section>
+<section class="kz119-admin-table-card">
+  <table>
+    <thead><tr><th>Kampanja</th><th>Oglašivač</th><th>Status</th><th>Budžet</th><th>Akcije</th></tr></thead>
+    <tbody>
+    {% for t in tasks %}
+    <tr>
+      <td><strong>{{ t.title }}</strong><br><small>{{ t.category }} · {{ t.task_type }}</small></td>
+      <td>{{ t.advertiser.full_name if t.advertiser else "Demo oglašivač" }}</td>
+      <td><span class="status status-{{ t.status }}">{{ t.status }}</span></td>
+      <td>{{ "%.0f"|format(t.reward_rsd * t.total_slots * 1.2) }} RSD</td>
+      <td>
+        <div class="kz119-action-row">
+          <form method="post" action="/admin/tasks/{{ t.id }}/active"><button class="btn btn-mini btn-primary">Aktiviraj</button></form>
+          <form method="post" action="/admin/tasks/{{ t.id }}/returned"><button class="btn btn-mini btn-secondary">Vrati</button></form>
+          <form method="post" action="/admin/tasks/{{ t.id }}/rejected"><button class="btn btn-mini btn-danger">Odbij</button></form>
+          <form method="post" action="/admin/tasks/{{ t.id }}/paused"><button class="btn btn-mini btn-secondary">Pauziraj</button></form>
+          <form method="post" action="/admin/tasks/{{ t.id }}/feature"><button class="btn btn-mini btn-primary">Istakni</button></form>
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5">Nema kampanja za izabrani filter.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

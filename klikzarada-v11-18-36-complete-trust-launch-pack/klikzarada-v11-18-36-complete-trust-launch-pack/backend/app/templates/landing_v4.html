@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% set title="KlikZarada" %}
+{% block content %}
+<section class="kz117-page-hero">
+  <div>
+    <span class="kz117-eyebrow">{% if kind=='korisnici' %}ZA KORISNIKE{% else %}ZA OGLAŠIVAČE{% endif %}</span>
+    {% if kind == 'korisnici' %}
+      <h1>Zarada kroz proverljive zadatke</h1>
+      <p>Radite jednostavne zadatke, pošaljite dokaz i zaradite. Provereni korisnici imaju bržu obradu i manje ručnih provera.</p>
+    {% else %}
+      <h1>Merljivi rezultati i jasan budžet</h1>
+      <p>Pokrenite kampanju, platite validne rezultate i pratite kvalitet bez gubljenja vremena na ručnu kontrolu svega.</p>
+    {% endif %}
+    <div class="kz117-hero-actions">
+      {% if kind == 'korisnici' %}
+        <a class="kz117-btn green" href="/registracija?role=korisnik">Napravi nalog</a>
+        <a class="kz117-btn outline" href="/zadaci">Pogledaj zadatke</a>
+      {% else %}
+        <a class="kz117-btn blue" href="/registracija?role=oglasivac">Pokreni kampanju</a>
+        <a class="kz117-btn outline" href="/cenovnik">Pogledaj cenovnik</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="kz117-check-card">
+    <h3>{% if kind=='korisnici' %}Kako zarađuješ?{% else %}Kako naplaćujemo?{% endif %}</h3>
+    <ul>
+      {% if kind == 'korisnici' %}
+        <li>Kratki zadaci: 20-40 RSD</li>
+        <li>Standardni zadaci: 50-120 RSD</li>
+        <li>Viši zadaci: 120-250 RSD</li>
+        <li>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}% ostaje korisniku</li>
+      {% else %}
+        <li>Provizija platforme: {{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}%</li>
+        <li>Veliki banner od {{ "%.0f"|format(pricing_summary.banner_top_7d if pricing_summary is defined else 9500) }} RSD</li>
+        <li>Srednji banner od {{ "%.0f"|format(pricing_summary.banner_mid_7d if pricing_summary is defined else 5500) }} RSD</li>
+        <li>Top pozicija od {{ "%.0f"|format(pricing_summary.boost_top_3d if pricing_summary is defined else 2500) }} RSD</li>
+      {% endif %}
+    </ul>
+  </div>
+</section>
+
+<section class="kz117-grid-3">
+  <a class="kz117-feature" href="/cenovnik">
+    <h3>Cenovnik</h3>
+    <p>Pogledaj konkretne pakete i preporučene cene.</p>
+    <span>Otvori cenovnik →</span>
+  </a>
+  <a class="kz117-feature" href="/blog">
+    <h3>Blog</h3>
+    <p>Objašnjenja, strategije i pravila za rad sa platformom.</p>
+    <span>Čitaj više →</span>
+  </a>
+  <a class="kz117-feature" href="/kontakt">
+    <h3>Kontakt</h3>
+    <p>Brza pomoć i podrška za korisnike i oglašivače.</p>
+    <span>Pošalji poruku →</span>
+  </a>
+</section>
+{% endblock %}

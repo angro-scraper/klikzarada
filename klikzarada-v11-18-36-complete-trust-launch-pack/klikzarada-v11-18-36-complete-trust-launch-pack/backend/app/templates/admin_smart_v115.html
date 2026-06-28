@@ -1,0 +1,68 @@
+{% extends "app_base.html" %}
+{% set title = "Smart automatizacija - Admin" %}
+{% block app_content %}
+<section class="kz115-hero">
+  <div>
+    <span>SMART AUTOMATION</span>
+    <h1>Automatika koja štedi vreme adminu</h1>
+    <p>Rezervacije, zatvaranje kampanja, pauziranje bez budžeta, risk score, quality score, predlozi oglašivačima i dnevni izveštaj.</p>
+  </div>
+  <div class="kz115-hero-actions">
+    <form method="post" action="/admin/smart-v115/run"><button class="btn btn-primary">Pokreni automatiku</button></form>
+    <a class="btn btn-secondary" href="/admin/auto-engine-v114">Auto engine</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Pending dokazi</small><strong>{{ report.pending_submissions }}</strong><span>danas</span></div>
+  <div class="kz1111-stat green"><small>Prihod platforme</small><strong>{{ "%.0f"|format(report.platform_revenue_rsd) }}</strong><span>RSD</span></div>
+  <div class="kz1111-stat orange"><small>Rizični korisnici</small><strong>{{ report.risk_users }}</strong><span>kontrola</span></div>
+  <div class="kz1111-stat purple"><small>Predlozi</small><strong>{{ suggestions|length }}</strong><span>oglašivači</span></div>
+</section>
+
+<section class="kz115-grid-2">
+  <div class="kz115-section">
+    <div class="kz115-head"><h2>Dnevni admin izveštaj</h2><span>{{ report.report_date }}</span></div>
+    <div class="kz115-report">
+      <p>{{ report.summary }}</p>
+      <div><b>Novi korisnici</b><strong>{{ report.new_users }}</strong></div>
+      <div><b>Novi oglašivači</b><strong>{{ report.new_advertisers }}</strong></div>
+      <div><b>Odobreni dokazi</b><strong>{{ report.approved_submissions }}</strong></div>
+      <div><b>Odbijeni dokazi</b><strong>{{ report.rejected_submissions }}</strong></div>
+    </div>
+  </div>
+  <div class="kz115-section">
+    <div class="kz115-head"><h2>Maintenance rezultat</h2><span>auto</span></div>
+    <div class="kz115-report">
+      <div><b>Istekle rezervacije</b><strong>{{ maintenance.expired_reservations }}</strong></div>
+      <div><b>Pauzirane kampanje</b><strong>{{ maintenance.paused_campaigns }}</strong></div>
+      <div><b>Zatvorene kampanje</b><strong>{{ maintenance.closed_campaigns }}</strong></div>
+      <div><b>Novi predlozi</b><strong>{{ suggestions_created }}</strong></div>
+    </div>
+  </div>
+</section>
+
+<section class="kz115-section">
+  <div class="kz115-head"><h2>Korisnički skorovi</h2><span>{{ scores|length }}</span></div>
+  <div class="kz115-score-grid">
+    {% for s in scores %}
+    <article>
+      <div class="top"><span>{{ s.status_name }}</span><b>{{ s.level_name }}</b></div>
+      <h3>{{ s.user.full_name }}</h3>
+      <p>{{ s.user.email }}</p>
+      <div class="bars">
+        <label>Quality {{ "%.1f"|format(s.quality_score) }}</label><div><i style="width:{{ s.quality_score }}%"></i></div>
+        <label>Risk {{ "%.1f"|format(s.risk_score) }}</label><div class="risk"><i style="width:{{ s.risk_score }}%"></i></div>
+      </div>
+    </article>
+    {% else %}
+    <div class="kz1111-empty"><h3>Nema skorova</h3><p>Pokreni automatiku da izračuna skorove.</p></div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="kz115-grid-2">
+  <div class="kz115-section"><div class="kz115-head"><h2>Predlozi oglašivačima</h2><span>{{ suggestions|length }}</span></div><div class="kz115-list">{% for s in suggestions %}<article><b>{{ s.title }}</b><p>{{ s.description }}</p><small>{{ s.expected_impact }} · {{ s.status }}</small></article>{% else %}<div class="kz1111-empty"><h3>Nema predloga</h3></div>{% endfor %}</div></div>
+  <div class="kz115-section"><div class="kz115-head"><h2>Rezervacije zadataka</h2><span>{{ reservations|length }}</span></div><div class="kz115-list">{% for r in reservations %}<article><b>{{ r.task.title if r.task else "Zadatak" }}</b><p>{{ r.user.full_name if r.user else "-" }}</p><small>{{ r.status }} · do {{ r.reserved_until }}</small></article>{% else %}<div class="kz1111-empty"><h3>Nema rezervacija</h3></div>{% endfor %}</div></div>
+</section>
+{% endblock %}

@@ -1,0 +1,203 @@
+{% extends "app_base.html" %}
+{% set title="Deploy V11" %}
+{% block app_content %}
+<section class="kz1111-hero finance budget deploy">
+  <div>
+    <span>PRODUKCIJA</span>
+    <h1>Deploy, backup i tehnička spremnost</h1>
+    <p>Ovo je kontrolna tabla za go-live. Na jednom mestu vidiš šta je zatvoreno, šta je otvoreno, šta je blokirano i da li su backup i smoke test spremni za izlazak na produkciju.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/admin/smoke-v11">Smoke test</a>
+    <a class="btn btn-secondary" href="/admin/mapa-platforme">Mapa</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Checks ukupno</small><strong>{{ summary.checks_total }}</strong><span>kontrole</span></div>
+  <div class="kz1111-stat green"><small>Zatvoreno</small><strong>{{ summary.checks_done }}</strong><span>done</span></div>
+  <div class="kz1111-stat orange"><small>Otvoreno</small><strong>{{ summary.checks_open }}</strong><span>za rad</span></div>
+  <div class="kz1111-stat red"><small>Blokirano</small><strong>{{ summary.checks_blocked }}</strong><span>kritično</span></div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Go-live signal</h2>
+    <span>backup / smoke / targeti</span>
+  </div>
+  <div class="kz1111-process-strip">
+    <div>
+      <small>Backup</small>
+      <strong>{{ summary.backups_total }} zapisa</strong>
+      <p>Backup zapis je spreman za ručnu ili dnevnu arhivu pre puštanja nove verzije.</p>
+    </div>
+    <div>
+      <small>Smoke</small>
+      <strong>{{ summary.smoke_passed }}/{{ summary.smoke_total }} passed</strong>
+      <p>Poslednji smoke run pokazuje da li je osnovni sistem zaista živ posle promena.</p>
+    </div>
+    <div>
+      <small>Targeti</small>
+      <strong>{{ summary.targets_ready }}/{{ summary.targets_total }} ready</strong>
+      <p>Targeti govore da li je produkcija definisana i spremna za izlazak sa staginga.</p>
+    </div>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Checklist</h2>
+    <span>{{ checks|length }}</span>
+  </div>
+  <div class="kz1111-tech-grid">
+    <div class="premium-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Check</th>
+            <th>Importance</th>
+            <th>Status</th>
+            <th>Akcije</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in checks %}
+          <tr>
+            <td><b>{{ c.title }}</b><br><small>{{ c.note or "" }}</small></td>
+            <td>{{ c.importance }}</td>
+            <td><span class="status status-{{ c.status }}">{{ c.status }}</span></td>
+            <td class="actions">
+              <form method="post" action="/admin/deploy-v11/check/{{ c.id }}/done"><button class="btn btn-mini btn-primary">Done</button></form>
+              <form method="post" action="/admin/deploy-v11/check/{{ c.id }}/blocked"><button class="btn btn-mini btn-danger">Blocked</button></form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">Nema definisanih checks stavki.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="kz1111-tech-stack">
+      <article class="kz1111-tech-card">
+        <small>Tehnička poruka</small>
+        <strong>Live ne ide bez green light-a</strong>
+        <p>Pre finalnog puštanja prvo zatvori blokirane stavke, zatim uradi smoke test i proveri da li je poslednji backup stvarno tu.</p>
+      </article>
+      <article class="kz1111-tech-card">
+        <small>Najnoviji smoke</small>
+        <strong>{{ summary.smoke_passed }} passed / {{ summary.smoke_total }} total</strong>
+        <p>Ovo je brzi indikator zdravlja aplikacije pre ili posle deploy-a.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Targeti i backup</h2>
+    <span>staging / prod / arhiva</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <div class="premium-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Target</th>
+            <th>Provider</th>
+            <th>Status</th>
+            <th>URL</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in targets %}
+          <tr>
+            <td><b>{{ t.name }}</b></td>
+            <td>{{ t.provider }}</td>
+            <td><span class="status status-{{ t.status }}">{{ t.status }}</span></td>
+            <td>{{ t.url or "-" }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">Nema deploy targeta.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Backup</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>File</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in backups %}
+          <tr>
+            <td><b>{{ b.title }}</b></td>
+            <td>{{ b.backup_type }}</td>
+            <td><span class="status status-{{ b.status }}">{{ b.status }}</span></td>
+            <td>{{ b.file_hint or "-" }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">Nema backup zapisa.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Dodaj backup zapis</h2>
+    <span>ručno / pre_release / daily</span>
+  </div>
+  <form class="kz1111-tech-form form-panel" method="post" action="/admin/deploy-v11/backup">
+    <div class="two">
+      <div>
+        <label>Title</label>
+        <input name="title" value="Manual backup">
+      </div>
+      <div>
+        <label>Type</label>
+        <select name="backup_type">
+          <option>manual</option>
+          <option>pre_release</option>
+          <option>daily</option>
+        </select>
+      </div>
+    </div>
+    <label>File hint</label>
+    <input name="file_hint" value="backups/klikzarada_v11_backup.db">
+    <label>Note</label>
+    <textarea name="note"></textarea>
+    <button class="btn btn-primary">Dodaj backup zapis</button>
+  </form>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Poslednji smoke runovi</h2>
+    <span>{{ smoke_runs|length }}</span>
+  </div>
+  <div class="kz1111-smoke-list">
+    {% for r in smoke_runs %}
+    <article>
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-{{ r.status }}">{{ r.status }}</span>
+          <span class="kz1111-proof-tiny approved">Smoke</span>
+        </div>
+        <strong>{{ r.title }}</strong>
+      </div>
+      <p>{{ r.summary or "" }}</p>
+      <small>{{ r.created_at }}</small>
+    </article>
+    {% else %}
+    <div class="kz1111-empty"><h3>Nema smoke runova</h3><p>Pokreni prvi smoke test da bi ovde dobio live signal.</p></div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

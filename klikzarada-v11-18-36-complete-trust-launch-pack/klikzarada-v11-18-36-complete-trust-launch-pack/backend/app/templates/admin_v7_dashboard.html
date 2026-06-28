@@ -1,0 +1,17 @@
+{% extends "app_base.html" %}
+{% set title = "V7 AI Kontrolna tabla - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>V7 AI Marketplace</span><h2>AI, Marketplace & Analytics</h2></div>
+<div class="stats small in-app-stats">
+<div class="stat-card"><strong>{{ ai_reviews }}</strong><span>AI reviews</span></div>
+<div class="stat-card"><strong>{{ recommendations }}</strong><span>preporuka</span></div>
+<div class="stat-card"><strong>{{ marketplace_orders }}</strong><span>market orders</span></div>
+<div class="stat-card"><strong>{{ payout_batches }}</strong><span>batch isplata</span></div>
+<div class="stat-card"><strong>{{ fraud_cases }}</strong><span>fraud cases</span></div>
+</div>
+<div class="grid-3">
+<div class="panel"><h2>AI review</h2><p>Asistencija za proveru dokaza i rizika.</p><a class="btn btn-primary" href="/admin/ai-review">Otvori</a></div>
+<div class="panel panel-purple"><h2>Marketplace</h2><p>Paketi usluga za oglašivače.</p><a class="btn btn-primary" href="/admin/marketplace">Otvori</a></div>
+<div class="panel panel-green"><h2>Analytics</h2><p>Snapshot metrika i rast platforme.</p><a class="btn btn-primary" href="/admin/analytics">Otvori</a></div>
+</div>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "app_base.html" %}
+{% set title = "System settings - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>V6 Settings</span><h2>Sistemska podešavanja</h2></div>
+<form class="form-panel" method="post" action="/admin/system-settings/save"><div class="form-grid"><div><label>Key</label><input name="key" required></div><div><label>Value</label><input name="value" required></div></div><label>Opis</label><textarea name="description"></textarea><button class="btn btn-primary">Sačuvaj</button></form>
+<div class="table-card"><table><thead><tr><th>Key</th><th>Value</th><th>Opis</th><th>Updated</th></tr></thead><tbody>{% for s in settings %}<tr><td>{{ s.key }}</td><td>{{ s.value }}</td><td>{{ s.description }}</td><td>{{ s.updated_at }}</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

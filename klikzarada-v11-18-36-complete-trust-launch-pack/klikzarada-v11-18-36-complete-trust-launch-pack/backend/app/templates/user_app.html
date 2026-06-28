@@ -1,0 +1,127 @@
+{% extends "app_base.html" %}
+{% set title="Korisnički panel" %}
+{% block app_content %}
+<section class="kz115-hero user compact">
+  <div>
+    <span>KORISNIK</span>
+    <h1>Dobrodošao nazad, {{ user.full_name }}</h1>
+    <p>Status {{ score.status_name if score else user.level }} · kvalitet {{ "%.0f"|format((score.quality_score if score else user.quality_score) or 0) }}% · sve najvažnije sada je pregledno i odvojeno.</p>
+  </div>
+  <div class="kz115-hero-actions">
+    <a class="btn btn-primary" href="/korisnik/zadaci">Svi zadaci</a>
+    <a class="btn btn-secondary" href="/korisnik/motivacija-v115">Motivacija</a>
+  </div>
+</section>
+
+<section class="kz118-quick-panel-links">
+  <a href="/korisnik/wallet"><strong>Novčanik</strong><span>Balans i transakcije</span></a>
+  <a href="/korisnik/isplate"><strong>Isplate</strong><span>Zahtev i istorija</span></a>
+  <a href="/korisnik/bedzevi"><strong>Bedževi</strong><span>Dostignuća i status</span></a>
+  <a href="/korisnik/referral"><strong>Preporuke</strong><span>Pozovi i zaradi bonus</span></a>
+</section>
+
+<div class="kz-user-dashboard-grid">
+  <section class="kz-user-main-card">
+    <div class="kz-user-main-inner">
+      <p class="muted-title">Ukupan balans</p>
+      <div class="kz-user-balance-row">
+        <div>
+          <strong>{{ "%.0f"|format(user.balance_rsd) }}</strong>
+          <span>RSD</span>
+          <small>Raspoloživo za isplatu</small>
+        </div>
+        <a class="kz-user-withdraw-btn" href="/korisnik/isplate">Isplati sredstva</a>
+      </div>
+      <div class="kz-user-mini-grid">
+        <article><b>Zarađeno danas</b><strong>{{ "%.0f"|format(daily_earned) }} RSD</strong></article>
+        <article><b>Zadataka danas</b><strong>{{ tasks_today }}</strong></article>
+      </div>
+      <div class="kz-user-progress-head"><b>Tvoj napredak</b><span>{% if score %}+{{ "%.0f"|format(score.quality_score-50 if score.quality_score > 50 else score.quality_score) }}%{% else %}+28%{% endif %} ★★★★★</span></div>
+      <div class="kz-user-chart">
+        {% for h in progress_bars %}<i style="height:{{ h + 20 }}%"></i>{% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <aside class="kz-user-side-card">
+    <div class="kz-user-safe-box">🛡️ Sigurno i proverljivo okruženje</div>
+    <h2>Nedavni zadaci</h2>
+    <div class="kz-user-recent-list">
+      {% for t in recent_tasks %}
+      <article>
+        <div><b>{{ t.title }}</b><small>{{ t.category }}</small></div>
+        <strong>+{{ "%.0f"|format(t.reward_rsd) }} RSD</strong>
+      </article>
+      {% endfor %}
+    </div>
+    <div class="kz118-user-side-badges">
+      <div><b>Bedževi</b><span>{{ approved_count }} odobrenih dokaza</span></div>
+      <a href="/korisnik/bedzevi">Otvori bedževe</a>
+    </div>
+    <a class="kz-user-all-btn" href="/korisnik/zadaci">Svi zadaci</a>
+  </aside>
+</div>
+
+<section class="kz1111-stat-grid colored user-stats">
+  <div class="kz1111-stat blue"><small>Odobreno</small><strong>{{ approved_count }}</strong><span>dokaza</span></div>
+  <div class="kz1111-stat orange"><small>Na čekanju</small><strong>{{ pending_count }}</strong><span>provera</span></div>
+  <div class="kz1111-stat red"><small>Odbijeno</small><strong>{{ rejected_count }}</strong><span>dokaza</span></div>
+  <div class="kz1111-stat purple"><small>Preporuke</small><strong>{{ refs|length }}</strong><span>pozvano</span></div>
+</section>
+
+<div class="kz-user-content-grid">
+  <div>
+    <section class="kz115-section">
+      <div class="kz115-head"><h2>Najbolji zadaci</h2><span>{{ best_tasks|length }}</span></div>
+      <div class="kz-user-task-list">
+        {% for t in best_tasks %}
+        <article class="kz-user-task-card">
+          <div>
+            <span class="pill">{{ t.category }}</span>
+            <h3>{{ t.title }}</h3>
+            <p>{{ t.description }}</p>
+          </div>
+          <div class="price">
+            <b>{{ "%.0f"|format(t.reward_rsd) }}</b>
+            <small>RSD</small>
+            <a class="btn btn-primary" href="/zadaci/{{ t.id }}">Detalji</a>
+          </div>
+        </article>
+        {% else %}
+        <div class="kz1111-empty"><h3>Nema zadataka</h3><p>Kada kampanje budu aktivne, pojaviće se ovde.</p></div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="kz115-section">
+      <div class="kz115-head"><h2>Moji dokazi</h2><span>{{ subs|length }}</span></div>
+      <div class="kz114-clean-table"><table><thead><tr><th>Zadatak</th><th>Status</th><th>Nagrada</th><th>Napomena</th></tr></thead><tbody>{% for s in subs %}<tr><td>{{ s.task.title }}</td><td><span class="status {{ s.status }}">{{ s.status }}</span></td><td>{{ "%.0f"|format(s.reward_rsd) }} RSD</td><td>{{ s.review_note or "" }}</td></tr>{% else %}<tr><td colspan="4">Nema dokaza.</td></tr>{% endfor %}</tbody></table></div>
+    </section>
+  </div>
+
+  <aside>
+    <section class="kz115-section">
+      <div class="kz115-head"><h2>Link za preporuke</h2><span>bonus</span></div>
+      <p class="muted">Pozovi korisnike i dobijaš bonus kada im prvi dokaz bude odobren.</p>
+      <div class="copy">http://127.0.0.1:8000/registracija?ref={{ user.referral_code }}</div>
+    </section>
+
+    <section class="kz115-section">
+      <div class="kz115-head"><h2>Dnevna motivacija</h2><span>nagrada</span></div>
+      <p class="muted">Preuzmi dnevnu nagradu i održavaj streak kroz motivacioni panel.</p>
+      <a class="btn btn-primary full" href="/korisnik/motivacija-v115">Otvori motivaciju</a>
+    </section>
+
+    <section class="kz115-section">
+      <div class="kz115-head"><h2>Wallet transakcije</h2><span>{{ txs|length }}</span></div>
+      <div class="kz-user-tx-list">
+        {% for tx in txs[:8] %}
+        <article><div><b>{{ tx.tx_type }}</b><small>{{ tx.description }}</small></div><strong>{{ "%.0f"|format(tx.amount_rsd) }} RSD</strong></article>
+        {% else %}
+        <div class="kz1111-empty"><h3>Nema transakcija</h3></div>
+        {% endfor %}
+      </div>
+    </section>
+  </aside>
+</div>
+{% endblock %}

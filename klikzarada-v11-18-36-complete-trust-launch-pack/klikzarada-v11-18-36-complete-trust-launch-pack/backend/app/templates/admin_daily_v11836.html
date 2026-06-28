@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="max-width:960px;margin:24px auto;padding:0 16px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div><h1>Daily report</h1><p style="color:#64748b;">Dnevni pregled platforme.</p></div>
+    <form method="post" action="/admin/daily-v11836/email"><button style="background:#0b67f1;color:#fff;border:0;border-radius:10px;padding:10px 14px;font-weight:800;">Pošalji email</button></form>
+  </div>
+  <div style="background:#fff;border:1px solid #d8e5f5;border-radius:16px;padding:16px;">
+    {% for k,v in report.items() %}
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid #e5edf7;padding:10px 0;"><b>{{ k }}</b><span>{{ v }}</span></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

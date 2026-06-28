@@ -1,0 +1,17 @@
+{% extends "app_base.html" %}
+{% set title = "Planovi - KlikZarada" %}
+{% block app_content %}
+<div class="section-heading left"><span>V5 Plans</span><h2>Planovi za oglašivače</h2></div>
+{% if sub %}<div class="hint">Trenutno aktivan plan: <strong>{{ sub.plan.name }}</strong> · provizija {{ "%.0f"|format(sub.plan.platform_fee_percent) }}%</div>{% endif %}
+<div class="grid-3">
+{% for p in plans %}
+<div class="panel">
+  <span class="pill">{{ p.name }}</span>
+  <h2>{{ "%.0f"|format(p.monthly_fee_rsd) }} RSD</h2>
+  <p>Provizija: {{ "%.0f"|format(p.platform_fee_percent) }}% · Kampanje: {{ p.max_aktivno_campaigns }}</p>
+  <p>{{ p.features }}</p>
+  <form method="post" action="/oglasivac/planovi/{{ p.id }}/aktiviraj"><button class="btn btn-primary" type="submit">Aktiviraj plan</button></form>
+</div>
+{% endfor %}
+</div>
+{% endblock %}

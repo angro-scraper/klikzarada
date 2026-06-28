@@ -1,0 +1,7 @@
+{% extends "app_base.html" %}
+{% set title = "Automatizacija - Admin" %}
+{% block app_content %}
+<section class="kz114-hero workflow"><div><span>AUTOMATIZACIJA</span><h1>Pravila koja smanjuju ručni rad</h1><p>Sistem sam proverava budžet, tajmer, dokaze i top pozicije. Admin gleda log i rešava samo izuzetke.</p></div><div class="kz114-hero-actions"><a class="btn btn-primary" href="/admin/auto-engine-v114">Auto engine</a><a class="btn btn-secondary" href="/admin/fraud-v11">Anti-fraud</a></div></section>
+<section class="kz114-rule-grid">{% for r in rules %}<article><span>{{ r.status }}</span><h3>{{ r.title }}</h3><p>{{ r.desc }}</p></article>{% endfor %}</section>
+<section class="kz114-section"><div class="kz114-head"><h2>Poslednji auto logovi</h2><span>{{ logs|length }}</span></div><div class="kz114-log-list">{% for l in logs %}<article><b>{{ l.event_type }}</b><p>{{ l.message }}</p><small>{{ l.created_at }}</small></article>{% else %}<div class="kz1111-empty"><h3>Nema auto logova</h3><p>Auto engine je spreman.</p></div>{% endfor %}</div></section>
+{% endblock %}

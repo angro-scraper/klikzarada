@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% set title = "KlikZarada - zarada za korisnike, rezultati za oglašivače" %}
+{% block content %}
+
+<section class="kz-hero-pro kz-wide-hero">
+  <div class="kz-hero-left">
+    <div class="kz-pill-blue">SRPSKA PLATFORMA ZA MIKRO-ZADATKE</div>
+    <h1>Zarada za korisnike.<br><span>Rezultati za oglašivače.</span></h1>
+    <p class="kz-lead">Korisnici rade proverljive zadatke i zarađuju novac. Oglašivači dobijaju stvarne rezultate.</p>
+
+    <div class="kz-benefit-row">
+      <div><b>⚡</b> Brza isplata</div>
+      <div><b>🛡</b> Pošten sistem</div>
+      <div><b>🔒</b> Anti-fraud zaštita</div>
+      <div><b>🎧</b> Podrška 24/7</div>
+    </div>
+
+    <div class="kz-hero-actions">
+      <a class="kz-btn kz-btn-blue" href="/registracija">🛡 Počni da zarađuješ</a>
+      <a class="kz-btn kz-btn-green" href="/registracija">📣 Kreiraj kampanju</a>
+    </div>
+
+    <div class="kz-social-proof">
+      <div class="kz-avatars">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <div><strong>+20.000</strong><small>aktivnih korisnika</small></div>
+      <div class="kz-proof-line"></div>
+      <div><strong>4.8/5 ⭐⭐⭐⭐⭐</strong><small>na osnovu 1.200+ ocena</small></div>
+    </div>
+  </div>
+
+  <div class="kz-hero-right">
+    <div class="kz-dashboard">
+      <div class="kz-dash-main">
+        <p>Dobrodošao nazad!</p>
+        <div class="kz-balance">
+          <small>Ukupan balans</small>
+          <strong>12.540 RSD</strong>
+          <span>Raspoloživo za isplatu</span>
+          <button>Isplati sredstva</button>
+        </div>
+        <div class="kz-dash-grid">
+          <div><small>Zarađeno danas</small><strong>1.250 RSD</strong></div>
+          <div><small>Zadataka danas</small><strong>23</strong></div>
+        </div>
+        <div class="kz-progress-title">
+          <b>Tvoj napredak</b><span>+28% ⭐⭐⭐⭐⭐</span>
+        </div>
+        <div class="kz-chart">
+          <i style="height:34%"></i><i style="height:48%"></i><i style="height:30%"></i><i style="height:60%"></i><i style="height:42%"></i><i style="height:72%"></i><i style="height:53%"></i><i style="height:68%"></i><i style="height:82%"></i>
+        </div>
+      </div>
+      <div class="kz-dash-side">
+        <div class="kz-shield">🛡 <b>Sigurno i proverljivo okruženje</b></div>
+        <h4>Nedavni zadaci</h4>
+        <ul>
+          <li><span>▣ Popuni anketu</span><b>+60 RSD</b></li>
+          <li><span>● Poseti sajt</span><b>+40 RSD</b></li>
+          <li><span>▣ Registracija</span><b>+120 RSD</b></li>
+          <li><span>● Ostavi komentar</span><b>+50 RSD</b></li>
+          <li><span>▣ Podeli na mreži</span><b>+30 RSD</b></li>
+        </ul>
+        <a href="/zadaci">Svi zadaci</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="kz-pro-section kz-sponsored kz-wide-section">
+  <div class="kz-section-head">
+    <h2>SPONZORSKI BANERI NA POČETNOJ</h2>
+    <a href="/oglasivac/banneri-v111">Postani sponzor ›</a>
+  </div>
+  <div class="kz-banner-row">
+    {% if banners and banners|length > 0 %}
+      {% for b in banners[:4] %}
+      <a class="kz-sponsor kz-sponsor-live" href="/reklama-v111/{{ b.id }}/view">
+        <span>{{ b.slot.title if b.slot else "Sponzorisano" }}</span>
+        <h3>{{ b.title }}</h3>
+        <p>{{ b.body or "Promoviši svoj brend na početnoj strani." }}</p>
+        <button>Pogledaj</button>
+      </a>
+      {% endfor %}
+    {% else %}
+      <div class="kz-sponsor kz-host"><h3>BalkanHost</h3><p>Brz, siguran i pouzdan hosting.</p><strong>već od 199 RSD / mesečno</strong><button>Saznaj više</button></div>
+      <div class="kz-sponsor kz-coin"><h3>CoinPayU</h3><p>Zaradi kriptovalute iz udobnosti svog doma</p><button>Registruj se</button></div>
+      <div class="kz-sponsor kz-proofy"><h3>Proofy</h3><p>#1 za online istraživanja</p><button>Isprobaj sada</button></div>
+      <div class="kz-sponsor kz-adflex"><h3>AdFlex</h3><p>Oglasi koji donose rezultate. Promoviši svoj brend</p><button>Kreiraj kampanju</button></div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="kz-pro-section kz-top-campaign kz-wide-section">
+  <div class="kz-top-left">
+    <div class="kz-pill-blue">ISTAKNI SE</div>
+    <h2>Kampanja<br><span>na prvom mestu</span></h2>
+    <p>Plasiraj svoju kampanju na vrh stranice i dođi do hiljada aktivnih korisnika svakog dana.</p>
+    <ul>
+      <li>✓ Maksimalna vidljivost</li>
+      <li>✓ Više klikova i konverzija</li>
+      <li>✓ Brži i merljivi rezultati</li>
+    </ul>
+    <a class="kz-btn kz-btn-green" href="/oglasivac/boost-v111">Naruči kampanju 🚀</a>
+  </div>
+  <div class="kz-campaign-preview">
+    <div class="kz-window-dots"><i></i><i></i><i></i></div>
+    <h3>Tvoja kampanja <span>SPONZORISANO</span></h3>
+    <div class="kz-preview-body">
+      <div class="kz-image-placeholder"></div>
+      <div><i></i><i></i><i class="short"></i><i></i></div>
+    </div>
+  </div>
+  <div class="kz-benefit-card">
+    <h4>Zašto je isplativo?</h4>
+    <p><b>👁 10x</b><span>više pregleda</span></p>
+    <p><b>📈 5x</b><span>više klikova</span></p>
+    <p><b>🎯 100%</b><span>merljivi rezultati</span></p>
+  </div>
+</section>
+
+<section class="kz-pro-section kz-wide-section">
+  <div class="kz-section-head">
+    <h2>ISTAKNUTI ZADACI</h2>
+    <a href="/zadaci">Pogledaj sve zadatke ›</a>
+  </div>
+  <div class="kz-task-row">
+    {% for t in tasks[:5] %}
+    <div class="kz-task-card">
+      <div class="kz-task-icon">{{ ["📋","👤","🌐","💬","🔗"][loop.index0] if loop.index0 < 5 else "✓" }}</div>
+      <h3>{{ t.title }}</h3>
+      <p>{{ t.description[:60] if t.description else "Podeli svoje mišljenje" }}</p>
+      <div class="kz-task-meta"><span>Lako</span><span>⏱ 2–5 min</span></div>
+      <div class="kz-task-bottom"><strong>{{ "%.0f"|format(t.reward_rsd) }} RSD</strong><a href="/zadaci/{{ t.id }}">Zaradi</a></div>
+    </div>
+    {% else %}
+    <div class="kz-task-card"><div class="kz-task-icon">📋</div><h3>Popuni anketu</h3><p>Podeli svoje mišljenje</p><div class="kz-task-meta"><span>Lako</span><span>⏱ 3 min</span></div><div class="kz-task-bottom"><strong>60 RSD</strong><a href="/zadaci">Zaradi</a></div></div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="kz-audience-row kz-wide-section">
+  <div class="kz-audience-card kz-user-card">
+    <div>
+      <h2>🧑‍💻 Za korisnike</h2>
+      <ul>
+        <li>✓ Jednostavni zadaci za svakoga</li>
+        <li>✓ Brza i sigurna isplata</li>
+        <li>✓ Fer nagrade za vaš trud</li>
+        <li>✓ Bez skrivenih uslova</li>
+      </ul>
+    </div>
+    <div class="kz-person kz-person-user"><span>+120 RSD<br><small>Zadatak završen!</small></span></div>
+  </div>
+  <div class="kz-audience-card kz-adv-card">
+    <div>
+      <h2>🚀 Za oglašivače</h2>
+      <ul>
+        <li>✓ Stvarni ljudi i proverljivi rezultati</li>
+        <li>✓ Precizno targetiranje</li>
+        <li>✓ Fleksibilne opcije promocije</li>
+        <li>✓ Detaljna statistika i izveštaji</li>
+      </ul>
+    </div>
+    <div class="kz-person kz-person-adv"><span>Konverzije<br><b>+320%</b></span></div>
+  </div>
+</section>
+
+<section class="kz-metrics-strip kz-wide-section">
+  <div><b>20.000+</b><span>Aktivnih korisnika</span></div>
+  <div><b>150.000+</b><span>Završenih zadataka</span></div>
+  <div><b>250+</b><span>Aktivnih kampanja</span></div>
+  <div><b>4.8 / 5</b><span>Prosečna ocena korisnika</span></div>
+  <div class="kz-testimonial"><strong>Marko J.</strong><small>Oglašivač</small><p>“Odlična platforma! Kampanja mi je donela tačno one rezultate koje sam očekivao.”</p></div>
+</section>
+
+<section class="kz-final-cta kz-wide-section">
+  <div>
+    <h2>Spremni da počnete?</h2>
+    <p>Pridružite se hiljadama korisnika koji već zarađuju ili pokrenite svoju kampanju već danas.</p>
+  </div>
+  <div>
+    <a class="kz-btn kz-btn-green" href="/registracija">Registruj se besplatno</a>
+    <a class="kz-btn kz-btn-dark" href="/registracija">Kreiraj kampanju</a>
+  </div>
+</section>
+
+<footer class="kz-pro-footer kz-wide-section">
+  <div><b>KZ</b> KlikZarada</div>
+  <span>© 2025 KlikZarada. Sva prava zadržana.</span>
+  <a href="/legal/uslovi-koriscenja">Pravila korišćenja</a>
+  <a href="/legal/pravila-isplata">Uslovi isplate</a>
+  <a href="/legal/politika-privatnosti">Politika privatnosti</a>
+  <a href="/kontakt">Kontakt</a>
+</footer>
+
+{% endblock %}

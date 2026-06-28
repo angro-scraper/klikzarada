@@ -1,0 +1,12 @@
+{% extends "app_base.html" %}
+{% set title = "Bedževi - KlikZarada" %}
+{% block app_content %}
+<div class="section-heading left"><span>V5 Gamification</span><h2>Moji bedževi i dostignuća</h2></div>
+<div class="grid-3">
+{% for b in badges %}
+  <div class="info-card"><div class="icon">★</div><h3>{{ b.badge }}</h3><p>{{ b.description }}</p><small>{{ b.created_at }}</small></div>
+{% else %}
+  <div class="empty">Još nema bedževa. Završite prve zadatke da ih otključate.</div>
+{% endfor %}
+</div>
+{% endblock %}

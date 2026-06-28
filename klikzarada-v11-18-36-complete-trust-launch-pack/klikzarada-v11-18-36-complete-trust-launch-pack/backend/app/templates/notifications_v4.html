@@ -1,0 +1,5 @@
+
+{% extends "app_base.html" %}{% set title="Notifikacije" %}{% block app_content %}
+<div class="head"><div><span class="eyebrow">Notifikacije</span><h1>Obaveštenja</h1><p>Ovde vidiš sistemske poruke, statuse i admin obaveštenja.</p></div></div>
+<div class="table"><table><tr><th>Datum</th><th>Naslov</th><th>Poruka</th><th>Status</th></tr>{% for n in notes %}<tr><td>{{ n.created_at }}</td><td>{{ n.title }}</td><td>{{ n.body }}</td><td><span class="status {{ n.status }}">{{ n.status }}</span></td></tr>{% else %}<tr><td colspan="4">Nema notifikacija.</td></tr>{% endfor %}</table></div>
+{% endblock %}

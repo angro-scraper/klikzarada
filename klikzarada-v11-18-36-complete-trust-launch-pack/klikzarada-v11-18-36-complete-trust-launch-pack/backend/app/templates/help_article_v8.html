@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% set title = article.title %}
+{% block content %}
+<section class="page-head"><span>Help</span><h1>{{ article.title }}</h1><p>{{ article.audience }}</p></section><section class="section text-page"><p>{{ article.body }}</p></section>
+{% endblock %}

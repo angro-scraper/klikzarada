@@ -1,0 +1,95 @@
+{% extends "app_base.html" %}
+{% set title="Oglašivački panel" %}
+{% block app_content %}
+<section class="premium-panel-hero advertiser">
+  <div>
+    <span>OGLAŠIVAČ</span>
+    <h1>{{ user.company_name or user.full_name }}</h1>
+    <p>Upravljajte kampanjama, budžetom, bannerima i top pozicijom kroz jedinstven i pregledan panel.</p>
+  </div>
+  <div class="premium-panel-actions">
+    <a class="premium-btn blue" href="/oglasivac/nova-kampanja">Nova kampanja</a>
+    <a class="premium-btn green" href="/oglasivac/promocija-v111">Baner reklame</a>
+    <a class="premium-btn white" href="/oglasivac/boost-v111">Top pozicija</a>
+  </div>
+</section>
+
+<section class="kz118-quick-panel-links advertiser-links">
+  <a href="/oglasivac/kampanje"><strong>Kampanje</strong><span>Aktivne i arhiva</span></a>
+  <a href="/oglasivac/budzet"><strong>Budžet</strong><span>Dostupno i rezervisano</span></a>
+  <a href="/oglasivac/promocija-v111"><strong>Reklame</strong><span>Banner slotovi i oglasi</span></a>
+  <a href="/oglasivac/izvestaji"><strong>Izveštaji</strong><span>Rezultati i eksport</span></a>
+</section>
+
+<section class="premium-stat-grid">
+  <article class="green"><small>Dostupan budžet</small><strong>{{ "%.0f"|format(user.advertiser_budget_rsd or 0) }}</strong><span>RSD</span></article>
+  <article class="blue"><small>Rezervisano</small><strong>{{ "%.0f"|format(user.advertiser_reserved_rsd or 0) }}</strong><span>RSD</span></article>
+  <article class="purple"><small>Potrošeno</small><strong>{{ "%.0f"|format(user.advertiser_spent_rsd or 0) }}</strong><span>RSD</span></article>
+  <article class="orange"><small>Kampanje</small><strong>{{ tasks|length }}</strong><span>ukupno</span></article>
+</section>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Aktivne kampanje</h2><a href="/oglasivac/kampanje">Sve kampanje</a></div>
+    <div class="premium-list">
+      {% for t in tasks[:6] %}
+      <article>
+        <div><b>{{ t.title }}</b><small>{{ t.category }} · {{ t.status }}</small></div>
+        <strong>{{ "%.0f"|format(t.reward_rsd) }} RSD</strong>
+        <a class="mini-btn" href="/zadaci/{{ t.id }}">Detalji</a>
+      </article>
+      {% else %}
+      <div class="premium-empty"><h3>Nema kampanja</h3><p>Kreirajte prvu kampanju i pokrenite test.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="premium-card gradient">
+    <div class="premium-card-head"><h2>Brza monetizacija</h2><span>preporuka</span></div>
+    <div class="premium-suggestion-box">
+      <h3>Podignite najbolju kampanju na prvo mesto</h3>
+      <p>Top pozicija donosi veću vidljivost i brže izvršenje zadataka, dok banner slotovi dodatno pojačavaju domet.</p>
+      <a class="premium-btn green" href="/oglasivac/boost-v111">Aktiviraj top poziciju</a>
+    </div>
+  </section>
+</div>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Dokazi korisnika</h2><a href="/oglasivac/dokazi">Svi dokazi</a></div>
+    <div class="premium-table-wrap">
+      <table><thead><tr><th>Zadatak</th><th>Korisnik</th><th>Status</th><th>Nagrada</th></tr></thead><tbody>
+      {% for s in subs[:8] %}
+      <tr><td>{{ s.task.title }}</td><td>{{ s.user.full_name }}</td><td><span class="status {{ s.status }}">{{ s.status }}</span></td><td>{{ "%.0f"|format(s.reward_rsd) }} RSD</td></tr>
+      {% else %}
+      <tr><td colspan="4">Nema dokaza.</td></tr>
+      {% endfor %}
+      </tbody></table>
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Dopuna budžeta</h2><a href="/oglasivac/budzet">Budžet</a></div>
+    <form class="premium-form" method="post" action="/oglasivac/budzet/zahtev">
+      <label>Iznos RSD</label>
+      <input type="number" name="amount_rsd" value="5000" min="500">
+      <label>Napomena</label>
+      <textarea name="note" placeholder="Npr. uplata preko računa"></textarea>
+      <button class="premium-btn blue full">Pošalji zahtev</button>
+    </form>
+  </section>
+</div>
+
+<section class="premium-card">
+  <div class="premium-card-head"><h2>Poslednje budžet transakcije</h2><span>{{ txs|length }}</span></div>
+  <div class="premium-table-wrap">
+    <table><thead><tr><th>Tip</th><th>Opis</th><th>Iznos</th><th>Datum</th></tr></thead><tbody>
+    {% for tx in txs[:10] %}
+    <tr><td>{{ tx.tx_type }}</td><td>{{ tx.description }}</td><td>{{ "%.0f"|format(tx.amount_rsd) }} RSD</td><td>{{ tx.created_at }}</td></tr>
+    {% else %}
+    <tr><td colspan="4">Nema transakcija.</td></tr>
+    {% endfor %}
+    </tbody></table>
+  </div>
+</section>
+{% endblock %}

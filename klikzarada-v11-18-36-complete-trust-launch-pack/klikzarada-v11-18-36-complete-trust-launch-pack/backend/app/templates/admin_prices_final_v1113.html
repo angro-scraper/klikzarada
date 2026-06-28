@@ -1,0 +1,113 @@
+{% extends "app_base.html" %}
+{% set title = "Cene i procenti - Admin" %}
+{% block app_content %}
+<section class="premium-panel-hero admin">
+  <div>
+    <span>CENE I PROCENTI</span>
+    <h1>Kontrola zarade platforme</h1>
+    <p>Ovde usklađuješ cenu gledanja, raspodelu između korisnika i platforme, kao i cenu bannera i kampanjskog isticanja. Sve je na jednom mestu i odmah se vidi uticaj na ekonomiju.</p>
+  </div>
+  <div class="premium-panel-actions">
+    <a class="premium-btn blue" href="/admin/promocija-v111">Reklame</a>
+    <a class="premium-btn green" href="/admin/finansije">Finansije</a>
+    <a class="premium-btn white" href="/cenovnik">Javni cenovnik</a>
+  </div>
+</section>
+
+<section class="premium-stat-grid">
+  <article class="blue">
+    <small>Cena gledanja</small>
+    <strong>{{ "%.0f"|format(ad_cost) }} RSD</strong>
+    <span>po validnom prikazu</span>
+  </article>
+  <article class="green">
+    <small>Korisniku ide</small>
+    <strong>{{ "%.2f"|format(ad_reward) }} RSD</strong>
+    <span>{{ "%.1f"|format(user_percent) }}%</span>
+  </article>
+  <article class="purple">
+    <small>Platformi ide</small>
+    <strong>{{ "%.2f"|format(ad_cost - ad_reward) }} RSD</strong>
+    <span>{{ "%.1f"|format(platform_percent) }}%</span>
+  </article>
+  <article class="orange">
+    <small>Javna isplata</small>
+    <strong>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD</strong>
+    <span>minimalni prag</span>
+  </article>
+</section>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card gradient">
+    <div class="premium-card-head">
+      <h2>Raspodela gledanja reklame</h2>
+      <span>aktivno</span>
+    </div>
+    <p style="margin-top:0;color:#64748b;line-height:1.6">Oglašivač plaća jednu cenu za validan prikaz, a sistem iz nje automatski izvlači deo za korisnika i deo za platformu.</p>
+    <form method="post" action="/admin/cene-v111/split" class="kz-admin-split-form">
+      <div class="premium-money-grid">
+        <article><small>Cena gledanja</small><strong>{{ "%.0f"|format(ad_cost) }} RSD</strong></article>
+        <article><small>Platforma</small><strong>{{ "%.1f"|format(platform_percent) }}%</strong></article>
+        <article><small>Korisnik</small><strong>{{ "%.1f"|format(user_percent) }}%</strong></article>
+      </div>
+      <label>Cena gledanja za oglašivača (RSD)</label>
+      <input type="number" step="0.01" name="ad_cost" value="{{ ad_cost }}">
+      <div class="two">
+        <div>
+          <label>Platformi (%)</label>
+          <input type="number" step="0.01" name="platform_percent" value="{{ platform_percent }}">
+        </div>
+        <div>
+          <label>Korisniku (%)</label>
+          <input type="number" step="0.01" name="user_percent" value="{{ user_percent }}">
+        </div>
+      </div>
+      <button class="btn btn-primary">Sačuvaj procente</button>
+    </form>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Brzi pregled monetizacije</h2>
+      <span>signal</span>
+    </div>
+    <div class="premium-mini-bars">
+      <div><label>Korisnik <b>{{ "%.2f"|format(ad_reward) }} RSD</b></label><span><i class="green" style="width:{{ [user_percent * 2, 100]|min }}%"></i></span></div>
+      <div><label>Platforma <b>{{ "%.2f"|format(ad_cost - ad_reward) }} RSD</b></label><span><i class="blue" style="width:{{ [platform_percent * 2, 100]|min }}%"></i></span></div>
+      <div><label>Banner top / dan <b>{{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }} RSD</b></label><span><i class="purple" style="width:100%"></i></span></div>
+      <div><label>Top pozicija 3d <b>{{ "%.0f"|format(pricing_summary.boost_top_3d if pricing_summary is defined else 2500) }} RSD</b></label><span><i class="orange" style="width:{{ [((pricing_summary.boost_top_3d if pricing_summary is defined else 2500) / 30), 100]|min }}%"></i></span></div>
+    </div>
+    <div class="premium-empty" style="margin-top:18px">
+      <h3>Javna strana koristi iste vrednosti</h3>
+      <p>Ovo smanjuje ručno usklađivanje i drži cenovnik, banere i kampanje sinhronizovanim.</p>
+    </div>
+  </section>
+</div>
+
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Sve cene platforme</h2>
+    <span>{{ prices|length }} stavki</span>
+  </div>
+  <form method="post" action="/admin/cene-v111/save-all">
+    <div class="premium-action-grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));">
+      {% for p in prices %}
+      <article class="premium-empty" style="display:grid;gap:10px">
+        <div>
+          <small style="color:#64748b;font-weight:900;letter-spacing:.06em;text-transform:uppercase">{{ p.key }}</small>
+          <h3 style="margin:6px 0 6px;color:#071a3f">{{ p.title }}</h3>
+          <p style="margin:0;color:#64748b;line-height:1.55">{{ p.description or "" }}</p>
+          {% if p.key.startswith("BANNER_HOME_") %}
+          <p style="margin:8px 0 0;color:#2d64ce;font-weight:900">≈ {{ "%.0f"|format(p.value_rsd / 7 if p.value_rsd else 0) }} RSD / dan</p>
+          {% endif %}
+        </div>
+        <label>Iznos</label>
+        <input type="number" step="0.01" name="amount_{{ p.id }}" value="{{ p.value_percent if p.value_percent else p.value_rsd }}">
+        <small>{% if p.value_percent %}%{% else %}RSD{% endif %}</small>
+      </article>
+      {% endfor %}
+    </div>
+    <button class="btn btn-primary" style="margin-top:18px">Sačuvaj sve cene</button>
+  </form>
+</section>
+{% endblock %}

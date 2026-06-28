@@ -1,0 +1,7 @@
+{% extends "app_base.html" %}
+{% set title = "V8 Command - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>V8 Command</span><h2>Mobile, Plaćanjes & Operations</h2></div>
+<div class="stats small in-app-stats"><div class="stat-card"><strong>{{ payments_na čekanju }}</strong><span>payments na čekanju</span></div><div class="stat-card"><strong>{{ command_open }}</strong><span>command open</span></div><div class="stat-card"><strong>{{ jobs_queued }}</strong><span>jobs queued</span></div><div class="stat-card"><strong>{{ emails_queued }}</strong><span>emails queued</span></div><div class="stat-card"><strong>{{ release_open }}</strong><span>release open</span></div></div>
+<div class="grid-3"><div class="panel"><h2>Plaćanjes</h2><p>Potvrda dopuna budžeta.</p><a class="btn btn-primary" href="/admin/payments-v8">Otvori</a></div><div class="panel panel-purple"><h2>Command</h2><p>Operativni prioriteti.</p><a class="btn btn-primary" href="/admin/command-center-v8">Otvori</a></div><div class="panel panel-green"><h2>Release</h2><p>Checklist za produkciju.</p><a class="btn btn-primary" href="/admin/release-v8">Otvori</a></div></div>
+{% endblock %}

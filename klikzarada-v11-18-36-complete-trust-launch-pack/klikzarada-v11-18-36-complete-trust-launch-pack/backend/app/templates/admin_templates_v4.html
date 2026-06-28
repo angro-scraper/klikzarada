@@ -1,0 +1,6 @@
+
+{% extends "app_base.html" %}{% set title="Admin šabloni" %}{% block app_content %}
+<div class="head"><div><span class="eyebrow">Šabloni</span><h1>Admin šabloni kampanja</h1></div></div>
+<form class="formcard" method="post" action="/admin/sabloni/novi"><label>Naziv</label><input name="name" required><div class="cols"><div><label>Kategorija</label><input name="category" required></div><div><label>Tip</label><input name="task_type" required></div></div><label>Opis</label><textarea name="description" required></textarea><label>Instrukcije</label><textarea name="instructions" required></textarea><label>Dokaz</label><textarea name="proof_required" required></textarea><div class="cols"><div><label>Predlog nagrade</label><input type="number" name="suggested_reward_rsd" value="60"></div><div><label>Predlog izvršenja</label><input type="number" name="suggested_slots" value="100"></div></div><button class="btn">Dodaj šablon</button></form>
+<section class="grid2">{% for i in items %}<div class="card"><span class="pill">{{ i.category }} · {{ i.task_type }}</span><h2>{{ i.name }}</h2><p>{{ i.description }}</p><small>{{ i.instructions }}</small></div>{% endfor %}</section>
+{% endblock %}

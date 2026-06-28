@@ -1,0 +1,233 @@
+{% extends "app_base.html" %}
+{% set title = "Admin dashboard - KlikZarada" %}
+{% block app_content %}
+
+<section class="premium-panel-hero admin">
+  <div>
+    <span>ADMIN</span>
+    <h1>Kontrola platforme</h1>
+    <p>Moderacija, finansije, reklame, isplate, anti-fraud i automatizacija na jednom mestu. Ovde odmah vidiš gde sistem radi sam, gde ide ručna provera i gde postoji rizik.</p>
+    <div class="premium-panel-actions">
+      <a class="premium-btn blue" href="/admin/promocija-v111">Reklame</a>
+      <a class="premium-btn green" href="/admin/cene-v111">Cene</a>
+      <a class="premium-btn white" href="/admin/daily-desk-v11">Daily Desk</a>
+    </div>
+  </div>
+  <div class="premium-card banner-launch-hero-card">
+    <div class="premium-card-head">
+      <h2>Brzi pregled</h2>
+      <span>uživo</span>
+    </div>
+    <div class="premium-money-grid">
+      <article><small>Nalozi</small><strong>{{ stats.total_users }}</strong></article>
+      <article><small>Korisnici</small><strong>{{ stats.total_customers }}</strong></article>
+      <article><small>Oglašivači</small><strong>{{ stats.total_advertisers }}</strong></article>
+      <article><small>Budžet oglašivača</small><strong>{{ "%.0f"|format(stats.total_budget) }} RSD</strong></article>
+    </div>
+  </div>
+</section>
+
+<section class="premium-stat-grid">
+  <article class="blue"><small>Aktivne kampanje</small><strong>{{ stats.active_tasks }}</strong><span>na mreži</span></article>
+  <article class="orange"><small>Kampanje na čekanju</small><strong>{{ stats.pending_tasks }}</strong><span>moderacija</span></article>
+  <article class="purple"><small>Dokazi na čekanju</small><strong>{{ stats.pending_submissions }}</strong><span>provera</span></article>
+  <article class="green"><small>Isplate na čekanju</small><strong>{{ stats.pending_withdrawals }}</strong><span>obrada</span></article>
+</section>
+
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Automation summary</h2>
+    <span>sistem</span>
+  </div>
+  <div class="premium-mini-bars">
+    <div><label>Auto odobreno <b>{{ automation_summary.auto_approved }}</b></label><span><i class="blue" style="width:{{ [automation_summary.auto_approved * 12, 100]|min }}%"></i></span></div>
+    <div><label>Ručno čekanje <b>{{ automation_summary.manual_queue }}</b></label><span><i class="orange" style="width:{{ [automation_summary.manual_queue * 12, 100]|min }}%"></i></span></div>
+    <div><label>AI pregledi <b>{{ automation_summary.ai_reviews }}</b></label><span><i class="green" style="width:{{ [automation_summary.ai_reviews * 6, 100]|min }}%"></i></span></div>
+    <div><label>Auto odbijeno <b>{{ automation_summary.auto_rejected }}</b></label><span><i class="purple" style="width:{{ [automation_summary.auto_rejected * 12, 100]|min }}%"></i></span></div>
+  </div>
+</section>
+
+{% if dashboard_mix is defined %}
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Dokazi: na čekanju vs auto</h2>
+    <span>brzi graf</span>
+  </div>
+  <div class="premium-mini-bars compact">
+    <div><label>Pending <b>{{ dashboard_mix.pending_subs }}</b></label><span><i class="orange" style="width:{{ [dashboard_mix.pending_subs * 12, 100]|min }}%"></i></span></div>
+    <div><label>Auto odobreno <b>{{ dashboard_mix.auto_approved }}</b></label><span><i class="green" style="width:{{ [dashboard_mix.auto_approved * 12, 100]|min }}%"></i></span></div>
+  </div>
+</section>
+{% endif %}
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card gradient">
+    <div class="premium-card-head">
+      <h2>Fraud snapshot</h2>
+      <span>rizični signali</span>
+    </div>
+    <div class="premium-money-grid">
+      <article><small>Visok rizik korisnici</small><strong>{{ fraud_summary.high_risk_users if fraud_summary is defined else 0 }}</strong></article>
+      <article><small>Srednji rizik korisnici</small><strong>{{ fraud_summary.medium_risk_users if fraud_summary is defined else 0 }}</strong></article>
+      <article><small>Visok rizik kampanje</small><strong>{{ fraud_summary.high_risk_campaigns if fraud_summary is defined else 0 }}</strong></article>
+      <article><small>Srednji rizik kampanje</small><strong>{{ fraud_summary.medium_risk_campaigns if fraud_summary is defined else 0 }}</strong></article>
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Status dokaza</h2>
+      <span>auto / ručno / odbijeno</span>
+    </div>
+    <div class="premium-mini-bars compact">
+      <div><label>Pending <b>{{ proof_mix.pending if proof_mix is defined else 0 }}</b></label><span><i class="orange" style="width:{{ [((proof_mix.pending if proof_mix is defined else 0) * 12), 100]|min }}%"></i></span></div>
+      <div><label>Odobreno <b>{{ proof_mix.approved if proof_mix is defined else 0 }}</b></label><span><i class="green" style="width:{{ [((proof_mix.approved if proof_mix is defined else 0) * 12), 100]|min }}%"></i></span></div>
+      <div><label>Odbijeno <b>{{ proof_mix.rejected if proof_mix is defined else 0 }}</b></label><span><i class="purple" style="width:{{ [((proof_mix.rejected if proof_mix is defined else 0) * 12), 100]|min }}%"></i></span></div>
+      <div><label>Sporno <b>{{ proof_mix.disputed if proof_mix is defined else 0 }}</b></label><span><i class="blue" style="width:{{ [((proof_mix.disputed if proof_mix is defined else 0) * 12), 100]|min }}%"></i></span></div>
+    </div>
+  </section>
+</div>
+
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Monetization snapshot</h2>
+    <span>ekonomija</span>
+  </div>
+  <div class="premium-money-grid">
+    <article><small>Provizija platforme</small><strong>{{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}%</strong></article>
+    <article><small>Udeo korisnika</small><strong>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}%</strong></article>
+    <article><small>Minimalna isplata</small><strong>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD</strong></article>
+    <article><small>Budžet oglašivača</small><strong>{{ "%.0f"|format(stats.total_budget) }} RSD</strong></article>
+  </div>
+</section>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card gradient">
+    <div class="premium-card-head">
+      <h2>Brze akcije</h2>
+      <span>admin</span>
+    </div>
+    <div class="premium-action-grid">
+      <a href="/admin/kampanje">Kampanje</a>
+      <a href="/admin/dokazi">Dokazi</a>
+      <a href="/admin/isplate">Isplate</a>
+      <a href="/admin/promocija-v111">Banneri</a>
+      <a href="/admin/cene-v111">Cene i provizije</a>
+      <a href="/admin/fraud-v11">Anti-fraud</a>
+      <a href="/admin/workflows-v10">Automatizacija</a>
+      <a href="/admin/deploy-v11">Produkcija</a>
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Finansije</h2>
+      <a href="/admin/finansije">Otvori</a>
+    </div>
+    <div class="premium-money-grid">
+      <article><small>Rezervisani budžet</small><strong>{{ "%.0f"|format(stats.reserved_budget) }} RSD</strong></article>
+      <article><small>Potrošeno</small><strong>{{ "%.0f"|format(stats.spent_budget) }} RSD</strong></article>
+      <article><small>Ukupan budžet</small><strong>{{ "%.0f"|format(stats.total_budget) }} RSD</strong></article>
+    </div>
+  </section>
+</div>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Najnovije kampanje</h2>
+      <a href="/admin/kampanje">Sve kampanje</a>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>Naziv</th><th>Status</th><th>Nagrada</th><th>Akcija</th></tr></thead>
+        <tbody>
+        {% for t in latest_tasks %}
+          <tr>
+            <td><strong>{{ t.title }}</strong><br><small>{{ t.category }} · {{ t.task_type }}</small></td>
+            <td><span class="status status-{{ t.status }}">{{ t.status }}</span></td>
+            <td>{{ "%.0f"|format(t.reward_rsd) }} RSD</td>
+            <td><a class="mini-btn" href="/zadaci/{{ t.id }}">Detalji</a></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">Nema kampanja.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Reklame i isticanja</h2>
+      <a href="/admin/promocija-v111">Uredi reklame</a>
+    </div>
+    <div class="premium-list">
+      {% for b in banners %}
+        <article>
+          <div><b>{{ b.title }}</b><small>{{ b.status }} · {{ "%.0f"|format(b.price_rsd) }} RSD</small></div>
+          <a class="mini-btn" href="/admin/promocija-v111">Otvori</a>
+        </article>
+      {% else %}
+        <div class="premium-empty"><h3>Nema banner reklama</h3><p>Kada oglašivač pošalje banner, pojaviće se ovde.</p></div>
+      {% endfor %}
+      {% for x in boosts %}
+        <article>
+          <div><b>{{ x.title }}</b><small>{{ x.status }} · {{ "%.0f"|format(x.price_rsd) }} RSD</small></div>
+          <a class="mini-btn" href="/admin/promocija-v111">Otvori</a>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Najnoviji dokazi</h2>
+      <a href="/admin/dokazi">Svi dokazi</a>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>Korisnik</th><th>Zadatak</th><th>Status</th><th>Iznos</th></tr></thead>
+        <tbody>
+        {% for s in latest_submissions %}
+          <tr>
+            <td>{{ s.user.full_name if s.user else "-" }}</td>
+            <td>{{ s.task.title if s.task else "-" }}</td>
+            <td><span class="status status-{{ s.status }}">{{ s.status }}</span></td>
+            <td>{{ "%.0f"|format(s.reward_rsd) }} RSD</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">Nema dokaza.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Isplate na čekanju</h2>
+      <a href="/admin/isplate">Sve isplate</a>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>Korisnik</th><th>Iznos</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for w in latest_withdrawals %}
+          <tr>
+            <td>{{ w.user.full_name if w.user else "-" }}</td>
+            <td>{{ "%.0f"|format(w.amount_rsd) }} RSD</td>
+            <td><span class="status status-{{ w.status }}">{{ w.status }}</span></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="3">Nema zahteva za isplatu.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+{% endblock %}

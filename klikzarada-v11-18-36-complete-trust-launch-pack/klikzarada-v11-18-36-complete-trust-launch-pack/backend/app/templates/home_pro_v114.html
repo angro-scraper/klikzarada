@@ -1,0 +1,243 @@
+
+{% extends "base.html" %}
+{% set title = "KlikZarada - zarada za korisnike, rezultati za oglašivače" %}
+{% set extra_body_class = "kz1189-home-premium" %}
+{% block content %}
+
+<section class="kz114-hero">
+  <div class="kz114-hero-copy">
+    <div class="kz114-eyebrow">PLATFORMA ZA ZARADU I PROMOCIJU</div>
+    <h1>Zarada za korisnike.<br><span>Rezultati koji se mere za oglašivače.</span></h1>
+    <p>Korisnici rade proverljive zadatke i zarađuju fer nagradu. Oglašivači dobijaju stvarne, merljive rezultate kroz ankete, posete, registracije i feedback uz jasan budžet i kontrolu troška.</p>
+
+    <div class="kz114-trust">
+      <span>Brza isplata</span>
+      <span>Pošten sistem</span>
+      <span>Anti-fraud zaštita</span>
+      <span>Podrška 24/7</span>
+    </div>
+
+    <div class="kz114-cta">
+      <a class="kz114-btn primary" href="/registracija">Počni da zarađuješ</a>
+      <a class="kz114-btn green" href="/registracija">Pokreni kampanju</a>
+    </div>
+
+    <div class="kz114-proof">
+      <div class="kz114-avatars"><i></i><i></i><i></i><i></i></div>
+      <div><b>+20.000</b><small>aktivnih korisnika</small></div>
+      <em></em>
+      <div><b>4.8/5 ⭐⭐⭐⭐⭐</b><small>na osnovu 1.200+ ocena</small></div>
+    </div>
+  </div>
+
+  <div class="kz114-dashboard-wrap">
+    <div class="kz114-dashboard">
+      <div class="kz114-dashboard-main">
+        <small>Dobrodošao nazad!</small>
+        <div class="kz114-balance-card">
+          <span>Ukupan balans</span>
+          <strong>12.540 RSD</strong>
+          <p>Raspoloživo za isplatu i proveru</p>
+          <a class="kz114-inline-action" href="/korisnik/wallet">Isplati sredstva</a>
+        </div>
+
+        <div class="kz114-mini-stats">
+          <div><span>Zarađeno danas</span><b>1.250 RSD</b></div>
+          <div><span>Zadataka danas</span><b>23</b></div>
+        </div>
+
+        <div class="kz114-chart-title">
+          <b>Tvoj napredak</b>
+          <span>+28% ★★★★★</span>
+        </div>
+        <div class="kz114-chart">
+          <i style="height:36%"></i><i style="height:50%"></i><i style="height:33%"></i><i style="height:64%"></i><i style="height:44%"></i><i style="height:76%"></i><i style="height:56%"></i><i style="height:70%"></i><i style="height:84%"></i>
+        </div>
+      </div>
+
+      <div class="kz114-dashboard-side">
+        <div class="kz114-secure">🛡 <b>Sigurno i proverljivo okruženje</b></div>
+        <h3>Nedavni zadaci</h3>
+        <ul>
+          <li><span>Popuni anketu</span><b>+60 RSD</b></li>
+          <li><span>Poseti sajt</span><b>+40 RSD</b></li>
+          <li><span>Registracija</span><b>+120 RSD</b></li>
+          <li><span>Ostavi komentar</span><b>+50 RSD</b></li>
+          <li><span>Podeli na mreži</span><b>+30 RSD</b></li>
+        </ul>
+        <a href="/zadaci">Svi zadaci</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="kz114-metrics">
+  <div><b>{{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}%</b><span>provizija platforme</span></div>
+  <div><b>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}%</b><span>ide korisnicima</span></div>
+  <div><b>{{ "%.0f"|format(pricing_summary.banner_top_7d if pricing_summary is defined else 9500) }} RSD</b><span>veliki banner / 7 dana</span></div>
+  <div><b>{{ "%.0f"|format(pricing_summary.boost_top_3d if pricing_summary is defined else 2500) }} RSD</b><span>top pozicija / 3 dana</span></div>
+</section>
+
+<section class="kz114-card-section">
+  <div class="kz114-section-head">
+    <h2>Sponzorski baneri na početnoj</h2>
+    <a href="/oglasivac/promocija-v111">Postani sponzor ›</a>
+  </div>
+  <div class="kz114-banner-grid">
+    {% if banners and banners|length > 0 %}
+      {% for b in banners[:4] %}
+      <a class="kz114-sponsor live" href="/reklama-v111/{{ b.id }}/view">
+        <h3>{{ b.title }}</h3>
+        <p>{{ b.body or "Promoviši svoj brend na početnoj strani." }}</p>
+        <span class="kz114-link-btn">Pogledaj</span>
+      </a>
+      {% endfor %}
+    {% else %}
+      <div class="kz114-sponsor host"><h3>BalkanHost</h3><p>Brz, siguran i pouzdan hosting.</p><a class="kz114-link-btn" href="/lp/za-oglasivace">Saznaj više</a></div>
+      <div class="kz114-sponsor coin"><h3>CoinPayU</h3><p>Zaradi kriptovalute iz udobnosti svog doma.</p><a class="kz114-link-btn" href="/registracija">Registruj se</a></div>
+      <div class="kz114-sponsor proofy"><h3>Proofy</h3><p>#1 za online istraživanja.</p><a class="kz114-link-btn" href="/zadaci">Isprobaj sada</a></div>
+      <div class="kz114-sponsor adflex"><h3>AdFlex</h3><p>Oglasi koji donose rezultate.</p><a class="kz114-link-btn" href="/registracija">Kreiraj kampanju</a></div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="kz114-top-card">
+  <div class="kz114-top-copy">
+    <span>ISTAKNI SE</span>
+    <h2>Kampanja<br><b>na prvom mestu</b></h2>
+    <p>Plasiraj svoju kampanju na vrh stranice i dođi do hiljada aktivnih korisnika svakog dana uz čist i meren tok objave.</p>
+    <ul>
+      <li>Maksimalna vidljivost</li>
+      <li>Više klikova i konverzija</li>
+      <li>Brži i merljivi rezultati</li>
+    </ul>
+    <a class="kz114-btn green" href="/oglasivac/boost-v111">Naruči kampanju 🚀</a>
+  </div>
+
+  <div class="kz114-campaign-preview">
+    <div class="kz114-dots"><i></i><i></i><i></i></div>
+    <h3>Tvoja kampanja <span>SPONZORISANO</span></h3>
+    <div class="kz114-preview-content">
+      <div class="kz114-img-placeholder"></div>
+      <div class="kz114-lines"><i></i><i></i><i class="short"></i><i></i></div>
+    </div>
+  </div>
+
+  <div class="kz114-why">
+    <h3>Zašto je isplativo?</h3>
+    <p><b>10x</b><span>više pregleda</span></p>
+    <p><b>5x</b><span>više klikova</span></p>
+    <p><b>100%</b><span>merljivi rezultati</span></p>
+  </div>
+</section>
+
+<section class="kz114-card-section">
+  <div class="kz114-section-head">
+    <h2>Istaknuti zadaci</h2>
+    <a href="/zadaci">Pogledaj sve zadatke ›</a>
+  </div>
+  <div class="kz114-task-grid">
+    {% for t in tasks[:5] %}
+    <div class="kz114-task">
+      <div class="kz114-task-icon">{{ ["📋","👤","🌐","💬","🔗"][loop.index0] if loop.index0 < 5 else "✓" }}</div>
+      <h3>{{ t.title }}</h3>
+      <p>{{ t.description[:70] if t.description else "Podeli svoje mišljenje" }}</p>
+      <div class="kz114-task-meta"><span>Lako</span><span>⏱ 2–5 min</span></div>
+      <div class="kz114-task-bottom"><b>{{ "%.0f"|format(t.reward_rsd) }} RSD</b><a href="/zadaci/{{ t.id }}">Zaradi</a></div>
+    </div>
+    {% else %}
+    <div class="kz114-task"><div class="kz114-task-icon">📋</div><h3>Popuni anketu</h3><p>Podeli svoje mišljenje.</p><div class="kz114-task-meta"><span>Lako</span><span>⏱ 3 min</span></div><div class="kz114-task-bottom"><b>60 RSD</b><a href="/zadaci">Zaradi</a></div></div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="kz114-audience">
+  <div class="kz114-audience-card users">
+    <div>
+      <h2>Za korisnike</h2>
+      <ul>
+        <li>Jednostavni zadaci za svakoga</li>
+        <li>Brza i sigurna isplata</li>
+        <li>Fer nagrade za vaš trud</li>
+        <li>Bez skrivenih uslova</li>
+      </ul>
+    </div>
+    <div class="kz114-person users"><span>+120 RSD<br><small>Zadatak završen!</small></span></div>
+  </div>
+
+  <div class="kz114-audience-card advertisers">
+    <div>
+      <h2>Za oglašivače</h2>
+      <ul>
+        <li>Stvarni ljudi i proverljivi rezultati</li>
+        <li>Precizno targetiranje</li>
+        <li>Fleksibilne opcije promocije</li>
+        <li>Detaljna statistika i izveštaji</li>
+      </ul>
+    </div>
+    <div class="kz114-person advertisers"><span>Konverzije<br><b>+320%</b></span></div>
+  </div>
+</section>
+
+<section class="kz114-metrics">
+  <div><b>20.000+</b><span>Aktivnih korisnika</span></div>
+  <div><b>150.000+</b><span>Završenih zadataka</span></div>
+  <div><b>250+</b><span>Aktivnih kampanja</span></div>
+  <div><b>4.8 / 5</b><span>Prosečna ocena</span></div>
+  <article>
+    <strong>Marko J.</strong>
+    <small>Oglašivač</small>
+    <p>“Odlična platforma! Kampanja mi je donela tačno one rezultate koje sam očekivao.”</p>
+  </article>
+</section>
+
+<section class="kz114-final">
+  <div>
+    <h2>Spremni da krenete?</h2>
+    <p>Pridružite se korisnicima koji već zarađuju ili pokrenite kampanju već danas i pratite rezultate u realnom vremenu.</p>
+  </div>
+  <div>
+    <a class="kz114-btn green" href="/registracija">Registruj se besplatno</a>
+    <a class="kz114-btn dark" href="/registracija">Kreiraj kampanju</a>
+  </div>
+</section>
+
+
+<section class="kz114-card-section kz114-bottom-banners">
+  <div class="kz114-section-head">
+    <h2>DODATNI BANERI U DNU STRANICE</h2>
+    <a href="/oglasivac/promocija-v111">Rezerviši banner prostor ›</a>
+  </div>
+  <div class="kz114-bottom-banner-grid">
+    <a class="kz114-bottom-banner blue" href="/oglasivac/promocija-v111">
+      <small>FOOTER BANNER 1</small>
+      <h3>Promoviši svoj brend</h3>
+      <p>Velika vidljivost pri dnu stranice za dodatni domet i bolju prepoznatljivost.</p>
+      <span class="kz114-link-btn">Rezerviši mesto</span>
+    </a>
+    <a class="kz114-bottom-banner green" href="/oglasivac/promocija-v111">
+      <small>FOOTER BANNER 2</small>
+      <h3>Izdvojena kampanja</h3>
+      <p>Idealno mesto za posebnu ponudu, akciju ili promociju sa jasnim fokusom.</p>
+      <span class="kz114-link-btn">Pošalji zahtev</span>
+    </a>
+    <a class="kz114-bottom-banner dark" href="/oglasivac/promocija-v111">
+      <small>FOOTER BANNER 3</small>
+      <h3>Još više klikova</h3>
+      <p>Dodatni prostor za oglašivače koji žele maksimalan domet i više konverzija.</p>
+      <span class="kz114-link-btn">Postani sponsor</span>
+    </a>
+  </div>
+</section>
+
+
+<footer class="kz114-footer">
+  <div><b>KZ</b> KlikZarada</div>
+  <span>© 2026 KlikZarada. Sva prava zadržana.</span>
+  <a href="/legal/uslovi-koriscenja">Pravila korišćenja</a>
+  <a href="/legal/pravila-isplata">Uslovi isplate</a>
+  <a href="/legal/politika-privatnosti">Privatnost</a>
+  <a href="/kontakt">Kontakt</a>
+</footer>
+
+{% endblock %}

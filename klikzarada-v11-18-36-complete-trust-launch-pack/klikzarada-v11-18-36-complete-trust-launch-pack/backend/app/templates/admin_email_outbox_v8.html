@@ -1,0 +1,7 @@
+{% extends "app_base.html" %}
+{% set title = "Email outbox V8" %}
+{% block app_content %}
+<div class="section-heading left"><span>Email</span><h2>Email outbox</h2></div>
+<form class="form-panel" method="post" action="/admin/email-outbox-v8/create"><label>Primaoc</label><input name="recipient_email" required><label>Subject</label><input name="subject" required><label>Body</label><textarea name="body" required></textarea><button class="btn btn-primary">Dodaj u outbox</button></form>
+<div class="table-card"><table><thead><tr><th>Primaoc</th><th>Subject</th><th>Status</th><th>Akcije</th></tr></thead><tbody>{% for e in emails %}<tr><td>{{ e.recipient_email }}</td><td>{{ e.subject }}</td><td><span class="status status-{{ e.status }}">{{ e.status }}</span></td><td class="actions"><form method="post" action="/admin/email-outbox-v8/{{ e.id }}/sent"><button class="btn btn-mini btn-primary">Sent</button></form><form method="post" action="/admin/email-outbox-v8/{{ e.id }}/failed"><button class="btn btn-mini btn-danger">Fail</button></form></td></tr>{% else %}<tr><td colspan="4">Nema emailova.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

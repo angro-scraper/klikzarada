@@ -1,0 +1,7 @@
+{% extends "app_base.html" %}
+{% set title = "Analytics - Admin" %}
+{% block app_content %}
+<div class="dashboard-head in-app"><div><span class="pill">V7 Analytics</span><h1>Analytics snapshot</h1><p>Ručni snapshot ključnih metrika.</p></div><form method="post" action="/admin/analytics/snapshot"><input name="label" value="Snapshot"><button class="btn btn-primary">Napravi snapshot</button></form></div>
+{% if latest %}<div class="stats small in-app-stats"><div class="stat-card"><strong>{{ latest.users_count }}</strong><span>korisnika</span></div><div class="stat-card"><strong>{{ latest.advertisers_count }}</strong><span>oglašivača</span></div><div class="stat-card"><strong>{{ latest.aktivno_tasks }}</strong><span>aktivnih zadataka</span></div><div class="stat-card"><strong>{{ latest.odobreno_submissions }}</strong><span>odobreno dokaza</span></div><div class="stat-card"><strong>{{ "%.0f"|format(latest.platform_revenue_rsd) }}</strong><span>provizija</span></div></div>{% endif %}
+<div class="table-card"><table><thead><tr><th>Datum</th><th>Label</th><th>Korisnici</th><th>Oglašivači</th><th>Zadaci</th><th>Odobreno</th><th>Provizija</th></tr></thead><tbody>{% for s in snapshots %}<tr><td>{{ s.created_at }}</td><td>{{ s.label }}</td><td>{{ s.users_count }}</td><td>{{ s.advertisers_count }}</td><td>{{ s.aktivno_tasks }}</td><td>{{ s.odobreno_submissions }}</td><td>{{ "%.0f"|format(s.platform_revenue_rsd) }}</td></tr>{% else %}<tr><td colspan="7">Nema snapshot-a.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

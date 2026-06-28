@@ -1,0 +1,5 @@
+
+{% extends "base.html" %}{% set title="Cenovnik - KlikZarada" %}{% block content %}
+<section class="page-head"><span>Cenovnik</span><h1>Jednostavan model naplate</h1><p>Oglašivač plaća nagradu korisniku + proviziju platforme. Korisnik ne plaća korišćenje.</p></section>
+<section class="section grid2"><div class="card"><h2>Start</h2><p>Bez mesečne pretplate. Provizija platforme: {{ fee }}% na odobren rezultat.</p><p>Primer: korisnik dobija 100 RSD, platforma 20 RSD, oglašivač plaća 120 RSD.</p></div><div class="card"><h2>Korisnici</h2><p>Minimalna isplata: {{ min_withdrawal }} RSD. Isplate su ručne u MVP verziji.</p></div><div class="card"><h2>Pro oglašivači</h2><p>Kasnije: niža provizija, prioritetna moderacija, napredno ciljanje i PDF izveštaji.</p></div><div class="card"><h2>Business</h2><p>Veći budžeti, account manager, API i napredna analitika.</p></div></section>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% set title = task.title ~ " - Zadatak" %}
+{% block content %}
+<section class="kz113-task-hero">
+  <div><span>{{ task.category }}</span><h1>{{ task.title }}</h1><p>{{ task.description }}</p><div class="kz119-actions"><a class="kz119-btn outline" href="/zadaci">Nazad na zadatke</a>{% if user and user.role == "korisnik" %}<form method="post" action="/zadaci/{{ task.id }}/rezervisi-v115" style="display:inline"><button class="kz119-btn green">Rezerviši zadatak</button></form>{% endif %}{% if not user %}<a class="kz119-btn green" href="/login">Prijavi se</a>{% endif %}</div></div>
+  <div class="kz113-timer-box"><small>Nagrada</small><strong>{{ "%.0f"|format(task.reward_rsd) }} RSD</strong><span>Minimalno vreme: {{ task.estimated_minutes }} min</span></div>
+</section>
+<section class="kz113-task-layout">
+  <div class="kz113-task-card"><h2>Instrukcije</h2><p>{{ task.instructions or "Otvorite link zadatka, pratite instrukcije i pošaljite dokaz." }}</p>{% if task.target_url %}<a id="startTaskLink" class="kz119-btn blue" href="{{ task.target_url }}" target="_blank">Otvori zadatak</a>{% endif %}</div>
+  <div class="kz113-task-card timer"><h2>Automatska kontrola vremena</h2><div class="kz113-countdown" data-layout="kz113-countdown" id="countdown" data-required="{{ required_seconds }}" data-task="{{ task.id }}">--:--</div><p id="timerStatus">Tajmer radi samo dok je ova stranica otvorena i aktivna. Ako promenite tab, vreme se pauzira.</p><button id="confirmBtn" class="kz119-btn green" disabled>Vreme potvrđeno</button></div>
+</section>
+{% if user and user.role == "korisnik" %}
+<section class="kz113-task-card kz113-proof-form"><h2>Pošalji dokaz</h2><form id="proofForm" method="post" action="/korisnik/zadaci/{{ task.id }}/dokaz-auto"><input type="hidden" name="timer_ok" id="timerOk" value="no"><label>Tekst dokaza</label><textarea name="proof_text" placeholder="Opišite šta ste uradili"></textarea><button id="realSubmit" class="kz119-btn blue" disabled>Pošalji dokaz</button></form></section>
+{% endif %}
+<script>
+(function(){
+ const el=document.getElementById("countdown"), btn=document.getElementById("confirmBtn"), status=document.getElementById("timerStatus"), proof=document.getElementById("realSubmit"), ok=document.getElementById("timerOk");
+ if(!el) return; let required=parseInt(el.dataset.required||"120",10), remaining=required, active=true, sessionId=null, tickBuffer=0;
+ function fmt(s){let m=Math.floor(s/60), r=s%60; return String(m).padStart(2,"0")+":"+String(r).padStart(2,"0");}
+ function render(){el.textContent=fmt(remaining);}
+ async function start(){try{let r=await fetch("/api/v1/v11/task-view/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({task_id:parseInt(el.dataset.task)})});let j=await r.json(); if(j.ok){sessionId=j.session_id; required=j.required_seconds; remaining=required; render();}}catch(e){render();}}
+ async function tick(){if(!sessionId) return; try{await fetch("/api/v1/v11/task-view/tick",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({session_id:sessionId,seconds:1})});}catch(e){}}
+ function complete(){status.textContent="Vreme je potvrđeno. Sada možete poslati dokaz."; btn.disabled=false; if(proof) proof.disabled=false; if(ok) ok.value="yes";}
+ document.addEventListener("visibilitychange",()=>{active=!document.hidden; status.textContent=active?"Tajmer radi. Ostanite na strani do kraja.":"Tajmer je pauziran jer stranica nije aktivna.";});
+ start();
+ setInterval(()=>{ if(!active || remaining<=0) return; remaining--; render(); tick(); if(remaining<=0) complete(); },1000);
+ btn.addEventListener("click",()=>{if(proof){proof.scrollIntoView({behavior:"smooth"});}});
+})();
+</script>
+{% endblock %}

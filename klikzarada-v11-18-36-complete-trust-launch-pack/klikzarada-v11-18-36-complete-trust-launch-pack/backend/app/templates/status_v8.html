@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% set title = "Status - KlikZarada" %}
+{% block content %}
+<section class="page-head"><span>Status</span><h1>{{ "Operational" if open_count == 0 else "Degraded" }}</h1><p>Javna status stranica za stanje platforme.</p></section>
+<section class="section"><div class="table-card"><table><thead><tr><th>Datum</th><th>Incident</th><th>Status</th><th>Impact</th><th>Opis</th></tr></thead><tbody>{% for i in incidents %}<tr><td>{{ i.created_at }}</td><td>{{ i.title }}</td><td><span class="status status-{{ i.status }}">{{ i.status }}</span></td><td>{{ i.impact }}</td><td>{{ i.description or "" }}</td></tr>{% else %}<tr><td colspan="5">Nema incidenta.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

@@ -1,0 +1,8 @@
+{% extends "app_base.html" %}
+{% set title = "Onboarding - Oglašivač" %}
+{% block app_content %}
+<div class="section-heading left"><span>V6 Onboarding</span><h2>Onboarding oglašivača</h2></div>
+<div class="grid-2">{% for i in items %}
+<div class="info-card"><span class="pill">{{ i.status }}</span><h3>{{ i.title }}</h3><p>Korak #{{ i.sort_order }}</p><form method="post" action="/oglasivac/onboarding/{{ i.id }}/toggle"><button class="btn btn-primary">Promeni status</button></form></div>
+{% else %}<div class="empty">Nema onboarding koraka.</div>{% endfor %}</div>
+{% endblock %}

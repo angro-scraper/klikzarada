@@ -1,0 +1,7 @@
+{% extends "app_base.html" %}
+{% set title = "Growth - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>V7 Growth Lab</span><h2>Growth eksperimenti</h2></div>
+<form class="form-panel" method="post" action="/admin/growth/create"><label>Naziv</label><input name="name" required><label>Hipoteza</label><textarea name="hypothesis"></textarea><label>Metrika</label><input name="metric"><button class="btn btn-primary">Dodaj eksperiment</button></form>
+<div class="table-card"><table><thead><tr><th>Naziv</th><th>Hipoteza</th><th>Metrika</th><th>Status</th><th>Rezultat</th><th>Akcija</th></tr></thead><tbody>{% for e in experiments %}<tr><td>{{ e.name }}</td><td>{{ e.hypothesis or "" }}</td><td>{{ e.metric or "" }}</td><td><span class="status status-{{ e.status }}">{{ e.status }}</span></td><td>{{ e.result_note or "" }}</td><td><form method="post" action="/admin/growth/{{ e.id }}/status"><select name="status"><option>planned</option><option>running</option><option>won</option><option>lost</option><option>stopped</option></select><input class="mini-input" name="result_note" placeholder="note"><button class="btn btn-mini btn-primary">Sačuvaj</button></form></td></tr>{% else %}<tr><td colspan="6">Nema eksperimenata.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

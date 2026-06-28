@@ -1,0 +1,15 @@
+{% extends "app_base.html" %}
+{% set title = "API - KlikZarada" %}
+{% block app_content %}
+<div class="section-heading left"><span>V5 API</span><h2>API ključevi</h2></div>
+<div class="hint">Primer: /api/v1/advertiser/stats?api_key=VAŠ_KLJUČ</div>
+<form class="form-panel" method="post" action="/oglasivac/api/novi">
+  <label>Naziv ključa</label><input name="name" value="Glavni API ključ">
+  <button class="btn btn-primary" type="submit">Napravi API ključ</button>
+</form>
+<div class="table-card"><table><thead><tr><th>Naziv</th><th>Token</th><th>Status</th><th>Akcija</th></tr></thead><tbody>
+{% for k in keys %}
+<tr><td>{{ k.name }}</td><td><code>{{ k.token }}</code></td><td>{{ "aktivno" if k.is_aktivno else "inaktivno" }}</td><td><form method="post" action="/oglasivac/api/{{ k.id }}/toggle"><button class="btn btn-mini btn-ghost">Uključi/isključi</button></form></td></tr>
+{% else %}<tr><td colspan="4">Nema API ključeva.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

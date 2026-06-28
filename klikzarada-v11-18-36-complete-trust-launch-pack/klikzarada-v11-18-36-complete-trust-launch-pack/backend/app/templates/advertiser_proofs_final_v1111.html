@@ -1,0 +1,29 @@
+{% extends "app_base.html" %}
+{% set title = "Dokazi korisnika - Oglašivač" %}
+{% block app_content %}
+<section class="kz1111-hero advertiser">
+  <div><span>DOKAZI KORISNIKA</span><h1>Rezultati kampanja</h1><p>Oglašivač vidi dokaze koje su korisnici poslali za njegove kampanje.</p></div>
+  <div class="kz1111-hero-actions"><a class="btn btn-primary" href="/oglasivac/kampanje">Moje kampanje</a><a class="btn btn-secondary" href="/oglasivac/izvestaji">Izveštaji</a></div>
+</section>
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Ukupno</small><strong>{{ stats.all }}</strong><span>dokaza</span></div>
+  <div class="kz1111-stat orange"><small>Na čekanju</small><strong>{{ stats.pending }}</strong><span>moderacija</span></div>
+  <div class="kz1111-stat green"><small>Odobreno</small><strong>{{ stats.approved }}</strong><span>validno</span></div>
+  <div class="kz1111-stat red"><small>Odbijeno</small><strong>{{ stats.rejected }}</strong><span>nevalidno</span></div>
+</section>
+<section class="kz1111-section">
+  <div class="kz1111-section-head"><h2>Dokazi za moje kampanje</h2><span>{{ submissions|length }}</span></div>
+  <div class="kz1111-proof-grid">
+    {% for s in submissions %}
+    <article class="kz1111-proof-card">
+      <div class="kz1111-card-top"><span class="status status-{{ s.status }}">{{ s.status }}</span><strong>{{ "%.0f"|format(s.reward_rsd) }} RSD</strong></div>
+      <h3>{{ s.task.title if s.task else "Zadatak" }}</h3>
+      <p>{{ s.proof_text or "Nema tekstualnog dokaza." }}</p>
+      <div class="kz1111-proof-meta"><div><small>Korisnik</small><b>{{ s.user.full_name if s.user else "-" }}</b></div><div><small>Datum</small><b>{{ s.created_at }}</b></div></div>
+    </article>
+    {% else %}
+    <div class="kz1111-empty"><h3>Nema dokaza</h3><p>Kada korisnici završe kampanje, dokazi će se pojaviti ovde.</p></div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

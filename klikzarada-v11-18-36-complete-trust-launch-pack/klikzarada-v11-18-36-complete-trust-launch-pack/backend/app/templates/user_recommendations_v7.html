@@ -1,0 +1,13 @@
+{% extends "app_base.html" %}
+{% set title = "AI preporuke - KlikZarada" %}
+{% block app_content %}
+<div class="section-heading left"><span>V7 AI Recommendations</span><h2>Preporučeni zadaci za vas</h2></div>
+<div class="task-list compact">
+{% for r in recs %}
+<article class="task-card">
+  <div><span class="task-type">Score {{ "%.0f"|format(r.score) }} · {{ r.task.category }}</span><h3>{{ r.task.title }}</h3><p>{{ r.reason }}</p><small>{{ r.task.description }}</small></div>
+  <div class="task-price"><strong>{{ "%.0f"|format(r.task.reward_rsd) }} RSD</strong><a class="btn btn-primary" href="/zadaci/{{ r.task.id }}">Detalji</a></div>
+</article>
+{% else %}<div class="empty">Još nema preporuka.</div>{% endfor %}
+</div>
+{% endblock %}

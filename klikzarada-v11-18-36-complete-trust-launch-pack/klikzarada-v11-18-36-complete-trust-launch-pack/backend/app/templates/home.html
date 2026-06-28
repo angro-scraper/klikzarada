@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% set title="KlikZarada - mikro-zadaci i kampanje" %}
+{% set extra_body_class="kz1189-home-premium" %}
+{% block content %}
+<div class="kz1189-page kz1189-home-premium">
+
+  <section class="kz1189-top-ads kz-clean-top-ads">
+    {% set b = banner_map.get('home_top_left') if banner_map else none %}
+    <a class="kz-clean-banner kz-clean-banner-top" href="{{ b.target_url if b else '/za-oglasivace' }}">
+      <img class="kz-clean-banner-bg" src="{{ b.image_url if b and b.image_url else '/static/img/promo_top_shopping.svg' }}" alt="{{ b.title if b else 'Izložbeni baner' }}">
+      <div class="kz-clean-banner-copy">
+        <span class="kz-premium-kicker">Istaknuta kampanja</span>
+        <h2>{{ b.title if b else 'Pametna kupovina predstavljena na elegantan način.' }}</h2>
+        <p>{{ b.body if b and b.body else 'Predstavi svoj brend na mestu gde se vidi odmah, bez vizuelnog šuma i bez suvišnih koraka.' }}</p>
+        <span>Otvoreni rezultati →</span>
+      </div>
+    </a>
+
+    {% set b = banner_map.get('home_top_right') if banner_map else none %}
+    <a class="kz-clean-banner kz-clean-banner-top" href="{{ b.target_url if b else '/registracija?role=oglasivac' }}">
+      <img class="kz-clean-banner-bg" src="{{ b.image_url if b and b.image_url else '/static/img/promo_top_business.svg' }}" alt="{{ b.title if b else 'Vrhunski oglasni prostor' }}">
+      <div class="kz-clean-banner-copy">
+        <span class="kz-premium-kicker">Najbolja pozicija</span>
+        <h2>{{ b.title if b else 'Vrhunski oglasni prostor za kampanje koje daju rezultat.' }}</h2>
+        <p>{{ b.body if b and b.body else 'Dostignite pravu publiku kroz čist, uredan i merljiv prikaz brenda.' }}</p>
+        <span>Planiraj kampanju →</span>
+      </div>
+    </a>
+  </section>
+
+  <section class="kz1189-hero">
+    <div class="hero-copy">
+      <span class="kz-premium-kicker">Mreža za rast i zaradu</span>
+      <h1>Zarada za korisnike.<br>Rezultati koji se mere za oglašivače.</h1>
+      <p>KlikZarada povezuje brendove sa pravim ljudima kroz jasna pravila, uredan prikaz i brzo izvođenje koje deluje profesionalno.</p>
+
+      <div class="feature-pills">
+        <span>⚡ Brza isplata</span>
+        <span>🛡️ Pošten sistem</span>
+        <span>🔒 Zaštita od prevara</span>
+        <span>🎧 Podrška 24/7</span>
+      </div>
+
+      <div class="hero-actions">
+        <a class="primary" href="/registracija?role=korisnik">Pokreni zaradu →</a>
+        <a class="secondary" href="/registracija?role=oglasivac">Pokreni kampanju</a>
+      </div>
+
+      <div class="social-proof">
+        <div class="avatars"><i>👩</i><i>👨</i><i>🧑</i><i>👩</i><i>👨</i></div>
+        <strong>20.000+</strong>
+        <span>Uključenih korisnika i oglašivača u jedinstven sistem za zaradu i kampanje</span>
+      </div>
+    </div>
+
+    <aside class="dashboard-card">
+      <div class="metric-row">
+        <article>
+          <div><small>Ukupan balans</small><b>2.560 RSD</b></div>
+          <img src="/static/img/icon-wallet.svg" alt="">
+        </article>
+        <article>
+          <div><small>Raspoloživo za isplatu</small><b class="green">1.980 RSD</b></div>
+          <img src="/static/img/icon-bank.svg" alt="">
+        </article>
+        <article>
+          <div><small>Zarađeno danas</small><b>320 RSD</b></div>
+          <img src="/static/img/icon-chart.svg" alt="">
+        </article>
+        <article>
+          <div><small>Zadataka danas</small><b>12 / 25</b></div>
+          <img src="/static/img/icon-clipboard.svg" alt="">
+        </article>
+      </div>
+
+      <div class="dashboard-main">
+        <section class="chart-panel">
+          <h3>Zarada u poslednjih 7 dana</h3>
+          <p>↑ 18% u odnosu na prethodnih 7 dana</p>
+          <div class="chart">
+            <svg viewBox="0 0 520 190" preserveAspectRatio="none">
+              <line x1="0" y1="156" x2="520" y2="156"></line>
+              <line x1="0" y1="115" x2="520" y2="115"></line>
+              <line x1="0" y1="74" x2="520" y2="74"></line>
+              <polyline points="14,156 90,134 170,78 260,112 350,76 442,52 505,22"></polyline>
+              <circle cx="14" cy="156" r="6"></circle><circle cx="90" cy="134" r="6"></circle><circle cx="170" cy="78" r="6"></circle><circle cx="260" cy="112" r="6"></circle><circle cx="350" cy="76" r="6"></circle><circle cx="442" cy="52" r="6"></circle><circle cx="505" cy="22" r="6"></circle>
+            </svg>
+          </div>
+          <div class="days"><span>Pon</span><span>Uto</span><span>Sre</span><span>Čet</span><span>Pet</span><span>Sub</span><span>Ned</span></div>
+        </section>
+
+        <section class="recent-panel">
+          <div class="panel-head"><h3>Nedavni zadaci</h3><a href="/zadaci">Pogledaj sve</a></div>
+          <article><i>🌐</i><div><b>Poseti sajt - CoolShop.rs</b><span>pre 5 minuta</span></div><strong>+40 RSD</strong></article>
+          <article><i>💬</i><div><b>Ostavi komentar</b><span>pre 18 minuta</span></div><strong>+50 RSD</strong></article>
+          <article><i>👤</i><div><b>Registracija na sajtu</b><span>pre 32 minuta</span></div><strong>+120 RSD</strong></article>
+        </section>
+      </div>
+
+      <a class="withdraw" href="/login">💵 Isplati sredstva</a>
+    </aside>
+  </section>
+
+  <section class="kz1189-trust-strip">
+    <article>
+      <strong>Verifikovane kampanje</strong>
+      <span>Čist prikaz brenda, bez vizuelnog šuma.</span>
+    </article>
+    <article>
+      <strong>Jasna isplata</strong>
+      <span>Koraci i statusi su transparentni od starta.</span>
+    </article>
+    <article>
+      <strong>Zaštita od zloupotrebe</strong>
+      <span>Zaštita od prevara i kontrola kvaliteta rade u pozadini.</span>
+    </article>
+    <article>
+      <strong>Podrška 24/7</strong>
+      <span>Ekipa je tu za korisnike i oglašivače kada zatreba.</span>
+    </article>
+  </section>
+
+  <section class="kz-promo-final-row">
+    {% set promo_items = [
+      ('home_sponsor_1','/static/img/promo_final_shop.svg','OnlineShop','Kupujte pametno, uštedite više!','Poseti sajt'),
+      ('home_sponsor_2','/static/img/promo_final_finance.svg','FinancePro','Pametne finansije za bolju budućnost.','Saznaj više'),
+      ('home_sponsor_3','/static/img/promo_final_travel.svg','TravelWorld','Otkrij svet po najboljim cenama.','Pogledaj ponude'),
+      ('home_sponsor_4','/static/img/promo_final_fit.svg','FitLife','Tvoj novi život počinje danas.','Kreni sada')
+    ] %}
+    {% for code, fallback, title, body, cta in promo_items %}
+      {% set b = banner_map.get(code) if banner_map else none %}
+      <a class="kz-promo-final-card" href="{{ b.target_url if b else '/za-oglasivace' }}">
+        <img src="{{ b.image_url if b and b.image_url else fallback }}" alt="{{ b.title if b else title }}">
+        <div class="kz-promo-final-copy">
+          <h3>{{ b.title if b else title }}</h3>
+          <p>{{ b.body if b and b.body else body }}</p>
+          <span>{{ cta }}</span>
+        </div>
+      </a>
+    {% endfor %}
+
+    <a class="kz-promo-final-card kz-promo-final-campaign" href="/registracija?role=oglasivac">
+      <img src="/static/img/promo_final_campaign.svg" alt="Kampanja na prvom mestu">
+      <div class="kz-promo-final-copy">
+        <h3>Kampanja na prvom mestu</h3>
+        <p>Istaknite svoju kampanju i dostignite još bolji rezultat.</p>
+        <span>Istakni kampanju →</span>
+      </div>
+    </a>
+  </section>
+
+  <section class="kz1189-tasks">
+    <div class="section-head"><h3>ISTAKNUTI ZADACI</h3><a href="/zadaci">Pogledaj sve zadatke →</a></div>
+    <div class="task-grid">
+      {% set demo_tasks = [
+        ('✅','Popuni anketu','Podeli svoje mišljenje i zaradi.',120,'10 min','Lako','green'),
+        ('👤','Registracija na sajtu','Registruj se i potvrdi nalog.',150,'5 min','Lako','violet'),
+        ('🌐','Poseti sajt','Poseti sajt i ostani 30 sekundi.',40,'1 min','Lako','blue'),
+        ('💬','Ostavi komentar','Ostavi komentar na članku.',80,'5 min','Srednje','orange'),
+        ('🔗','Podeli na mreži','Podeli objavu na društvenim mrežama.',60,'2 min','Lako','pink')
+      ] %}
+      {% for icon,title,desc,reward,time,level,color in demo_tasks %}
+      <article class="task-card">
+        <i class="{{ color }}">{{ icon }}</i>
+        <div>
+          <h4>{{ title }}</h4>
+          <strong>{{ reward }} RSD</strong>
+          <p>{{ desc }}</p>
+        </div>
+        <div class="meta"><span>🕒 {{ time }}</span><em class="{{ color }}">{{ level }}</em></div>
+        <a href="/zadaci">Zaradi</a>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="kz1189-stats">
+    <article><i>👥</i><div><b>20.000+</b><span>aktivnih korisnika</span></div></article>
+    <article><i>✅</i><div><b>150.000+</b><span>završenih zadataka</span></div></article>
+    <article><i>📣</i><div><b>250+</b><span>aktivnih kampanja</span></div></article>
+    <article><i>⭐</i><div><b>4.8 / 5</b><span>prosečna ocena korisnika</span></div></article>
+  </section>
+
+  <section class="kz1189-cta">
+    <img src="/static/img/rocket.svg" alt="">
+    <div><h2>Spremni za prvi ozbiljan rezultat?</h2><p>Pridružite se sada i pokrenite jasnu kampanju ili zaradu kroz platformu koja izgleda i radi profesionalno.</p></div>
+    <a class="primary" href="/registracija">Registruj se besplatno</a>
+    <a class="secondary" href="/registracija?role=oglasivac">Kreiraj kampanju</a>
+  </section>
+
+  <section class="kz1189-ad-slots kz-clean-bottom-slots">
+    {% set bottom_items = [
+      ('home_bottom_1','/static/img/promo_bottom_finance.svg','Pouzdane finansijske usluge','Krediti, kartice i štednja na jednom mestu.'),
+      ('home_bottom_2','/static/img/promo_bottom_tech.svg','Tehnologija koja pokreće','Najnoviji uređaji i oprema po najboljim cenama.'),
+      ('home_bottom_3','/static/img/promo_bottom_fun.svg','Zabava bez granica','Filmovi, muzika i igre na dohvat ruke.')
+    ] %}
+    {% for code, fallback, title, body in bottom_items %}
+      {% set b = banner_map.get(code) if banner_map else none %}
+      <a class="kz-clean-banner kz-clean-banner-bottom" href="{{ b.target_url if b else '/za-oglasivace' }}">
+        <img class="kz-clean-banner-bg" src="{{ b.image_url if b and b.image_url else fallback }}" alt="{{ b.title if b else title }}">
+        <div class="kz-clean-banner-copy">
+          <b>{{ b.title if b else title }}</b>
+          <p>{{ b.body if b and b.body else body }}</p>
+        </div>
+      </a>
+    {% endfor %}
+  </section>
+
+  <footer class="kz1189-footer">
+    <div class="brand"><span>KZ</span><strong>KlikZarada</strong><p>Uređena platforma koja povezuje korisnike i brendove kroz merljive kampanje i jasnu isplatu.</p><div class="social"><i>f</i><i>ig</i><i>yt</i><i>tk</i></div></div>
+    <div><b>PLATFORMA</b><a href="/">Početna</a><a href="/zadaci">Zadaci</a><a href="/za-korisnike">Za korisnike</a><a href="/za-oglasivace">Za oglašivače</a></div>
+    <div><b>INFORMACIJE</b><a href="/cenovnik">Cenovnik</a><a href="/blog">Blog</a><a href="/pravila">Pravila korišćenja</a><a href="/pravila">Politika privatnosti</a></div>
+    <div><b>PODRŠKA</b><a href="/kontakt">Kontakt</a><a href="/faq">Česta pitanja</a><a href="/pravila">Uslovi isplate</a><a href="/kontakt">Prijavi problem</a></div>
+    <div><b>PRATITE NAS</b><p>Prijavite se za novosti i posebne ponude.</p><form class="newsletter" action="/kontakt" method="get"><input name="email" placeholder="Vaša email adresa"><button type="submit">➤</button></form></div>
+  </footer>
+</div>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "app_base.html" %}
+{% set title="Smoke V11" %}
+{% block app_content %}
+<section class="kz1111-hero finance">
+  <div>
+    <span>SMOKE TEST</span>
+    <h1>Brza tehnička provera</h1>
+    <p>Smoke test pokazuje da li su ključni delovi sistema živi pre i posle deploy-a. Ovo je poslednja linija provere pre “go live”.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <form method="post" action="/admin/smoke-v11/run">
+      <button class="btn btn-primary">Pokreni smoke test</button>
+    </form>
+    <a class="btn btn-secondary" href="/admin/deploy-v11">Deploy</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Runovi</small><strong>{{ summary.runs_total }}</strong><span>ukupno</span></div>
+  <div class="kz1111-stat green"><small>Passed</small><strong>{{ summary.passed }}</strong><span>uspešno</span></div>
+  <div class="kz1111-stat red"><small>Failed</small><strong>{{ summary.failed }}</strong><span>problem</span></div>
+  <div class="kz1111-stat purple"><small>Last status</small><strong>{{ summary.latest_status }}</strong><span>poslednji</span></div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Šta proverava smoke</h2>
+    <span>api / login / stranice / sadržaj</span>
+  </div>
+  <div class="kz1111-process-strip">
+    <div>
+      <small>1. API</small>
+      <strong>Osnovni health endpoint</strong>
+      <p>Prvo proverava da li backend odgovara i da li je ruta dostupna.</p>
+    </div>
+    <div>
+      <small>2. Content</small>
+      <strong>Legal, marketing i production checks</strong>
+      <p>Gleda da li su ključne stranice i konfiguracioni checkovi prisutni.</p>
+    </div>
+    <div>
+      <small>3. Status</small>
+      <strong>Passed ili failed</strong>
+      <p>Rezultat odmah govori da li je sistem spreman za dalji korak.</p>
+    </div>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Poslednji smoke runovi</h2>
+    <span>{{ runs|length }}</span>
+  </div>
+  <div class="kz1111-smoke-list">
+    {% for r in runs %}
+    <article>
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-{{ r.status }}">{{ r.status }}</span>
+          <span class="kz1111-proof-tiny approved">Run</span>
+        </div>
+        <strong>{{ r.title }}</strong>
+      </div>
+      <p>{{ r.summary or "" }}</p>
+      <small>{{ r.created_at }}</small>
+    </article>
+    {% else %}
+    <div class="kz1111-empty"><h3>Nema smoke runova</h3><p>Pokreni prvi smoke test da popuniš istoriju provere.</p></div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "app_base.html" %}
+{% set title = "Webhooks - Oglašivač" %}
+{% block app_content %}
+<div class="section-heading left"><span>V6 Integrations</span><h2>Webhook integracije</h2></div>
+<form class="form-panel" method="post" action="/oglasivac/webhooks/novi">
+  <div class="form-grid"><div><label>Naziv</label><input name="name" required></div><div><label>URL</label><input name="url" required placeholder="https://..."></div></div>
+  <label>Eventi</label><input name="events" value="submission.odobreno,submission.odbijeno,campaign.status_changed">
+  <button class="btn btn-primary">Dodaj webhook</button>
+</form>
+<div class="table-card"><table><thead><tr><th>Naziv</th><th>URL</th><th>Eventi</th><th>Status</th><th>Secret</th><th>Akcije</th></tr></thead><tbody>{% for e in endpoints %}<tr><td>{{ e.name }}</td><td>{{ e.url }}</td><td>{{ e.events }}</td><td>{{ "aktivno" if e.is_aktivno else "inaktivno" }}</td><td><code>{{ e.secret }}</code></td><td class="actions"><form method="post" action="/oglasivac/webhooks/{{ e.id }}/toggle"><button class="btn btn-mini btn-ghost">Toggle</button></form><form method="post" action="/oglasivac/webhooks/{{ e.id }}/test"><button class="btn btn-mini btn-primary">Test</button></form></td></tr>{% else %}<tr><td colspan="6">Nema webhookova.</td></tr>{% endfor %}</tbody></table></div>
+<div class="section-heading left panel-space"><span>Delivery log</span><h2>Isporuke</h2></div>
+<div class="table-card"><table><thead><tr><th>Endpoint</th><th>Event</th><th>Status</th><th>Payload</th><th>Odgovor</th></tr></thead><tbody>{% for d in deliveries %}<tr><td>{{ d.endpoint.name }}</td><td>{{ d.event_type }}</td><td>{{ d.status }}</td><td>{{ d.payload }}</td><td>{{ d.response_text or "" }}</td></tr>{% else %}<tr><td colspan="5">Nema isporuka.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

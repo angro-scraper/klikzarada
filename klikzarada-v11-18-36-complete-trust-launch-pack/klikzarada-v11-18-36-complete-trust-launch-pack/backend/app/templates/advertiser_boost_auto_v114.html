@@ -1,0 +1,12 @@
+{% extends "app_base.html" %}
+{% set title = "Podigni na prvo mesto" %}
+{% block app_content %}
+<section class="kz114-hero boost"><div><span>TOP POZICIJA</span><h1>Automatski podigni kampanju</h1><p>Sistem proverava budžet, skida cenu i odmah stavlja kampanju na prvo mesto. Admin ne mora ručno da odobrava.</p></div><div class="kz114-hero-actions"><a class="btn btn-primary" href="/oglasivac/budzet">Dopuni budžet</a><a class="btn btn-secondary" href="/oglasivac/kampanje">Moje kampanje</a></div></section>
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat green"><small>Dostupan budžet</small><strong>{{ "%.0f"|format(user.advertiser_budget_rsd or 0) }}</strong><span>RSD</span></div>
+  <div class="kz1111-stat blue"><small>Cena top pozicije</small><strong>{{ "%.0f"|format(price) }}</strong><span>RSD / 3 dana</span></div>
+  <div class="kz1111-stat purple"><small>Kampanje</small><strong>{{ tasks|length }}</strong><span>ukupno</span></div>
+  <div class="kz1111-stat orange"><small>Automatika</small><strong>ON</strong><span>bez čekanja</span></div>
+</section>
+<section class="kz114-section"><div class="kz114-head"><h2>Izaberi kampanju</h2><span>{{ tasks|length }}</span></div><div class="kz114-campaign-boost-grid">{% for t in tasks %}<article><span class="status status-{{ t.status }}">{{ t.status }}</span><h3>{{ t.title }}</h3><p>{{ t.category }} · {{ "%.0f"|format(t.reward_rsd) }} RSD nagrada</p><form method="post" action="/oglasivac/boost-v111/auto"><input type="hidden" name="task_id" value="{{ t.id }}"><button class="btn btn-primary">Podigni automatski</button></form></article>{% else %}<div class="kz1111-empty"><h3>Nema kampanja</h3><p>Prvo kreiraj kampanju.</p></div>{% endfor %}</div></section>
+{% endblock %}

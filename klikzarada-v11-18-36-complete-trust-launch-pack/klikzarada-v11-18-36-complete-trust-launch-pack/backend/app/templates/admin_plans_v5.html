@@ -1,0 +1,19 @@
+{% extends "app_base.html" %}
+{% set title = "Planovi - Admin" %}
+{% block app_content %}
+<div class="section-heading left"><span>V5 Plans</span><h2>Admin planovi</h2></div>
+<form class="form-panel" method="post" action="/admin/planovi/novi">
+  <div class="form-grid"><div><label>Naziv</label><input name="name" required></div><div><label>Mesečno RSD</label><input type="number" name="monthly_fee_rsd" value="0"></div></div>
+  <div class="form-grid"><div><label>Provizija %</label><input type="number" name="platform_fee_percent" value="20"></div><div><label>Max kampanja</label><input type="number" name="max_aktivno_campaigns" value="3"></div></div>
+  <label>Funkcije</label><textarea name="features"></textarea>
+  <button class="btn btn-primary" type="submit">Dodaj plan</button>
+</form>
+<div class="table-card"><table><thead><tr><th>Plan</th><th>Mesečno</th><th>Provizija</th><th>Max kampanja</th><th>Status</th><th>Akcija</th></tr></thead><tbody>
+{% for p in plans %}<tr><td>{{ p.name }}</td><td>{{ "%.0f"|format(p.monthly_fee_rsd) }}</td><td>{{ "%.0f"|format(p.platform_fee_percent) }}%</td><td>{{ p.max_aktivno_campaigns }}</td><td>{{ "aktivno" if p.is_aktivno else "inaktivno" }}</td><td><form method="post" action="/admin/planovi/{{ p.id }}/toggle"><button class="btn btn-mini btn-ghost">Toggle</button></form></td></tr>{% endfor %}
+</tbody></table></div>
+<div class="section-heading left panel-space"><span>Pretplate</span><h2>Aktivne pretplate</h2></div>
+<div class="table-card"><table><thead><tr><th>Oglašivač</th><th>Plan</th><th>Status</th><th>Od</th></tr></thead><tbody>
+{% for s in subs %}<tr><td>{{ s.advertiser.full_name }}</td><td>{{ s.plan.name }}</td><td>{{ s.status }}</td><td>{{ s.started_at }}</td></tr>
+{% else %}<tr><td colspan="4">Nema pretplata.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

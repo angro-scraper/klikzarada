@@ -1,0 +1,43 @@
+
+{% extends "app_base.html" %}
+{% set title = "Mapa platforme - KlikZarada" %}
+{% block app_content %}
+<section class="kz-admin-hero">
+  <div>
+    <span>MAPA PLATFORME</span>
+    <h1>Sve stranice i status dizajna</h1>
+    <p>Pregled svih glavnih javnih, korisničkih, oglašivačkih i admin stranica. Svaka stavka ima dugme za otvaranje.</p>
+  </div>
+  <div class="kz-admin-hero-actions">
+    <a class="btn btn-primary" href="/">Početna</a>
+    <a class="btn btn-secondary" href="/api/v1/v11/design-map">API mapa</a>
+  </div>
+</section>
+
+<section class="kz-admin-stats">
+  <div class="kz-admin-stat"><small>Ukupno stranica</small><strong>{{ total }}</strong><span>u mapi</span></div>
+  <div class="kz-admin-stat"><small>Dizajn</small><strong>V11.8</strong><span>unified</span></div>
+  <div class="kz-admin-stat"><small>Jezik</small><strong>SR</strong><span>latinica</span></div>
+  <div class="kz-admin-stat"><small>Status</small><strong>OK</strong><span>spremno za proveru</span></div>
+</section>
+
+{% for group, pages in grouped.items() %}
+<section class="kz-admin-card kz-platform-map-group">
+  <div class="kz-admin-card-head">
+    <h2>{{ group }}</h2>
+    <span>{{ pages|length }} stranica</span>
+  </div>
+  <div class="kz-platform-page-grid">
+    {% for p in pages %}
+    <a class="kz-platform-page" href="{{ p.url }}">
+      <div>
+        <strong>{{ p.title }}</strong>
+        <small>{{ p.url }}</small>
+      </div>
+      <span class="status status-active">{{ p.status }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+{% endblock %}
