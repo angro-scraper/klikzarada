@@ -73,7 +73,7 @@
           {% for task in tasks[:5] %}
           <li><span>{{ task.title }}</span><b>+{{ "%.0f"|format(task.reward_rsd) }} RSD</b></li>
           {% else %}
-          <li><span>Nema aktivnih zadataka</span><b>0 RSD</b></li>
+          <li><span>Kampanje uskoro</span><b>0 RSD</b></li>
           {% endfor %}
         </ul>
         <a href="/zadaci">Svi zadaci</a>
@@ -157,7 +157,7 @@
       <div class="kz114-task-bottom"><b>{{ "%.0f"|format(t.reward_rsd) }} RSD</b><a href="/zadaci/{{ t.id }}">Zaradi</a></div>
     </div>
     {% else %}
-    <div class="kz114-task"><div class="kz114-task-icon"><img src="/static/img/icon-clipboard.svg" alt="" style="width:40px;height:40px;"></div><h3>Nema aktivnih zadataka</h3><p>Kada admin objavi novu kampanju, ovde će se pojaviti stvarni zadaci.</p><div class="kz114-task-meta"><span>Uskoro</span><span>Aktivacija</span></div><div class="kz114-task-bottom"><b>0 RSD</b><a href="/registracija">Registruj se</a></div></div>
+    <div class="kz114-task"><div class="kz114-task-icon"><img src="/static/img/icon-clipboard.svg" alt="" style="width:40px;height:40px;"></div><h3>Kampanje se pripremaju</h3><p>Čim admin otvori novu kampanju, ovde će se pojaviti stvarni zadaci.</p><div class="kz114-task-meta"><span>U pripremi</span><span>Otvaranje uskoro</span></div><div class="kz114-task-bottom"><b>0 RSD</b><a href="/registracija">Registruj se</a></div></div>
     {% endfor %}
   </div>
 </section>
@@ -216,27 +216,27 @@
 
 <section class="kz114-card-section kz114-bottom-banners">
   <div class="kz114-section-head">
-    <h2>DODATNI BANERI U DNU STRANICE</h2>
+    <h2>Premium baneri u dnu stranice</h2>
     <a href="/oglasivac/promocija-v111">Rezerviši banner prostor ›</a>
   </div>
   <div class="kz114-bottom-banner-grid">
     <a class="kz114-bottom-banner blue" href="/oglasivac/promocija-v111">
-      <small>FOOTER BANNER 1</small>
-      <h3>Promoviši svoj brend</h3>
-      <p>Velika vidljivost pri dnu stranice za dodatni domet i bolju prepoznatljivost.</p>
-      <span class="kz114-link-btn">Rezerviši mesto</span>
+      <small>REKLAMNI PROSTOR</small>
+      <h3>Rezerviši mirniji premium slot</h3>
+      <p>Diskretan ali vrlo vidljiv prostor pri dnu stranice za ozbiljne kampanje i dugoročan utisak.</p>
+      <span class="kz114-link-btn">Podesi u reklamama</span>
     </a>
     <a class="kz114-bottom-banner green" href="/oglasivac/promocija-v111">
-      <small>FOOTER BANNER 2</small>
-      <h3>Izdvojena kampanja</h3>
-      <p>Idealno mesto za posebnu ponudu, akciju ili promociju sa jasnim fokusom.</p>
+      <small>IZDVOJENA KAMPANJA</small>
+      <h3>Postavi poruku koja se pamti</h3>
+      <p>Idealno za ponudu, akciju ili direktnu prodaju uz jasan fokus i čist raspored.</p>
       <span class="kz114-link-btn">Pošalji zahtev</span>
     </a>
     <a class="kz114-bottom-banner dark" href="/oglasivac/promocija-v111">
-      <small>FOOTER BANNER 3</small>
-      <h3>Još više klikova</h3>
-      <p>Dodatni prostor za oglašivače koji žele maksimalan domet i više konverzija.</p>
-      <span class="kz114-link-btn">Postani sponsor</span>
+      <small>MAX DOMET</small>
+      <h3>Još više klikova i konverzija</h3>
+      <p>Dodatni prostor za oglašivače koji žele maksimalan domet i bolju prodajnu putanju.</p>
+      <span class="kz114-link-btn">Postani sponzor</span>
     </a>
   </div>
 </section>

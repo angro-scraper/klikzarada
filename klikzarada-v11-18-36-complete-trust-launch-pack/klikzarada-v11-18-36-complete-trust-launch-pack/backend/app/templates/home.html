@@ -100,7 +100,7 @@
           {% for task in tasks[:3] %}
           <article><img src="{% if loop.index0 == 0 %}/static/img/ad-target.svg{% elif loop.index0 == 1 %}/static/img/smart-target.svg{% else %}/static/img/icon-clipboard.svg{% endif %}" alt="" style="width:28px;height:28px;"><div><b>{{ task.title }}</b><span>{{ task.category or 'Zadatak' }}</span></div><strong>+{{ "%.0f"|format(task.reward_rsd) }} RSD</strong></article>
           {% else %}
-          <article><img src="/static/img/icon-clipboard.svg" alt="" style="width:28px;height:28px;"><div><b>Uskoro nove kampanje</b><span>Brendirani sadržaj će se pojaviti čim admin objavi aktivne zadatke.</span></div><strong>0 RSD</strong></article>
+          <article><img src="/static/img/icon-clipboard.svg" alt="" style="width:28px;height:28px;"><div><b>Premijum kampanje u pripremi</b><span>Čim admin otvori novi slot, ovde će se pojaviti stvarni zadaci i ponude.</span></div><strong>0 RSD</strong></article>
           {% endfor %}
         </section>
       </div>
@@ -186,11 +186,11 @@
       <article class="task-card">
         <img src="/static/img/icon-clipboard.svg" alt="" style="width:36px;height:36px;">
         <div>
-          <h4>Nema aktivnih zadataka</h4>
+          <h4>Kampanje se uskoro otvaraju</h4>
           <strong>0 RSD</strong>
-          <p>Kada admin objavi kampanju, ovde će se pojaviti stvarni zadaci za korisnike.</p>
+          <p>Kada admin aktivira kampanju, ovde će se pojaviti stvarni zadaci za korisnike.</p>
         </div>
-        <div class="meta"><span>⏱ Uskoro</span><em class="green">Aktivacija</em></div>
+        <div class="meta"><span>⏱ U pripremi</span><em class="green">Otvaranje uskoro</em></div>
         <a href="/registracija">Registruj se</a>
       </article>
       {% endfor %}
@@ -213,9 +213,9 @@
 
   <section class="kz1189-ad-slots kz-clean-bottom-slots">
     {% set bottom_items = [
-      ('home_bottom_1','/static/img/promo_bottom_finance.svg','Pouzdane finansijske usluge','Krediti, kartice i štednja na jednom mestu.'),
-      ('home_bottom_2','/static/img/promo_bottom_tech.svg','Tehnologija koja pokreće','Najnoviji uređaji i oprema po najboljim cenama.'),
-      ('home_bottom_3','/static/img/promo_bottom_fun.svg','Zabava bez granica','Filmovi, muzika i igre na dohvat ruke.')
+      ('home_bottom_1','/static/img/promo_bottom_finance.svg','Finansijski partner','Krediti, kartice i štednja na jednom mestu.'),
+      ('home_bottom_2','/static/img/promo_bottom_tech.svg','Tech partner','Najnoviji uređaji i oprema po najboljim cenama.'),
+      ('home_bottom_3','/static/img/promo_bottom_fun.svg','Lifestyle prostor','Filmovi, muzika i igre na dohvat ruke.')
     ] %}
     {% for code, fallback, title, body in bottom_items %}
       {% set b = banner_map.get(code) if banner_map else none %}
@@ -234,7 +234,7 @@
     <div><b>PLATFORMA</b><a href="/">Početna</a><a href="/zadaci">Zadaci</a><a href="/za-korisnike">Za korisnike</a><a href="/za-oglasivace">Za oglašivače</a></div>
     <div><b>INFORMACIJE</b><a href="/cenovnik">Cenovnik</a><a href="/blog">Blog</a><a href="/pravila">Pravila korišćenja</a><a href="/pravila">Politika privatnosti</a></div>
     <div><b>PODRŠKA</b><a href="/kontakt">Kontakt</a><a href="/faq">Česta pitanja</a><a href="/pravila">Uslovi isplate</a><a href="/kontakt">Prijavi problem</a></div>
-    <div><b>PRATITE NAS</b><p>Prijavite se za novosti i posebne ponude.</p><form class="newsletter" action="/kontakt" method="get"><input name="email" placeholder="Vaša email adresa"><button type="submit">➤</button></form></div>
+    <div><b>PRATITE NAS</b><p>Prijavite se za novosti, premium kampanje i posebne ponude.</p><form class="newsletter" action="/kontakt" method="get"><input name="email" placeholder="Vaša email adresa"><button type="submit">➤</button></form></div>
   </footer>
 </div>
 {% endblock %}
