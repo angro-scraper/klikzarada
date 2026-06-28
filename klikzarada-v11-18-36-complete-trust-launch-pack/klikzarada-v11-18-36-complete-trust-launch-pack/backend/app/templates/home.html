@@ -10,8 +10,8 @@
       <img class="kz-clean-banner-bg" src="{{ b.image_url if b and b.image_url else '/static/img/promo_top_shopping.svg' }}" alt="{{ b.title if b else 'Izložbeni baner' }}">
       <div class="kz-clean-banner-copy">
         <span class="kz-premium-kicker">Istaknuta kampanja</span>
-        <h2>{{ b.title if b else 'Pametna kupovina predstavljena na elegantan način.' }}</h2>
-        <p>{{ b.body if b and b.body else 'Predstavi svoj brend na mestu gde se vidi odmah, bez vizuelnog šuma i bez suvišnih koraka.' }}</p>
+        <h2>{{ b.title if b else 'Pametna kupovina bez vizuelnog šuma.' }}</h2>
+        <p>{{ b.body if b and b.body else 'Predstavi svoj brend na mestu gde se vidi odmah, čisto i bez suvišnih koraka.' }}</p>
         <span>Otvoreni rezultati →</span>
       </div>
     </a>
@@ -21,8 +21,8 @@
       <img class="kz-clean-banner-bg" src="{{ b.image_url if b and b.image_url else '/static/img/promo_top_business.svg' }}" alt="{{ b.title if b else 'Vrhunski oglasni prostor' }}">
       <div class="kz-clean-banner-copy">
         <span class="kz-premium-kicker">Najbolja pozicija</span>
-        <h2>{{ b.title if b else 'Vrhunski oglasni prostor za kampanje koje daju rezultat.' }}</h2>
-        <p>{{ b.body if b and b.body else 'Dostignite pravu publiku kroz čist, uredan i merljiv prikaz brenda.' }}</p>
+        <h2>{{ b.title if b else 'Oglasni prostor koji daje rezultat.' }}</h2>
+        <p>{{ b.body if b and b.body else 'Dostignite pravu publiku kroz čist, uredan i merljiv prikaz kampanje.' }}</p>
         <span>Planiraj kampanju →</span>
       </div>
     </a>
@@ -117,6 +117,33 @@
     <article>
       <strong>Podrška 24/7</strong>
       <span>Ekipa je tu za korisnike i oglašivače kada zatreba.</span>
+    </article>
+  </section>
+
+  <section class="kz1189-finance-strip">
+    <article>
+      <strong>Račun za uplatu oglašivača</strong>
+      <span>Račun: {{ finance_accounts.advertiser_payment_account if finance_accounts else 'Dodaj broj računa u adminu' }}</span>
+      <span>Primaoc: {{ finance_accounts.advertiser_payment_holder if finance_accounts else 'Dodaj naziv primaoca u adminu' }}</span>
+      <span>Namena: {{ finance_accounts.payment_reference if finance_accounts else 'KlikZarada budžet' }}</span>
+      <a href="/oglasivac/budzet">Otvori budžet →</a>
+    </article>
+    <article>
+      <strong>Račun za isplatu korisnika</strong>
+      <span>Račun: {{ finance_accounts.user_payout_account if finance_accounts else 'Dodaj račun za isplatu u adminu' }}</span>
+      <span>Primaoc: {{ finance_accounts.user_payout_holder if finance_accounts else 'Dodaj naziv primaoca u adminu' }}</span>
+      <span>Namena: {{ finance_accounts.payout_reference if finance_accounts else 'KlikZarada isplata' }}</span>
+      <a href="/korisnik/payout-profile-v11">Podesi račun za isplatu →</a>
+    </article>
+    <article>
+      <strong>Budžet i isplate</strong>
+      <span>Prati stanje, dostupno za isplatu i istoriju transakcija na posebnoj stranici.</span>
+      <a href="/korisnik/isplate">Otvori isplate →</a>
+    </article>
+    <article>
+      <strong>Kontrola i sigurnost</strong>
+      <span>Admin vidi budžet, dokaze i fraud signale pre nego što sve ode live.</span>
+      <a href="/admin/finansije">Vidi finansije →</a>
     </article>
   </section>
 

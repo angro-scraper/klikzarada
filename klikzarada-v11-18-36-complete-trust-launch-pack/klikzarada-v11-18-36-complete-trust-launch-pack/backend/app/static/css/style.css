@@ -11083,6 +11083,17 @@ body.kz1189-home-premium .kz117-brand span{
   box-shadow:0 10px 22px rgba(11,103,241,.22)!important;
 }
 
+body.kz1189-home-premium .kz117-actions{
+  margin-left:auto!important;
+  gap:10px!important;
+  flex-shrink:0!important;
+  white-space:nowrap!important;
+}
+
+body.kz1189-home-premium .kz117-actions .kz117-btn{
+  min-width:108px!important;
+}
+
 body.kz1189-home-premium .kz114-hero,
 body.kz1189-home-premium .kz114-card-section,
 body.kz1189-home-premium .kz114-top-card,
@@ -11202,7 +11213,7 @@ body.kz1189-home-premium .kz-clean-banner-top::before{
 }
 
 body.kz1189-home-premium .kz-clean-banner-top .kz-clean-banner-bg{
-  opacity:.08!important;
+  opacity:.05!important;
   mix-blend-mode:normal!important;
   filter:grayscale(.1) saturate(.85) brightness(1.12)!important;
 }
@@ -11210,7 +11221,15 @@ body.kz1189-home-premium .kz-clean-banner-top .kz-clean-banner-bg{
 body.kz1189-home-premium .kz-clean-banner-copy{
   position:relative!important;
   z-index:1!important;
-  max-width:70%!important;
+  max-width:62%!important;
+}
+
+body.kz1189-home-premium .kz-clean-banner-top .kz-clean-banner-copy{
+  padding:20px 22px!important;
+  border-radius:22px!important;
+  background:rgba(255,255,255,.86)!important;
+  backdrop-filter:blur(12px)!important;
+  box-shadow:0 12px 28px rgba(15,23,42,.08)!important;
 }
 
 body.kz1189-home-premium .kz-clean-banner-top .kz-clean-banner-copy,
@@ -11222,24 +11241,25 @@ body.kz1189-home-premium .kz-clean-banner-top .kz-clean-banner-copy span{
 }
 
 body.kz1189-home-premium .kz-clean-banner-top .kz-clean-banner-copy h2{
-  max-width:540px!important;
+  max-width:460px!important;
 }
 
 body.kz1189-home-premium .kz-clean-banner-copy h2,
 body.kz1189-home-premium .kz-clean-banner-copy h3,
 body.kz1189-home-premium .kz-clean-banner-copy b{
   color:#071a3f!important;
-  font-size:clamp(22px,2.5vw,34px)!important;
-  line-height:1.02!important;
+  font-size:clamp(21px,2.25vw,31px)!important;
+  line-height:1.08!important;
   letter-spacing:-.05em!important;
   margin:10px 0 10px!important;
 }
 
 body.kz1189-home-premium .kz-clean-banner-copy p{
   color:#5a6b84!important;
-  font-size:15px!important;
-  line-height:1.55!important;
+  font-size:14px!important;
+  line-height:1.58!important;
   margin:0 0 16px!important;
+  max-width:460px!important;
 }
 
 body.kz1189-home-premium .kz-clean-banner-copy span,
@@ -11453,6 +11473,53 @@ body.kz1189-home-premium .kz1189-trust-strip span{
   line-height:1.5!important;
 }
 
+body.kz1189-home-premium .kz1189-finance-strip{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:14px!important;
+  margin:0 0 18px!important;
+}
+
+body.kz1189-home-premium .kz1189-finance-strip article{
+  padding:18px!important;
+  border-radius:20px!important;
+  border:1px solid rgba(15,23,42,.07)!important;
+  background:linear-gradient(180deg,#fff,#f8fbff)!important;
+  box-shadow:0 14px 34px rgba(15,23,42,.05)!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:8px!important;
+}
+
+body.kz1189-home-premium .kz1189-finance-strip strong{
+  display:block!important;
+  color:#071a3f!important;
+  font-size:15px!important;
+  font-weight:1000!important;
+  line-height:1.2!important;
+}
+
+body.kz1189-home-premium .kz1189-finance-strip span{
+  color:#5f6f86!important;
+  font-size:13px!important;
+  line-height:1.5!important;
+}
+
+body.kz1189-home-premium .kz1189-finance-strip article span:first-of-type{
+  color:#071a3f!important;
+  font-weight:900!important;
+}
+
+body.kz1189-home-premium .kz1189-finance-strip a{
+  margin-top:auto!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  color:#0b67f1!important;
+  font-weight:1000!important;
+  font-size:13px!important;
+}
+
 body.kz1189-home-premium .kz-promo-final-row{
   display:grid!important;
   grid-template-columns:repeat(5,minmax(0,1fr))!important;
@@ -11595,6 +11662,7 @@ body.kz1189-home-premium .kz1189-footer .social i{
 
 @media(max-width:980px){
   body.kz1189-home-premium .kz1189-trust-strip,
+  body.kz1189-home-premium .kz1189-finance-strip,
   body.kz1189-home-premium .kz1189-stats{
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
   }
@@ -11627,6 +11695,7 @@ body.kz1189-home-premium .kz1189-footer .social i{
   body.kz1189-home-premium .kz1189-top-ads,
   body.kz1189-home-premium .kz1189-hero,
   body.kz1189-home-premium .kz1189-trust-strip,
+  body.kz1189-home-premium .kz1189-finance-strip,
   body.kz1189-home-premium .kz1189-stats,
   body.kz1189-home-premium .kz-promo-final-row{
     grid-template-columns:1fr!important;

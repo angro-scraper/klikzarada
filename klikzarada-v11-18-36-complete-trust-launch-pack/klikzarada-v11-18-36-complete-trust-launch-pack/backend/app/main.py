@@ -1176,6 +1176,12 @@ def seed_v6_enterprise():
                 SystemSetting(key="moderation_sla_hours", value="24", description="Cilj za proveru dokaza"),
                 SystemSetting(key="withdrawal_sla_hours", value="72", description="Cilj za obradu isplata"),
                 SystemSetting(key="production_mode", value="false", description="Da li je sistem u produkciji"),
+                SystemSetting(key="advertiser_payment_account", value="Dodaj broj računa u adminu", description="Račun na koji oglašivači uplaćuju budžet"),
+                SystemSetting(key="advertiser_payment_holder", value="Dodaj naziv primaoca u adminu", description="Naziv primaoca za uplatu oglašivača"),
+                SystemSetting(key="user_payout_account", value="Dodaj račun za isplatu u adminu", description="Račun sa kog se isplaćuju korisnici"),
+                SystemSetting(key="user_payout_holder", value="Dodaj naziv primaoca u adminu", description="Naziv primaoca za isplatu korisnicima"),
+                SystemSetting(key="payment_reference", value="KlikZarada budžet", description="Poziv na broj ili svrha uplate oglašivača"),
+                SystemSetting(key="payout_reference", value="KlikZarada isplata", description="Poziv na broj ili svrha isplate korisnicima"),
             ]
             db.add_all(settings)
 
@@ -3785,6 +3791,23 @@ def v111_price_percent(db: Session, key: str, default: float = 0):
     return float(p.value_percent if p else default)
 
 
+def v11836_public_accounts(db: Session):
+    def setting(key: str, default: str = "") -> str:
+        row = db.query(SystemSetting).filter(SystemSetting.key == key).first()
+        value = (row.value if row and row.value is not None else default) or default
+        return str(value).strip()
+
+    return {
+        "advertiser_payment_account": setting("advertiser_payment_account", "Dodaj broj računa u adminu"),
+        "advertiser_payment_holder": setting("advertiser_payment_holder", "Dodaj naziv primaoca u adminu"),
+        "user_payout_account": setting("user_payout_account", "Dodaj račun za isplatu u adminu"),
+        "user_payout_holder": setting("user_payout_holder", "Dodaj naziv primaoca u adminu"),
+        "payment_reference": setting("payment_reference", "KlikZarada budžet"),
+        "payout_reference": setting("payout_reference", "KlikZarada isplata"),
+        "bank_note": setting("bank_note", "Podaci se mogu menjati iz admin system settings."),
+    }
+
+
 def v11836_pricing_summary(db: Session):
     platform_fee_percent = v111_price_percent(db, "platform_commission_percent", 20)
     banner_top_7d = v111_price_rsd(db, "banner_home_top_7d", 9500)
@@ -3876,7 +3899,7 @@ def seed_v111_ui_ads_pricing():
                 target_url="/registracija", price_rsd=slot.price_rsd,
                 view_cost_rsd=v111_price_rsd(db, "ad_view_cost_rsd", 8),
                 viewer_reward_rsd=v111_price_rsd(db, "ad_view_reward_rsd", 5),
-                days_count=7, status="active", starts_at=datetime.utcnow()
+                days_count=1, status="active", starts_at=datetime.utcnow()
             ))
 
         if adv and db.query(PaidPromotionRequestV111).count() == 0:
@@ -4415,6 +4438,7 @@ def public_advertisers_v117(request: Request, db: Session = Depends(get_db)):
         "request": request,
         "user": current_user(request, db),
         "pricing_summary": v11836_pricing_summary(db),
+        "finance_accounts": v11836_public_accounts(db),
         "flash": None
     })
 
@@ -4454,6 +4478,7 @@ def pricing_public_v117(request: Request, db: Session = Depends(get_db)):
         "pricing_summary": pricing_summary,
         "task_price_ranges": task_price_ranges,
         "banner_packages": banner_packages,
+        "finance_accounts": v11836_public_accounts(db),
         "flash": None
     })
 
@@ -6139,7 +6164,18 @@ def premium_home_v1161(request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     tasks = db.query(Task).filter(Task.status == "active").order_by(Task.featured.desc(), Task.reward_rsd.desc()).limit(20).all()
     banner_map = v11817_active_banner_map(db) if "v11817_active_banner_map" in globals() else {}
-    return templates.TemplateResponse("home.html", {"request": request, "user": user, "tasks": tasks, "banner_map": banner_map})
+    pricing_summary = v11836_pricing_summary(db)
+    return templates.TemplateResponse(
+        "home.html",
+        {
+            "request": request,
+            "user": user,
+            "tasks": tasks,
+            "banner_map": banner_map,
+            "pricing_summary": pricing_summary,
+            "finance_accounts": v11836_public_accounts(db),
+        },
+    )
 
 
 

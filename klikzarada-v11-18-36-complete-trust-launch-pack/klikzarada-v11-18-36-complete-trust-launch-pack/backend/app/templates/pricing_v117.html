@@ -6,7 +6,7 @@
   <div>
     <span class="kz117-eyebrow">CENOVNIK</span>
     <h1>Jasan model naplate, zarade i rasta</h1>
-    <p>Oglašivači plaćaju samo ono što donosi rezultat. Korisnici dobijaju fer nagradu, a platforma uzima svoj deo za automatizaciju, kontrolu i antifiksni radni tok.</p>
+    <p>Oglašivači plaćaju samo ono što donosi rezultat. Korisnici dobijaju fer nagradu, a platforma uzima svoj deo za automatizaciju, kontrolu i antifraud tok. Svi banner paketi su obračunati po 24 sata.</p>
     <div class="kz117-hero-actions">
       <a class="kz117-btn blue" href="/registracija?role=oglasivac">Pokreni kampanju</a>
       <a class="kz117-btn outline" href="/oglasivac/promocija-v111">Baner reklame</a>
@@ -41,6 +41,24 @@
     <strong>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD</strong>
     <p>Minimalni prag isplate za korisnike.</p>
     <span>Zaštita od previše mikro transakcija</span>
+  </div>
+</section>
+
+<section class="kz117-grid-3">
+  <div class="kz117-feature">
+    <h3>Račun za uplatu oglašivača</h3>
+    <p>{{ finance_accounts.advertiser_payment_account if finance_accounts else "Dodaj broj računa u adminu" }}</p>
+    <span>{{ finance_accounts.advertiser_payment_holder if finance_accounts else "Dodaj naziv primaoca u adminu" }}</span>
+  </div>
+  <div class="kz117-feature">
+    <h3>Račun za isplatu korisnika</h3>
+    <p>{{ finance_accounts.user_payout_account if finance_accounts else "Dodaj račun za isplatu u adminu" }}</p>
+    <span>{{ finance_accounts.user_payout_holder if finance_accounts else "Dodaj naziv primaoca u adminu" }}</span>
+  </div>
+  <div class="kz117-feature">
+    <h3>Admin finansije</h3>
+    <p>Bankovne podatke i reference možeš menjati iz admin sistemskih podešavanja.</p>
+    <span><a href="/admin/system-settings">Otvori settings</a></span>
   </div>
 </section>
 

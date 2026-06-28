@@ -6,7 +6,7 @@
   <div>
     <span class="kz117-eyebrow">ZA OGLAŠIVAČE</span>
     <h1>Dobijte stvarne rezultate uz jasnu kontrolu budžeta</h1>
-    <p>Pokrećite kampanje za ankete, testiranje sajta, registracije i feedback. Plaćate validne rezultate, a automatizacija smanjuje ručni rad admina i ubrzava pregled.</p>
+    <p>Pokrećite kampanje za ankete, testiranje sajta, registracije i feedback. Plaćate validne rezultate, a automatizacija smanjuje ručni rad admina i ubrzava pregled. Banner slotovi se obračunavaju po 24 sata.</p>
     <div class="kz117-hero-actions">
       <a class="kz117-btn blue" href="/registracija?role=oglasivac">Pokreni kampanju</a>
       <a class="kz117-btn outline" href="/cenovnik">Pogledaj cenovnik</a>
@@ -18,8 +18,26 @@
       <li>Provizija platforme: {{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}%</li>
       <li>Korisnicima ide: {{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}%</li>
       <li>Validni zadaci donose merljiv rezultat</li>
-      <li>Banneri i top pozicije se prodaju odvojeno</li>
+      <li>Banneri i top pozicije se prodaju odvojeno po danu</li>
     </ul>
+  </div>
+</section>
+
+<section class="kz117-grid-3">
+  <div class="kz117-feature">
+    <h3>Račun za uplatu oglašivača</h3>
+    <p>{{ finance_accounts.advertiser_payment_account if finance_accounts else "Dodaj broj računa u adminu" }}</p>
+    <span>{{ finance_accounts.advertiser_payment_holder if finance_accounts else "Dodaj naziv primaoca u adminu" }}</span>
+  </div>
+  <div class="kz117-feature">
+    <h3>Račun za isplatu korisnika</h3>
+    <p>{{ finance_accounts.user_payout_account if finance_accounts else "Dodaj račun za isplatu u adminu" }}</p>
+    <span>{{ finance_accounts.user_payout_holder if finance_accounts else "Dodaj naziv primaoca u adminu" }}</span>
+  </div>
+  <div class="kz117-feature">
+    <h3>Brz pristup</h3>
+    <p>Računi i reference se mogu promeniti u admin sistemskim podešavanjima bez menjanja dizajna stranice.</p>
+    <span><a href="/admin/system-settings">Otvori settings</a></span>
   </div>
 </section>
 
