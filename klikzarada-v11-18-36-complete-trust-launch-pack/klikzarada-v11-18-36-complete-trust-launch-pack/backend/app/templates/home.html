@@ -108,15 +108,15 @@
       <a class="withdraw" href="/login">Isplati sredstva →</a>
 
       {% set dashboard_banner = banner_map.get('home_dashboard_banner') if banner_map else none %}
-      <a class="dashboard-banner" href="{{ dashboard_banner.target_url if dashboard_banner else '/za-oglasivace' }}">
-        <img src="{{ dashboard_banner.image_url if dashboard_banner and dashboard_banner.image_url else '/static/img/banner_generic.svg' }}" alt="{{ dashboard_banner.title if dashboard_banner else 'Rezerviši banner prostor' }}">
-        <div>
-          <small>{{ dashboard_banner.slot.title if dashboard_banner and dashboard_banner.slot else 'Premium prostor' }}</small>
-          <strong>{{ dashboard_banner.title if dashboard_banner else 'Pozicioniraj brend u središtu pažnje' }}</strong>
-          <p>{{ dashboard_banner.body if dashboard_banner and dashboard_banner.body else 'Ovaj slot je namenjen premium kampanjama, istaknutim ponudama i direktnom oglasnom prostoru kojim upravlja admin.' }}</p>
-        </div>
-        <span>Rezerviši prostor →</span>
-      </a>
+        <a class="dashboard-banner" href="{{ dashboard_banner.target_url if dashboard_banner else '/za-oglasivace' }}">
+          <img src="{{ dashboard_banner.image_url if dashboard_banner and dashboard_banner.image_url else '/static/img/banner_generic.svg' }}" alt="{{ dashboard_banner.title if dashboard_banner else 'Rezerviši banner prostor' }}">
+          <div>
+            <small>{{ dashboard_banner.slot.title if dashboard_banner and dashboard_banner.slot else 'Premium prostor' }}</small>
+            <strong>{{ dashboard_banner.title if dashboard_banner else 'Pozicioniraj brend u središtu pažnje' }}</strong>
+            <p>{{ dashboard_banner.body if dashboard_banner and dashboard_banner.body else 'Ovaj slot je namenjen premium kampanjama, istaknutim ponudama i direktnom oglasnom prostoru kojim upravlja admin.' }}</p>
+          </div>
+          <span><b>Rezerviši</b><em>prostor →</em></span>
+        </a>
     </aside>
   </section>
 
