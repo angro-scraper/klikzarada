@@ -122,33 +122,6 @@
     </article>
   </section>
 
-  <section class="kz1189-finance-strip">
-    <article>
-      <strong>Račun za uplatu oglašivača</strong>
-      <span>Račun: {{ finance_accounts.advertiser_payment_account if finance_accounts else 'Dodaj broj računa u adminu' }}</span>
-      <span>Primaoc: {{ finance_accounts.advertiser_payment_holder if finance_accounts else 'Dodaj naziv primaoca u adminu' }}</span>
-      <span>Namena: {{ finance_accounts.payment_reference if finance_accounts else 'KlikZarada budžet' }}</span>
-      <a href="/oglasivac/budzet">Otvori budžet →</a>
-    </article>
-    <article>
-      <strong>Račun za isplatu korisnika</strong>
-      <span>Račun: {{ finance_accounts.user_payout_account if finance_accounts else 'Dodaj račun za isplatu u adminu' }}</span>
-      <span>Primaoc: {{ finance_accounts.user_payout_holder if finance_accounts else 'Dodaj naziv primaoca u adminu' }}</span>
-      <span>Namena: {{ finance_accounts.payout_reference if finance_accounts else 'KlikZarada isplata' }}</span>
-      <a href="/korisnik/payout-profile-v11">Podesi račun za isplatu →</a>
-    </article>
-    <article>
-      <strong>Budžet i isplate</strong>
-      <span>Prati stanje, dostupno za isplatu i istoriju transakcija na posebnoj stranici.</span>
-      <a href="/korisnik/isplate">Otvori isplate →</a>
-    </article>
-    <article>
-      <strong>Kontrola i sigurnost</strong>
-      <span>Admin vidi budžet, dokaze i fraud signale pre nego što sve ode live.</span>
-      <a href="{% if user and user.role == 'admin' %}/admin/finansije{% else %}/login{% endif %}">Vidi finansije →</a>
-    </article>
-  </section>
-
   <section class="kz-promo-final-row">
     {% set promo_items = [
       ('home_sponsor_1','/static/img/promo_final_shop.svg','OnlineShop','Kupujte pametno, uštedite više!','Poseti sajt'),
