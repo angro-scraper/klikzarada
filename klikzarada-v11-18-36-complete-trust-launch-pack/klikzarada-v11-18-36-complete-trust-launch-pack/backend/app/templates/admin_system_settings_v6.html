@@ -35,6 +35,7 @@
         </select>
       </div>
       <div><label>Endpoint / URL</label><input name="endpoint_url" placeholder="https://partner.example/api/tasks"></div>
+      <div><label>API ključ</label><input name="api_key" placeholder="api_..."></div>
       <div><label>Kontakt / partner</label><input name="contact_name" placeholder="Ime partnera ili kontakta"></div>
       <div><label>Način uvoza</label>
         <select name="import_mode">
@@ -50,23 +51,29 @@
   </form>
   <div class="table-card" style="margin-top:16px">
     <table>
-      <thead><tr><th>Naziv</th><th>Tip</th><th>Endpoint</th><th>Način</th><th>Status</th><th>Akcija</th></tr></thead>
+      <thead><tr><th>Naziv</th><th>Tip</th><th>Endpoint</th><th>API ključ</th><th>Način</th><th>Status</th><th>Akcija</th></tr></thead>
       <tbody>
       {% for source in task_sources %}
         <tr>
           <td>{{ source.name }}</td>
           <td>{{ source.source_type }}</td>
           <td>{{ source.endpoint_url or "—" }}</td>
+          <td>{{ "postavljen" if source.api_key else "—" }}</td>
           <td>{{ source.import_mode }}</td>
           <td>{{ source.status }}</td>
           <td>
-            <form method="post" action="/admin/system-settings/task-source/{{ source.id }}/toggle" style="margin:0">
-              <button class="btn btn-primary" type="submit">{{ "Pauziraj" if source.status == "active" else "Aktiviraj" }}</button>
-            </form>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <form method="post" action="/admin/system-settings/task-source/{{ source.id }}/sync" style="margin:0">
+                <button class="btn btn-secondary" type="submit">Uvezi sada</button>
+              </form>
+              <form method="post" action="/admin/system-settings/task-source/{{ source.id }}/toggle" style="margin:0">
+                <button class="btn btn-primary" type="submit">{{ "Pauziraj" if source.status == "active" else "Aktiviraj" }}</button>
+              </form>
+            </div>
           </td>
         </tr>
       {% else %}
-        <tr><td colspan="6">Još nema odobrenih izvora zadataka.</td></tr>
+        <tr><td colspan="7">Još nema odobrenih izvora zadataka.</td></tr>
       {% endfor %}
       </tbody>
     </table>

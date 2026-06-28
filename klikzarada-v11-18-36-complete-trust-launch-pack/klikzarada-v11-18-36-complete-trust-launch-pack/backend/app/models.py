@@ -365,6 +365,7 @@ class TaskSourceV11(Base):
     name = Column(String(180), nullable=False)
     source_type = Column(String(60), default="partner_api")  # partner_api, rss, csv, manual
     endpoint_url = Column(String(500), nullable=True)
+    api_key = Column(String(250), nullable=True)
     contact_name = Column(String(180), nullable=True)
     import_mode = Column(String(40), default="review")  # review, sync, manual
     status = Column(String(40), default="active")  # active, paused, draft

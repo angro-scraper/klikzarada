@@ -11,6 +11,9 @@
     <a class="premium-btn blue" href="/admin/system-settings#task-sources">Task izvori</a>
     <a class="premium-btn green" href="/admin/moderation-v10">Moderation queue</a>
     <a class="premium-btn white" href="/admin/finansije">Finansije</a>
+    <form method="post" action="/admin/import-moderation/sync-all" style="margin:0">
+      <button class="premium-btn blue" type="submit">Uvezi sve aktivne izvore</button>
+    </form>
   </div>
 </section>
 
@@ -37,6 +40,7 @@
           </select>
         </div>
         <div><label>Endpoint / URL</label><input name="endpoint_url" placeholder="https://partner.example/api/tasks"></div>
+        <div><label>API ključ</label><input name="api_key" placeholder="api_..."></div>
         <div><label>Kontakt / partner</label><input name="contact_name" placeholder="Ime partnera ili kontakta"></div>
         <div>
           <label>Način uvoza</label>
@@ -82,7 +86,7 @@
     <div class="premium-table-wrap">
       <table>
         <thead>
-          <tr><th>Naziv</th><th>Tip</th><th>Endpoint</th><th>Način</th><th>Status</th><th>Akcija</th></tr>
+          <tr><th>Naziv</th><th>Tip</th><th>Endpoint</th><th>API</th><th>Način</th><th>Status</th><th>Akcija</th></tr>
         </thead>
         <tbody>
         {% for source in sources %}
@@ -90,16 +94,22 @@
             <td><b>{{ source.name }}</b><br><small>{{ source.contact_name or "" }}</small></td>
             <td>{{ source.source_type }}</td>
             <td style="max-width:280px;word-break:break-word;">{{ source.endpoint_url or "—" }}</td>
+            <td>{{ "da" if source.api_key else "ne" }}</td>
             <td>{{ source.import_mode }}</td>
             <td><span class="status status-{{ source.status }}">{{ source.status }}</span></td>
             <td>
-              <form method="post" action="/admin/system-settings/task-source/{{ source.id }}/toggle" style="margin:0">
-                <button class="btn btn-mini btn-primary" type="submit">{{ "Pauziraj" if source.status == "active" else "Aktiviraj" }}</button>
-              </form>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <form method="post" action="/admin/import-moderation/source/{{ source.id }}/sync" style="margin:0">
+                  <button class="btn btn-mini btn-secondary" type="submit">Uvezi</button>
+                </form>
+                <form method="post" action="/admin/system-settings/task-source/{{ source.id }}/toggle" style="margin:0">
+                  <button class="btn btn-mini btn-primary" type="submit">{{ "Pauziraj" if source.status == "active" else "Aktiviraj" }}</button>
+                </form>
+              </div>
             </td>
           </tr>
         {% else %}
-          <tr><td colspan="6">Još nema odobrenih izvora zadataka.</td></tr>
+          <tr><td colspan="7">Još nema odobrenih izvora zadataka.</td></tr>
         {% endfor %}
         </tbody>
       </table>

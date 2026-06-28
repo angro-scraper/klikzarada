@@ -1,5 +1,6 @@
 import io
 import html
+import json
 import mimetypes
 from PIL import Image
 import time
@@ -18,6 +19,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+from urllib.request import Request as UrlRequest, urlopen
 from .database import Base, engine, get_db
 from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, TaskSourceV11, SecurityEvent, KycDocument, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
 from .security import create_session_token, hash_password, make_referral_code, read_session_token, verify_password
@@ -74,8 +77,17 @@ def seed():
     finally:
         db.close()
 
+def ensure_task_source_api_key_column():
+    try:
+        with engine.begin() as conn:
+            columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(task_sources_v11)").fetchall()}
+            if "api_key" not in columns:
+                conn.exec_driver_sql("ALTER TABLE task_sources_v11 ADD COLUMN api_key VARCHAR(250)")
+    except Exception:
+        pass
+
 @app.on_event("startup")
-def startup(): seed(); seed_v4_growth(); seed_v5_scale(); seed_v6_enterprise(); seed_v7_ai_marketplace(); seed_v8_command(); seed_v9_launch_os(); seed_v10_automation_os(); seed_v11_real_launch_pack(); seed_v111_ui_ads_pricing(); v11815_startup_banner_slots()
+def startup(): seed(); ensure_task_source_api_key_column(); seed_v4_growth(); seed_v5_scale(); seed_v6_enterprise(); seed_v7_ai_marketplace(); seed_v8_command(); seed_v9_launch_os(); seed_v10_automation_os(); seed_v11_real_launch_pack(); seed_v111_ui_ads_pricing(); v11815_startup_banner_slots()
 
 @app.get("/favicon.ico")
 def favicon(): return FileResponse("app/static/favicon.svg", media_type="image/svg+xml")
@@ -105,6 +117,7 @@ def flash(msg):
     m = {
         "sent":("success","Dokaz je poslat na proveru."),
         "saved":("success","Sačuvano."),
+        "imported":("success","Izvor je uvezen i poslat na moderaciju."),
         "campaign_created":("success","Kampanja je poslata na odobrenje i budžet je rezervisan."),
         "budget_error":("error","Nema dovoljno slobodnog budžeta."),
         "withdrawal_sent":("success","Zahtev za isplatu je poslat."),
@@ -118,6 +131,178 @@ def flash(msg):
         "invoice_created":("success","Predračun/faktura je kreirana."),
     }
     return m.get(msg)
+
+def task_source_effective_url(source, api_key: str | None = None):
+    endpoint = (getattr(source, "endpoint_url", "") or "").strip()
+    if not endpoint:
+        return None
+    token = (api_key or getattr(source, "api_key", None) or "").strip()
+    if token:
+        if "{api_key}" in endpoint:
+            endpoint = endpoint.replace("{api_key}", token)
+        else:
+            parsed = urlparse(endpoint)
+            query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+            query.setdefault("api_key", token)
+            endpoint = urlunparse(parsed._replace(query=urlencode(query)))
+    return endpoint
+
+def task_source_extract_items(payload):
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict):
+        for key in ("tasks", "items", "results", "data", "transitions", "campaigns"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                return value
+            if isinstance(value, dict):
+                nested = task_source_extract_items(value)
+                if nested:
+                    return nested
+        for value in payload.values():
+            if isinstance(value, list):
+                return value
+            if isinstance(value, dict):
+                nested = task_source_extract_items(value)
+                if nested:
+                    return nested
+    return []
+
+def task_source_text(item, *keys, default=""):
+    for key in keys:
+        value = item.get(key) if isinstance(item, dict) else None
+        if value not in (None, "", []):
+            return value
+    return default
+
+def task_source_float(item, *keys, default=0.0):
+    for key in keys:
+        value = item.get(key) if isinstance(item, dict) else None
+        if value not in (None, "", []):
+            try:
+                return float(str(value).replace(",", "."))
+            except Exception:
+                continue
+    return float(default)
+
+def task_source_int(item, *keys, default=0):
+    for key in keys:
+        value = item.get(key) if isinstance(item, dict) else None
+        if value not in (None, "", []):
+            try:
+                return int(float(str(value).replace(",", ".")))
+            except Exception:
+                continue
+    return int(default)
+
+def task_source_bool(item, *keys, default=False):
+    for key in keys:
+        value = item.get(key) if isinstance(item, dict) else None
+        if value is not None:
+            if isinstance(value, bool):
+                return value
+            return str(value).strip().lower() in {"1", "true", "yes", "y", "on", "da"}
+    return bool(default)
+
+def task_source_map_task(source, item, admin_id: int | None = None):
+    title = str(task_source_text(item, "title", "name", "subject", "headline", default=source.name)).strip()
+    description = str(task_source_text(item, "description", "body", "text", "details", "notes", default=title)).strip()
+    instructions = str(task_source_text(item, "instructions", "instruction", "how_to", "steps", default=description)).strip()
+    proof_required = str(task_source_text(item, "proof_required", "proof", "evidence", "validation", default="Pošaljite dokaz izvršenja.")).strip()
+    example_proof = task_source_text(item, "example_proof", "proof_example", "sample", "example", default=None)
+    task_type = str(task_source_text(item, "task_type", "type", "kind", "action", default="visit_site")).strip() or "visit_site"
+    category = str(task_source_text(item, "category", "segment", "group", default="Promo")).strip() or "Promo"
+    target_url = str(task_source_text(item, "target_url", "url", "link", "page_url", "href", default="/")).strip() or "/"
+    reward_rsd = max(1.0, task_source_float(item, "reward_rsd", "reward", "price", "amount", "budget", default=50))
+    total_slots = max(1, task_source_int(item, "total_slots", "slots", "quantity", "limit", default=100))
+    estimated_minutes = max(1, task_source_int(item, "estimated_minutes", "duration", "minutes", "time", default=5))
+    target_city = task_source_text(item, "target_city", "city", "location", default=None) or None
+    target_age_group = task_source_text(item, "target_age_group", "age_group", "age", default=None) or None
+    target_interests = task_source_text(item, "target_interests", "interests", "tags", default=None) or None
+    min_user_level = str(task_source_text(item, "min_user_level", "level", default="Bronza")).strip() or "Bronza"
+    proof_file_required = task_source_bool(item, "proof_file_required", "need_file", "file_required", default=False)
+    featured = task_source_bool(item, "featured", "is_featured", default=False)
+    remote_id = task_source_text(item, "id", "remote_id", "task_id", "identifier", default=None)
+    note_parts = [f"imported_from=source:{source.id}", f"source_name:{source.name}"]
+    if remote_id not in (None, ""):
+        note_parts.append(f"remote_id:{remote_id}")
+    moderation_note = " | ".join(note_parts)
+    return {
+        "advertiser_id": admin_id,
+        "title": title,
+        "category": category,
+        "task_type": task_type,
+        "target_url": target_url,
+        "description": description,
+        "instructions": instructions,
+        "proof_required": proof_required,
+        "example_proof": example_proof,
+        "reward_rsd": reward_rsd,
+        "total_slots": total_slots,
+        "estimated_minutes": estimated_minutes,
+        "target_city": target_city,
+        "target_age_group": target_age_group,
+        "target_interests": target_interests,
+        "min_user_level": min_user_level,
+        "proof_file_required": proof_file_required,
+        "featured": featured,
+        "status": "pending",
+        "moderation_note": moderation_note,
+    }
+
+def task_source_item_exists(db: Session, source, item) -> bool:
+    remote_id = task_source_text(item, "id", "remote_id", "task_id", "identifier", default=None)
+    if remote_id not in (None, ""):
+        marker = f"source:{source.id}"
+        needle = f"remote_id:{remote_id}"
+        return db.query(Task).filter(Task.moderation_note.contains(marker), Task.moderation_note.contains(needle)).first() is not None
+    title = str(task_source_text(item, "title", "name", "subject", "headline", default=source.name)).strip()
+    target_url = str(task_source_text(item, "target_url", "url", "link", "page_url", "href", default="/")).strip() or "/"
+    reward_rsd = task_source_float(item, "reward_rsd", "reward", "price", "amount", "budget", default=50)
+    cutoff = datetime.utcnow() - timedelta(days=7)
+    return db.query(Task).filter(
+        Task.moderation_note.contains(f"source:{source.id}"),
+        Task.title == title,
+        Task.target_url == target_url,
+        Task.reward_rsd == reward_rsd,
+        Task.created_at >= cutoff,
+    ).first() is not None
+
+def import_tasks_from_source(db: Session, source, admin_id: int | None = None):
+    endpoint = task_source_effective_url(source)
+    if not endpoint:
+        raise HTTPException(400, "Izvor nema endpoint URL.")
+    req = UrlRequest(endpoint, headers={"Accept": "application/json", "User-Agent": "KlikZarada-Importer/1.0"})
+    with urlopen(req, timeout=30) as resp:
+        raw = resp.read().decode("utf-8", "replace")
+    try:
+        payload = json.loads(raw)
+    except Exception as exc:
+        raise HTTPException(400, f"API nije vratio validan JSON: {exc}")
+    items = task_source_extract_items(payload)
+    if not items:
+        raise HTTPException(400, "API odgovor ne sadrži listu zadataka.")
+    created = 0
+    skipped = 0
+    queue_items = 0
+    for item in items:
+        if not isinstance(item, dict):
+            skipped += 1
+            continue
+        if task_source_item_exists(db, source, item):
+            skipped += 1
+            continue
+        task_data = task_source_map_task(source, item, admin_id=admin_id)
+        task = Task(**task_data)
+        db.add(task)
+        db.flush()
+        db.add(ModerationQueueV10(item_type="task_import", item_id=task.id, priority="high", reason=f"Imported from {source.name}"))
+        created += 1
+        queue_items += 1
+    source.last_sync_at = datetime.utcnow()
+    source.updated_at = datetime.utcnow()
+    db.flush()
+    return {"created": created, "skipped": skipped, "queued": queue_items}
 
 def upsert_system_setting(db: Session, key: str, value: str, description: str | None = None):
     item = db.query(SystemSetting).filter(SystemSetting.key == key.strip()).first()
@@ -1620,6 +1805,7 @@ def admin_task_source_save(
     name: str = Form(...),
     source_type: str = Form("partner_api"),
     endpoint_url: str = Form(""),
+    api_key: str = Form(""),
     contact_name: str = Form(""),
     import_mode: str = Form("review"),
     instructions: str = Form(""),
@@ -1631,6 +1817,7 @@ def admin_task_source_save(
         name=name.strip(),
         source_type=source_type.strip() or "partner_api",
         endpoint_url=endpoint_url.strip() or None,
+        api_key=api_key.strip() or None,
         contact_name=contact_name.strip() or None,
         import_mode=import_mode.strip() or "review",
         status="active",
@@ -1641,6 +1828,19 @@ def admin_task_source_save(
     audit(db, u, "task_source_create", "TaskSourceV11", item.id, item.name)
     db.commit()
     return RedirectResponse("/admin/system-settings?msg=saved#task-sources", 303)
+
+
+@app.post("/admin/system-settings/task-source/{source_id}/sync")
+def admin_task_source_sync(source_id: int, request: Request, db: Session = Depends(get_db)):
+    admin = require(request, db)
+    check_role(admin, ["admin"])
+    source = db.query(TaskSourceV11).filter(TaskSourceV11.id == source_id).first()
+    if not source:
+        raise HTTPException(404)
+    result = import_tasks_from_source(db, source, admin_id=admin.id if admin else None)
+    audit(db, admin, "task_source_sync", "TaskSourceV11", source.id, f"{source.name} imported={result['created']} skipped={result['skipped']}")
+    db.commit()
+    return RedirectResponse(f"/admin/import-moderation?msg=imported", 303)
 
 
 @app.post("/admin/system-settings/task-source/{source_id}/toggle")
@@ -1686,6 +1886,38 @@ def admin_import_moderation(request: Request, db: Session = Depends(get_db)):
             "finance_accounts": v11836_public_accounts(db),
         },
     )
+
+
+@app.post("/admin/import-moderation/source/{source_id}/sync")
+def admin_import_moderation_source_sync(source_id: int, request: Request, db: Session = Depends(get_db)):
+    admin = require(request, db)
+    check_role(admin, ["admin"])
+    source = db.query(TaskSourceV11).filter(TaskSourceV11.id == source_id).first()
+    if not source:
+        raise HTTPException(404)
+    result = import_tasks_from_source(db, source, admin_id=admin.id if admin else None)
+    audit(db, admin, "task_source_sync", "TaskSourceV11", source.id, f"{source.name} imported={result['created']} skipped={result['skipped']}")
+    db.commit()
+    return RedirectResponse("/admin/import-moderation?msg=imported", 303)
+
+
+@app.post("/admin/import-moderation/sync-all")
+def admin_import_moderation_sync_all(request: Request, db: Session = Depends(get_db)):
+    admin = require(request, db)
+    check_role(admin, ["admin"])
+    sources = db.query(TaskSourceV11).filter(TaskSourceV11.status == "active").order_by(TaskSourceV11.created_at.desc()).all()
+    total_created = 0
+    total_skipped = 0
+    for source in sources:
+        try:
+            result = import_tasks_from_source(db, source, admin_id=admin.id if admin else None)
+        except Exception:
+            continue
+        total_created += result["created"]
+        total_skipped += result["skipped"]
+        audit(db, admin, "task_source_sync", "TaskSourceV11", source.id, f"{source.name} imported={result['created']} skipped={result['skipped']}")
+    db.commit()
+    return RedirectResponse("/admin/import-moderation?msg=imported", 303)
 
 
 @app.get("/admin/sla", response_class=HTMLResponse)
