@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{{ title if title else "KlikZarada panel" }}</title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/static/css/style.css?v=11817">
+  <link rel="stylesheet" href="/static/css/style.css?v=11818">
 </head>
 <body class="premium-app-body {% if user and user.role == 'admin' %}premium-admin{% endif %}">
 {% set path = request.url.path if request else '/' %}
@@ -22,29 +22,53 @@
 
     {% if user and user.role == "admin" %}
     <nav class="premium-admin-hub" aria-label="Admin navigacija">
-      <div class="premium-admin-nav-row primary">
-        <a class="tone-blue {% if path == '/' %}active{% endif %}" href="/">Početna</a>
-        <a class="tone-blue {% if path.startswith('/zadaci') %}active{% endif %}" href="/zadaci">Zadaci</a>
-        <a class="tone-violet {% if path.startswith('/admin-centar') %}active{% endif %}" href="/admin-centar">Admin centar</a>
-        <a class="tone-violet {% if path.startswith('/admin/v11') or path.startswith('/admin/dashboard') %}active{% endif %}" href="/admin/v11">Dashboard</a>
-        <a class="tone-violet {% if path.startswith('/admin/mapa-platforme') %}active{% endif %}" href="/admin/mapa-platforme">Mapa platforme</a>
-        <a class="tone-blue {% if path.startswith('/admin/kampanje') %}active{% endif %}" href="/admin/kampanje">Kampanje</a>
-        <a class="tone-blue {% if path.startswith('/admin/dokazi') %}active{% endif %}" href="/admin/dokazi">Dokazi</a>
+      <div class="premium-admin-nav-group">
+        <span class="premium-admin-nav-label">Brzi pregled</span>
+        <div class="premium-admin-nav-row primary">
+          <a class="tone-blue {% if path == '/' %}active{% endif %}" href="/">Početna</a>
+          <a class="tone-blue {% if path.startswith('/zadaci') %}active{% endif %}" href="/zadaci">Zadaci</a>
+          <a class="tone-violet {% if path.startswith('/admin-centar') %}active{% endif %}" href="/admin-centar">Admin centar</a>
+          <a class="tone-violet {% if path.startswith('/admin/v11') or path.startswith('/admin/dashboard') %}active{% endif %}" href="/admin/v11">Dashboard</a>
+          <a class="tone-violet {% if path.startswith('/admin/mapa-platforme') %}active{% endif %}" href="/admin/mapa-platforme">Mapa platforme</a>
+          <a class="tone-blue {% if path.startswith('/admin/kampanje') %}active{% endif %}" href="/admin/kampanje">Kampanje</a>
+          <a class="tone-blue {% if path.startswith('/admin/dokazi') %}active{% endif %}" href="/admin/dokazi">Dokazi</a>
+        </div>
       </div>
-      <div class="premium-admin-nav-row secondary">
-        <a class="tone-green {% if path.startswith('/admin/promocija-v111') or path.startswith('/admin/banneri-v111') or path.startswith('/admin/reklame-v111') %}active{% endif %}" href="/admin/promocija-v111">Reklame</a>
-        <a class="tone-green {% if path.startswith('/admin/finansije') %}active{% endif %}" href="/admin/finansije">Finansije</a>
-        <a class="tone-green {% if path.startswith('/admin/fakture') %}active{% endif %}" href="/admin/fakture">Fakture</a>
-        <a class="tone-green {% if path.startswith('/admin/isplate') %}active{% endif %}" href="/admin/isplate">Isplate</a>
-        <a class="tone-green {% if path.startswith('/admin/payouts-v11') %}active{% endif %}" href="/admin/payouts-v11">Payout alati</a>
-        <a class="tone-green {% if path.startswith('/admin/cene-v111') %}active{% endif %}" href="/admin/cene-v111">Cene</a>
-        <a class="tone-amber {% if path.startswith('/admin/analitika-v117') %}active{% endif %}" href="/admin/analitika-v117">Analitika</a>
-        <a class="tone-amber {% if path.startswith('/admin/korisnici-baza-v117') %}active{% endif %}" href="/admin/korisnici-baza-v117">Baza korisnika</a>
-        <a class="tone-amber {% if path.startswith('/admin/oglasivaci-baza-v117') %}active{% endif %}" href="/admin/oglasivaci-baza-v117">Baza oglašivača</a>
-        <a class="tone-red {% if path.startswith('/admin/fraud-v11') %}active{% endif %}" href="/admin/fraud-v11">Anti-fraud</a>
-        <a class="tone-red {% if path.startswith('/admin/auto-engine-v114') %}active{% endif %}" href="/admin/auto-engine-v114">Auto engine</a>
-        <a class="tone-red {% if path.startswith('/admin/smart-v115') %}active{% endif %}" href="/admin/smart-v115">Smart auto</a>
-        <a class="tone-red {% if path.startswith('/admin/deploy-v11') %}active{% endif %}" href="/admin/deploy-v11">Produkcija</a>
+      <div class="premium-admin-nav-group">
+        <span class="premium-admin-nav-label">Finansije i reklame</span>
+        <div class="premium-admin-nav-row secondary">
+          <a class="tone-green {% if path.startswith('/admin/promocija-v111') or path.startswith('/admin/banneri-v111') or path.startswith('/admin/reklame-v111') %}active{% endif %}" href="/admin/promocija-v111">Reklame</a>
+          <a class="tone-green {% if path.startswith('/admin/finansije') %}active{% endif %}" href="/admin/finansije">Finansije</a>
+          <a class="tone-green {% if path.startswith('/admin/fakture') %}active{% endif %}" href="/admin/fakture">Fakture</a>
+          <a class="tone-green {% if path.startswith('/admin/isplate') %}active{% endif %}" href="/admin/isplate">Isplate</a>
+          <a class="tone-green {% if path.startswith('/admin/payouts-v11') %}active{% endif %}" href="/admin/payouts-v11">Payout alati</a>
+          <a class="tone-green {% if path.startswith('/admin/cene-v111') %}active{% endif %}" href="/admin/cene-v111">Cene</a>
+          <a class="tone-amber {% if path.startswith('/admin/analitika') %}active{% endif %}" href="/admin/analitika">Analitika</a>
+        </div>
+      </div>
+      <div class="premium-admin-nav-group">
+        <span class="premium-admin-nav-label">Ljudi i rast</span>
+        <div class="premium-admin-nav-row secondary">
+          <a class="tone-amber {% if path.startswith('/admin/korisnici-baza-v117') %}active{% endif %}" href="/admin/korisnici-baza-v117">Baza korisnika</a>
+          <a class="tone-amber {% if path.startswith('/admin/oglasivaci-baza-v117') %}active{% endif %}" href="/admin/oglasivaci-baza-v117">Baza oglašivača</a>
+          <a class="tone-amber {% if path.startswith('/admin/korisnici') %}active{% endif %}" href="/admin/korisnici">Korisnici</a>
+          <a class="tone-amber {% if path.startswith('/admin/oglasivaci') %}active{% endif %}" href="/admin/oglasivaci">Oglašivači</a>
+          <a class="tone-amber {% if path.startswith('/admin/referral') %}active{% endif %}" href="/admin/referral">Referral</a>
+          <a class="tone-amber {% if path.startswith('/admin/growth') %}active{% endif %}" href="/admin/growth">Growth</a>
+          <a class="tone-amber {% if path.startswith('/admin/planovi') %}active{% endif %}" href="/admin/planovi">Planovi</a>
+        </div>
+      </div>
+      <div class="premium-admin-nav-group">
+        <span class="premium-admin-nav-label">Operacije i sigurnost</span>
+        <div class="premium-admin-nav-row secondary">
+          <a class="tone-red {% if path.startswith('/admin/anti-fraud') or path.startswith('/admin/fraud-v11') %}active{% endif %}" href="/admin/anti-fraud">Anti-fraud</a>
+          <a class="tone-red {% if path.startswith('/admin/auto-engine-v114') %}active{% endif %}" href="/admin/auto-engine-v114">Auto engine</a>
+          <a class="tone-red {% if path.startswith('/admin/smart-v115') %}active{% endif %}" href="/admin/smart-v115">Smart auto</a>
+          <a class="tone-red {% if path.startswith('/admin/deploy-v11') %}active{% endif %}" href="/admin/deploy-v11">Produkcija</a>
+          <a class="tone-red {% if path.startswith('/admin/system-settings') %}active{% endif %}" href="/admin/system-settings">System settings</a>
+          <a class="tone-red {% if path.startswith('/admin/feature-flags') %}active{% endif %}" href="/admin/feature-flags">Feature flags</a>
+          <a class="tone-red {% if path.startswith('/admin/security-v11') or path.startswith('/admin/security') %}active{% endif %}" href="/admin/security-v11">Security</a>
+        </div>
       </div>
     </nav>
     {% else %}

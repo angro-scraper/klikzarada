@@ -5,12 +5,12 @@
   <div>
     <span>ADMIN</span>
     <h1>Kontrola platforme</h1>
-    <p>Jedan pregled za kampanje, dokaze, isplate, budžete, reklame, automatizaciju, monetizaciju i korisničke signale.</p>
+    <p>Jedan pregled za finansije, korisnike, oglašivače, reklame, automatizaciju, sadržaj, bezbednost i nove funkcije. Svaka oblast je odvojena da upravljanje bude brzo i pregledno.</p>
   </div>
   <div class="premium-panel-actions">
-    <a class="premium-btn blue" href="/admin/smart-v115">Smart auto</a>
-    <a class="premium-btn green" href="/admin/auto-engine-v114">Auto engine</a>
-    <a class="premium-btn white" href="/admin/mapa-platforme">Mapa platforme</a>
+    <a class="premium-btn blue" href="/admin/system-settings">Sistemska podešavanja</a>
+    <a class="premium-btn green" href="/admin/finansije">Finansije</a>
+    <a class="premium-btn white" href="/admin/reklame-v111">Reklame</a>
   </div>
 </section>
 
@@ -79,37 +79,106 @@
 </section>
 {% endif %}
 
-<div class="premium-admin-grid">
-  <section class="premium-card gradient">
-    <div class="premium-card-head"><h2>Brze akcije</h2><span>admin</span></div>
-    <div class="premium-action-grid">
-      <a href="/admin/kampanje">Kampanje</a>
-      <a href="/admin/dokazi">Dokazi</a>
-      <a href="/admin/isplate">Isplate</a>
-      <a href="/admin/promocija-v111">Reklame</a>
-      <a href="/admin/cene-v111">Cene</a>
-      <a href="/admin/fraud-v11">Anti-fraud</a>
-      <a href="/admin/ai-review">AI review</a>
-      <a href="/admin/smart-v115">Smart auto</a>
-      <a href="/admin/deploy-v11">Produkcija</a>
-    </div>
-  </section>
+<section class="premium-card">
+  <div class="premium-card-head"><h2>Brzi hub po grupama</h2><span>svaka oblast ima svoja dugmad</span></div>
+  <div class="premium-group-grid">
+    <article class="premium-group-card">
+      <div class="premium-card-head"><h3>Finansije</h3><span>računi, isplate, budžeti</span></div>
+      <div class="premium-action-grid">
+        <a href="/admin/finansije">Finansijski centar</a>
+        <a href="/admin/fakture">Fakture</a>
+        <a href="/admin/isplate">Isplate</a>
+        <a href="/admin/payouts-v11">Payout alati</a>
+        <a href="/admin/finance-v11834">Finance v11834</a>
+        <a href="/admin/budget-v11">Budžet</a>
+        <a href="/admin/cene-v111">Cene</a>
+        <a href="/admin/finansije.csv">Export CSV</a>
+      </div>
+    </article>
 
-  <section class="premium-card">
-    <div class="premium-card-head"><h2>Finansije</h2><a href="/admin/finansije">Otvori</a></div>
-    <div class="premium-money-grid">
-      <article><small>Provizija platforme</small><strong>{{ "%.0f"|format(platform_fee_total if platform_fee_total is defined else 0) }} RSD</strong></article>
-      <article><small>Odobreno korisnicima</small><strong>{{ "%.0f"|format(approved_total if approved_total is defined else 0) }} RSD</strong></article>
-      <article><small>Budžet oglašivača</small><strong>{{ "%.0f"|format(advertiser_budget_total if advertiser_budget_total is defined else 0) }} RSD</strong></article>
-    </div>
-    <div class="premium-action-grid" style="margin-top:16px;">
-      <a href="/admin/finansije">Finansijski centar</a>
-      <a href="/admin/fakture">Fakture</a>
-      <a href="/admin/isplate">Isplate</a>
-      <a href="/admin/payouts-v11">Payout alati</a>
-    </div>
-  </section>
-</div>
+    <article class="premium-group-card">
+      <div class="premium-card-head"><h3>Korisnici</h3><span>nalog, rizik, tok</span></div>
+      <div class="premium-action-grid">
+        <a href="/admin/korisnici">Korisnici</a>
+        <a href="/admin/korisnici-baza-v117">Baza korisnika</a>
+        <a href="/admin/referral">Referral</a>
+        <a href="/admin/logovi">Logovi</a>
+        <a href="/admin/anti-fraud">Anti-fraud</a>
+        <a href="/admin/trust-v11836">Trust</a>
+        <a href="/admin/disputes-v11836">Sporovi</a>
+      </div>
+    </article>
+
+    <article class="premium-group-card">
+      <div class="premium-card-head"><h3>Oglašivači</h3><span>budžet, kampanje, CRM</span></div>
+      <div class="premium-action-grid">
+        <a href="/admin/oglasivaci">Oglašivači</a>
+        <a href="/admin/oglasivaci-baza-v117">Baza oglašivača</a>
+        <a href="/admin/crm">CRM</a>
+        <a href="/admin/webhooks">Webhooks</a>
+        <a href="/admin/api-kljucevi">API ključevi</a>
+        <a href="/admin/marketing-v11">Marketing</a>
+        <a href="/admin/enterprise">Enterprise</a>
+      </div>
+    </article>
+
+    <article class="premium-group-card">
+      <div class="premium-card-head"><h3>Reklame</h3><span>banneri, boost, slotovi</span></div>
+      <div class="premium-action-grid">
+        <a href="/admin/reklame-v111">Reklame panel</a>
+        <a href="/admin/promocija-v111">Promocija</a>
+        <a href="/admin/banneri-v111">Banneri</a>
+        <a href="/admin/cene-v111">Reklamne cene</a>
+        <a href="/admin/analytics">Analitika</a>
+        <a href="/admin/marketing">Marketing</a>
+        <a href="/admin/launch-v11836">Launch plan</a>
+        <a href="/admin/marketplace">Marketplace</a>
+      </div>
+    </article>
+
+    <article class="premium-group-card">
+      <div class="premium-card-head"><h3>Operacije</h3><span>tok rada, deploy, automatizacija</span></div>
+      <div class="premium-action-grid">
+        <a href="/admin/daily-desk-v11">Daily desk</a>
+        <a href="/admin/deploy-v11">Produkcija</a>
+        <a href="/admin/ops-v11835">Ops</a>
+        <a href="/admin/ai-review">AI review</a>
+        <a href="/admin/auto-engine-v114">Auto engine</a>
+        <a href="/admin/smart-v115">Smart auto</a>
+        <a href="/admin/workflows-v10">Workflows</a>
+        <a href="/admin/scale">Scale</a>
+      </div>
+    </article>
+
+    <article class="premium-group-card">
+      <div class="premium-card-head"><h3>Sistem i bezbednost</h3><span>pravila, feature flag, compliance</span></div>
+      <div class="premium-action-grid">
+        <a href="/admin/system-settings">System settings</a>
+        <a href="/admin/feature-flags">Feature flags</a>
+        <a href="/admin/security-v11">Security v11</a>
+        <a href="/admin/security">Security</a>
+        <a href="/admin/compliance">Compliance</a>
+        <a href="/admin/sla">SLA</a>
+        <a href="/admin/legal-v11">Pravila</a>
+        <a href="/admin/help-v8">Pomoć</a>
+      </div>
+    </article>
+
+    <article class="premium-group-card">
+      <div class="premium-card-head"><h3>Sadržaj i rast</h3><span>šabloni, poruke, rast</span></div>
+      <div class="premium-action-grid">
+        <a href="/admin/sabloni">Šabloni</a>
+        <a href="/admin/content">Sadržaj</a>
+        <a href="/admin/email-templates">Email šabloni</a>
+        <a href="/admin/growth">Growth</a>
+        <a href="/admin/analytics">Analitika</a>
+        <a href="/admin/planovi">Planovi</a>
+        <a href="/admin/v11">V11 dashboard</a>
+        <a href="/admin/release-v8">Release</a>
+      </div>
+    </article>
+  </div>
+</section>
 
 <div class="premium-dashboard-grid">
   <section class="premium-card">
@@ -126,7 +195,7 @@
   </section>
 
   <section class="premium-card">
-    <div class="premium-card-head"><h2>Reklame i isticanja</h2><a href="/admin/promocija-v111">Uredi reklame</a></div>
+    <div class="premium-card-head"><h2>Reklame i isticanja</h2><a href="/admin/reklame-v111">Uredi reklame</a></div>
     <div class="premium-list">
       {% if boosts is defined %}
         {% for b in boosts[:5] %}
