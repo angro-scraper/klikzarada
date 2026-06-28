@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: klikzarada-v11
+    env: docker
+    plan: starter
+    rootDir: backend
+    autoDeploy: true
+    healthCheckPath: /api/v1/v11/health
+    envVars:
+      - key: KLIKZARADA_SECRET_KEY
+        sync: false
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
