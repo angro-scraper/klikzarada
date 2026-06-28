@@ -3579,6 +3579,7 @@ def admin_v11_dashboard(request: Request, db: Session = Depends(get_db)):
         "legal_pages": db.query(LegalPageV11).count(),
         "marketing_pages": db.query(MarketingLandingPageV11).count(),
         "checks_open": db.query(ProductionConfigCheckV11).filter(ProductionConfigCheckV11.status != "done").count(),
+        "finance_accounts": v11836_public_accounts(db),
     })
 
 

@@ -9736,6 +9736,36 @@ a{text-decoration:none!important}
 .kz1189-footer .newsletter button{height:42px;border:none;background:#0b67f1;color:#fff;border-radius:0 14px 14px 0;font-size:18px;font-weight:900;cursor:pointer}
 @media(max-width:980px){.kz1189-footer{grid-template-columns:1fr}.kz1189-footer .brand{grid-template-columns:auto 1fr}.kz1189-footer .brand p{grid-column:1/-1;grid-row:auto;max-width:none}.kz1189-footer .social{grid-column:1/-1}.kz1189-cta{grid-template-columns:1fr}.kz1189-cta img{display:none}}
 
+/* Final alignment fixes for public/admin header and footer branding */
+.kz117-actions a,
+.kz118-actions a{
+  min-height:44px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  line-height:1!important;
+  padding:0 18px!important;
+}
+.kz118-actions{
+  align-items:center!important;
+}
+.kz1189-footer .brand img{
+  width:44px!important;
+  height:44px!important;
+  border-radius:12px!important;
+  display:block!important;
+}
+.kz1189-footer .brand{
+  align-items:center!important;
+}
+.kz1189-footer .brand img{
+  grid-column:1/2!important;
+  grid-row:1/3!important;
+}
+.premium-app-user{
+  align-self:center!important;
+}
+
 
 /* =========================================================
    V11.18.11 FOOTER + 3 BANNERS FINAL POLISH
