@@ -52,6 +52,48 @@
   </article>
 </section>
 
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Ad-sales komandni tok</h2>
+    <span>inventar / pricing / objava</span>
+  </div>
+  <div class="kz1111-proof-grid">
+    <article class="kz1111-proof-card variant-approved">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-approved">inventar</span>
+          <span class="kz1111-proof-tiny approved">slotovi</span>
+        </div>
+        <strong>Premium prostor</strong>
+      </div>
+      <h3>{{ slots|length }} slotova za prodaju</h3>
+      <p>Svaki slot mora imati jasnu cenu i aktivan status da sales i admin rade iz istog sistema, a ne iz ručnih dogovora.</p>
+    </article>
+    <article class="kz1111-proof-card variant-pending">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-pending">pipeline</span>
+          <span class="kz1111-proof-tiny pending">zahtevi</span>
+        </div>
+        <strong>Čekanje košta</strong>
+      </div>
+      <h3>{{ pending_count }} bannera čeka obradu</h3>
+      <p>Pending reklame su realan prihod na čekanju. Ovaj broj mora biti mali da oglašivač oseća brzinu platforme.</p>
+    </article>
+    <article class="kz1111-proof-card variant-rejected">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-rejected">marža</span>
+          <span class="kz1111-proof-tiny rejected">revenue</span>
+        </div>
+        <strong>Cena mora praviti rezultat</strong>
+      </div>
+      <h3>Reklame nisu samo upload</h3>
+      <p>Banneri, boost i view economics moraju biti vezani za cenovnik, budžet i revenue forecast da bi admin imao stvarni ad-sales centar.</p>
+    </article>
+  </div>
+</section>
+
 <div class="premium-dashboard-grid banner-launch-grid">
   <section class="premium-card gradient banner-launch-panel">
     <div class="premium-card-head">
@@ -414,6 +456,25 @@
       {% endfor %}
       </tbody>
     </table>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Sledeće funkcije koje vrede dodati</h2>
+    <span>ad-sales roadmap</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <div class="kz1111-ledger-card">
+      <small>Prodaja</small>
+      <strong>Kalendar rezervacije slotova</strong>
+      <p>Treba dodati pregled po danima da admin odmah vidi koji premium slot je zauzet, slobodan ili delimično rezervisan.</p>
+    </div>
+    <div class="kz1111-ledger-card">
+      <small>Optimizacija</small>
+      <strong>Pacing i ROI signal po oglašivaču</strong>
+      <p>Korisno je da admin vidi da li reklama troši budžet prebrzo, presporo ili zdravo i da iz ovog ekrana pređe na korekciju cene ili placement-a.</p>
+    </div>
   </div>
 </section>
 

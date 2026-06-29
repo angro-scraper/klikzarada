@@ -37,6 +37,48 @@
   </article>
 </section>
 
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Monetization control</h2>
+    <span>split / inventar / marža</span>
+  </div>
+  <div class="kz1111-proof-grid">
+    <article class="kz1111-proof-card variant-approved">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-approved">split</span>
+          <span class="kz1111-proof-tiny approved">ad view</span>
+        </div>
+        <strong>Ekonomija po prikazu</strong>
+      </div>
+      <h3>{{ "%.0f"|format(ad_cost) }} RSD ulaz za validno gledanje</h3>
+      <p>Ovde se odlučuje koliko platforma zadržava, a koliko ide korisniku za isporučen rezultat.</p>
+    </article>
+    <article class="kz1111-proof-card variant-pending">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-pending">pricing</span>
+          <span class="kz1111-proof-tiny pending">banneri</span>
+        </div>
+        <strong>Slotovi su inventar</strong>
+      </div>
+      <h3>Cenovnik mora pratiti placement</h3>
+      <p>Kad slot i cena nisu usklađeni, admin ne kontroliše ponudu, a sales nema jasan proizvod za prodaju.</p>
+    </article>
+    <article class="kz1111-proof-card variant-rejected">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-rejected">guardrail</span>
+          <span class="kz1111-proof-tiny rejected">revenue</span>
+        </div>
+        <strong>Marža ne sme biti slučajna</strong>
+      </div>
+      <h3>Pricing mora da hrani revenue model</h3>
+      <p>Zato je ovaj ekran direktno vezan za `reklame`, `budžete`, `fakture` i `revenue`, a ne samo za ručnu izmenu brojeva.</p>
+    </article>
+  </div>
+</section>
+
 <div class="premium-dashboard-grid">
   <section class="premium-card gradient">
     <div class="premium-card-head">
@@ -109,5 +151,24 @@
     </div>
     <button class="btn btn-primary" style="margin-top:18px">Sačuvaj sve cene</button>
   </form>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Šta još treba od funkcija</h2>
+    <span>pricing roadmap</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <div class="kz1111-ledger-card">
+      <small>Komercijala</small>
+      <strong>Cenovni paketi po tipu klijenta</strong>
+      <p>Sledeći korak je da uvedemo pakete za male firme, agencije i enterprise oglašivače da sales ne sklapa svaku ponudu ručno.</p>
+    </div>
+    <div class="kz1111-ledger-card">
+      <small>Kontrola</small>
+      <strong>Minimalna marža i upozorenje</strong>
+      <p>Vredi dodati guardrail koji obeležava rizičnu cenu kada platformi ostaje premalo nakon reward dela i ostalih troškova.</p>
+    </div>
+  </div>
 </section>
 {% endblock %}

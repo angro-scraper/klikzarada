@@ -1,11 +1,133 @@
-{% extends "app_base.html" %}{% set title="Daily Desk V11" %}{% block app_content %}
-<div class="section-heading left"><span>V11 Admin Daily Desk</span><h2>Dnevni radni sto</h2></div>
-<form class="form-panel" method="post" action="/admin/daily-desk-v11/note"><div class="form-grid"><div><label>Naslov</label><input name="title" required></div><div><label>Prioritet</label><select name="priority"><option>low</option><option>medium</option><option>high</option><option>critical</option></select></div></div><label>Napomena</label><textarea name="note"></textarea><button class="btn btn-primary">Dodaj note</button></form>
-<div class="grid-2">
-<div class="table-card"><table><thead><tr><th>Pending dokazi</th><th>Korisnik</th><th>Zadatak</th></tr></thead><tbody>{% for s in na čekanju_submissions %}<tr><td>#{{ s.id }}</td><td>{{ s.user.full_name }}</td><td>{{ s.task.title }}</td></tr>{% else %}<tr><td colspan="3">Nema na čekanju dokaza.</td></tr>{% endfor %}</tbody></table></div>
-<div class="table-card"><table><thead><tr><th>Pending isplate</th><th>Korisnik</th><th>Iznos</th></tr></thead><tbody>{% for w in na čekanju_withdrawals %}<tr><td>#{{ w.id }}</td><td>{{ w.user.full_name }}</td><td>{{ "%.0f"|format(w.amount_rsd) }} RSD</td></tr>{% else %}<tr><td colspan="3">Nema na čekanju isplata.</td></tr>{% endfor %}</tbody></table></div>
+{% extends "app_base.html" %}
+{% set title="Daily Desk V11" %}
+{% block app_content %}
+
+<section class="kz1111-hero finance">
+  <div>
+    <span>DAILY DESK</span>
+    <h1>Dnevni radni sto admin tima</h1>
+    <p>Jedan ekran za ono što danas traži reakciju: pending dokazi, isplate, fraud signali i kratke operativne beleške koje drže tim u ritmu.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/admin/ops-v11835">Ops centar</a>
+    <a class="btn btn-secondary" href="/admin/dokazi">Dokazi</a>
+    <a class="btn btn-secondary" href="/admin/isplate">Isplate</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Pending dokazi</small><strong>{{ pending_submissions|length }}</strong><span>za pregled</span></div>
+  <div class="kz1111-stat orange"><small>Pending isplate</small><strong>{{ pending_withdrawals|length }}</strong><span>za obradu</span></div>
+  <div class="kz1111-stat purple"><small>Fraud signali</small><strong>{{ fraud|length }}</strong><span>otvoreno</span></div>
+  <div class="kz1111-stat green"><small>Beleške</small><strong>{{ notes|length }}</strong><span>dnevni fokus</span></div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Dodaj dnevnu belešku</h2>
+    <span>prioritet / sledeći korak</span>
+  </div>
+  <form class="form-panel kz1111-tech-form" method="post" action="/admin/daily-desk-v11/note">
+    <div class="two">
+      <div><label>Naslov</label><input name="title" required></div>
+      <div>
+        <label>Prioritet</label>
+        <select name="priority">
+          <option>low</option>
+          <option>medium</option>
+          <option>high</option>
+          <option>critical</option>
+        </select>
+      </div>
+    </div>
+    <label>Napomena</label>
+    <textarea name="note" placeholder="Šta danas treba uraditi, koga cimnuti i na kom modulu nastaviti."></textarea>
+    <button class="btn btn-primary">Dodaj note</button>
+  </form>
+</section>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Pending dokazi</h2>
+      <span>{{ pending_submissions|length }}</span>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Korisnik</th><th>Zadatak</th></tr></thead>
+        <tbody>
+          {% for s in pending_submissions %}
+          <tr><td>#{{ s.id }}</td><td>{{ s.user.full_name }}</td><td>{{ s.task.title }}</td></tr>
+          {% else %}
+          <tr><td colspan="3">Nema pending dokaza.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Pending isplate</h2>
+      <span>{{ pending_withdrawals|length }}</span>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Korisnik</th><th>Iznos</th></tr></thead>
+        <tbody>
+          {% for w in pending_withdrawals %}
+          <tr><td>#{{ w.id }}</td><td>{{ w.user.full_name }}</td><td>{{ "%.0f"|format(w.amount_rsd) }} RSD</td></tr>
+          {% else %}
+          <tr><td colspan="3">Nema pending isplata.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 </div>
-<div class="section-heading left panel-space"><span>Fraud / Notes</span><h2>Rizici i prioriteti</h2></div>
-<div class="grid-2"><div class="table-card"><table><thead><tr><th>Signal</th><th>Korisnik</th><th>Score</th><th>Details</th></tr></thead><tbody>{% for f in fraud %}<tr><td>{{ f.signal_type }}</td><td>{{ f.user.full_name if f.user else "-" }}</td><td>{{ f.risk_score }}</td><td>{{ f.details or "" }}</td></tr>{% else %}<tr><td colspan="4">Nema fraud signala.</td></tr>{% endfor %}</tbody></table></div>
-<div class="grid-1">{% for n in notes %}<div class="info-card"><span class="pill">{{ n.priority }}</span><h3>{{ n.title }}</h3><p>{{ n.note or "" }}</p></div>{% endfor %}</div></div>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Fraud i rizični signali</h2>
+      <span>{{ fraud|length }}</span>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>Signal</th><th>Korisnik</th><th>Score</th><th>Detalji</th></tr></thead>
+        <tbody>
+          {% for f in fraud %}
+          <tr><td>{{ f.signal_type }}</td><td>{{ f.user.full_name if f.user else "-" }}</td><td>{{ f.risk_score }}</td><td>{{ f.details or "" }}</td></tr>
+          {% else %}
+          <tr><td colspan="4">Nema otvorenih fraud signala.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Dnevne beleške</h2>
+      <span>{{ notes|length }}</span>
+    </div>
+    <div class="kz1111-smoke-list">
+      {% for n in notes %}
+      <article>
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-{{ 'rejected' if n.priority == 'critical' else 'pending' if n.priority == 'high' else 'approved' }}">{{ n.priority }}</span>
+            <span class="kz1111-proof-tiny approved">note</span>
+          </div>
+          <strong>{{ n.title }}</strong>
+        </div>
+        <p>{{ n.note or "" }}</p>
+        <small>{{ n.created_at }}</small>
+      </article>
+      {% else %}
+      <div class="kz1111-empty"><h3>Nema beleški</h3><p>Dodaj dnevni fokus za tim ili za sebe da ostane jasan trag šta danas radimo.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
 {% endblock %}

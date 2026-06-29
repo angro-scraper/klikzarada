@@ -5,12 +5,13 @@
   <div>
     <span>ADMIN</span>
     <h1>Kontrola platforme</h1>
-    <p>Jedan pregled za finansije, korisnike, oglašivače, reklame, automatizaciju, sadržaj, bezbednost i nove funkcije. Svaka oblast je odvojena da upravljanje bude brzo i pregledno.</p>
+    <p>Operativni centar za monetizaciju, oglašivače, kampanje, dokaze, isplate i automatizaciju. Ovaj ekran treba da radi kao CRM i workflow hub, a ne kao stari spisak admin linkova.</p>
   </div>
   <div class="premium-panel-actions">
     <a class="premium-btn blue" href="/admin/system-settings">Sistemska podešavanja</a>
     <a class="premium-btn green" href="/admin/finansije">Finansije</a>
     <a class="premium-btn white" href="/admin/reklame-v111">Reklame</a>
+    <a class="premium-btn white" href="/admin/oglasivaci-baza-v117">Baza oglašivača</a>
   </div>
 </section>
 
@@ -19,6 +20,42 @@
   <article class="orange"><small>Kampanje na čekanju</small><strong>{{ pending_tasks|length if pending_tasks is defined else "0" }}</strong><span>moderacija</span></article>
   <article class="purple"><small>Dokazi na čekanju</small><strong>{{ pending_subs|length if pending_subs is defined else "0" }}</strong><span>provera</span></article>
   <article class="green"><small>Isplate na čekanju</small><strong>{{ pending_withdrawals|length if pending_withdrawals is defined else "0" }}</strong><span>obrada</span></article>
+</section>
+
+<section class="admin-v1172-priority-grid">
+  <article class="premium-card admin-v1172-priority">
+    <div class="premium-card-head">
+      <h2>CRM i komercijala</h2>
+      <span>oglašivači</span>
+    </div>
+    <div class="admin-v1172-priority-list">
+      <a href="/admin/oglasivaci"><b>Operativni oglašivači</b><small>Top-up, status naloga i dnevni komercijalni rad.</small></a>
+      <a href="/admin/oglasivaci-baza-v117"><b>Baza oglašivača</b><small>Firma, kontakt, budžet, kampanje i signal rasta.</small></a>
+      <a href="/admin/affiliate-v9"><b>Affiliate i partneri</b><small>Ko dovodi firme i koliki je obračun po partner kanalu.</small></a>
+    </div>
+  </article>
+  <article class="premium-card admin-v1172-priority">
+    <div class="premium-card-head">
+      <h2>Ad sales</h2>
+      <span>inventar i cene</span>
+    </div>
+    <div class="admin-v1172-priority-list">
+      <a href="/admin/reklame-v111"><b>Reklame i slotovi</b><small>Banner inventory, objava i pending pipeline.</small></a>
+      <a href="/admin/cene-v111"><b>Cene i provizije</b><small>Split ekonomije, inventar i marža platforme.</small></a>
+      <a href="/admin/revenue-v9"><b>Revenue forecast</b><small>Da li trenutni cenovnik stvarno nosi prihod.</small></a>
+    </div>
+  </article>
+  <article class="premium-card admin-v1172-priority">
+    <div class="premium-card-head">
+      <h2>Operativa</h2>
+      <span>svakodnevni rad</span>
+    </div>
+    <div class="admin-v1172-priority-list">
+      <a href="/admin/daily-desk-v11"><b>Daily desk</b><small>Šta danas gori: dokazi, isplate, fraud i prioriteti.</small></a>
+      <a href="/admin/ops-v11835"><b>Ops command center</b><small>Scan problema, rizika i tačan sledeći klik za rešavanje.</small></a>
+      <a href="/admin/deploy-v11"><b>Deploy i smoke</b><small>Stabilnost produkcije i pre-flight provere.</small></a>
+    </div>
+  </article>
 </section>
 
 {% if automation_summary is defined %}
