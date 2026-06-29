@@ -129,6 +129,8 @@ def flash(msg):
         "coupon_error":("error","Promo kod nije validan ili je već potrošen."),
         "notification_sent":("success","Obaveštenje je poslato."),
         "invoice_created":("success","Predračun/faktura je kreirana."),
+        "remote_ok":("success","Partner API zahteva je uspešno poslat."),
+        "remote_error":("error","Partner API nije prihvatio zahtev."),
     }
     return m.get(msg)
 
@@ -303,6 +305,27 @@ def import_tasks_from_source(db: Session, source, admin_id: int | None = None):
     source.updated_at = datetime.utcnow()
     db.flush()
     return {"created": created, "skipped": skipped, "queued": queue_items}
+
+def task_source_remote_json_post(source, payload):
+    endpoint = task_source_effective_url(source)
+    if not endpoint:
+        raise HTTPException(400, "Izvor nema endpoint URL.")
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    req = UrlRequest(
+        endpoint,
+        data=body,
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "User-Agent": "KlikZarada-Importer/1.0",
+        },
+    )
+    with urlopen(req, timeout=30) as resp:
+        raw = resp.read().decode("utf-8", "replace")
+    try:
+        return json.loads(raw)
+    except Exception:
+        return {"success": False, "raw": raw}
 
 def upsert_system_setting(db: Session, key: str, value: str, description: str | None = None):
     item = db.query(SystemSetting).filter(SystemSetting.key == key.strip()).first()
@@ -1858,10 +1881,11 @@ def admin_task_source_toggle(source_id: int, request: Request, db: Session = Dep
 
 
 @app.get("/admin/import-moderation", response_class=HTMLResponse)
-def admin_import_moderation(request: Request, db: Session = Depends(get_db)):
+def admin_import_moderation(request: Request, msg: str | None = None, db: Session = Depends(get_db)):
     u = require(request, db)
     check_role(u, ["admin"])
     sources = db.query(TaskSourceV11).order_by(TaskSourceV11.created_at.desc()).all()
+    primary_source = sources[0] if sources else None
     queue = db.query(ModerationQueueV10).order_by(ModerationQueueV10.created_at.desc()).limit(80).all()
     rules = db.query(QualityRuleV10).order_by(QualityRuleV10.created_at.desc()).all()
     segments = db.query(SmartSegmentRuleV10).order_by(SmartSegmentRuleV10.created_at.desc()).all()
@@ -1878,12 +1902,14 @@ def admin_import_moderation(request: Request, db: Session = Depends(get_db)):
             "request": request,
             "user": u,
             "sources": sources,
+            "primary_source": primary_source,
             "queue": queue,
             "rules": rules,
             "segments": segments,
             "proof_reviews": proof_reviews,
             "summary": summary,
             "finance_accounts": v11836_public_accounts(db),
+            "flash": flash(msg),
         },
     )
 
@@ -1899,6 +1925,42 @@ def admin_import_moderation_source_sync(source_id: int, request: Request, db: Se
     audit(db, admin, "task_source_sync", "TaskSourceV11", source.id, f"{source.name} imported={result['created']} skipped={result['skipped']}")
     db.commit()
     return RedirectResponse("/admin/import-moderation?msg=imported", 303)
+
+
+@app.post("/admin/import-moderation/source/{source_id}/preview-create")
+def admin_import_moderation_source_preview_create(
+    source_id: int,
+    request: Request,
+    method: str = Form("create"),
+    type: str = Form("like"),
+    link: str = Form("https://site.ru"),
+    title: str = Form("Nova platforma"),
+    amount: int = Form(100),
+    db: Session = Depends(get_db),
+):
+    admin = require(request, db)
+    check_role(admin, ["admin"])
+    source = db.query(TaskSourceV11).filter(TaskSourceV11.id == source_id).first()
+    if not source:
+        raise HTTPException(404)
+    payload = {
+        "api_key": (source.api_key or "").strip(),
+        "method": method.strip() or "create",
+        "type": type.strip() or "like",
+        "link": link.strip(),
+        "title": title.strip(),
+        "amount": max(1, int(amount)),
+    }
+    try:
+        result = task_source_remote_json_post(source, payload)
+        preview = json.dumps(result, ensure_ascii=False)[:500]
+        audit(db, admin, "task_source_preview_create", "TaskSourceV11", source.id, f"{source.name} payload={payload!r} result={preview}")
+        db.commit()
+        return RedirectResponse("/admin/import-moderation?msg=remote_ok", 303)
+    except Exception as exc:
+        audit(db, admin, "task_source_preview_create_error", "TaskSourceV11", source.id, f"{source.name} error={exc}")
+        db.commit()
+        return RedirectResponse("/admin/import-moderation?msg=remote_error", 303)
 
 
 @app.post("/admin/import-moderation/sync-all")
