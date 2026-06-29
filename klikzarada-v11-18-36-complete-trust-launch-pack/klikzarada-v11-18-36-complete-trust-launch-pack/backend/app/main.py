@@ -256,6 +256,198 @@ def v11837_campaign_signal_row(db: Session, task):
         "approved_cost": approved_cost,
     }
 
+
+def v11838_parse_sales_notes(notes: str | None):
+    meta = {"package_name": "", "next_action": "", "risk_flags": "", "note_body": ""}
+    body_lines = []
+    for line in (notes or "").splitlines():
+        raw = line.strip()
+        if not raw:
+            continue
+        if raw.upper().startswith("PACKAGE:"):
+            meta["package_name"] = raw.split(":", 1)[1].strip()
+        elif raw.upper().startswith("NEXT:"):
+            meta["next_action"] = raw.split(":", 1)[1].strip()
+        elif raw.upper().startswith("RISK:"):
+            meta["risk_flags"] = raw.split(":", 1)[1].strip()
+        else:
+            body_lines.append(raw)
+    meta["note_body"] = "\n".join(body_lines).strip()
+    return meta
+
+
+def v11838_build_sales_notes(note_body: str = "", package_name: str = "", next_action: str = "", risk_flags: str = ""):
+    lines = []
+    if (package_name or "").strip():
+        lines.append(f"PACKAGE: {(package_name or '').strip()}")
+    if (next_action or "").strip():
+        lines.append(f"NEXT: {(next_action or '').strip()}")
+    if (risk_flags or "").strip():
+        lines.append(f"RISK: {(risk_flags or '').strip()}")
+    if (note_body or "").strip():
+        lines.append((note_body or "").strip())
+    return "\n".join(lines).strip() or None
+
+
+def v11838_find_sales_lead(leads, advertiser):
+    adv_company = ((getattr(advertiser, "company_name", None) or "").strip()).lower()
+    adv_name = ((getattr(advertiser, "full_name", None) or "").strip()).lower()
+    adv_email = ((getattr(advertiser, "email", None) or "").strip()).lower()
+    for lead in leads:
+        lead_company = ((getattr(lead, "company_name", None) or "").strip()).lower()
+        lead_email = ((getattr(lead, "email", None) or "").strip()).lower()
+        if adv_company and lead_company == adv_company:
+            return lead
+        if adv_email and lead_email == adv_email:
+            return lead
+        if adv_name and lead_company == adv_name:
+            return lead
+    return None
+
+
+def v11838_recommended_package(sales_packages, advertiser, lead):
+    budget = v11837_money(getattr(advertiser, "advertiser_budget_rsd", 0))
+    potential = v11837_money(getattr(lead, "potential_budget_rsd", 0)) if lead else 0.0
+    reference_budget = max(budget, potential)
+    if reference_budget >= 120000:
+        return next((pkg for pkg in sales_packages if pkg["name"] == "Enterprise"), sales_packages[-1] if sales_packages else None)
+    if reference_budget >= 35000:
+        return next((pkg for pkg in sales_packages if pkg["name"] == "Agency"), sales_packages[0] if sales_packages else None)
+    return next((pkg for pkg in sales_packages if pkg["name"] == "Small Business"), sales_packages[0] if sales_packages else None)
+
+
+def v11838_sales_workflow_row(db: Session, advertiser, lead, sales_packages):
+    meta = v11838_parse_sales_notes(getattr(lead, "notes", None)) if lead else {"package_name": "", "next_action": "", "risk_flags": "", "note_body": ""}
+    latest_payment = (
+        db.query(PaymentIntentV8)
+        .filter(PaymentIntentV8.advertiser_id == advertiser.id)
+        .order_by(PaymentIntentV8.created_at.desc())
+        .first()
+    )
+    banners = (
+        db.query(PaidAdBannerV111)
+        .filter(PaidAdBannerV111.advertiser_id == advertiser.id)
+        .order_by(PaidAdBannerV111.created_at.desc())
+        .limit(8)
+        .all()
+    ) if "PaidAdBannerV111" in globals() else []
+    active_banners = sum(1 for banner in banners if getattr(banner, "status", "") == "active")
+    pending_banners = sum(1 for banner in banners if getattr(banner, "status", "") == "pending")
+    latest_banner = banners[0] if banners else None
+    health = v11837_advertiser_health_row(db, advertiser)
+    recommended_package = v11838_recommended_package(sales_packages, advertiser, lead)
+    package_name = meta["package_name"] or (recommended_package["name"] if recommended_package else "")
+    payment_state = getattr(latest_payment, "status", None) or "nema"
+    reservation_state = getattr(latest_banner, "status", None) if latest_banner else "nema"
+    live_state = "live" if active_banners > 0 else "pending" if pending_banners > 0 else "nema"
+    next_action = meta["next_action"]
+    if not next_action:
+        if not lead:
+            next_action = "Otvoriti lead i dodeliti owner-a."
+        elif payment_state == "pending":
+            next_action = "Potvrditi uplatu i otključati budžet."
+        elif reservation_state == "pending":
+            next_action = "Zaključati termin bannera i potvrditi kreativu."
+        elif live_state != "live":
+            next_action = "Prebaciti rezervaciju u live banner."
+        else:
+            next_action = "Upsell sledeći paket ili produženje zakupa."
+    risk_flags = meta["risk_flags"]
+    if not risk_flags and health["health"] != "green":
+        risk_flags = f"health:{health['health']}; pace:{health['pacing']}"
+    priority = 0
+    if not lead:
+        priority += 40
+    if payment_state == "pending":
+        priority += 30
+    if reservation_state == "pending":
+        priority += 20
+    if live_state != "live":
+        priority += 10
+    return {
+        "advertiser": advertiser,
+        "lead": lead,
+        "owner_name": lead.owner.full_name if lead and getattr(lead, "owner", None) else "-",
+        "status": getattr(lead, "status", "no_lead") if lead else "no_lead",
+        "package_name": package_name,
+        "recommended_package": recommended_package,
+        "next_action": next_action,
+        "risk_flags": risk_flags,
+        "note_body": meta["note_body"],
+        "latest_payment": latest_payment,
+        "payment_state": payment_state,
+        "latest_banner": latest_banner,
+        "reservation_state": reservation_state,
+        "live_state": live_state,
+        "active_banners": active_banners,
+        "pending_banners": pending_banners,
+        "health": health,
+        "priority": priority,
+        "workflow": [
+            {"title": "Lead", "state": getattr(lead, "status", "missing") if lead else "missing"},
+            {"title": "Paket", "state": package_name or "unset"},
+            {"title": "Rezervacija", "state": reservation_state},
+            {"title": "Uplata", "state": payment_state},
+            {"title": "Live banner", "state": live_state},
+        ],
+    }
+
+
+def v11838_ops_suite_context(db: Session, current_url: str):
+    smoke_latest = db.query(SmokeTestRunV11).order_by(SmokeTestRunV11.created_at.desc()).first()
+    checks_blocked = db.query(ProductionConfigCheckV11).filter(ProductionConfigCheckV11.status == "blocked").count()
+    return [
+        {
+            "title": "Launch",
+            "url": "/admin/launch-v9",
+            "metric": f"{db.query(LaunchTaskV9).filter(LaunchTaskV9.status != 'done').count()} open",
+            "note": "Plan izlaska, ownership i handoff prema go-live toku.",
+            "active": current_url == "/admin/launch-v9",
+        },
+        {
+            "title": "Go-live",
+            "url": "/admin/golive-v9",
+            "metric": f"{db.query(GoLiveCheckV9).filter(GoLiveCheckV9.status != 'done').count()} open",
+            "note": "Checklist i backup signal pre finalnog puštanja.",
+            "active": current_url == "/admin/golive-v9",
+        },
+        {
+            "title": "Smoke",
+            "url": "/admin/smoke-v11",
+            "metric": getattr(smoke_latest, "status", "n/a"),
+            "note": "Brzi health signal posle deploy-a i pre live puštanja.",
+            "active": current_url == "/admin/smoke-v11",
+        },
+        {
+            "title": "Deploy",
+            "url": "/admin/deploy-v11",
+            "metric": f"{checks_blocked} blocked",
+            "note": "Production targeti, backup runovi i release spremnost.",
+            "active": current_url == "/admin/deploy-v11",
+        },
+        {
+            "title": "Security",
+            "url": "/admin/security-v11",
+            "metric": f"{db.query(LoginAttemptV11).filter(LoginAttemptV11.success == False).count()} failed",
+            "note": "Login attempts, device sessioni i admin 2FA pregled.",
+            "active": current_url == "/admin/security-v11",
+        },
+        {
+            "title": "Feature flags",
+            "url": "/admin/feature-flags",
+            "metric": f"{db.query(FeatureFlag).filter(FeatureFlag.is_enabled == True).count()} on",
+            "note": "Rollout i rollback novih funkcija bez dodatnog deploy-a.",
+            "active": current_url == "/admin/feature-flags",
+        },
+        {
+            "title": "System settings",
+            "url": "/admin/system-settings",
+            "metric": f"{db.query(TaskSourceV11).filter(TaskSourceV11.status == 'active').count()} source",
+            "note": "Ključna podešavanja, finansijski podaci i task source kontrola.",
+            "active": current_url == "/admin/system-settings",
+        },
+    ]
+
 def audit(db, admin, action, entity, entity_id, reason=""):
     db.add(AuditLog(admin_id=admin.id if admin else None, action=action, entity_type=entity, entity_id=entity_id, reason=reason))
 
@@ -883,6 +1075,25 @@ def admin_panel(request:Request, msg:str|None=None, db:Session=Depends(get_db)):
     campaign_rows = sorted(campaign_rows, key=lambda row: (0 if row["pacing"] == "spor" else 1 if row["pacing"] == "stabilan" else 2, row["completion"]))[:8]
     topup_inbox = db.query(PaymentIntentV8).order_by(PaymentIntentV8.created_at.desc()).limit(12).all()
     margin_snapshot = v11837_margin_snapshot(db)
+    crm_admins = db.query(User).filter(User.role == "admin").order_by(User.full_name.asc()).all()
+    sales_leads = db.query(SalesLead).order_by(SalesLead.updated_at.desc()).all()
+    sales_workflow_rows = []
+    for adv in data["advertisers"]:
+        sales_workflow_rows.append(
+            v11838_sales_workflow_row(
+                db,
+                adv,
+                v11838_find_sales_lead(sales_leads, adv),
+                margin_snapshot["packages"],
+            )
+        )
+    sales_workflow_rows = sorted(sales_workflow_rows, key=lambda row: (-row["priority"], row["advertiser"].id))[:8]
+    sales_pipeline_summary = {
+        "open_leads": sum(1 for lead in sales_leads if getattr(lead, "status", "") in ["new", "contacted", "demo", "proposal"]),
+        "won": sum(1 for lead in sales_leads if getattr(lead, "status", "") == "won"),
+        "pending_payments": db.query(PaymentIntentV8).filter(PaymentIntentV8.status == "pending").count(),
+        "live_banners": db.query(PaidAdBannerV111).filter(PaidAdBannerV111.status == "active").count() if "PaidAdBannerV111" in globals() else 0,
+    }
     data.update({
         "platform_revenue":db.query(func.coalesce(func.sum(TaskSubmission.platform_fee_rsd),0)).filter(TaskSubmission.status=="approved").scalar(),
         "rewards":db.query(func.coalesce(func.sum(TaskSubmission.reward_rsd),0)).filter(TaskSubmission.status=="approved").scalar(),
@@ -895,6 +1106,9 @@ def admin_panel(request:Request, msg:str|None=None, db:Session=Depends(get_db)):
         "topup_inbox": topup_inbox,
         "margin_snapshot": margin_snapshot,
         "sales_packages": margin_snapshot["packages"],
+        "crm_admins": crm_admins,
+        "sales_workflow_rows": sales_workflow_rows,
+        "sales_pipeline_summary": sales_pipeline_summary,
     })
     return templates.TemplateResponse("admin_app.html", {"request":request,"user":u,"flash":flash(msg),**data})
 
@@ -1999,13 +2213,27 @@ def admin_crm(request: Request, status: str | None = None, db: Session = Depends
 
 
 @app.post("/admin/crm/novi")
-def admin_crm_create(request: Request, company_name: str = Form(...), contact_name: str = Form(""), email: str = Form(""), phone: str = Form(""), source: str = Form("manual"), potential_budget_rsd: float = Form(0), notes: str = Form(""), db: Session = Depends(get_db)):
+def admin_crm_create(request: Request, company_name: str = Form(...), contact_name: str = Form(""), email: str = Form(""), phone: str = Form(""), source: str = Form("manual"), potential_budget_rsd: float = Form(0), notes: str = Form(""), owner_id: int = Form(0), status: str = Form("new"), package_name: str = Form(""), next_action: str = Form(""), risk_flags: str = Form(""), next_url: str = Form("/admin/crm"), db: Session = Depends(get_db)):
     u = require(request, db)
     check_role(u, ["admin"])
-    db.add(SalesLead(company_name=company_name.strip(), contact_name=contact_name.strip() or None, email=email.strip() or None, phone=phone.strip() or None, source=source.strip() or "manual", potential_budget_rsd=potential_budget_rsd, notes=notes.strip() or None, owner_id=u.id))
+    if status not in ["new", "contacted", "demo", "proposal", "won", "lost"]:
+        status = "new"
+    db.add(SalesLead(
+        company_name=company_name.strip(),
+        contact_name=contact_name.strip() or None,
+        email=email.strip() or None,
+        phone=phone.strip() or None,
+        source=source.strip() or "manual",
+        status=status,
+        potential_budget_rsd=potential_budget_rsd,
+        notes=v11838_build_sales_notes(notes, package_name, next_action, risk_flags),
+        owner_id=owner_id or u.id,
+    ))
     audit(db, u, "crm_lead_create", "SalesLead", None, company_name)
     db.commit()
-    return RedirectResponse("/admin/crm?msg=saved", 303)
+    target = next_url if next_url.startswith("/admin") else "/admin/crm"
+    separator = "&" if "?" in target else "?"
+    return RedirectResponse(f"{target}{separator}msg=saved", 303)
 
 
 @app.post("/admin/crm/{lead_id}/status")
@@ -2024,12 +2252,32 @@ def admin_crm_status(lead_id: int, request: Request, status: str = Form(...), no
     return RedirectResponse("/admin/crm?msg=saved", 303)
 
 
+@app.post("/admin/crm/{lead_id}/plan")
+def admin_crm_plan(lead_id: int, request: Request, status: str = Form("contacted"), owner_id: int = Form(0), package_name: str = Form(""), next_action: str = Form(""), risk_flags: str = Form(""), notes: str = Form(""), next_url: str = Form("/admin/oglasivaci"), db: Session = Depends(get_db)):
+    u = require(request, db)
+    check_role(u, ["admin"])
+    lead = db.query(SalesLead).filter(SalesLead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(404)
+    if status in ["new", "contacted", "demo", "proposal", "won", "lost"]:
+        lead.status = status
+    if owner_id:
+        lead.owner_id = owner_id
+    lead.notes = v11838_build_sales_notes(notes, package_name, next_action, risk_flags)
+    lead.updated_at = datetime.utcnow()
+    audit(db, u, "crm_plan_update", "SalesLead", lead.id, f"status={lead.status}")
+    db.commit()
+    target = next_url if next_url.startswith("/admin") else "/admin/oglasivaci"
+    separator = "&" if "?" in target else "?"
+    return RedirectResponse(f"{target}{separator}msg=saved", 303)
+
+
 @app.get("/admin/feature-flags", response_class=HTMLResponse)
 def admin_feature_flags(request: Request, db: Session = Depends(get_db)):
     u = require(request, db)
     check_role(u, ["admin"])
     flags = db.query(FeatureFlag).order_by(FeatureFlag.key).all()
-    return templates.TemplateResponse("admin_feature_flags_v6.html", {"request": request, "user": u, "flags": flags})
+    return templates.TemplateResponse("admin_feature_flags_v6.html", {"request": request, "user": u, "flags": flags, "ops_suite": v11838_ops_suite_context(db, "/admin/feature-flags")})
 
 
 @app.post("/admin/feature-flags/novi")
@@ -2061,7 +2309,7 @@ def admin_system_settings(request: Request, msg: str | None = None, db: Session 
     check_role(u, ["admin"])
     settings = db.query(SystemSetting).order_by(SystemSetting.key).all()
     task_sources = db.query(TaskSourceV11).order_by(TaskSourceV11.created_at.desc()).all()
-    return templates.TemplateResponse("admin_system_settings_v6.html", {"request": request, "user": u, "settings": settings, "task_sources": task_sources, "flash": flash(msg), "finance_accounts": v11836_public_accounts(db)})
+    return templates.TemplateResponse("admin_system_settings_v6.html", {"request": request, "user": u, "settings": settings, "task_sources": task_sources, "flash": flash(msg), "finance_accounts": v11836_public_accounts(db), "ops_suite": v11838_ops_suite_context(db, "/admin/system-settings")})
 
 
 @app.post("/admin/system-settings/save")
@@ -3429,7 +3677,7 @@ def admin_launch_v9(request: Request, db: Session = Depends(get_db)):
     u = require(request, db); check_role(u, ["admin"])
     campaigns = db.query(LaunchCampaignV9).order_by(LaunchCampaignV9.created_at.desc()).all()
     tasks = db.query(LaunchTaskV9).order_by(LaunchTaskV9.created_at.desc()).all()
-    return templates.TemplateResponse("admin_launch_v9.html", {"request": request, "user": u, "campaigns": campaigns, "tasks": tasks})
+    return templates.TemplateResponse("admin_launch_v9.html", {"request": request, "user": u, "campaigns": campaigns, "tasks": tasks, "ops_suite": v11838_ops_suite_context(db, "/admin/launch-v9")})
 
 
 @app.post("/admin/launch-v9/campaign")
@@ -3568,7 +3816,7 @@ def admin_golive_v9(request: Request, db: Session = Depends(get_db)):
     u = require(request, db); check_role(u, ["admin"])
     checks = db.query(GoLiveCheckV9).order_by(GoLiveCheckV9.created_at.desc()).all()
     backups = db.query(BackupSnapshotV9).order_by(BackupSnapshotV9.created_at.desc()).all()
-    return templates.TemplateResponse("admin_golive_v9.html", {"request": request, "user": u, "checks": checks, "backups": backups})
+    return templates.TemplateResponse("admin_golive_v9.html", {"request": request, "user": u, "checks": checks, "backups": backups, "ops_suite": v11838_ops_suite_context(db, "/admin/golive-v9")})
 
 
 @app.post("/admin/golive-v9/check")
@@ -4314,7 +4562,7 @@ def admin_security_v11(request: Request, db: Session = Depends(get_db)):
     attempts = db.query(LoginAttemptV11).order_by(LoginAttemptV11.created_at.desc()).limit(200).all()
     devices = db.query(UserDeviceSessionV11).order_by(UserDeviceSessionV11.last_seen_at.desc()).limit(200).all()
     codes = db.query(AdminTwoFactorCodeV11).order_by(AdminTwoFactorCodeV11.created_at.desc()).limit(20).all()
-    return templates.TemplateResponse("admin_security_v11.html", {"request": request, "user": u, "attempts": attempts, "devices": devices, "codes": codes})
+    return templates.TemplateResponse("admin_security_v11.html", {"request": request, "user": u, "attempts": attempts, "devices": devices, "codes": codes, "ops_suite": v11838_ops_suite_context(db, "/admin/security-v11")})
 
 
 @app.get("/admin/payouts-v11", response_class=HTMLResponse)
@@ -4493,7 +4741,7 @@ def admin_smoke_v11(request: Request, db: Session = Depends(get_db)):
         "failed": sum(1 for r in runs if r.status == "failed"),
         "latest_status": runs[0].status if runs else "n/a",
     }
-    return templates.TemplateResponse("admin_smoke_v11.html", {"request": request, "user": u, "runs": runs, "summary": summary})
+    return templates.TemplateResponse("admin_smoke_v11.html", {"request": request, "user": u, "runs": runs, "summary": summary, "ops_suite": v11838_ops_suite_context(db, "/admin/smoke-v11")})
 
 
 @app.post("/admin/smoke-v11/run")
@@ -6166,6 +6414,7 @@ def admin_deploy_final_v1113(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("admin_deploy_v11.html", {
         "request": request, "user": u, "flash": None, "checks": checks,
         "targets": targets, "backups": backups, "smoke_runs": smoke_runs, "summary": summary,
+        "ops_suite": v11838_ops_suite_context(db, "/admin/deploy-v11"),
     })
 
 @app.post("/admin/tasks/{task_id}/auto-boost")

@@ -58,6 +58,100 @@
   </article>
 </section>
 
+{% if sales_pipeline_summary is defined %}
+<section class="premium-stat-grid">
+  <article class="blue"><small>Open leadovi</small><strong>{{ sales_pipeline_summary.open_leads }}</strong><span>new / contacted / proposal</span></article>
+  <article class="orange"><small>Pending uplate</small><strong>{{ sales_pipeline_summary.pending_payments }}</strong><span>top-up inbox</span></article>
+  <article class="purple"><small>Live banneri</small><strong>{{ sales_pipeline_summary.live_banners }}</strong><span>aktivno na sajtu</span></article>
+  <article class="green"><small>Won</small><strong>{{ sales_pipeline_summary.won }}</strong><span>zatvoreni komercijalni poslovi</span></article>
+</section>
+
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Sales workflow za reklame</h2>
+    <span>lead -> paket -> rezervacija -> uplata -> live banner</span>
+  </div>
+  <div class="premium-list">
+    {% for row in sales_workflow_rows %}
+    <article>
+      <div>
+        <b>{{ row.advertiser.company_name or row.advertiser.full_name }}</b>
+        <small>Owner: {{ row.owner_name }} · health {{ row.health.score }} · budget {{ "%.0f"|format(row.health.available) }} RSD</small>
+      </div>
+      <div class="kz1111-proof-badges">
+        {% for step in row.workflow %}
+        <span class="status status-{{ 'approved' if step.state in ['won', 'live', 'confirmed', 'active', 'proposal', 'demo'] else 'pending' if step.state in ['contacted', 'pending', 'unset'] else 'rejected' if step.state in ['lost', 'blocked', 'missing', 'nema'] else 'pending' }}">{{ step.title }}: {{ step.state }}</span>
+        {% endfor %}
+      </div>
+      <div class="kz1111-grid-two">
+        <div>
+          <p><strong>Paket:</strong> {{ row.package_name or (row.recommended_package.name if row.recommended_package else "-") }}</p>
+          <p><strong>Sledeće:</strong> {{ row.next_action }}</p>
+          <p><strong>Risk flags:</strong> {{ row.risk_flags or "nema" }}</p>
+          <p><strong>Uplata:</strong> {{ row.payment_state }}{% if row.latest_payment %} · {{ "%.0f"|format(row.latest_payment.amount_rsd) }} RSD{% endif %}</p>
+          <p><strong>Banner:</strong> {{ row.live_state }} · {{ row.active_banners }} active / {{ row.pending_banners }} pending</p>
+        </div>
+        <form class="form-panel kz1111-tech-form" method="post" action="{% if row.lead %}/admin/crm/{{ row.lead.id }}/plan{% else %}/admin/crm/novi{% endif %}">
+          {% if not row.lead %}
+          <input type="hidden" name="company_name" value="{{ row.advertiser.company_name or row.advertiser.full_name }}">
+          <input type="hidden" name="contact_name" value="{{ row.advertiser.contact_person or row.advertiser.full_name }}">
+          <input type="hidden" name="email" value="{{ row.advertiser.email or '' }}">
+          <input type="hidden" name="phone" value="{{ row.advertiser.phone or '' }}">
+          <input type="hidden" name="source" value="admin_oglasivaci">
+          <input type="hidden" name="potential_budget_rsd" value="{{ row.health.available }}">
+          {% endif %}
+          <input type="hidden" name="next_url" value="/admin/oglasivaci">
+          <div class="form-grid">
+            <div>
+              <label>Status</label>
+              <select name="status">
+                {% for status in ["new","contacted","demo","proposal","won","lost"] %}
+                <option value="{{ status }}" {% if row.status == status %}selected{% endif %}>{{ status }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label>Owner</label>
+              <select name="owner_id">
+                {% for admin in crm_admins %}
+                <option value="{{ admin.id }}" {% if row.lead and row.lead.owner_id == admin.id %}selected{% endif %}>{{ admin.full_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label>Paket</label>
+              <select name="package_name">
+                <option value="">Bez paketa</option>
+                {% for pkg in sales_packages %}
+                <option value="{{ pkg.name }}" {% if row.package_name == pkg.name %}selected{% endif %}>{{ pkg.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label>Risk flags</label>
+              <input name="risk_flags" value="{{ row.risk_flags }}">
+            </div>
+          </div>
+          <label>Next action</label>
+          <input name="next_action" value="{{ row.next_action }}">
+          <label>Napomena</label>
+          <textarea name="notes" rows="3">{{ row.note_body }}</textarea>
+          <button class="btn btn-primary">{% if row.lead %}Sačuvaj pipeline{% else %}Kreiraj lead{% endif %}</button>
+        </form>
+      </div>
+      <div class="premium-command-links">
+        <a class="btn btn-mini btn-secondary" href="/admin/reklame-v111">Rezervacije bannera</a>
+        <a class="btn btn-mini btn-secondary" href="/admin/payments-v8">Top-up inbox</a>
+        <a class="btn btn-mini btn-secondary" href="/admin/cene-v111">Paketi i margina</a>
+      </div>
+    </article>
+    {% else %}
+    <div class="premium-empty"><h3>Nema workflow redova</h3><p>Kada postoje oglašivači, ovde će se spojiti lead, paket, uplata i live banner status.</p></div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 {% if health_rows is defined %}
 <div class="premium-dashboard-grid">
   <section class="premium-card">

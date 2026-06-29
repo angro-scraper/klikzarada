@@ -14,6 +14,29 @@
   </div>
 </section>
 
+{% if ops_suite is defined %}
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Ops suite</h2>
+    <span>launch -> live</span>
+  </div>
+  <div class="kz1111-smoke-list">
+    {% for item in ops_suite %}
+    <article>
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-{{ 'approved' if item.active else 'pending' }}">{{ 'ovde' if item.active else 'modul' }}</span>
+          <span class="kz1111-proof-tiny approved">{{ item.metric }}</span>
+        </div>
+        <strong><a href="{{ item.url }}">{{ item.title }}</a></strong>
+      </div>
+      <p>{{ item.note }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 <section class="kz1111-stat-grid colored">
   <div class="kz1111-stat blue"><small>Kampanje</small><strong>{{ campaigns|length }}</strong><span>launch tokovi</span></div>
   <div class="kz1111-stat purple"><small>Taskovi</small><strong>{{ tasks|length }}</strong><span>ukupno</span></div>
