@@ -1,77 +1,201 @@
-{% extends "app_base.html" %}{% set title="V11 Real Launch - Admin" %}{% block app_content %}
-<div class="section-heading left"><span>V11 Real Launch Pack</span><h2>Launch readiness</h2></div>
-<div class="stats small in-app-stats">
-<div class="stat-card"><strong>{{ score }}%</strong><span>readiness score</span></div>
-<div class="stat-card"><strong>{{ na čekanju_submissions }}</strong><span>na čekanju dokaza</span></div>
-<div class="stat-card"><strong>{{ na čekanju_withdrawals }}</strong><span>na čekanju isplata</span></div>
-<div class="stat-card"><strong>{{ na čekanju_payments }}</strong><span>na čekanju uplata</span></div>
-<div class="stat-card"><strong>{{ fraud_open }}</strong><span>fraud signals</span></div>
-</div>
-<div class="grid-3">
-<div class="panel"><h2>Admin Daily Desk</h2><p>Jedan radni sto za dnevne operacije.</p><a class="btn btn-primary" href="/admin/daily-desk-v11">Otvori</a></div>
-<div class="panel panel-purple"><h2>Deploy & Smoke</h2><p>Production checks, backup i smoke test.</p><a class="btn btn-primary" href="/admin/deploy-v11">Otvori</a></div>
-<div class="panel panel-green"><h2>Legal & Marketing</h2><p>Pravne i javne prodajne stranice.</p><a class="btn btn-primary" href="/admin/legal-v11">Otvori</a></div>
-</div>
-<div class="panel-group-v111" style="margin-top:18px;">
-  <h2>Realni račun i isplate</h2>
-  <div class="panel-grid-v111">
-    <a class="shortcut-card-v111" href="/admin/finansije"><strong>Finansije</strong><span>Računi, fakture i isplate.</span></a>
-    <a class="shortcut-card-v111" href="/admin/system-settings"><strong>Računi</strong><span>Uplata i payout podaci.</span></a>
-    <a class="shortcut-card-v111" href="/admin/import-moderation"><strong>Uvoz i moderacija</strong><span>Feedovi, queue i pravila.</span></a>
-  </div>
-  <div class="stats small in-app-stats" style="margin-top:14px;">
-    <div class="stat-card"><strong>{{ finance_accounts.advertiser_payment_account }}</strong><span>račun za uplatu oglašivača</span></div>
-    <div class="stat-card"><strong>{{ finance_accounts.advertiser_payment_holder }}</strong><span>primaoc za uplatu oglašivača</span></div>
-    <div class="stat-card"><strong>{{ finance_accounts.user_payout_account }}</strong><span>račun za isplatu korisnika</span></div>
-    <div class="stat-card"><strong>{{ finance_accounts.user_payout_holder }}</strong><span>primaoc za isplatu korisnika</span></div>
-  </div>
-</div>
-<section class="premium-command-hub">
+{% extends "app_base.html" %}
+{% set title="V11 Real Launch - Admin" %}
+{% block app_content %}
+<section class="premium-command-hub" style="margin-top:0;">
   <div class="premium-card-head">
     <h2>Admin komande</h2>
-    <span>grupisani radni tokovi</span>
+    <span>grupisano po oblastima</span>
   </div>
   <div class="premium-command-grid">
     <article class="premium-command-card">
       <h3>Finansije</h3>
-      <p>Računi, fakture, isplate i payout alati.</p>
+      <p>Budžeti, fakture, isplate i payout alati.</p>
       <div class="premium-command-links">
         <a href="/admin/finansije">Finansije</a>
         <a href="/admin/fakture">Fakture</a>
         <a href="/admin/isplate">Isplate</a>
         <a href="/admin/payouts-v11">Payout alati</a>
+        <a href="/admin/cene-v111">Cene</a>
+        <a href="/admin/system-settings">Računi</a>
       </div>
     </article>
     <article class="premium-command-card">
       <h3>Kampanje</h3>
-      <p>Objava, dokazi, reklame i moderacija.</p>
+      <p>Objava, pregled, dokazi i promocije.</p>
       <div class="premium-command-links">
         <a href="/admin/kampanje">Kampanje</a>
         <a href="/admin/dokazi">Dokazi</a>
         <a href="/admin/promocija-v111">Reklame</a>
-        <a href="/admin/import-moderation">Uvoz</a>
+        <a href="/admin/import-moderation">Uvoz i moderacija</a>
+        <a href="/admin/fraud-v11">Anti-fraud</a>
+        <a href="/admin/workflows-v10">Automation</a>
       </div>
     </article>
     <article class="premium-command-card">
       <h3>Ljudi</h3>
-      <p>Korisnici, oglašivači i rast.</p>
+      <p>Upravljanje korisnicima, oglašivačima i rastom.</p>
       <div class="premium-command-links">
         <a href="/admin/korisnici">Korisnici</a>
         <a href="/admin/oglasivaci">Oglašivači</a>
         <a href="/admin/referral">Referral</a>
         <a href="/admin/growth">Growth</a>
+        <a href="/admin/planovi">Planovi</a>
+        <a href="/admin/analitika">Analitika</a>
       </div>
     </article>
     <article class="premium-command-card">
       <h3>Operacije</h3>
-      <p>Deploy, sigurnost i automatizacija.</p>
+      <p>Deploy, daily desk, bezbednost i setup.</p>
       <div class="premium-command-links">
         <a href="/admin/deploy-v11">Produkcija</a>
         <a href="/admin/daily-desk-v11">Daily desk</a>
-        <a href="/admin/fraud-v11">Anti-fraud</a>
-        <a href="/admin/system-settings#task-sources">Task izvori</a>
+        <a href="/admin/security-v11">Security</a>
+        <a href="/admin/feature-flags">Feature flags</a>
+        <a href="/admin/smart-v115">Smart auto</a>
+        <a href="/admin/auto-engine-v114">Auto engine</a>
       </div>
     </article>
   </div>
 </section>
+
+<div class="premium-dashboard-grid" style="margin-top:18px;">
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Realni račun i isplate</h2>
+      <a href="/admin/system-settings">Podešavanja</a>
+    </div>
+    <div class="premium-money-grid">
+      <article><small>Uplata oglašivača</small><strong>{{ finance_accounts.advertiser_payment_account }}</strong></article>
+      <article><small>Primaoc uplata</small><strong>{{ finance_accounts.advertiser_payment_holder }}</strong></article>
+      <article><small>Račun za isplatu</small><strong>{{ finance_accounts.user_payout_account }}</strong></article>
+      <article><small>Primaoc isplate</small><strong>{{ finance_accounts.user_payout_holder }}</strong></article>
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Brza kontrola</h2>
+      <span>u jednoj kartici</span>
+    </div>
+    <div class="premium-command-links" style="grid-template-columns:repeat(2,minmax(0,1fr));">
+      <a href="/admin/system-settings#task-sources">Task izvori</a>
+      <a href="/admin/moderation-v10">Queue</a>
+      <a href="/admin/finansije">Računi</a>
+      <a href="/admin/promocija-v111">Banner slotovi</a>
+    </div>
+  </section>
+</div>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Finansije</h2>
+      <a href="/admin/finansije">Otvori</a>
+    </div>
+    <div class="premium-money-grid">
+      <article><small>Rezervisani budžet</small><strong>{{ "%.0f"|format(stats.reserved_budget) }} RSD</strong></article>
+      <article><small>Potrošeno</small><strong>{{ "%.0f"|format(stats.spent_budget) }} RSD</strong></article>
+      <article><small>Ukupan budžet</small><strong>{{ "%.0f"|format(stats.total_budget) }} RSD</strong></article>
+    </div>
+  </section>
+</div>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Najnovije kampanje</h2>
+      <a href="/admin/kampanje">Sve kampanje</a>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>Naziv</th><th>Status</th><th>Nagrada</th><th>Akcija</th></tr></thead>
+        <tbody>
+        {% for t in latest_tasks %}
+          <tr>
+            <td><strong>{{ t.title }}</strong><br><small>{{ t.category }} · {{ t.task_type }}</small></td>
+            <td><span class="status status-{{ t.status }}">{{ t.status }}</span></td>
+            <td>{{ "%.0f"|format(t.reward_rsd) }} RSD</td>
+            <td><a class="mini-btn" href="/zadaci/{{ t.id }}">Detalji</a></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">Nema kampanja.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Reklame i isticanja</h2>
+      <a href="/admin/promocija-v111">Uredi reklame</a>
+    </div>
+    <div class="premium-list">
+      {% for b in banners %}
+        <article>
+          <div><b>{{ b.title }}</b><small>{{ b.status }} · {{ "%.0f"|format(b.price_rsd) }} RSD</small></div>
+          <a class="mini-btn" href="/admin/promocija-v111">Otvori</a>
+        </article>
+      {% else %}
+        <div class="premium-empty"><h3>Nema banner reklama</h3><p>Kada oglašivač pošalje banner, pojaviće se ovde.</p></div>
+      {% endfor %}
+      {% for x in boosts %}
+        <article>
+          <div><b>{{ x.title }}</b><small>{{ x.status }} · {{ "%.0f"|format(x.price_rsd) }} RSD</small></div>
+          <a class="mini-btn" href="/admin/promocija-v111">Otvori</a>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Najnoviji dokazi</h2>
+      <a href="/admin/dokazi">Svi dokazi</a>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>Korisnik</th><th>Zadatak</th><th>Status</th><th>Iznos</th></tr></thead>
+        <tbody>
+        {% for s in latest_submissions %}
+          <tr>
+            <td>{{ s.user.full_name if s.user else "-" }}</td>
+            <td>{{ s.task.title if s.task else "-" }}</td>
+            <td><span class="status status-{{ s.status }}">{{ s.status }}</span></td>
+            <td>{{ "%.0f"|format(s.reward_rsd) }} RSD</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">Nema dokaza.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Isplate na čekanju</h2>
+      <a href="/admin/isplate">Sve isplate</a>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>Korisnik</th><th>Iznos</th><th>Status</th><th>Napomena</th></tr></thead>
+        <tbody>
+        {% for w in latest_withdrawals %}
+          <tr>
+            <td>{{ w.user.full_name if w.user else "-" }}</td>
+            <td>{{ "%.0f"|format(w.amount_rsd) }} RSD</td>
+            <td><span class="status status-{{ w.status }}">{{ w.status }}</span></td>
+            <td>{{ w.admin_note or "-" }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">Nema isplata na čekanju.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
 {% endblock %}

@@ -3875,18 +3875,34 @@ def admin_v11_dashboard(request: Request, db: Session = Depends(get_db)):
     total_checks = db.query(ProductionConfigCheckV11).count()
     done_checks = db.query(ProductionConfigCheckV11).filter(ProductionConfigCheckV11.status == "done").count()
     score = round((done_checks / total_checks * 100) if total_checks else 0, 1)
+    stats = {
+        "total_users": db.query(User).count(),
+        "total_customers": db.query(User).filter(User.role == "korisnik").count(),
+        "total_advertisers": db.query(User).filter(User.role == "oglasivac").count(),
+        "active_tasks": db.query(Task).filter(Task.status == "active").count(),
+        "pending_tasks": db.query(Task).filter(Task.status == "pending").count(),
+        "pending_submissions": db.query(TaskSubmission).filter(TaskSubmission.status == "pending").count(),
+        "pending_withdrawals": db.query(Withdrawal).filter(Withdrawal.status == "pending").count(),
+        "total_budget": db.query(func.coalesce(func.sum(User.advertiser_budget_rsd), 0)).scalar() or 0,
+        "reserved_budget": db.query(func.coalesce(func.sum(User.advertiser_reserved_rsd), 0)).scalar() or 0,
+        "spent_budget": db.query(func.coalesce(func.sum(User.advertiser_spent_rsd), 0)).scalar() or 0,
+    }
+    latest_tasks = db.query(Task).order_by(Task.created_at.desc()).limit(8).all()
+    latest_submissions = db.query(TaskSubmission).order_by(TaskSubmission.created_at.desc()).limit(8).all()
+    latest_withdrawals = db.query(Withdrawal).order_by(Withdrawal.created_at.desc()).limit(8).all()
+    banners = db.query(PaidAdBannerV111).order_by(PaidAdBannerV111.created_at.desc()).limit(6).all() if "PaidAdBannerV111" in globals() else []
+    boosts = db.query(PaidPromotionRequestV111).order_by(PaidPromotionRequestV111.created_at.desc()).limit(6).all() if "PaidPromotionRequestV111" in globals() else []
     db.add(LaunchReadinessScoreV11(score=score, summary=f"{done_checks}/{total_checks} production checks done"))
     db.commit()
     return templates.TemplateResponse("admin_v11_dashboard.html", {
         "request": request, "user": u,
         "score": score,
-        "pending_submissions": db.query(TaskSubmission).filter(TaskSubmission.status == "pending").count(),
-        "pending_withdrawals": db.query(Withdrawal).filter(Withdrawal.status == "pending").count(),
-        "pending_payments": db.query(PaymentIntent).filter(PaymentIntent.status == "pending").count() if "PaymentIntent" in globals() else 0,
-        "fraud_open": db.query(FraudSignalV11).filter(FraudSignalV11.status == "open").count(),
-        "legal_pages": db.query(LegalPageV11).count(),
-        "marketing_pages": db.query(MarketingLandingPageV11).count(),
-        "checks_open": db.query(ProductionConfigCheckV11).filter(ProductionConfigCheckV11.status != "done").count(),
+        "stats": stats,
+        "latest_tasks": latest_tasks,
+        "latest_submissions": latest_submissions,
+        "latest_withdrawals": latest_withdrawals,
+        "banners": banners,
+        "boosts": boosts,
         "finance_accounts": v11836_public_accounts(db),
     })
 
