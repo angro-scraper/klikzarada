@@ -1443,6 +1443,43 @@ def seed():
         if not admin:
             admin = User(full_name="Admin", email="admin@klikzarada.rs", password_hash=hash_password("Admin123!"), role="admin", referral_code="ADMIN", email_verified=True, phone_verified=True)
             db.add(admin)
+        demo_accounts = [
+            {
+                "full_name": "Demo Oglašivač",
+                "email": "oglasivac@demo.rs",
+                "password": "Demo123!",
+                "role": "oglasivac",
+                "referral_code": "OGLAS",
+            },
+            {
+                "full_name": "Demo Korisnik",
+                "email": "korisnik@demo.rs",
+                "password": "Demo123!",
+                "role": "korisnik",
+                "referral_code": "KORIS",
+            },
+        ]
+        for item in demo_accounts:
+            user = db.query(User).filter(User.email == item["email"]).first()
+            if not user:
+                user = User(
+                    full_name=item["full_name"],
+                    email=item["email"],
+                    password_hash=hash_password(item["password"]),
+                    role=item["role"],
+                    referral_code=item["referral_code"],
+                    email_verified=True,
+                    phone_verified=True,
+                    status="active",
+                )
+                db.add(user)
+            else:
+                user.full_name = item["full_name"]
+                user.role = item["role"]
+                user.password_hash = hash_password(item["password"])
+                user.email_verified = True
+                user.phone_verified = True
+                user.status = "active"
         db.commit()
     finally:
         db.close()
