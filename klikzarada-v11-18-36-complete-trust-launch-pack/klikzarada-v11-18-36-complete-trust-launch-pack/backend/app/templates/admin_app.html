@@ -91,6 +91,33 @@
   </article>
 </section>
 
+{% if go_no_go is defined %}
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Go / No-Go signal</h2>
+    <span>{{ go_no_go.status }}</span>
+  </div>
+  <div class="premium-money-grid">
+    <article><small>Finalni score</small><strong>{{ "%.1f"|format(go_no_go.score) }}</strong></article>
+    <article><small>Status</small><strong>{{ go_no_go.status }}</strong></article>
+    <article><small>Signal</small><strong>{{ go_no_go.headline }}</strong></article>
+  </div>
+  <div class="kz1111-proof-grid">
+    {% for module in go_no_go.modules %}
+    <article class="kz1111-proof-card variant-approved">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-{{ 'approved' if module.score >= 80 else 'pending' if module.score >= 60 else 'rejected' }}">{{ module.label }}</span>
+        </div>
+        <strong>{{ "%.0f"|format(module.score) }}</strong>
+      </div>
+      <p>{{ module.note }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 {% if sales_pipeline_summary is defined %}
 <section class="premium-stat-grid">
   <article class="blue"><small>Open leadovi</small><strong>{{ sales_pipeline_summary.open_leads }}</strong><span>new / contacted / proposal</span></article>
@@ -173,10 +200,64 @@
         </form>
       </div>
       <div class="premium-command-links">
-        <a class="btn btn-mini btn-secondary" href="/admin/reklame-v111">Rezervacije bannera</a>
+        {% for slot_link in row.slot_links %}
+        <a class="btn btn-mini btn-secondary" href="{{ slot_link.url }}">{{ slot_link.slot.title }}</a>
+        {% endfor %}
         <a class="btn btn-mini btn-secondary" href="/admin/payments-v8">Top-up inbox</a>
         <a class="btn btn-mini btn-secondary" href="/admin/cene-v111">Paketi i margina</a>
       </div>
+      {% if row.lead %}
+      <div class="kz1111-grid-two">
+        <section class="premium-card">
+          <div class="premium-card-head">
+            <h2>CRM timeline</h2>
+            <span>{{ row.timeline|length }}</span>
+          </div>
+          <div class="premium-list">
+            {% for item in row.timeline %}
+            <article>
+              <div>
+                <b>{{ item.activity_type }}</b>
+                <small>{{ item.result }} · {{ item.created_at }}</small>
+              </div>
+              <p>{{ item.note or "Bez dodatne napomene." }}</p>
+            </article>
+            {% else %}
+            <div class="premium-empty"><h3>Nema aktivnosti</h3><p>Dodaj prvi poziv, email, sastanak ili poslatu ponudu.</p></div>
+            {% endfor %}
+          </div>
+        </section>
+        <form class="form-panel kz1111-tech-form" method="post" action="/admin/crm/{{ row.lead.id }}/activity">
+          <input type="hidden" name="next_url" value="/admin/oglasivaci">
+          <div class="form-grid">
+            <div>
+              <label>Aktivnost</label>
+              <select name="activity_type">
+                <option value="call">Poziv</option>
+                <option value="email">Email</option>
+                <option value="meeting">Sastanak</option>
+                <option value="proposal">Poslata ponuda</option>
+                <option value="message">Poruka</option>
+                <option value="note">Napomena</option>
+              </select>
+            </div>
+            <div>
+              <label>Rezultat</label>
+              <select name="result">
+                <option value="open">open</option>
+                <option value="done">done</option>
+                <option value="follow_up">follow_up</option>
+                <option value="won">won</option>
+                <option value="lost">lost</option>
+              </select>
+            </div>
+          </div>
+          <label>Napomena</label>
+          <textarea name="note" rows="3" placeholder="Šta je rečeno, šta je poslato i koji je sledeći korak"></textarea>
+          <button class="btn btn-primary">Dodaj CRM aktivnost</button>
+        </form>
+      </div>
+      {% endif %}
     </article>
     {% else %}
     <div class="premium-empty"><h3>Nema workflow redova</h3><p>Kada postoje oglašivači, ovde će se spojiti lead, paket, uplata i live banner status.</p></div>

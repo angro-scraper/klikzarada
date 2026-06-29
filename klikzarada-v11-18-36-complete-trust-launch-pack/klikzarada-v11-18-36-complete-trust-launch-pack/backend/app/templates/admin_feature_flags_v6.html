@@ -37,6 +37,17 @@
 </section>
 {% endif %}
 
+{% if go_no_go is defined %}
+<section class="premium-card">
+  <div class="premium-card-head"><h2>Go / No-Go signal</h2><span>{{ go_no_go.status }}</span></div>
+  <div class="premium-money-grid">
+    <article><small>Finalni score</small><strong>{{ "%.1f"|format(go_no_go.score) }}</strong></article>
+    <article><small>Status</small><strong>{{ go_no_go.status }}</strong></article>
+    <article><small>Signal</small><strong>{{ go_no_go.headline }}</strong></article>
+  </div>
+</section>
+{% endif %}
+
 <section class="kz1111-stat-grid colored">
   <div class="kz1111-stat blue"><small>Flags</small><strong>{{ flags|length }}</strong><span>ukupno</span></div>
   <div class="kz1111-stat green"><small>ON</small><strong>{{ flags|selectattr("is_enabled", "equalto", true)|list|length }}</strong><span>aktivno</span></div>

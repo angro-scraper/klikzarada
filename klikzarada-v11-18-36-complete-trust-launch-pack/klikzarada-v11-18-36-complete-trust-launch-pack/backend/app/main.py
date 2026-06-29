@@ -448,6 +448,147 @@ def v11838_ops_suite_context(db: Session, current_url: str):
         },
     ]
 
+
+def v11839_find_outreach_contact(db: Session, lead=None, advertiser=None):
+    lead_company = ((getattr(lead, "company_name", None) or "").strip()).lower()
+    lead_email = ((getattr(lead, "email", None) or "").strip()).lower()
+    adv_company = ((getattr(advertiser, "company_name", None) or "").strip()).lower()
+    adv_email = ((getattr(advertiser, "email", None) or "").strip()).lower()
+    contacts = db.query(OutreachContactV9).order_by(OutreachContactV9.updated_at.desc()).all()
+    for contact in contacts:
+        business = ((getattr(contact, "business_name", None) or "").strip()).lower()
+        email = ((getattr(contact, "email", None) or "").strip()).lower()
+        if lead_company and business == lead_company:
+            return contact
+        if adv_company and business == adv_company:
+            return contact
+        if lead_email and email == lead_email:
+            return contact
+        if adv_email and email == adv_email:
+            return contact
+    return None
+
+
+def v11839_ensure_outreach_contact(db: Session, lead=None, advertiser=None):
+    existing = v11839_find_outreach_contact(db, lead, advertiser)
+    if existing:
+        return existing
+    company_name = (
+        getattr(lead, "company_name", None)
+        or getattr(advertiser, "company_name", None)
+        or getattr(advertiser, "full_name", None)
+        or "Lead"
+    )
+    contact = OutreachContactV9(
+        business_name=company_name,
+        contact_name=getattr(lead, "contact_name", None) or getattr(advertiser, "contact_person", None) or getattr(advertiser, "full_name", None),
+        channel=getattr(lead, "source", None) or "manual",
+        email=getattr(lead, "email", None) or getattr(advertiser, "email", None),
+        phone=getattr(lead, "phone", None) or getattr(advertiser, "phone", None),
+        city=getattr(advertiser, "city", None),
+        status=getattr(lead, "status", None) if getattr(lead, "status", None) in ["new", "contacted", "interested", "demo", "won", "lost"] else "new",
+        potential_value_rsd=v11837_money(getattr(lead, "potential_budget_rsd", 0) or getattr(advertiser, "advertiser_budget_rsd", 0)),
+        notes=getattr(lead, "notes", None),
+    )
+    db.add(contact)
+    db.flush()
+    return contact
+
+
+def v11839_timeline_rows(db: Session, lead=None, advertiser=None, limit: int = 6):
+    contact = v11839_find_outreach_contact(db, lead, advertiser)
+    if not contact:
+        return {"contact": None, "activities": []}
+    activities = (
+        db.query(OutreachActivityV9)
+        .filter(OutreachActivityV9.contact_id == contact.id)
+        .order_by(OutreachActivityV9.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return {"contact": contact, "activities": activities}
+
+
+def v11839_booking_link(slot, advertiser, lead=None, package_name: str = ""):
+    start_date = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
+    params = [
+        f"advertiser_id={advertiser.id}",
+        f"slot_id={slot.id}",
+        f"start_date={start_date}",
+        "days_count=7",
+    ]
+    if lead and getattr(lead, "id", None):
+        params.append(f"lead_id={lead.id}")
+    if package_name:
+        params.append(f"package_name={package_name.replace(' ', '%20')}")
+    return f"/admin/reklame-v111?{'&'.join(params)}"
+
+
+def v11839_go_no_go_summary(db: Session):
+    launch_tasks = db.query(LaunchTaskV9).all()
+    launch_open = sum(1 for item in launch_tasks if item.status != "done")
+    launch_blocked = sum(1 for item in launch_tasks if item.status == "blocked")
+    launch_score = max(0, 100 - launch_open * 4 - launch_blocked * 18)
+
+    golive_checks = db.query(GoLiveCheckV9).all()
+    golive_open = sum(1 for item in golive_checks if item.status == "open")
+    golive_blocked = sum(1 for item in golive_checks if item.status == "blocked")
+    golive_done = sum(1 for item in golive_checks if item.status == "done")
+    golive_base = round((golive_done / len(golive_checks)) * 100, 1) if golive_checks else 60.0
+    golive_score = max(0, round(golive_base - golive_blocked * 22 - golive_open * 3, 1))
+
+    smoke_runs = db.query(SmokeTestRunV11).order_by(SmokeTestRunV11.created_at.desc()).limit(5).all()
+    smoke_passed = sum(1 for item in smoke_runs if item.status == "passed")
+    smoke_latest = smoke_runs[0].status if smoke_runs else "n/a"
+    smoke_score = 35.0
+    if smoke_runs:
+        smoke_score = round((smoke_passed / len(smoke_runs)) * 100, 1)
+        if smoke_latest != "passed":
+            smoke_score = max(0, smoke_score - 25)
+
+    deploy_checks = db.query(ProductionConfigCheckV11).all()
+    deploy_targets = db.query(DeployTargetV11).all()
+    deploy_done = sum(1 for item in deploy_checks if item.status == "done")
+    deploy_blocked = sum(1 for item in deploy_checks if item.status == "blocked")
+    deploy_ready = sum(1 for item in deploy_targets if item.status in ["ready", "production", "live"])
+    deploy_base = round((deploy_done / len(deploy_checks)) * 100, 1) if deploy_checks else 60.0
+    deploy_target_bonus = round((deploy_ready / len(deploy_targets)) * 20, 1) if deploy_targets else 0.0
+    deploy_score = max(0, min(100, round(deploy_base + deploy_target_bonus - deploy_blocked * 18, 1)))
+
+    security_cutoff = datetime.utcnow() - timedelta(days=7)
+    failed_attempts_recent = db.query(LoginAttemptV11).filter(LoginAttemptV11.success == False, LoginAttemptV11.created_at >= security_cutoff).count()
+    active_sessions = db.query(UserDeviceSessionV11).filter(UserDeviceSessionV11.status == "active").count()
+    fresh_codes = db.query(AdminTwoFactorCodeV11).filter(AdminTwoFactorCodeV11.created_at >= security_cutoff).count()
+    security_score = max(0, min(100, round(100 - min(failed_attempts_recent, 20) * 3 + min(active_sessions, 10) + min(fresh_codes, 5), 1)))
+
+    modules = [
+        {"key": "launch", "label": "Launch", "score": launch_score, "note": f"{launch_open} open / {launch_blocked} blocked"},
+        {"key": "golive", "label": "Go-live", "score": golive_score, "note": f"{golive_open} open / {golive_blocked} blocked"},
+        {"key": "smoke", "label": "Smoke", "score": smoke_score, "note": f"latest={smoke_latest} / {smoke_passed} passed"},
+        {"key": "deploy", "label": "Deploy", "score": deploy_score, "note": f"{deploy_ready} ready / {deploy_blocked} blocked"},
+        {"key": "security", "label": "Security", "score": security_score, "note": f"{failed_attempts_recent} failed / 7d"},
+    ]
+    overall = round(sum(item["score"] for item in modules) / len(modules), 1)
+    critical = (
+        launch_blocked > 0
+        or golive_blocked > 0
+        or smoke_latest == "failed"
+        or deploy_blocked > 0
+        or failed_attempts_recent >= 15
+    )
+    if critical or overall < 60:
+        status = "no-go"
+    elif overall >= 80:
+        status = "go"
+    else:
+        status = "caution"
+    headline = {
+        "go": "Sistem izgleda spremno za dalje puštanje.",
+        "caution": "Postoje otvorene stavke, ali nisu sve kritične.",
+        "no-go": "Nije za puštanje dok se ne zatvore kritične stavke.",
+    }[status]
+    return {"score": overall, "status": status, "headline": headline, "modules": modules}
+
 def audit(db, admin, action, entity, entity_id, reason=""):
     db.add(AuditLog(admin_id=admin.id if admin else None, action=action, entity_type=entity, entity_id=entity_id, reason=reason))
 
@@ -1077,16 +1218,16 @@ def admin_panel(request:Request, msg:str|None=None, db:Session=Depends(get_db)):
     margin_snapshot = v11837_margin_snapshot(db)
     crm_admins = db.query(User).filter(User.role == "admin").order_by(User.full_name.asc()).all()
     sales_leads = db.query(SalesLead).order_by(SalesLead.updated_at.desc()).all()
+    slot_options = db.query(HomeBannerSlotV111).filter(HomeBannerSlotV111.is_active == True).order_by(HomeBannerSlotV111.id.asc()).limit(4).all() if "HomeBannerSlotV111" in globals() else []
     sales_workflow_rows = []
     for adv in data["advertisers"]:
-        sales_workflow_rows.append(
-            v11838_sales_workflow_row(
-                db,
-                adv,
-                v11838_find_sales_lead(sales_leads, adv),
-                margin_snapshot["packages"],
-            )
-        )
+        lead = v11838_find_sales_lead(sales_leads, adv)
+        row = v11838_sales_workflow_row(db, adv, lead, margin_snapshot["packages"])
+        timeline = v11839_timeline_rows(db, lead, adv)
+        row["timeline_contact"] = timeline["contact"]
+        row["timeline"] = timeline["activities"]
+        row["slot_links"] = [{"slot": slot, "url": v11839_booking_link(slot, adv, lead, row["package_name"])} for slot in slot_options]
+        sales_workflow_rows.append(row)
     sales_workflow_rows = sorted(sales_workflow_rows, key=lambda row: (-row["priority"], row["advertiser"].id))[:8]
     sales_pipeline_summary = {
         "open_leads": sum(1 for lead in sales_leads if getattr(lead, "status", "") in ["new", "contacted", "demo", "proposal"]),
@@ -1094,6 +1235,7 @@ def admin_panel(request:Request, msg:str|None=None, db:Session=Depends(get_db)):
         "pending_payments": db.query(PaymentIntentV8).filter(PaymentIntentV8.status == "pending").count(),
         "live_banners": db.query(PaidAdBannerV111).filter(PaidAdBannerV111.status == "active").count() if "PaidAdBannerV111" in globals() else 0,
     }
+    go_no_go = v11839_go_no_go_summary(db)
     data.update({
         "platform_revenue":db.query(func.coalesce(func.sum(TaskSubmission.platform_fee_rsd),0)).filter(TaskSubmission.status=="approved").scalar(),
         "rewards":db.query(func.coalesce(func.sum(TaskSubmission.reward_rsd),0)).filter(TaskSubmission.status=="approved").scalar(),
@@ -1109,6 +1251,7 @@ def admin_panel(request:Request, msg:str|None=None, db:Session=Depends(get_db)):
         "crm_admins": crm_admins,
         "sales_workflow_rows": sales_workflow_rows,
         "sales_pipeline_summary": sales_pipeline_summary,
+        "go_no_go": go_no_go,
     })
     return templates.TemplateResponse("admin_app.html", {"request":request,"user":u,"flash":flash(msg),**data})
 
@@ -2272,12 +2415,38 @@ def admin_crm_plan(lead_id: int, request: Request, status: str = Form("contacted
     return RedirectResponse(f"{target}{separator}msg=saved", 303)
 
 
+@app.post("/admin/crm/{lead_id}/activity")
+def admin_crm_activity(lead_id: int, request: Request, activity_type: str = Form("note"), result: str = Form("open"), note: str = Form(""), next_url: str = Form("/admin/oglasivaci"), db: Session = Depends(get_db)):
+    u = require(request, db)
+    check_role(u, ["admin"])
+    lead = db.query(SalesLead).filter(SalesLead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(404)
+    advertiser = db.query(User).filter(User.role == "oglasivac", or_(User.email == lead.email, User.company_name == lead.company_name)).first()
+    contact = v11839_ensure_outreach_contact(db, lead, advertiser)
+    if activity_type not in ["call", "email", "message", "meeting", "proposal", "note", "status"]:
+        activity_type = "note"
+    db.add(OutreachActivityV9(contact_id=contact.id, activity_type=activity_type, result=(result or "open").strip() or "open", note=note.strip() or None))
+    contact.updated_at = datetime.utcnow()
+    if note.strip():
+        old_note = lead.notes or ""
+        merged_body = v11838_parse_sales_notes(old_note).get("note_body", "")
+        if note.strip() not in merged_body:
+            lead.notes = v11838_build_sales_notes(("\n".join([merged_body, note.strip()]).strip()), v11838_parse_sales_notes(old_note).get("package_name", ""), v11838_parse_sales_notes(old_note).get("next_action", ""), v11838_parse_sales_notes(old_note).get("risk_flags", ""))
+    lead.updated_at = datetime.utcnow()
+    audit(db, u, "crm_activity_create", "SalesLead", lead.id, f"{activity_type}:{result}")
+    db.commit()
+    target = next_url if next_url.startswith("/admin") else "/admin/oglasivaci"
+    separator = "&" if "?" in target else "?"
+    return RedirectResponse(f"{target}{separator}msg=saved", 303)
+
+
 @app.get("/admin/feature-flags", response_class=HTMLResponse)
 def admin_feature_flags(request: Request, db: Session = Depends(get_db)):
     u = require(request, db)
     check_role(u, ["admin"])
     flags = db.query(FeatureFlag).order_by(FeatureFlag.key).all()
-    return templates.TemplateResponse("admin_feature_flags_v6.html", {"request": request, "user": u, "flags": flags, "ops_suite": v11838_ops_suite_context(db, "/admin/feature-flags")})
+    return templates.TemplateResponse("admin_feature_flags_v6.html", {"request": request, "user": u, "flags": flags, "ops_suite": v11838_ops_suite_context(db, "/admin/feature-flags"), "go_no_go": v11839_go_no_go_summary(db)})
 
 
 @app.post("/admin/feature-flags/novi")
@@ -2309,7 +2478,7 @@ def admin_system_settings(request: Request, msg: str | None = None, db: Session 
     check_role(u, ["admin"])
     settings = db.query(SystemSetting).order_by(SystemSetting.key).all()
     task_sources = db.query(TaskSourceV11).order_by(TaskSourceV11.created_at.desc()).all()
-    return templates.TemplateResponse("admin_system_settings_v6.html", {"request": request, "user": u, "settings": settings, "task_sources": task_sources, "flash": flash(msg), "finance_accounts": v11836_public_accounts(db), "ops_suite": v11838_ops_suite_context(db, "/admin/system-settings")})
+    return templates.TemplateResponse("admin_system_settings_v6.html", {"request": request, "user": u, "settings": settings, "task_sources": task_sources, "flash": flash(msg), "finance_accounts": v11836_public_accounts(db), "ops_suite": v11838_ops_suite_context(db, "/admin/system-settings"), "go_no_go": v11839_go_no_go_summary(db)})
 
 
 @app.post("/admin/system-settings/save")
@@ -3677,7 +3846,7 @@ def admin_launch_v9(request: Request, db: Session = Depends(get_db)):
     u = require(request, db); check_role(u, ["admin"])
     campaigns = db.query(LaunchCampaignV9).order_by(LaunchCampaignV9.created_at.desc()).all()
     tasks = db.query(LaunchTaskV9).order_by(LaunchTaskV9.created_at.desc()).all()
-    return templates.TemplateResponse("admin_launch_v9.html", {"request": request, "user": u, "campaigns": campaigns, "tasks": tasks, "ops_suite": v11838_ops_suite_context(db, "/admin/launch-v9")})
+    return templates.TemplateResponse("admin_launch_v9.html", {"request": request, "user": u, "campaigns": campaigns, "tasks": tasks, "ops_suite": v11838_ops_suite_context(db, "/admin/launch-v9"), "go_no_go": v11839_go_no_go_summary(db)})
 
 
 @app.post("/admin/launch-v9/campaign")
@@ -3816,7 +3985,7 @@ def admin_golive_v9(request: Request, db: Session = Depends(get_db)):
     u = require(request, db); check_role(u, ["admin"])
     checks = db.query(GoLiveCheckV9).order_by(GoLiveCheckV9.created_at.desc()).all()
     backups = db.query(BackupSnapshotV9).order_by(BackupSnapshotV9.created_at.desc()).all()
-    return templates.TemplateResponse("admin_golive_v9.html", {"request": request, "user": u, "checks": checks, "backups": backups, "ops_suite": v11838_ops_suite_context(db, "/admin/golive-v9")})
+    return templates.TemplateResponse("admin_golive_v9.html", {"request": request, "user": u, "checks": checks, "backups": backups, "ops_suite": v11838_ops_suite_context(db, "/admin/golive-v9"), "go_no_go": v11839_go_no_go_summary(db)})
 
 
 @app.post("/admin/golive-v9/check")
@@ -4562,7 +4731,7 @@ def admin_security_v11(request: Request, db: Session = Depends(get_db)):
     attempts = db.query(LoginAttemptV11).order_by(LoginAttemptV11.created_at.desc()).limit(200).all()
     devices = db.query(UserDeviceSessionV11).order_by(UserDeviceSessionV11.last_seen_at.desc()).limit(200).all()
     codes = db.query(AdminTwoFactorCodeV11).order_by(AdminTwoFactorCodeV11.created_at.desc()).limit(20).all()
-    return templates.TemplateResponse("admin_security_v11.html", {"request": request, "user": u, "attempts": attempts, "devices": devices, "codes": codes, "ops_suite": v11838_ops_suite_context(db, "/admin/security-v11")})
+    return templates.TemplateResponse("admin_security_v11.html", {"request": request, "user": u, "attempts": attempts, "devices": devices, "codes": codes, "ops_suite": v11838_ops_suite_context(db, "/admin/security-v11"), "go_no_go": v11839_go_no_go_summary(db)})
 
 
 @app.get("/admin/payouts-v11", response_class=HTMLResponse)
@@ -4741,7 +4910,7 @@ def admin_smoke_v11(request: Request, db: Session = Depends(get_db)):
         "failed": sum(1 for r in runs if r.status == "failed"),
         "latest_status": runs[0].status if runs else "n/a",
     }
-    return templates.TemplateResponse("admin_smoke_v11.html", {"request": request, "user": u, "runs": runs, "summary": summary, "ops_suite": v11838_ops_suite_context(db, "/admin/smoke-v11")})
+    return templates.TemplateResponse("admin_smoke_v11.html", {"request": request, "user": u, "runs": runs, "summary": summary, "ops_suite": v11838_ops_suite_context(db, "/admin/smoke-v11"), "go_no_go": v11839_go_no_go_summary(db)})
 
 
 @app.post("/admin/smoke-v11/run")
@@ -5959,9 +6128,31 @@ def admin_ads_final_v1110(request: Request, db: Session = Depends(get_db)):
     pricing_summary = v11836_pricing_summary(db)
     slot_calendar = v11837_slot_booking_calendar(db, 14)
     sales_packages = v11837_margin_snapshot(db)["packages"]
+    selected_advertiser_id = int(request.query_params.get("advertiser_id") or 0)
+    selected_slot_id = int(request.query_params.get("slot_id") or 0)
+    lead_id = int(request.query_params.get("lead_id") or 0)
+    package_name = (request.query_params.get("package_name") or "").strip()
+    prefill_start_date = (request.query_params.get("start_date") or (datetime.utcnow().date() + timedelta(days=1)).isoformat()).strip()
+    prefill_days_count = max(1, int(request.query_params.get("days_count") or 7))
+    selected_advertiser = next((item for item in advertisers if item.id == selected_advertiser_id), None)
+    selected_slot = next((item for item in slots if item.id == selected_slot_id), None)
+    selected_lead = db.query(SalesLead).filter(SalesLead.id == lead_id).first() if lead_id else None
+    booking_prefill = {
+        "advertiser_id": selected_advertiser.id if selected_advertiser else (advertisers[0].id if advertisers else 0),
+        "slot_id": selected_slot.id if selected_slot else (slots[0].id if slots else 0),
+        "lead_id": selected_lead.id if selected_lead else 0,
+        "package_name": package_name,
+        "start_date": prefill_start_date,
+        "days_count": prefill_days_count,
+        "title": f"{package_name or 'Banner zakup'} · {(selected_advertiser.company_name or selected_advertiser.full_name) if selected_advertiser else 'Oglašivač'}" if selected_advertiser else "",
+        "body": f"Rezervacija slota za {(selected_advertiser.company_name or selected_advertiser.full_name) if selected_advertiser else 'oglašivača'}." if selected_advertiser else "",
+        "target_url": "/",
+        "note": f"Rezervacija unapred popunjena iz CRM workflow-a za {(selected_advertiser.company_name or selected_advertiser.full_name) if selected_advertiser else 'oglašivača'}." if selected_advertiser else "",
+    }
     return templates.TemplateResponse("admin_ads_v111.html", {
         "request": request, "user": u, "slots": slots, "banners": banners, "boosts": boosts, "views": views,
         "advertisers": advertisers, "pricing_summary": pricing_summary, "slot_calendar": slot_calendar, "sales_packages": sales_packages,
+        "booking_prefill": booking_prefill, "go_no_go": v11839_go_no_go_summary(db),
     })
 
 
@@ -6414,7 +6605,7 @@ def admin_deploy_final_v1113(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("admin_deploy_v11.html", {
         "request": request, "user": u, "flash": None, "checks": checks,
         "targets": targets, "backups": backups, "smoke_runs": smoke_runs, "summary": summary,
-        "ops_suite": v11838_ops_suite_context(db, "/admin/deploy-v11"),
+        "ops_suite": v11838_ops_suite_context(db, "/admin/deploy-v11"), "go_no_go": v11839_go_no_go_summary(db),
     })
 
 @app.post("/admin/tasks/{task_id}/auto-boost")
