@@ -43,6 +43,17 @@ ADMIN_FOCUS_ALLOWED_PATHS = (
     "/admin/dokazi",
     "/admin/finansije",
     "/admin/isplate",
+    "/admin/fakture",
+    "/admin/payouts-v11",
+    "/admin/reklame-v111",
+    "/admin/promocija-v111",
+    "/admin/banneri-v111",
+    "/admin/cene-v111",
+    "/admin/oglasivaci",
+    "/admin/oglasivaci-baza-v117",
+    "/admin/budget-v11",
+    "/admin/affiliate-v9",
+    "/admin/revenue-v9",
     "/admin/launch-v9",
     "/admin/golive-v9",
     "/admin/smoke-v11",
@@ -6909,6 +6920,15 @@ async def kz117_visit_tracking_middleware(request: Request, call_next):
                           <li><a href="/admin/dokazi">Dokazi</a></li>
                           <li><a href="/admin/finansije">Finansije</a></li>
                           <li><a href="/admin/isplate">Isplate</a></li>
+                          <li><a href="/admin/fakture">Fakture</a></li>
+                          <li><a href="/admin/payouts-v11">Payouts</a></li>
+                          <li><a href="/admin/reklame-v111">Reklame</a></li>
+                          <li><a href="/admin/cene-v111">Cene</a></li>
+                          <li><a href="/admin/oglasivaci-baza-v117">Baza oglasivaca</a></li>
+                          <li><a href="/admin/oglasivaci">Oglasivaci</a></li>
+                          <li><a href="/admin/budget-v11">Budzeti</a></li>
+                          <li><a href="/admin/affiliate-v9">Affiliate</a></li>
+                          <li><a href="/admin/revenue-v9">Revenue</a></li>
                           <li><a href="/admin/launch-v9">Launch</a></li>
                           <li><a href="/admin/golive-v9">Go-live</a></li>
                           <li><a href="/admin/smoke-v11">Smoke</a></li>

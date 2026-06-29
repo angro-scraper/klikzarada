@@ -12,6 +12,8 @@
       <a class="premium-btn green" href="/admin/finansije">Finansije</a>
       <a class="premium-btn white" href="/admin/dokazi">Dokazi</a>
       <a class="premium-btn white" href="/admin/mapa-platforme">Mapa platforme</a>
+      <a class="premium-btn white" href="/admin/reklame-v111">Reklame</a>
+      <a class="premium-btn white" href="/admin/oglasivaci-baza-v117">Oglašivači</a>
       <a class="premium-btn white" href="/admin/launch-v9">Launch</a>
       <a class="premium-btn white" href="/admin/golive-v9">Go-live</a>
     </div>
@@ -60,6 +62,17 @@
 <section class="admin-v1172-priority-grid">
   <article class="premium-card admin-v1172-priority">
     <div class="premium-card-head">
+      <h2>Monetizacija i naplata</h2>
+      <span>core biznis</span>
+    </div>
+    <div class="admin-v1172-priority-list">
+      <a href="/admin/reklame-v111"><b>Reklame i slotovi</b><small>Banneri, top pozicije i plaćena isticanja za oglašivače.</small></a>
+      <a href="/admin/cene-v111"><b>Cene i provizije</b><small>Kontrola monetizacije, split-a i procenata platforme.</small></a>
+      <a href="/admin/fakture"><b>Fakture oglašivačima</b><small>Naplata prema firmama i pregled statusa uplata.</small></a>
+    </div>
+  </article>
+  <article class="premium-card admin-v1172-priority">
+    <div class="premium-card-head">
       <h2>Sta prvo gledas</h2>
       <span>prioritet</span>
     </div>
@@ -91,9 +104,6 @@
       <a href="/admin/finansije"><b>Finansije</b><small>Proveravamo kartice, iznose i preglednost bez mesanja drugih modula.</small></a>
     </div>
   </article>
-</section>
-
-<section class="admin-v1172-priority-grid">
   <article class="premium-card admin-v1172-priority">
     <div class="premium-card-head">
       <h2>Launch i go-live</h2>
@@ -118,6 +128,17 @@
   </article>
   <article class="premium-card admin-v1172-priority">
     <div class="premium-card-head">
+      <h2>Oglašivači i budžeti</h2>
+      <span>partneri</span>
+    </div>
+    <div class="admin-v1172-priority-list">
+      <a href="/admin/oglasivaci-baza-v117"><b>Baza oglašivača</b><small>Firma, kontakt, budžet, kampanje i potrošnja na jednom mestu.</small></a>
+      <a href="/admin/budget-v11"><b>Budžeti oglašivača</b><small>Alerti, rezervacije i stanje sredstava po nalogu.</small></a>
+      <a href="/admin/affiliate-v9"><b>Affiliate i partneri</b><small>Akvizicija firmi preko partnera i obračun provizije.</small></a>
+    </div>
+  </article>
+  <article class="premium-card admin-v1172-priority">
+    <div class="premium-card-head">
       <h2>Pravila sistema</h2>
       <span>kontrola</span>
     </div>
@@ -130,7 +151,7 @@
 </section>
 
 {% set admin_banner = admin_dashboard_banner if admin_dashboard_banner is defined else none %}
-<a class="premium-card admin-dashboard-banner" href="{{ admin_banner.target_url if admin_banner and admin_banner.target_url in ['/admin/v11', '/admin/mapa-platforme', '/admin/kampanje', '/admin/dokazi', '/admin/finansije', '/admin/isplate', '/admin/launch-v9', '/admin/golive-v9', '/admin/smoke-v11', '/admin/deploy-v11', '/admin/daily-desk-v11', '/admin/ops-v11835', '/admin/feature-flags', '/admin/system-settings', '/admin/security-v11'] else '/admin/launch-v9' }}">
+<a class="premium-card admin-dashboard-banner" href="{{ admin_banner.target_url if admin_banner and admin_banner.target_url in ['/admin/v11', '/admin/mapa-platforme', '/admin/kampanje', '/admin/dokazi', '/admin/finansije', '/admin/isplate', '/admin/fakture', '/admin/payouts-v11', '/admin/reklame-v111', '/admin/cene-v111', '/admin/oglasivaci-baza-v117', '/admin/oglasivaci', '/admin/budget-v11', '/admin/affiliate-v9', '/admin/revenue-v9', '/admin/launch-v9', '/admin/golive-v9', '/admin/smoke-v11', '/admin/deploy-v11', '/admin/daily-desk-v11', '/admin/ops-v11835', '/admin/feature-flags', '/admin/system-settings', '/admin/security-v11'] else '/admin/reklame-v111' }}">
   <img src="{{ admin_banner.image_url if admin_banner and admin_banner.image_url else '/static/img/banner_generic.svg' }}" alt="{{ admin_banner.title if admin_banner else 'Premium admin dashboard slot' }}">
   <div>
     <small>{{ admin_banner.slot.title if admin_banner and admin_banner.slot else 'Prodajni prostor' }}</small>
@@ -242,6 +263,21 @@
       <div class="premium-command-links">
         <a href="/admin/finansije">Finansije</a>
         <a href="/admin/isplate">Isplate</a>
+        <a href="/admin/fakture">Fakture</a>
+        <a href="/admin/payouts-v11">Payouts</a>
+        <a href="/admin/revenue-v9">Revenue</a>
+      </div>
+    </article>
+    <article class="premium-command-card">
+      <h3>Oglašivači</h3>
+      <p>Firma, budžet, reklame, top-up i partnerski rast.</p>
+      <div class="premium-command-links">
+        <a href="/admin/oglasivaci-baza-v117">Baza oglašivača</a>
+        <a href="/admin/oglasivaci">Oglašivači</a>
+        <a href="/admin/budget-v11">Budžeti</a>
+        <a href="/admin/reklame-v111">Reklame</a>
+        <a href="/admin/cene-v111">Cene</a>
+        <a href="/admin/affiliate-v9">Affiliate</a>
       </div>
     </article>
     <article class="premium-command-card">

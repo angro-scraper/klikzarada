@@ -46,6 +46,48 @@
 
 <section class="kz1111-section">
   <div class="kz1111-section-head">
+    <h2>Operativni tok novca</h2>
+    <span>uplata / rezervacija / potrošnja</span>
+  </div>
+  <div class="kz1111-proof-grid">
+    <article class="kz1111-proof-card variant-approved">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-approved">uplata</span>
+          <span class="kz1111-proof-tiny approved">fakture</span>
+        </div>
+        <strong>Dostupno</strong>
+      </div>
+      <h3>{{ "%.0f"|format(total_available) }} RSD spremno za kampanje</h3>
+      <p>Ovo je novac koji može odmah da ide u nove oglase, boost pakete i promotivne slotove bez čekanja dodatne naplate.</p>
+    </article>
+    <article class="kz1111-proof-card variant-pending">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-pending">rezervacija</span>
+          <span class="kz1111-proof-tiny pending">kampanje</span>
+        </div>
+        <strong>Zaključan promet</strong>
+      </div>
+      <h3>{{ "%.0f"|format(total_reserved) }} RSD je već vezano</h3>
+      <p>Rezervisani deo pokazuje koliko pipeline realno troši. Ako raste prebrzo, admin proverava cene, pace i kvalitet kampanja.</p>
+    </article>
+    <article class="kz1111-proof-card variant-rejected">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-rejected">potrošnja</span>
+          <span class="kz1111-proof-tiny rejected">revenue</span>
+        </div>
+        <strong>Emitovan budžet</strong>
+      </div>
+      <h3>{{ "%.0f"|format(total_spent) }} RSD je prošlo kroz mrežu</h3>
+      <p>Ovde admin prati da li se potrošnja pretvara u zdrav prihod, umesto da novac samo nestaje kroz nekontrolisane kampanje.</p>
+    </article>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
     <h2>Dodaj budžet alert</h2>
     <span>prag po oglašivaču</span>
   </div>
@@ -71,6 +113,43 @@
         <span>Potrošeno pokazuje šta je već prošlo kroz platformu.</span>
       </div>
     </div>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Likvidnost po nalogu</h2>
+    <span>top računi / rizični računi</span>
+  </div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Oglašivač</th>
+          <th>Dostupno</th>
+          <th>Rezervisano</th>
+          <th>Potrošeno</th>
+          <th>Signal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in top_advertisers %}
+        {% set available = a.advertiser_budget_rsd or 0 %}
+        {% set reserved = a.advertiser_reserved_rsd or 0 %}
+        {% set spent = a.advertiser_spent_rsd or 0 %}
+        {% set signal = "kriticno" if available < 5000 else "napeto" if available < reserved else "zdravo" %}
+        <tr>
+          <td><strong>{{ a.company_name or a.full_name }}</strong><br><small>{{ a.email or "-" }}</small></td>
+          <td>{{ "%.0f"|format(available) }} RSD</td>
+          <td>{{ "%.0f"|format(reserved) }} RSD</td>
+          <td>{{ "%.0f"|format(spent) }} RSD</td>
+          <td><span class="status status-{{ 'rejected' if signal == 'kriticno' else 'pending' if signal == 'napeto' else 'approved' }}">{{ signal }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5">Nema oglašivača.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </section>
 
@@ -159,6 +238,35 @@
           {% endfor %}
         </tbody>
       </table>
+    </div>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Povezane admin akcije</h2>
+    <span>šta radiš posle budžeta</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <div class="kz1111-ledger-card">
+      <small>Monetizacija</small>
+      <strong>Budžet nije izolovan ekran</strong>
+      <p>Kada vidiš nizak saldo, sledeći korak je obično faktura, top-up ili korekcija cenovnika. Kada vidiš jak promet, ideš u reklame, affiliate ili revenue forecast.</p>
+      <div class="kz1111-proof-legend">
+        <span><a href="/admin/fakture">Otvori fakture</a></span>
+        <span><a href="/admin/reklame-v111">Otvori reklame</a></span>
+        <span><a href="/admin/revenue-v9">Otvori revenue</a></span>
+      </div>
+    </div>
+    <div class="kz1111-ledger-card">
+      <small>Partneri</small>
+      <strong>Oglašivački rast mora imati obračun</strong>
+      <p>Ako partner ili agencija dovodi oglašivača, admin iz budžeta brzo proverava da li taj nalog ima smisla za dodatni push ili za korekciju provizije.</p>
+      <div class="kz1111-proof-legend">
+        <span><a href="/admin/affiliate-v9">Affiliate i partneri</a></span>
+        <span><a href="/admin/oglasivaci-baza-v117">Baza oglašivača</a></span>
+        <span><a href="/admin/payouts-v11">Payout obrada</a></span>
+      </div>
     </div>
   </div>
 </section>

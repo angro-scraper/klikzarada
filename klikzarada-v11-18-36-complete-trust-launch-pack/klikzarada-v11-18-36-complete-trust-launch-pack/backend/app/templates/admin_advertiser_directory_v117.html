@@ -5,11 +5,13 @@
   <div>
     <span>BAZA OGLAŠIVAČA</span>
     <h1>Registrovani oglašivači</h1>
-    <p>Posebna baza samo za oglašivače: firma, kontakt, budžet, kampanje, potrošnja i dokazi. Odvojeno od korisnika.</p>
+    <p>Ovo je live baza firmi koje pune budžet, pokreću kampanje i hrane monetizaciju platforme. Admin ovde vidi ko je aktivan, ko stagnira i gde postoji sledeća komercijalna akcija.</p>
   </div>
   <div class="premium-panel-actions">
     <a class="premium-btn green" href="/admin/oglasivaci-baza-v117.csv">Export CSV</a>
     <a class="premium-btn white" href="/admin/analitika-v117">Analitika</a>
+    <a class="premium-btn white" href="/admin/budget-v11">Budžeti</a>
+    <a class="premium-btn white" href="/admin/reklame-v111">Reklame</a>
   </div>
 </section>
 
@@ -20,9 +22,51 @@
   <article class="purple"><small>Potrošeno</small><strong>{{ "%.0f"|format(totals.spent) }}</strong><span>RSD</span></article>
 </section>
 
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Komercijalni fokus</h2>
+    <span>rast / naplata / kampanje</span>
+  </div>
+  <div class="kz1111-proof-grid">
+    <article class="kz1111-proof-card variant-approved">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-approved">rast</span>
+          <span class="kz1111-proof-tiny approved">partneri</span>
+        </div>
+        <strong>Akvizicija novih firmi</strong>
+      </div>
+      <h3>Affiliate i referral donose nove oglašivače</h3>
+      <p>Ova baza postaje prodajni pipeline kada se spoji sa partnerima, agency kanalima i offer paketima.</p>
+    </article>
+    <article class="kz1111-proof-card variant-pending">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-pending">naplata</span>
+          <span class="kz1111-proof-tiny pending">fakture</span>
+        </div>
+        <strong>Budžet mora da ima izvor</strong>
+      </div>
+      <h3>Fakture i top-up ne smeju da se razilaze</h3>
+      <p>Kad firma ima aktivne kampanje, ali nizak saldo, admin odmah skače na naplatu ili korekciju ponude.</p>
+    </article>
+    <article class="kz1111-proof-card variant-rejected">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-rejected">optimizacija</span>
+          <span class="kz1111-proof-tiny rejected">reklame</span>
+        </div>
+        <strong>Trošak mora da pravi rezultat</strong>
+      </div>
+      <h3>Budžet bez performansi je samo burn</h3>
+      <p>Zato ova baza vodi u reklame, cene i revenue, ne ostaje samo imenik firmi.</p>
+    </article>
+  </div>
+</section>
+
 <section class="premium-card">
   <div class="premium-card-head">
-    <h2>Pretraga oglašivača</h2>
+    <h2>Pretraga i pregled firmi</h2>
     <span>{{ rows|length }} prikazano</span>
   </div>
   <form class="analytics-search" method="get" action="/admin/oglasivaci-baza-v117">
@@ -31,15 +75,19 @@
   </form>
   <div class="premium-table-wrap">
     <table>
-      <thead><tr><th>Firma</th><th>Kontakt</th><th>Budžet</th><th>Kampanje</th><th>Dokazi</th><th>PIB / Sajt</th><th>Registrovan</th></tr></thead>
+      <thead><tr><th>Firma</th><th>Kontakt</th><th>Budžet</th><th>Kampanje</th><th>Signal</th><th>PIB / Sajt</th><th>Registrovan</th></tr></thead>
       <tbody>
       {% for r in rows %}
+      {% set activity_signal = "kriticno" if r.budget_available_rsd < 5000 and r.campaigns_active > 0 else "rast" if r.campaigns_active > 0 or r.campaigns_pending > 0 else "mirno" %}
       <tr>
         <td><b>{{ r.company_name }}</b><br><small>ID {{ r.user_id }}</small></td>
         <td>{{ r.email }}<br><small>{{ r.phone or "-" }} · {{ r.city or "-" }}</small></td>
         <td><b>{{ "%.0f"|format(r.budget_available_rsd) }} RSD</b><br><small>rez. {{ "%.0f"|format(r.budget_reserved_rsd) }} · potroš. {{ "%.0f"|format(r.budget_spent_rsd) }}</small></td>
         <td>ukupno {{ r.campaigns_total }}<br><small>aktivne {{ r.campaigns_active }} · pending {{ r.campaigns_pending }}</small></td>
-        <td>{{ r.submissions_total }}</td>
+        <td>
+          <span class="status status-{{ 'rejected' if activity_signal == 'kriticno' else 'approved' if activity_signal == 'rast' else 'pending' }}">{{ activity_signal }}</span>
+          <br><small>dokaza {{ r.submissions_total }}</small>
+        </td>
         <td>{{ r.pib or "-" }}<br><small>{{ r.website or "-" }}</small></td>
         <td>{{ r.created_at_original }}</td>
       </tr>
@@ -48,6 +96,35 @@
       {% endfor %}
       </tbody>
     </table>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Sledeći admin koraci</h2>
+    <span>povezani moduli</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <div class="kz1111-ledger-card">
+      <small>Operativa</small>
+      <strong>Od firme do kampanje</strong>
+      <p>Baza oglašivača služi da brzo pređeš na budžet, reklame, cene i naplatu bez lutanja kroz stare admin ekrane.</p>
+      <div class="kz1111-proof-legend">
+        <span><a href="/admin/budget-v11">Budžeti oglašivača</a></span>
+        <span><a href="/admin/fakture">Fakture i naplata</a></span>
+        <span><a href="/admin/cene-v111">Cene i provizije</a></span>
+      </div>
+    </div>
+    <div class="kz1111-ledger-card">
+      <small>Rast</small>
+      <strong>Partneri, affiliate i prihod</strong>
+      <p>Kada vidiš firmu sa prometom, odmah ima smisla pratiti i partner kanal, proviziju, lifetime vrednost i forecast za sledeći ciklus.</p>
+      <div class="kz1111-proof-legend">
+        <span><a href="/admin/affiliate-v9">Affiliate</a></span>
+        <span><a href="/admin/revenue-v9">Revenue</a></span>
+        <span><a href="/admin/reklame-v111">Reklame i slotovi</a></span>
+      </div>
+    </div>
   </div>
 </section>
 {% endblock %}

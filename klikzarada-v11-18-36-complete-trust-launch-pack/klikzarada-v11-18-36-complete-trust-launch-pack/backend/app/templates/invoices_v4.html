@@ -1,6 +1,181 @@
+{% extends "app_base.html" %}
+{% set title = "Fakture" %}
+{% block app_content %}
 
-{% extends "app_base.html" %}{% set title="Fakture" %}{% block app_content %}
-<div class="head"><div><span class="eyebrow">Fakture</span><h1>Predračuni i fakture</h1><p>V4 ručni finansijski dokumenti za oglašivače.</p></div></div>
-{% if mode == 'admin' %}<form class="formcard" method="post" action="/admin/fakture/nova"><div class="cols"><div><label>Oglašivač</label><select name="advertiser_id">{% for a in advertisers %}<option value="{{ a.id }}">{{ a.company_name or a.full_name }}</option>{% endfor %}</select></div><div><label>Tip</label><select name="invoice_type"><option>predracun</option><option>faktura</option><option>izvestaj</option></select></div></div><label>Iznos RSD</label><input type="number" step="1" name="amount_rsd" required><label>Opis</label><textarea name="description"></textarea><button class="btn">Kreiraj</button></form>{% endif %}
-<div class="table"><table><tr><th>Broj</th><th>Oglašivač</th><th>Tip</th><th>Iznos</th><th>Status</th><th>Datum</th><th>Akcija</th></tr>{% for i in invoices %}<tr><td>{{ i.invoice_no }}</td><td>{{ i.advertiser.company_name or i.advertiser.full_name }}</td><td>{{ i.invoice_type }}</td><td>{{ "%.0f"|format(i.amount_rsd) }} RSD</td><td><span class="status {{ i.status }}">{{ i.status }}</span></td><td>{{ i.created_at }}</td><td><a class="ghost mini" target="_blank" href="/fakture/{{ i.id }}">Otvori</a>{% if mode=='admin' %}<form method="post" action="/admin/fakture/{{ i.id }}/paid"><button class="btn mini">Plaćeno</button></form><form method="post" action="/admin/fakture/{{ i.id }}/cancelled"><button class="danger mini">Storno</button></form>{% endif %}</td></tr>{% else %}<tr><td colspan="7">Nema dokumenata.</td></tr>{% endfor %}</table></div>
+{% set issued_items = invoices|selectattr("status", "equalto", "issued")|list %}
+{% set paid_items = invoices|selectattr("status", "equalto", "paid")|list %}
+{% set cancelled_items = invoices|selectattr("status", "equalto", "cancelled")|list %}
+{% set total_amount = invoices|sum(attribute="amount_rsd") %}
+{% set paid_amount = paid_items|sum(attribute="amount_rsd") %}
+
+<section class="kz1111-hero finance">
+  <div>
+    <span>{% if mode == "admin" %}NAPLATA{% else %}FAKTURE{% endif %}</span>
+    <h1>{% if mode == "admin" %}Predračuni, fakture i uplata oglašivača{% else %}Moji finansijski dokumenti{% endif %}</h1>
+    <p>{% if mode == "admin" %}Ovo je komandni sto za dokumente prema firmama: ko duguje, ko je platio i gde treba povezati naplatu sa budžetom, payout tokom i revenue planom.{% else %}Na jednom mestu vidiš sve dokumente, statuse i iznose vezane za tvoj oglašivački nalog.{% endif %}</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    {% if mode == "admin" %}
+    <a class="btn btn-primary" href="/admin/finansije">Finansije</a>
+    <a class="btn btn-secondary" href="/admin/payouts-v11">Payouts</a>
+    <a class="btn btn-secondary" href="/admin/revenue-v9">Revenue</a>
+    {% else %}
+    <a class="btn btn-primary" href="/oglasivac/budzet">Budžet</a>
+    <a class="btn btn-secondary" href="/oglasivac/panel">Panel</a>
+    {% endif %}
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Dokumenti</small><strong>{{ invoices|length }}</strong><span>ukupno</span></div>
+  <div class="kz1111-stat orange"><small>Issued</small><strong>{{ issued_items|length }}</strong><span>čeka uplatu</span></div>
+  <div class="kz1111-stat green"><small>Plaćeno</small><strong>{{ "%.0f"|format(paid_amount) }}</strong><span>RSD potvrđeno</span></div>
+  <div class="kz1111-stat purple"><small>Portfelj</small><strong>{{ "%.0f"|format(total_amount) }}</strong><span>RSD kroz dokumente</span></div>
+</section>
+
+{% if mode == "admin" %}
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Kreiraj novi dokument</h2>
+    <span>predračun / faktura / izveštaj</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <form class="form-panel kz1111-tech-form" method="post" action="/admin/fakture/nova">
+      <label>Oglašivač</label>
+      <select name="advertiser_id">
+        {% for a in advertisers %}
+        <option value="{{ a.id }}">{{ a.company_name or a.full_name }}</option>
+        {% endfor %}
+      </select>
+      <div class="two">
+        <div>
+          <label>Tip dokumenta</label>
+          <select name="invoice_type">
+            <option value="predracun">predracun</option>
+            <option value="faktura">faktura</option>
+            <option value="izvestaj">izvestaj</option>
+          </select>
+        </div>
+        <div>
+          <label>Iznos RSD</label>
+          <input type="number" step="1" min="1" name="amount_rsd" required>
+        </div>
+      </div>
+      <label>Opis</label>
+      <textarea name="description" placeholder="Šta se naplaćuje: kampanje, banneri, boost, servis, mesečni plan..."></textarea>
+      <button class="btn btn-primary">Kreiraj dokument</button>
+    </form>
+    <div class="kz1111-ledger-card">
+      <small>Operativni tok</small>
+      <strong>Od naplate do aktivnog budžeta</strong>
+      <p>Predračun pokreće uplatu, potvrđena uplata otključava budžet oglašivaču, a zatim admin kroz reklame i kampanje pretvara taj budžet u promet i proviziju.</p>
+      <div class="kz1111-proof-legend">
+        <span>Fakture poveži sa budžetom i top-up zahtevima.</span>
+        <span>Payout koristiš da odvojiš isplatu korisnicima od priliva firmi.</span>
+        <span>Revenue pokazuje da li trenutni cenovnik nosi dovoljno marže.</span>
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>{% if mode == "admin" %}Dokumenti i statusi{% else %}Moji dokumenti{% endif %}</h2>
+    <span>{{ invoices|length }} stavki</span>
+  </div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Broj</th>
+          <th>{% if mode == "admin" %}Oglašivač{% else %}Tip{% endif %}</th>
+          <th>Iznos</th>
+          <th>Status</th>
+          <th>Datum</th>
+          <th>Opis</th>
+          <th>Akcije</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for i in invoices %}
+        <tr>
+          <td><strong>{{ i.invoice_no }}</strong><br><small>{{ i.invoice_type }}</small></td>
+          <td>
+            {% if mode == "admin" %}
+            {{ i.advertiser.company_name or i.advertiser.full_name }}
+            <br><small>{{ i.advertiser.email if i.advertiser else "-" }}</small>
+            {% else %}
+            {{ i.invoice_type }}
+            <br><small>{{ i.status }}</small>
+            {% endif %}
+          </td>
+          <td><strong>{{ "%.0f"|format(i.amount_rsd) }} RSD</strong></td>
+          <td><span class="status status-{{ i.status }}">{{ i.status }}</span></td>
+          <td>{{ i.issued_at or i.created_at }}</td>
+          <td style="max-width:260px;">{{ i.description or "-" }}</td>
+          <td class="actions">
+            <a class="btn btn-mini btn-secondary" target="_blank" href="/fakture/{{ i.id }}">Otvori</a>
+            {% if mode == "admin" %}
+            <form method="post" action="/admin/fakture/{{ i.id }}/paid">
+              <button class="btn btn-mini btn-primary">Plaćeno</button>
+            </form>
+            <form method="post" action="/admin/fakture/{{ i.id }}/cancelled">
+              <button class="btn btn-mini btn-danger">Storno</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">Nema dokumenata.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if mode == "admin" %}
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Šta još prati admin</h2>
+    <span>vezane funkcije</span>
+  </div>
+  <div class="kz1111-proof-grid">
+    <article class="kz1111-proof-card variant-approved">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-approved">uplata</span>
+          <span class="kz1111-proof-tiny approved">budžet</span>
+        </div>
+        <strong>Naplata firmi</strong>
+      </div>
+      <h3>Predračun mora da vodi u budžet</h3>
+      <p>Kada oglašivač plati, admin lako nastavlja na budžete i reklame bez ručnog traženja sledećeg koraka.</p>
+    </article>
+    <article class="kz1111-proof-card variant-pending">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-pending">obrada</span>
+          <span class="kz1111-proof-tiny pending">payout</span>
+        </div>
+        <strong>Odvoj priliv od odliva</strong>
+      </div>
+      <h3>Payout ne sme da bude slepa tačka</h3>
+      <p>U istom admin paketu prati se koliko stiže od oglašivača, a koliko izlazi ka korisnicima i partnerima.</p>
+    </article>
+    <article class="kz1111-proof-card variant-rejected">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-rejected">kontrola</span>
+          <span class="kz1111-proof-tiny rejected">revenue</span>
+        </div>
+        <strong>Cenovnik i marža</strong>
+      </div>
+      <h3>Dokument bez modela je samo evidencija</h3>
+      <p>Zato su revenue forecast i affiliate obračuni direktno vezani za ovaj ekran, ne kao sporedni modul.</p>
+    </article>
+  </div>
+</section>
+{% endif %}
+
 {% endblock %}
