@@ -23,7 +23,7 @@
     {% if user and user.role == "admin" %}
     <nav class="premium-admin-hub" aria-label="Admin navigacija">
       <div class="premium-admin-nav-group">
-        <span class="premium-admin-nav-label">Aktivne admin rute</span>
+        <span class="premium-admin-nav-label">Kontrola platforme</span>
         <div class="premium-admin-nav-row primary">
           <a class="tone-violet {% if path.startswith('/admin/v11') or path.startswith('/admin/dashboard') %}active{% endif %}" href="/admin/v11">Dashboard</a>
           <a class="tone-violet {% if path.startswith('/admin/mapa-platforme') %}active{% endif %}" href="/admin/mapa-platforme">Mapa platforme</a>
@@ -31,6 +31,25 @@
           <a class="tone-blue {% if path.startswith('/admin/dokazi') %}active{% endif %}" href="/admin/dokazi">Dokazi</a>
           <a class="tone-green {% if path.startswith('/admin/finansije') %}active{% endif %}" href="/admin/finansije">Finansije</a>
           <a class="tone-green {% if path.startswith('/admin/isplate') %}active{% endif %}" href="/admin/isplate">Isplate</a>
+        </div>
+      </div>
+      <div class="premium-admin-nav-group">
+        <span class="premium-admin-nav-label">Launch i live</span>
+        <div class="premium-admin-nav-row secondary">
+          <a class="tone-amber {% if path.startswith('/admin/launch-v9') %}active{% endif %}" href="/admin/launch-v9">Launch</a>
+          <a class="tone-amber {% if path.startswith('/admin/golive-v9') %}active{% endif %}" href="/admin/golive-v9">Go-live</a>
+          <a class="tone-red {% if path.startswith('/admin/smoke-v11') %}active{% endif %}" href="/admin/smoke-v11">Smoke</a>
+          <a class="tone-red {% if path.startswith('/admin/deploy-v11') %}active{% endif %}" href="/admin/deploy-v11">Deploy</a>
+          <a class="tone-blue {% if path.startswith('/admin/daily-desk-v11') %}active{% endif %}" href="/admin/daily-desk-v11">Daily desk</a>
+          <a class="tone-blue {% if path.startswith('/admin/ops-v11835') %}active{% endif %}" href="/admin/ops-v11835">Ops</a>
+        </div>
+      </div>
+      <div class="premium-admin-nav-group">
+        <span class="premium-admin-nav-label">Sistem i pravila</span>
+        <div class="premium-admin-nav-row secondary">
+          <a class="tone-red {% if path.startswith('/admin/security-v11') or path.startswith('/admin/security') %}active{% endif %}" href="/admin/security-v11">Security</a>
+          <a class="tone-red {% if path.startswith('/admin/feature-flags') %}active{% endif %}" href="/admin/feature-flags">Feature flags</a>
+          <a class="tone-red {% if path.startswith('/admin/system-settings') %}active{% endif %}" href="/admin/system-settings">System settings</a>
         </div>
       </div>
     </nav>

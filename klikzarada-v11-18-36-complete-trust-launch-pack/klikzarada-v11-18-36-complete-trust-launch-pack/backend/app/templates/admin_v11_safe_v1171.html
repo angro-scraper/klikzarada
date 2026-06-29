@@ -12,6 +12,8 @@
       <a class="premium-btn green" href="/admin/finansije">Finansije</a>
       <a class="premium-btn white" href="/admin/dokazi">Dokazi</a>
       <a class="premium-btn white" href="/admin/mapa-platforme">Mapa platforme</a>
+      <a class="premium-btn white" href="/admin/launch-v9">Launch</a>
+      <a class="premium-btn white" href="/admin/golive-v9">Go-live</a>
     </div>
   </div>
   <div class="premium-card banner-launch-hero-card">
@@ -91,8 +93,44 @@
   </article>
 </section>
 
+<section class="admin-v1172-priority-grid">
+  <article class="premium-card admin-v1172-priority">
+    <div class="premium-card-head">
+      <h2>Launch i go-live</h2>
+      <span>nove funkcije</span>
+    </div>
+    <div class="admin-v1172-priority-list">
+      <a href="/admin/launch-v9"><b>Launch OS</b><small>Kampanje i taskovi za akviziciju, partnerstva i izlazak na trziste.</small></a>
+      <a href="/admin/golive-v9"><b>Go-live checklist</b><small>Kontrolna lista, blokeri i backup snapshoti pre svakog pustanja.</small></a>
+      <a href="/admin/daily-desk-v11"><b>Daily desk</b><small>Dnevna koordinacija admin tima i ritam izvrsenja.</small></a>
+    </div>
+  </article>
+  <article class="premium-card admin-v1172-priority">
+    <div class="premium-card-head">
+      <h2>Produkcija i nadzor</h2>
+      <span>stabilnost</span>
+    </div>
+    <div class="admin-v1172-priority-list">
+      <a href="/admin/smoke-v11"><b>Smoke test</b><small>Brza tehnicka provera pre i posle deploy-a.</small></a>
+      <a href="/admin/deploy-v11"><b>Deploy centar</b><small>Targeti, readiness, backup i poslednji tehnicki signali.</small></a>
+      <a href="/admin/ops-v11835"><b>Ops scan</b><small>Operativni presek i csv export za brzu kontrolu stanja.</small></a>
+    </div>
+  </article>
+  <article class="premium-card admin-v1172-priority">
+    <div class="premium-card-head">
+      <h2>Pravila sistema</h2>
+      <span>kontrola</span>
+    </div>
+    <div class="admin-v1172-priority-list">
+      <a href="/admin/security-v11"><b>Security</b><small>Login attempti, uredjaji i zastita admin pristupa.</small></a>
+      <a href="/admin/feature-flags"><b>Feature flags</b><small>Ukljucivanje i gasenje novih modula bez novog deploy-a.</small></a>
+      <a href="/admin/system-settings"><b>System settings</b><small>Ključna pravila, finansijski parametri i task izvori.</small></a>
+    </div>
+  </article>
+</section>
+
 {% set admin_banner = admin_dashboard_banner if admin_dashboard_banner is defined else none %}
-<a class="premium-card admin-dashboard-banner" href="{{ admin_banner.target_url if admin_banner and admin_banner.target_url in ['/admin/v11', '/admin/mapa-platforme', '/admin/kampanje', '/admin/dokazi', '/admin/finansije', '/admin/isplate'] else '/admin/kampanje' }}">
+<a class="premium-card admin-dashboard-banner" href="{{ admin_banner.target_url if admin_banner and admin_banner.target_url in ['/admin/v11', '/admin/mapa-platforme', '/admin/kampanje', '/admin/dokazi', '/admin/finansije', '/admin/isplate', '/admin/launch-v9', '/admin/golive-v9', '/admin/smoke-v11', '/admin/deploy-v11', '/admin/daily-desk-v11', '/admin/ops-v11835', '/admin/feature-flags', '/admin/system-settings', '/admin/security-v11'] else '/admin/launch-v9' }}">
   <img src="{{ admin_banner.image_url if admin_banner and admin_banner.image_url else '/static/img/banner_generic.svg' }}" alt="{{ admin_banner.title if admin_banner else 'Premium admin dashboard slot' }}">
   <div>
     <small>{{ admin_banner.slot.title if admin_banner and admin_banner.slot else 'Prodajni prostor' }}</small>
@@ -178,8 +216,8 @@
 
 <section class="premium-command-hub">
   <div class="premium-card-head">
-    <h2>Aktivne admin rute</h2>
-    <span>privremeni focus mode</span>
+    <h2>Admin komande</h2>
+    <span>rad po oblastima</span>
   </div>
   <div class="premium-command-grid">
     <article class="premium-command-card">
@@ -204,6 +242,27 @@
       <div class="premium-command-links">
         <a href="/admin/finansije">Finansije</a>
         <a href="/admin/isplate">Isplate</a>
+      </div>
+    </article>
+    <article class="premium-command-card">
+      <h3>Launch i live</h3>
+      <p>Operativni tok za lansiranje, proveru i puštanje sistema.</p>
+      <div class="premium-command-links">
+        <a href="/admin/launch-v9">Launch</a>
+        <a href="/admin/golive-v9">Go-live</a>
+        <a href="/admin/smoke-v11">Smoke</a>
+        <a href="/admin/deploy-v11">Deploy</a>
+        <a href="/admin/daily-desk-v11">Daily desk</a>
+        <a href="/admin/ops-v11835">Ops</a>
+      </div>
+    </article>
+    <article class="premium-command-card">
+      <h3>Sistem</h3>
+      <p>Bezbednost, feature kontrole i glavna podešavanja platforme.</p>
+      <div class="premium-command-links">
+        <a href="/admin/security-v11">Security</a>
+        <a href="/admin/feature-flags">Feature flags</a>
+        <a href="/admin/system-settings">System settings</a>
       </div>
     </article>
   </div>

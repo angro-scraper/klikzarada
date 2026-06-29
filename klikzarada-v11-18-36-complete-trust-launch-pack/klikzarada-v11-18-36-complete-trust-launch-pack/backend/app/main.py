@@ -43,6 +43,15 @@ ADMIN_FOCUS_ALLOWED_PATHS = (
     "/admin/dokazi",
     "/admin/finansije",
     "/admin/isplate",
+    "/admin/launch-v9",
+    "/admin/golive-v9",
+    "/admin/smoke-v11",
+    "/admin/deploy-v11",
+    "/admin/daily-desk-v11",
+    "/admin/ops-v11835",
+    "/admin/feature-flags",
+    "/admin/system-settings",
+    "/admin/security-v11",
 )
 
 def cost_for_task(reward: float, slots: int, fee: float = PLATFORM_FEE_PERCENT):
@@ -6900,6 +6909,15 @@ async def kz117_visit_tracking_middleware(request: Request, call_next):
                           <li><a href="/admin/dokazi">Dokazi</a></li>
                           <li><a href="/admin/finansije">Finansije</a></li>
                           <li><a href="/admin/isplate">Isplate</a></li>
+                          <li><a href="/admin/launch-v9">Launch</a></li>
+                          <li><a href="/admin/golive-v9">Go-live</a></li>
+                          <li><a href="/admin/smoke-v11">Smoke</a></li>
+                          <li><a href="/admin/deploy-v11">Deploy</a></li>
+                          <li><a href="/admin/daily-desk-v11">Daily desk</a></li>
+                          <li><a href="/admin/ops-v11835">Ops</a></li>
+                          <li><a href="/admin/feature-flags">Feature flags</a></li>
+                          <li><a href="/admin/system-settings">System settings</a></li>
+                          <li><a href="/admin/security-v11">Security</a></li>
                         </ul>
                       </main>
                     </body>
