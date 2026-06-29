@@ -2,7 +2,7 @@
 {% extends "app_base.html" %}{% set title="Nova kampanja" %}{% block app_content %}
 <section class="premium-panel-hero advertiser">
   <div><span>OGLAŠAVANJE</span><h1>Nova kampanja</h1><p>Koristite šablon ili unesite kampanju ručno. Budžet se rezerviše pri slanju, a ispod odmah vidiš preporučene pakete i procenu troška.</p></div>
-  <div class="premium-panel-actions"><a class="premium-btn white" href="/oglasivac/sabloni">Šabloni kampanja</a><a class="premium-btn white" href="/oglasivac/budzet">Budžet</a></div>
+  <div class="premium-panel-actions"><a class="premium-btn white" href="/oglasivac/sabloni">Šabloni kampanja</a><a class="premium-btn white" href="/oglasivac/segmenti">Targeting studio</a><a class="premium-btn white" href="/oglasivac/budzet">Budžet</a></div>
 </section>
 {% if builder is defined %}
 <section class="premium-stat-grid">
@@ -29,20 +29,49 @@
     </div>
   </section>
 </div>
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Audience reach</h2><span>targeting</span></div>
+    <div class="premium-money-grid">
+      <article><small>Sačuvani segmenti</small><strong>{{ targeting.audience_estimate.saved_segments }}</strong></article>
+      <article><small>Aktivni korisnici</small><strong>{{ targeting.audience_estimate.active_users }}</strong></article>
+      <article><small>Interes fit</small><strong>{{ targeting.audience_estimate.matched_interest_users }}</strong></article>
+      <article><small>Najjači segment</small><strong>{{ targeting.audience_estimate.best_segment_count }}</strong></article>
+    </div>
+    <div class="premium-list">
+      {% for row in targeting.segment_rows[:3] %}
+      <article><div><b>{{ row.segment.name }}</b><small>{{ row.segment.city or "Srbija" }} · {{ row.segment.age_group or "18+" }} · {{ row.matched_count }} match korisnika</small></div><span class="status status-approved">{{ row.fit_label }}</span></article>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="premium-card gradient">
+    <div class="premium-card-head"><h2>Creative preview</h2><span>copy ideje</span></div>
+    <div class="premium-list">
+      {% for creative in targeting.creative_cards %}
+      <article>
+        <div>
+          <b>{{ creative.label }} · {{ creative.headline }}</b>
+          <small>{{ creative.body }}</small>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+</div>
 {% endif %}
 <form class="formcard" method="post" action="/oglasivac/nova-kampanja">
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
-<label>Naziv</label><input name="title" required value="{{ tpl.name if tpl is defined and tpl else '' }}">
-<div class="cols"><div><label>Kategorija</label><input name="category" required value="{{ tpl.category if tpl is defined and tpl else 'Ankete' }}"></div><div><label>Tip</label><input name="task_type" required value="{{ tpl.task_type if tpl is defined and tpl else 'Anketa' }}"></div></div>
-<label>Link</label><input name="target_url" placeholder="https://...">
-<label>Kratak opis</label><textarea name="description" required>{{ tpl.description if tpl is defined and tpl else '' }}</textarea>
-<label>Instrukcije</label><textarea name="instructions" required>{{ tpl.instructions if tpl is defined and tpl else '' }}</textarea>
-<label>Dokaz</label><textarea name="proof_required" required>{{ tpl.proof_required if tpl is defined and tpl else '' }}</textarea>
-<label>Primer dokaza</label><textarea name="example_proof"></textarea>
-<div class="cols"><div><label>Nagrada / RSD</label><input type="number" step="1" min="10" name="reward_rsd" required value="{{ tpl.suggested_reward_rsd if tpl is defined and tpl else 60 }}"></div><div><label>Broj izvršenja</label><input type="number" step="1" min="1" name="total_slots" required value="{{ tpl.suggested_slots if tpl is defined and tpl else 100 }}"></div></div>
-<div class="cols"><div><label>Ciljani grad</label><input name="target_city" value="Srbija"></div><div><label>Starost</label><input name="target_age_group" value="18+"></div></div>
-<label>Interesovanja</label><input name="target_interests" placeholder="hrana, aplikacije, online kupovina...">
-<label class="check"><input type="checkbox" name="proof_file_required" value="1"> Obavezan upload slike/fajla</label>
+<label>Naziv</label><input name="title" required value="{{ draft.title if draft is defined else '' }}">
+<div class="cols"><div><label>Kategorija</label><input name="category" required value="{{ draft.category if draft is defined else 'Ankete' }}"></div><div><label>Tip</label><input name="task_type" required value="{{ draft.task_type if draft is defined else 'Anketa' }}"></div></div>
+<label>Link</label><input name="target_url" placeholder="https://..." value="{{ draft.target_url if draft is defined else '' }}">
+<label>Kratak opis</label><textarea name="description" required>{{ draft.description if draft is defined else '' }}</textarea>
+<label>Instrukcije</label><textarea name="instructions" required>{{ draft.instructions if draft is defined else '' }}</textarea>
+<label>Dokaz</label><textarea name="proof_required" required>{{ draft.proof_required if draft is defined else '' }}</textarea>
+<label>Primer dokaza</label><textarea name="example_proof">{{ draft.example_proof if draft is defined else '' }}</textarea>
+<div class="cols"><div><label>Nagrada / RSD</label><input type="number" step="1" min="10" name="reward_rsd" required value="{{ draft.reward_rsd if draft is defined else 60 }}"></div><div><label>Broj izvršenja</label><input type="number" step="1" min="1" name="total_slots" required value="{{ draft.total_slots if draft is defined else 100 }}"></div></div>
+<div class="cols"><div><label>Ciljani grad</label><input name="target_city" value="{{ draft.target_city if draft is defined else 'Srbija' }}"></div><div><label>Starost</label><input name="target_age_group" value="{{ draft.target_age_group if draft is defined else '18+' }}"></div></div>
+<label>Interesovanja</label><input name="target_interests" placeholder="hrana, aplikacije, online kupovina..." value="{{ draft.target_interests if draft is defined else '' }}">
+<label class="check"><input type="checkbox" name="proof_file_required" value="1" {% if draft is defined and draft.proof_file_required %}checked{% endif %}> Obavezan upload slike/fajla</label>
 <p class="hint">Platforma dodaje {{ fee }}% provizije na nagradu korisniku.</p>
 <button class="btn">Pošalji kampanju</button>
 </form>

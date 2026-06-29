@@ -1,13 +1,54 @@
 {% extends "app_base.html" %}
-{% set title = "AI preporuke - KlikZarada" %}
+{% set title = "Pametne preporuke - KlikZarada" %}
 {% block app_content %}
-<div class="section-heading left"><span>V7 AI Recommendations</span><h2>Preporučeni zadaci za vas</h2></div>
-<div class="task-list compact">
-{% for r in recs %}
-<article class="task-card">
-  <div><span class="task-type">Score {{ "%.0f"|format(r.score) }} · {{ r.task.category }}</span><h3>{{ r.task.title }}</h3><p>{{ r.reason }}</p><small>{{ r.task.description }}</small></div>
-  <div class="task-price"><strong>{{ "%.0f"|format(r.task.reward_rsd) }} RSD</strong><a class="btn btn-primary" href="/zadaci/{{ r.task.id }}">Detalji</a></div>
-</article>
-{% else %}<div class="empty">Još nema preporuka.</div>{% endfor %}
+<section class="premium-panel-hero">
+  <div><span>PAMETNE PREPORUKE</span><h1>Zadaci sortirani po tvom fit-u</h1><p>Sistem kombinuje kvalitet, nivo, grad, interesovanja i jačinu kampanje da izvuče zadatke koji realno vrede tvoj klik.</p></div>
+  <div class="premium-panel-actions"><a class="premium-btn blue" href="/korisnik/zadaci">Svi zadaci</a><a class="premium-btn white" href="/korisnik/motivacija-v115">Motivacija</a></div>
+</section>
+
+<section class="premium-stat-grid">
+  <article class="green"><small>High fit</small><strong>{{ recommendation_summary.high }}</strong><span>zadataka</span></article>
+  <article class="blue"><small>Medium fit</small><strong>{{ recommendation_summary.medium }}</strong><span>zadataka</span></article>
+  <article class="purple"><small>Tier</small><strong>{{ tier_ctx.tier.name }}</strong><span>reputation</span></article>
+  <article class="orange"><small>Napredak</small><strong>{{ tier_ctx.progress }}%</strong><span>do sledećeg nivoa</span></article>
+</section>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card gradient">
+    <div class="premium-card-head"><h2>Tvoj signal</h2><span>{{ tier_ctx.tier.name }}</span></div>
+    <div class="premium-list">
+      <article><div><b>Aktivne pogodnosti</b><small>{{ tier_ctx.tier.perks|join(", ") }}</small></div></article>
+      {% if tier_ctx.next_tier %}
+      <article><div><b>Sledeći tier: {{ tier_ctx.next_tier.name }}</b><small>{% if tier_ctx.requirements %}{{ tier_ctx.requirements|join(", ") }}{% else %}Spreman za upgrade{% endif %}</small></div></article>
+      {% endif %}
+    </div>
+  </section>
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Kako sistem bira</h2><span>match logika</span></div>
+    <div class="premium-list">
+      <article><div><small>Viši reward i featured kampanje dobijaju veći prioritet.</small></div></article>
+      <article><div><small>Grad, interesovanja i tvoj nivo dižu score ako se poklapaju sa taskom.</small></div></article>
+      <article><div><small>Zahtevniji proof ide gore tek kad quality signal pokaže da si spreman.</small></div></article>
+    </div>
+  </section>
+</div>
+
+<div class="premium-list">
+  {% for row in recs %}
+  <article class="premium-card">
+    <div class="premium-card-head"><h2>{{ row.task.title }}</h2><span>{{ "%.0f"|format(row.score) }}</span></div>
+    <p><b>{{ row.task.category }}</b> · {{ row.task.task_type }} · {{ row.reason }}</p>
+    <p>{{ row.task.description }}</p>
+    <div class="premium-money-grid">
+      <article><small>Nagrada</small><strong>{{ "%.0f"|format(row.task.reward_rsd) }}</strong></article>
+      <article><small>Grad</small><strong>{{ row.task.target_city or "Srbija" }}</strong></article>
+      <article><small>Nivo</small><strong>{{ row.task.min_user_level }}</strong></article>
+      <article><small>Fit</small><strong>{{ row.match_label }}</strong></article>
+    </div>
+    <div class="premium-command-links"><a href="/zadaci/{{ row.task.id }}">Otvori zadatak</a></div>
+  </article>
+  {% else %}
+  <div class="premium-empty"><h3>Još nema preporuka</h3><p>Čim bude više aktivnih kampanja, ovde će izaći sortirani zadaci po tvom realnom fit-u.</p></div>
+  {% endfor %}
 </div>
 {% endblock %}

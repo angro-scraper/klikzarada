@@ -1015,6 +1015,289 @@ def v11844_message_workspace_context(user, users, inbox, sent):
     return {"unread_count": unread_count, "contact_cards": contact_cards[:6], "quick_subjects": quick_subjects}
 
 
+def v11845_level_value(level: str | None) -> int:
+    mapping = {
+        "nov": 0,
+        "bronza": 1,
+        "srebro": 2,
+        "zlato": 3,
+        "premium": 4,
+        "premium tester": 4,
+        "vip korisnik": 5,
+    }
+    return mapping.get((level or "").strip().lower(), 0)
+
+
+def v11845_split_terms(value: str | None):
+    raw = (value or "").replace(";", ",").replace("/", ",").replace("|", ",")
+    return {part.strip().lower() for part in raw.split(",") if part.strip()}
+
+
+def v11845_campaign_draft_from_template(tpl=None):
+    return {
+        "title": getattr(tpl, "name", "") if tpl else "",
+        "category": getattr(tpl, "category", "Ankete") if tpl else "Ankete",
+        "task_type": getattr(tpl, "task_type", "Anketa") if tpl else "Anketa",
+        "target_url": "",
+        "description": getattr(tpl, "description", "") if tpl else "",
+        "instructions": getattr(tpl, "instructions", "") if tpl else "",
+        "proof_required": getattr(tpl, "proof_required", "") if tpl else "",
+        "example_proof": "",
+        "reward_rsd": float(getattr(tpl, "suggested_reward_rsd", 60) or 60) if tpl else 60,
+        "total_slots": int(getattr(tpl, "suggested_slots", 100) or 100) if tpl else 100,
+        "target_city": "Srbija",
+        "target_age_group": "18+",
+        "target_interests": "",
+        "proof_file_required": False,
+    }
+
+
+def v11845_segment_match(user, score_row, segment):
+    quality = float((getattr(score_row, "quality_score", None) if score_row else getattr(user, "quality_score", 0)) or 0)
+    user_level = getattr(score_row, "level_name", None) if score_row else getattr(user, "level", "")
+    user_city = (getattr(user, "city", "") or "").strip().lower()
+    user_age = (getattr(user, "age_group", "") or "").strip().lower()
+    user_terms = v11845_split_terms(getattr(user, "interests", "") or "")
+    seg_terms = v11845_split_terms(getattr(segment, "interests", "") or "")
+    city_rule = (getattr(segment, "city", "") or "").strip().lower()
+    age_rule = (getattr(segment, "age_group", "") or "").strip().lower()
+    city_ok = not city_rule or city_rule == "srbija" or city_rule in user_city
+    age_ok = not age_rule or age_rule in user_age or user_age in age_rule
+    level_ok = v11845_level_value(user_level) >= v11845_level_value(getattr(segment, "min_user_level", "Bronza"))
+    interest_overlap = user_terms.intersection(seg_terms)
+    interests_ok = not seg_terms or bool(interest_overlap)
+    quality_ok = quality >= float(getattr(segment, "min_quality_score", 0) or 0)
+    score = 0
+    if city_ok:
+        score += 20
+    if age_ok:
+        score += 15
+    if level_ok:
+        score += 20
+    if quality_ok:
+        score += 20
+    score += min(25, len(interest_overlap) * 8)
+    return {
+        "matched": city_ok and age_ok and level_ok and quality_ok and interests_ok,
+        "score": score,
+        "quality": quality,
+        "interest_overlap": sorted(interest_overlap),
+    }
+
+
+def v11845_creative_cards(advertiser, draft, segments):
+    company = getattr(advertiser, "company_name", None) or getattr(advertiser, "full_name", "Vaš brend")
+    title = (draft.get("title") or "Nova kampanja").strip()
+    category = (draft.get("category") or "Kampanja").strip()
+    task_type = (draft.get("task_type") or "Akcija").strip()
+    interests = draft.get("target_interests") or (segments[0].interests if segments else "") or getattr(advertiser, "company_activity", "") or "lokalna publika"
+    city = draft.get("target_city") or (segments[0].city if segments else "") or "Srbija"
+    age = draft.get("target_age_group") or (segments[0].age_group if segments else "") or "18+"
+    return [
+        {
+            "label": "Performance",
+            "headline": f"{title} za publiku {age}",
+            "body": f"Istakni brend {company} kroz {task_type.lower()} kampanju za {city}. Fokus: {interests}.",
+            "cta": "Pokreni odmah",
+            "visual": "Jasan benefit, jaka cena i čist CTA iznad fold-a.",
+        },
+        {
+            "label": "Trust",
+            "headline": f"Zašto korisnici biraju {company}",
+            "body": f"Koristi proof, jednostavne instrukcije i kratku poruku da {category.lower()} deluje provereno i lako za izvršenje.",
+            "cta": "Pogledaj detalje",
+            "visual": "Screenshot proizvoda/usluge + social proof + 1 ključna poruka.",
+        },
+        {
+            "label": "Urgency",
+            "headline": f"Ograničen slot za {title.lower()}",
+            "body": f"Za brži pacing dodaj rok, ograničen broj slotova i konkretan razlog zašto treba kliknuti danas.",
+            "cta": "Rezerviši mesto",
+            "visual": "Badge sa rokom, broj preostalih mesta i jednostavan formular.",
+        },
+    ]
+
+
+def v11845_advertiser_targeting_context(db: Session, advertiser, draft=None):
+    draft = draft or v11845_campaign_draft_from_template()
+    segments = db.query(AudienceSegment).filter(AudienceSegment.advertiser_id == advertiser.id).order_by(AudienceSegment.created_at.desc()).all()
+    users = db.query(User).filter(User.role == "korisnik", User.status == "active").order_by(User.created_at.desc()).limit(400).all()
+    scores = {}
+    if "UserScoreV115" in globals():
+        score_rows = db.query(UserScoreV115).filter(UserScoreV115.user_id.in_([u.id for u in users])).all() if users else []
+        scores = {row.user_id: row for row in score_rows}
+    segment_rows = []
+    for segment in segments:
+        matched = []
+        for usr in users:
+            fit = v11845_segment_match(usr, scores.get(usr.id), segment)
+            if fit["matched"]:
+                matched.append({
+                    "user": usr,
+                    "fit_score": fit["score"],
+                    "quality": fit["quality"],
+                    "interest_overlap": fit["interest_overlap"],
+                })
+        matched.sort(key=lambda item: (item["fit_score"], item["quality"]), reverse=True)
+        count = len(matched)
+        segment_rows.append({
+            "segment": segment,
+            "matched_count": count,
+            "fit_label": "širok domet" if count >= 25 else "fokusiran" if count >= 8 else "niša",
+            "sample_users": matched[:3],
+        })
+    best_segment = max(segment_rows, key=lambda row: row["matched_count"], default=None)
+    draft_terms = v11845_split_terms(draft.get("target_interests") or "")
+    users_with_interest = 0
+    for usr in users:
+        if not draft_terms or draft_terms.intersection(v11845_split_terms(getattr(usr, "interests", ""))):
+            users_with_interest += 1
+    audience_estimate = {
+        "active_users": len(users),
+        "matched_interest_users": users_with_interest,
+        "saved_segments": len(segment_rows),
+        "best_segment_count": best_segment["matched_count"] if best_segment else 0,
+    }
+    suggestions = [
+        f"Ciljaj {draft.get('target_city') or 'šire tržište'} samo ako imaš jasan CTA i dovoljno budžeta za {int(draft.get('total_slots') or 0)} slotova.",
+        "Za slabiji pacing prvo pooštri interesovanja i proof, pa tek onda povećavaj budžet.",
+        "Ako želiš skuplje zadatke, podigni minimalni nivo i kvalitet u segmentima publike.",
+    ]
+    return {
+        "segments": segments,
+        "segment_rows": segment_rows,
+        "best_segment": best_segment,
+        "audience_estimate": audience_estimate,
+        "creative_cards": v11845_creative_cards(advertiser, draft, segments),
+        "targeting_suggestions": suggestions,
+    }
+
+
+def v11845_user_tier_context(user, score, subs, refs):
+    approved = sum(1 for s in subs if s.status == "approved")
+    streak_days = int(getattr(score, "streak_days", 0) or 0) if score else 0
+    quality = float(getattr(score, "quality_score", getattr(user, "quality_score", 0)) or 0)
+    risk = float(getattr(score, "risk_score", 0) or 0)
+    referral_count = len(refs)
+    tiers = [
+        {"name": "Explorer", "min_quality": 0, "min_approved": 0, "min_streak": 0, "perks": ["osnovni zadaci", "dnevna nagrada"]},
+        {"name": "Trusted", "min_quality": 70, "min_approved": 5, "min_streak": 2, "perks": ["brža preporuka", "više aktivnih taskova"]},
+        {"name": "Pro", "min_quality": 82, "min_approved": 15, "min_streak": 5, "perks": ["bolje plaćeni taskovi", "prioritetna isplata signal"]},
+        {"name": "Elite", "min_quality": 92, "min_approved": 30, "min_streak": 7, "perks": ["premium taskovi", "specijalne misije", "veći referral signal"]},
+    ]
+    current_idx = 0
+    for idx, tier in enumerate(tiers):
+        if quality >= tier["min_quality"] and approved >= tier["min_approved"] and streak_days >= tier["min_streak"] and risk < 70:
+            current_idx = idx
+    tier = tiers[current_idx]
+    next_tier = tiers[current_idx + 1] if current_idx + 1 < len(tiers) else None
+    requirements = []
+    if next_tier:
+        if quality < next_tier["min_quality"]:
+            requirements.append(f"+{int(next_tier['min_quality'] - quality)} quality")
+        if approved < next_tier["min_approved"]:
+            requirements.append(f"+{next_tier['min_approved'] - approved} odobrenih")
+        if streak_days < next_tier["min_streak"]:
+            requirements.append(f"+{next_tier['min_streak'] - streak_days} dana streak-a")
+    progress_parts = []
+    if next_tier:
+        progress_parts.append(min(100, int((quality / max(next_tier["min_quality"], 1)) * 100)))
+        progress_parts.append(min(100, int((approved / max(next_tier["min_approved"], 1)) * 100)))
+        progress_parts.append(min(100, int((streak_days / max(next_tier["min_streak"], 1)) * 100)))
+    progress = int(sum(progress_parts) / len(progress_parts)) if progress_parts else 100
+    return {
+        "tier": tier,
+        "next_tier": next_tier,
+        "progress": progress,
+        "requirements": requirements,
+        "approved": approved,
+        "quality": quality,
+        "risk": risk,
+        "streak_days": streak_days,
+        "referral_count": referral_count,
+    }
+
+
+def v11845_recommendation_rows(db: Session, user, score):
+    approved_ids = {row[0] for row in db.query(TaskSubmission.task_id).filter(TaskSubmission.user_id == user.id).all()}
+    reserved_ids = set()
+    if "TaskReservationV115" in globals():
+        reserved_ids = {row[0] for row in db.query(TaskReservationV115.task_id).filter(TaskReservationV115.user_id == user.id, TaskReservationV115.status == "active").all()}
+    user_terms = v11845_split_terms(getattr(user, "interests", ""))
+    user_city = (getattr(user, "city", "") or "").strip().lower()
+    quality = float(getattr(score, "quality_score", getattr(user, "quality_score", 0)) or 0)
+    tasks = db.query(Task).filter(Task.status == "active").order_by(Task.featured.desc(), Task.reward_rsd.desc()).limit(80).all()
+    rows = []
+    for task in tasks:
+        if task.id in approved_ids or task.id in reserved_ids:
+            continue
+        score_value = min(42, float(task.reward_rsd or 0) / 3.5)
+        reasons = []
+        city_rule = (getattr(task, "target_city", "") or "").strip().lower()
+        if not city_rule or city_rule == "srbija" or city_rule in user_city:
+            score_value += 14
+            reasons.append("grad odgovara")
+        else:
+            score_value -= 6
+        task_terms = v11845_split_terms(getattr(task, "target_interests", ""))
+        overlap = user_terms.intersection(task_terms)
+        if overlap:
+            score_value += min(18, len(overlap) * 7)
+            reasons.append("poklapanje interesovanja")
+        elif not task_terms:
+            score_value += 6
+            reasons.append("široka ciljna grupa")
+        if v11845_level_value(getattr(user, "level", "")) >= v11845_level_value(getattr(task, "min_user_level", "Bronza")):
+            score_value += 10
+            reasons.append("nivo odgovara")
+        else:
+            score_value -= 35
+        if getattr(task, "proof_file_required", False):
+            if quality >= 80:
+                score_value += 6
+                reasons.append("spreman za zahtevniji dokaz")
+            else:
+                score_value -= 8
+        if getattr(task, "featured", False):
+            score_value += 8
+            reasons.append("prioritetna kampanja")
+        match_label = "high" if score_value >= 70 else "medium" if score_value >= 48 else "low"
+        rows.append({
+            "task": task,
+            "score": round(score_value, 1),
+            "reason": ", ".join(reasons[:3]) if reasons else "nova prilika prema zaradi i dostupnosti",
+            "match_label": match_label,
+        })
+    rows.sort(key=lambda item: item["score"], reverse=True)
+    return rows[:12]
+
+
+def v11845_sync_task_recommendations(db: Session, user, rows):
+    db.query(TaskRecommendation).filter(TaskRecommendation.user_id == user.id).delete()
+    for row in rows[:12]:
+        db.add(TaskRecommendation(user_id=user.id, task_id=row["task"].id, score=row["score"], reason=row["reason"]))
+    db.flush()
+
+
+def v11845_queue_delivery(db: Session, channel: str, recipient: str, subject: str, body: str, user=None, task=None):
+    recipient = (recipient or "").strip()
+    if not recipient:
+        return None
+    item = AutoNotificationQueueV114(
+        channel=channel,
+        recipient=recipient,
+        subject=(subject or "").strip()[:255],
+        body=(body or "").strip(),
+        status="queued",
+        related_user_id=user.id if user else None,
+        related_task_id=task.id if task else None,
+    )
+    db.add(item)
+    if channel == "email":
+        v11836_email(db, recipient, subject, body)
+    return item
+
+
 def v11837_advertiser_health_row(db: Session, advertiser):
     tasks = db.query(Task).filter(Task.advertiser_id == advertiser.id).all()
     task_ids = [t.id for t in tasks]
@@ -1423,6 +1706,18 @@ def audit(db, admin, action, entity, entity_id, reason=""):
 
 def notify(db, user=None, role_target=None, title="Obaveštenje", body=""):
     db.add(Notification(user_id=user.id if user else None, role_target=role_target, title=title, body=body))
+    recipients = []
+    if user:
+        recipients = [user]
+    elif role_target in ["korisnik", "oglasivac", "admin"]:
+        recipients = db.query(User).filter(User.role == role_target, User.status == "active").limit(80).all()
+    elif role_target == "all":
+        recipients = db.query(User).filter(User.status == "active").limit(120).all()
+    for recipient in recipients:
+        if getattr(recipient, "email", None):
+            v11845_queue_delivery(db, "email", recipient.email, title, body, user=recipient)
+        if getattr(recipient, "phone", None):
+            v11845_queue_delivery(db, "sms", recipient.phone, title, body, user=recipient)
 
 def update_quality(db, user):
     a = db.query(TaskSubmission).filter(TaskSubmission.user_id == user.id, TaskSubmission.status == "approved").count()
@@ -1943,6 +2238,8 @@ def user_panel(request:Request, msg:str|None=None, db:Session=Depends(get_db)):
         "score": score,
     }
     data.update(v11844_user_growth_context(db, u, subs, txs, withdrawals, refs, score))
+    data["tier_ctx"] = v11845_user_tier_context(u, score, subs, refs)
+    data["recommendation_rows"] = v11845_recommendation_rows(db, u, score)[:4]
     return templates.TemplateResponse("user_app.html", {"request":request,"user":u,"flash":flash(msg),**data})
 
 @app.get("/korisnik/profil", response_class=HTMLResponse)
@@ -1993,23 +2290,43 @@ def advertiser_panel(request:Request, msg:str|None=None, db:Session=Depends(get_
     subs=db.query(TaskSubmission).join(Task).filter(Task.advertiser_id==u.id).order_by(TaskSubmission.created_at.desc()).all()
     txs=db.query(AdvertiserBudgetTransaction).filter(AdvertiserBudgetTransaction.advertiser_id==u.id).order_by(AdvertiserBudgetTransaction.created_at.desc()).all()
     ctx = v11844_advertiser_workspace_context(db, u, tasks, subs, txs)
-    return templates.TemplateResponse("advertiser_app.html", {"request":request,"user":u,"flash":flash(msg),"tasks":tasks,"subs":subs,"txs":txs, **ctx})
+    targeting = v11845_advertiser_targeting_context(db, u)
+    return templates.TemplateResponse("advertiser_app.html", {"request":request,"user":u,"flash":flash(msg),"tasks":tasks,"subs":subs,"txs":txs, "targeting": targeting, **ctx})
 
 @app.get("/oglasivac/nova-kampanja", response_class=HTMLResponse)
 def new_campaign(request:Request, db:Session=Depends(get_db)):
     u=require(request,db); check_role(u,["oglasivac","admin"])
     fee = v111_price_percent(db, "platform_commission_percent", PLATFORM_FEE_PERCENT) if "v111_price_percent" in globals() else PLATFORM_FEE_PERCENT
     builder = v11844_campaign_builder_context(db, u)
-    return templates.TemplateResponse("campaign_form.html", {"request":request,"user":u,"error":None,"fee":fee,"builder":builder})
+    draft = v11845_campaign_draft_from_template()
+    targeting = v11845_advertiser_targeting_context(db, u, draft)
+    return templates.TemplateResponse("campaign_form.html", {"request":request,"user":u,"error":None,"fee":fee,"builder":builder,"draft":draft,"targeting":targeting})
 
 @app.post("/oglasivac/nova-kampanja")
 def create_campaign(request:Request, title:str=Form(...), category:str=Form(...), task_type:str=Form(...), target_url:str=Form(""), description:str=Form(...), instructions:str=Form(...), proof_required:str=Form(...), example_proof:str=Form(""), reward_rsd:float=Form(...), total_slots:int=Form(...), target_city:str=Form("Srbija"), target_age_group:str=Form("18+"), target_interests:str=Form(""), proof_file_required:Optional[str]=Form(None), db:Session=Depends(get_db)):
     u=require(request,db); check_role(u,["oglasivac","admin"])
     fee = v111_price_percent(db, "platform_commission_percent", PLATFORM_FEE_PERCENT) if "v111_price_percent" in globals() else PLATFORM_FEE_PERCENT
+    draft = {
+        "title": title,
+        "category": category,
+        "task_type": task_type,
+        "target_url": target_url,
+        "description": description,
+        "instructions": instructions,
+        "proof_required": proof_required,
+        "example_proof": example_proof,
+        "reward_rsd": reward_rsd,
+        "total_slots": total_slots,
+        "target_city": target_city,
+        "target_age_group": target_age_group,
+        "target_interests": target_interests,
+        "proof_file_required": bool(proof_file_required),
+    }
     total=cost_for_task(reward_rsd,total_slots,fee)
     if u.advertiser_budget_rsd < total:
         builder = v11844_campaign_builder_context(db, u)
-        return templates.TemplateResponse("campaign_form.html", {"request":request,"user":u,"error":f"Nedovoljno budžeta. Potrebno {total:.0f} RSD, dostupno {u.advertiser_budget_rsd:.0f} RSD.","fee":fee,"builder":builder}, status_code=400)
+        targeting = v11845_advertiser_targeting_context(db, u, draft)
+        return templates.TemplateResponse("campaign_form.html", {"request":request,"user":u,"error":f"Nedovoljno budžeta. Potrebno {total:.0f} RSD, dostupno {u.advertiser_budget_rsd:.0f} RSD.","fee":fee,"builder":builder,"draft":draft,"targeting":targeting}, status_code=400)
     t=Task(advertiser_id=u.id,title=title,category=category,task_type=task_type,target_url=target_url,description=description,instructions=instructions,proof_required=proof_required,example_proof=example_proof,reward_rsd=reward_rsd,platform_fee_percent=fee,total_slots=total_slots,target_city=target_city,target_age_group=target_age_group,target_interests=target_interests,proof_file_required=bool(proof_file_required),status="pending")
     u.advertiser_budget_rsd-=total; u.advertiser_reserved_rsd+=total
     db.add(t); db.flush(); add_budget_tx(db,u,-total,"reserve_campaign",f"Rezervisan budžet za kampanju: {title}")
@@ -2272,7 +2589,13 @@ def my_notifications(request: Request, db: Session = Depends(get_db)):
             n.status = "read"
     db.commit()
     action_rows = [{"note": n, "action": v11844_notification_action(n, u.role)} for n in notes]
-    return templates.TemplateResponse("notifications_v4.html", {"request": request, "user": u, "notes": notes, "action_rows": action_rows})
+    deliveries = db.query(AutoNotificationQueueV114).filter(or_(AutoNotificationQueueV114.related_user_id == u.id, AutoNotificationQueueV114.recipient == (u.email or ""), AutoNotificationQueueV114.recipient == (u.phone or ""))).order_by(AutoNotificationQueueV114.created_at.desc()).limit(24).all()
+    delivery_stats = {
+        "queued": sum(1 for row in deliveries if row.status == "queued"),
+        "sent": sum(1 for row in deliveries if row.status == "sent"),
+        "failed": sum(1 for row in deliveries if row.status == "failed"),
+    }
+    return templates.TemplateResponse("notifications_v4.html", {"request": request, "user": u, "notes": notes, "action_rows": action_rows, "deliveries": deliveries, "delivery_stats": delivery_stats})
 
 @app.get("/korisnik/tiketi", response_class=HTMLResponse)
 @app.get("/oglasivac/tiketi", response_class=HTMLResponse)
@@ -2330,7 +2653,9 @@ def campaign_from_template(template_id:int, request:Request, db:Session=Depends(
     item=db.query(CampaignTemplate).filter(CampaignTemplate.id==template_id).first()
     if not item: raise HTTPException(404)
     builder = v11844_campaign_builder_context(db, u, item)
-    return templates.TemplateResponse("campaign_form.html", {"request":request,"user":u,"error":None,"fee":PLATFORM_FEE_PERCENT,"tpl":item,"builder":builder})
+    draft = v11845_campaign_draft_from_template(item)
+    targeting = v11845_advertiser_targeting_context(db, u, draft)
+    return templates.TemplateResponse("campaign_form.html", {"request":request,"user":u,"error":None,"fee":PLATFORM_FEE_PERCENT,"tpl":item,"builder":builder,"draft":draft,"targeting":targeting})
 
 @app.post("/oglasivac/kupon")
 def apply_coupon(request:Request, code:str=Form(...), db:Session=Depends(get_db)):
@@ -2688,7 +3013,8 @@ def advertiser_segments(request: Request, msg: str | None = None, db: Session = 
     u = require(request, db)
     check_role(u, ["oglasivac", "admin"])
     segments = db.query(AudienceSegment).filter(AudienceSegment.advertiser_id == u.id).order_by(AudienceSegment.created_at.desc()).all()
-    return templates.TemplateResponse("segments_v5.html", {"request": request, "user": u, "segments": segments, "flash": flash(msg)})
+    targeting = v11845_advertiser_targeting_context(db, u)
+    return templates.TemplateResponse("segments_v5.html", {"request": request, "user": u, "segments": segments, "flash": flash(msg), "targeting": targeting})
 
 
 @app.post("/oglasivac/segmenti/novi")
@@ -3926,14 +4252,19 @@ def api_analytics_summary(db: Session = Depends(get_db)):
 def user_recommendations(request: Request, db: Session = Depends(get_db)):
     u = require(request, db)
     check_role(u, ["korisnik", "admin"])
-    recs = db.query(TaskRecommendation).filter(TaskRecommendation.user_id == u.id).order_by(TaskRecommendation.score.desc()).all()
-    if not recs:
-        tasks = db.query(Task).filter(Task.status == "active").order_by(Task.reward_rsd.desc()).limit(10).all()
-        for idx, task in enumerate(tasks, start=1):
-            db.add(TaskRecommendation(user_id=u.id, task_id=task.id, score=100 - idx * 5, reason="Automatska preporuka prema nagradi i dostupnosti."))
-        db.commit()
-        recs = db.query(TaskRecommendation).filter(TaskRecommendation.user_id == u.id).order_by(TaskRecommendation.score.desc()).all()
-    return templates.TemplateResponse("user_recommendations_v7.html", {"request": request, "user": u, "recs": recs})
+    score = kz115_recalculate_user_score(db, u) if "kz115_recalculate_user_score" in globals() else kz115_get_score(db, u)
+    recs = v11845_recommendation_rows(db, u, score)
+    v11845_sync_task_recommendations(db, u, recs)
+    db.commit()
+    subs = db.query(TaskSubmission).filter(TaskSubmission.user_id == u.id).all()
+    refs = db.query(User).filter(User.referred_by_id == u.id).all()
+    tier_ctx = v11845_user_tier_context(u, score, subs, refs)
+    recommendation_summary = {
+        "high": sum(1 for row in recs if row["match_label"] == "high"),
+        "medium": sum(1 for row in recs if row["match_label"] == "medium"),
+        "low": sum(1 for row in recs if row["match_label"] == "low"),
+    }
+    return templates.TemplateResponse("user_recommendations_v7.html", {"request": request, "user": u, "recs": recs, "tier_ctx": tier_ctx, "recommendation_summary": recommendation_summary})
 
 
 @app.get("/poruke", response_class=HTMLResponse)
@@ -4567,6 +4898,56 @@ def admin_email_status_v8(email_id: int, status: str, request: Request, db: Sess
         email.sent_at = datetime.utcnow()
     db.commit()
     return RedirectResponse("/admin/email-outbox-v8?msg=saved", 303)
+
+
+@app.get("/admin/notification-queue-v11845", response_class=HTMLResponse)
+def admin_notification_queue_v11845(request: Request, db: Session = Depends(get_db)):
+    u = require(request, db)
+    check_role(u, ["admin"])
+    queue = db.query(AutoNotificationQueueV114).order_by(AutoNotificationQueueV114.created_at.desc()).limit(300).all()
+    stats = {
+        "queued": sum(1 for row in queue if row.status == "queued"),
+        "sent": sum(1 for row in queue if row.status == "sent"),
+        "failed": sum(1 for row in queue if row.status == "failed"),
+        "email": sum(1 for row in queue if row.channel == "email"),
+        "sms": sum(1 for row in queue if row.channel == "sms"),
+        "internal": sum(1 for row in queue if row.channel == "internal"),
+    }
+    return templates.TemplateResponse("admin_notification_queue_v11845.html", {"request": request, "user": u, "queue": queue, "stats": stats})
+
+
+@app.post("/admin/notification-queue-v11845/create")
+def admin_notification_queue_create_v11845(request: Request, channel: str = Form("email"), recipient: str = Form(""), user_id: int = Form(0), subject: str = Form(...), body: str = Form(...), db: Session = Depends(get_db)):
+    u = require(request, db)
+    check_role(u, ["admin"])
+    target_user = db.query(User).filter(User.id == user_id).first() if user_id else None
+    real_recipient = recipient.strip()
+    if target_user and channel == "email":
+        real_recipient = (target_user.email or "").strip()
+    elif target_user and channel == "sms":
+        real_recipient = (target_user.phone or "").strip()
+    if channel not in ["email", "sms", "internal"]:
+        raise HTTPException(400)
+    if channel == "internal" and not real_recipient:
+        real_recipient = "internal"
+    v11845_queue_delivery(db, channel, real_recipient, subject.strip(), body.strip(), user=target_user)
+    db.commit()
+    return RedirectResponse("/admin/notification-queue-v11845?msg=saved", 303)
+
+
+@app.post("/admin/notification-queue-v11845/{item_id}/{status}")
+def admin_notification_queue_status_v11845(item_id: int, status: str, request: Request, db: Session = Depends(get_db)):
+    u = require(request, db)
+    check_role(u, ["admin"])
+    item = db.query(AutoNotificationQueueV114).filter(AutoNotificationQueueV114.id == item_id).first()
+    if not item:
+        raise HTTPException(404)
+    if status not in ["queued", "sent", "failed"]:
+        raise HTTPException(400)
+    item.status = status
+    item.sent_at = datetime.utcnow() if status == "sent" else item.sent_at
+    db.commit()
+    return RedirectResponse("/admin/notification-queue-v11845?msg=saved", 303)
 
 
 @app.get("/admin/help-v8", response_class=HTMLResponse)
@@ -8125,7 +8506,10 @@ def user_motivation_v115(request: Request, db: Session = Depends(get_db)):
     rewards = db.query(DailyRewardV115).filter(DailyRewardV115.user_id == u.id).order_by(DailyRewardV115.created_at.desc()).limit(20).all()
     leaderboard = db.query(UserScoreV115).order_by(UserScoreV115.quality_score.desc(), UserScoreV115.total_points.desc()).limit(10).all()
     recent_tasks = db.query(Task).filter(Task.status == "active").order_by(Task.featured.desc(), Task.reward_rsd.desc()).limit(5).all()
-    return templates.TemplateResponse("user_motivation_v115.html", {"request":request,"user":u,"flash":None,"score":score,"badges":badges,"missions":missions,"rewards":rewards,"leaderboard":leaderboard,"statuses":KZ115_USER_STATUSES,"recent_tasks":recent_tasks,"all_badges":[{"key":k,"title":t,"description":d,"icon":i,"earned": any(getattr(b,"badge_key","")==k for b in badges)} for k,t,d,i in KZ115_BADGE_LIBRARY]})
+    subs = db.query(TaskSubmission).filter(TaskSubmission.user_id == u.id).all()
+    refs = db.query(User).filter(User.referred_by_id == u.id).all()
+    tier_ctx = v11845_user_tier_context(u, score, subs, refs)
+    return templates.TemplateResponse("user_motivation_v115.html", {"request":request,"user":u,"flash":None,"score":score,"badges":badges,"missions":missions,"rewards":rewards,"leaderboard":leaderboard,"statuses":KZ115_USER_STATUSES,"recent_tasks":recent_tasks,"tier_ctx":tier_ctx,"all_badges":[{"key":k,"title":t,"description":d,"icon":i,"earned": any(getattr(b,"badge_key","")==k for b in badges)} for k,t,d,i in KZ115_BADGE_LIBRARY]})
 
 @app.post("/korisnik/dnevna-nagrada-v115")
 def user_daily_reward_v115(request: Request, db: Session = Depends(get_db)):

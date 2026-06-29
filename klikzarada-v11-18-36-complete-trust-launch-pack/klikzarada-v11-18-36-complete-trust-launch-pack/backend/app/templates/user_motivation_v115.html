@@ -40,12 +40,23 @@
       <article><div><b>Bedževi</b><small>osvojeno</small></div><strong>{{ badges|length }}</strong></article>
       <article><div><b>Aktivne misije</b><small>u toku</small></div><strong>{{ missions|length }}</strong></article>
       <article><div><b>Nagrade</b><small>preuzeto</small></div><strong>{{ rewards|length }}</strong></article>
+      <article><div><b>Tier</b><small>reputacija</small></div><strong>{{ tier_ctx.tier.name }}</strong></article>
     </div>
   </aside>
 </div>
 
 <div class="kz-user-content-grid">
   <div>
+    <section class="kz115-section">
+      <div class="kz115-head"><h2>Reputation ladder</h2><span>{{ tier_ctx.progress }}%</span></div>
+      <div class="kz115-status-list">
+        <article><b>Aktivni tier: {{ tier_ctx.tier.name }}</b><p>{{ tier_ctx.tier.perks|join(", ") }}</p></article>
+        {% if tier_ctx.next_tier %}
+        <article><b>Sledeći tier: {{ tier_ctx.next_tier.name }}</b><p>{% if tier_ctx.requirements %}Potrebno još: {{ tier_ctx.requirements|join(", ") }}{% else %}Spreman za upgrade{% endif %}</p></article>
+        {% endif %}
+      </div>
+    </section>
+
     <section class="kz115-section">
       <div class="kz115-head"><h2>Dnevne misije</h2><span>{{ missions|length }}</span></div>
       <div class="kz115-mission-list">

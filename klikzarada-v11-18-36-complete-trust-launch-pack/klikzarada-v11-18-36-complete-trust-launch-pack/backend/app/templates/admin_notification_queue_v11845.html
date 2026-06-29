@@ -1,0 +1,64 @@
+{% extends "app_base.html" %}
+{% set title = "Communication queue - KlikZarada" %}
+{% block app_content %}
+<section class="premium-panel-hero">
+  <div><span>COMMUNICATION QUEUE</span><h1>Email / SMS / internal isporuka</h1><p>Centralno mesto za poruke koje izlaze iz sistema. Ovde admin vidi šta čeka, šta je poslato i gde je delivery zapela.</p></div>
+  <div class="premium-panel-actions"><a class="premium-btn white" href="/admin/email-outbox-v8">Email outbox</a></div>
+</section>
+
+<section class="premium-stat-grid">
+  <article class="green"><small>Queued</small><strong>{{ stats.queued }}</strong><span>na čekanju</span></article>
+  <article class="blue"><small>Sent</small><strong>{{ stats.sent }}</strong><span>isporučeno</span></article>
+  <article class="orange"><small>Failed</small><strong>{{ stats.failed }}</strong><span>greške</span></article>
+  <article class="purple"><small>SMS</small><strong>{{ stats.sms }}</strong><span>stavki</span></article>
+</section>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Nova queue stavka</h2><span>manual enqueue</span></div>
+    <form class="premium-form" method="post" action="/admin/notification-queue-v11845/create">
+      <div class="cols"><div><label>Kanal</label><select name="channel"><option>email</option><option>sms</option><option>internal</option></select></div><div><label>User ID (opciono)</label><input type="number" name="user_id" value="0"></div></div>
+      <label>Primaoc</label><input name="recipient" placeholder="email ili broj telefona">
+      <label>Naslov</label><input name="subject" required>
+      <label>Poruka</label><textarea name="body" required></textarea>
+      <button class="premium-btn blue full">Dodaj u queue</button>
+    </form>
+  </section>
+  <section class="premium-card gradient">
+    <div class="premium-card-head"><h2>Pregled kanala</h2><span>mix</span></div>
+    <div class="premium-money-grid">
+      <article><small>Email</small><strong>{{ stats.email }}</strong></article>
+      <article><small>SMS</small><strong>{{ stats.sms }}</strong></article>
+      <article><small>Internal</small><strong>{{ stats.internal }}</strong></article>
+      <article><small>Ukupno</small><strong>{{ queue|length }}</strong></article>
+    </div>
+  </section>
+</div>
+
+<section class="premium-card">
+  <div class="premium-card-head"><h2>Queue stavke</h2><span>{{ queue|length }}</span></div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead><tr><th>Kanal</th><th>Primaoc</th><th>Naslov</th><th>Status</th><th>Datum</th><th>Akcije</th></tr></thead>
+      <tbody>
+      {% for item in queue %}
+      <tr>
+        <td>{{ item.channel }}</td>
+        <td>{{ item.recipient }}</td>
+        <td>{{ item.subject }}</td>
+        <td><span class="status {{ item.status }}">{{ item.status }}</span></td>
+        <td>{{ item.created_at }}</td>
+        <td class="actions">
+          <form method="post" action="/admin/notification-queue-v11845/{{ item.id }}/queued"><button class="btn btn-mini">Queue</button></form>
+          <form method="post" action="/admin/notification-queue-v11845/{{ item.id }}/sent"><button class="btn btn-mini btn-primary">Sent</button></form>
+          <form method="post" action="/admin/notification-queue-v11845/{{ item.id }}/failed"><button class="btn btn-mini btn-danger">Fail</button></form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6">Queue je prazna.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

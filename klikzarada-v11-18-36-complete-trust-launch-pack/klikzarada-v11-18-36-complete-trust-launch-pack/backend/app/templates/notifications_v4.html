@@ -4,6 +4,12 @@
   <div><span>NOTIFIKACIJE</span><h1>Obaveštenja i sledeći klik</h1><p>Ovde vidiš sistemske poruke, statuse i admin obaveštenja, ali i gde odmah treba da odeš posle poruke.</p></div>
   <div class="premium-panel-actions"><a class="premium-btn white" href="/poruke">Poruke</a></div>
 </section>
+<section class="premium-stat-grid">
+  <article class="green"><small>Email/SMS queued</small><strong>{{ delivery_stats.queued if delivery_stats is defined else 0 }}</strong><span>na čekanju</span></article>
+  <article class="blue"><small>Isporučeno</small><strong>{{ delivery_stats.sent if delivery_stats is defined else 0 }}</strong><span>sent</span></article>
+  <article class="orange"><small>Greške</small><strong>{{ delivery_stats.failed if delivery_stats is defined else 0 }}</strong><span>failed</span></article>
+  <article class="purple"><small>Panel poruke</small><strong>{{ action_rows|length }}</strong><span>ukupno</span></article>
+</section>
 <div class="premium-list">
   {% for row in action_rows %}
   <article class="premium-card">
@@ -16,4 +22,16 @@
   <div class="premium-empty"><h3>Nema notifikacija</h3><p>Kada sistem pošalje poruku, videćeš je ovde.</p></div>
   {% endfor %}
 </div>
+<section class="premium-card">
+  <div class="premium-card-head"><h2>Spoljna isporuka</h2><span>email / sms queue</span></div>
+  <div class="premium-table-wrap">
+    <table><thead><tr><th>Kanal</th><th>Primaoc</th><th>Naslov</th><th>Status</th></tr></thead><tbody>
+    {% for item in deliveries %}
+    <tr><td>{{ item.channel }}</td><td>{{ item.recipient }}</td><td>{{ item.subject }}</td><td><span class="status {{ item.status }}">{{ item.status }}</span></td></tr>
+    {% else %}
+    <tr><td colspan="4">Nema email/SMS queue stavki za ovaj nalog.</td></tr>
+    {% endfor %}
+    </tbody></table>
+  </div>
+</section>
 {% endblock %}

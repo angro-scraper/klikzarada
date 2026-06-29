@@ -1,16 +1,80 @@
 {% extends "app_base.html" %}
-{% set title = "Segmenti publike - KlikZarada" %}
+{% set title = "Targeting studio - KlikZarada" %}
 {% block app_content %}
-<div class="section-heading left"><span>V5 Audience Builder</span><h2>Segmenti publike</h2></div>
-<form class="form-panel" method="post" action="/oglasivac/segmenti/novi">
-  <div class="form-grid"><div><label>Naziv segmenta</label><input name="name" required placeholder="npr. Mladi iz Niša"></div><div><label>Grad</label><input name="city" placeholder="Niš, Beograd, Srbija..."></div></div>
-  <div class="form-grid"><div><label>Starosna grupa</label><input name="age_group" placeholder="18-34"></div><div><label>Minimalni nivo</label><select name="min_user_level"><option>Bronza</option><option>Srebro</option><option>Zlato</option><option>Premium</option></select></div></div>
-  <label>Interesovanja</label><textarea name="interests" placeholder="hrana, aplikacije, kupovina..."></textarea>
-  <div class="form-grid"><div><label>Minimalni kvalitet %</label><input type="number" name="min_quality_score" value="80"></div><div><label>Napomena</label><input name="notes"></div></div>
-  <button class="btn btn-primary" type="submit">Sačuvaj segment</button>
-</form>
-<div class="table-card"><table><thead><tr><th>Naziv</th><th>Grad</th><th>Godine</th><th>Interesovanja</th><th>Nivo</th><th>Kvalitet</th></tr></thead><tbody>
-{% for s in segments %}<tr><td>{{ s.name }}</td><td>{{ s.city or "-" }}</td><td>{{ s.age_group or "-" }}</td><td>{{ s.interests or "-" }}</td><td>{{ s.min_user_level }}</td><td>{{ "%.0f"|format(s.min_quality_score) }}%</td></tr>
-{% else %}<tr><td colspan="6">Nema segmenata.</td></tr>{% endfor %}
-</tbody></table></div>
+<section class="premium-panel-hero advertiser">
+  <div><span>TARGETING STUDIO</span><h1>Publika i creative preview</h1><p>Ovde oglašivač sam gradi segmente, vidi približan doseg i odmah dobija ideje kako da poruka izgleda pre puštanja kampanje.</p></div>
+  <div class="premium-panel-actions"><a class="premium-btn blue" href="/oglasivac/nova-kampanja">Nova kampanja</a><a class="premium-btn white" href="/oglasivac/promocija-v111">Banner slotovi</a></div>
+</section>
+
+<section class="premium-stat-grid">
+  <article class="green"><small>Sačuvani segmenti</small><strong>{{ targeting.audience_estimate.saved_segments }}</strong><span>ukupno</span></article>
+  <article class="blue"><small>Aktivni korisnici</small><strong>{{ targeting.audience_estimate.active_users }}</strong><span>baza</span></article>
+  <article class="purple"><small>Interes fit</small><strong>{{ targeting.audience_estimate.matched_interest_users }}</strong><span>potencijal</span></article>
+  <article class="orange"><small>Najjači segment</small><strong>{{ targeting.audience_estimate.best_segment_count }}</strong><span>match</span></article>
+</section>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Novi segment</h2><span>self-serve</span></div>
+    <form class="premium-form" method="post" action="/oglasivac/segmenti/novi">
+      <div class="cols"><div><label>Naziv segmenta</label><input name="name" required placeholder="npr. Mladi iz Beograda"></div><div><label>Grad</label><input name="city" placeholder="Beograd, Novi Sad, Srbija"></div></div>
+      <div class="cols"><div><label>Starosna grupa</label><input name="age_group" placeholder="18-34"></div><div><label>Minimalni nivo</label><select name="min_user_level"><option>Bronza</option><option>Srebro</option><option>Zlato</option><option>Premium</option></select></div></div>
+      <label>Interesovanja</label><textarea name="interests" placeholder="hrana, aplikacije, kupovina, putovanja"></textarea>
+      <div class="cols"><div><label>Minimalni kvalitet %</label><input type="number" name="min_quality_score" value="80"></div><div><label>Napomena</label><input name="notes" placeholder="npr. za launch paket"></div></div>
+      <button class="premium-btn blue full" type="submit">Sačuvaj segment</button>
+    </form>
+  </section>
+  <section class="premium-card gradient">
+    <div class="premium-card-head"><h2>Creative preview</h2><span>ideje za copy</span></div>
+    <div class="premium-list">
+      {% for creative in targeting.creative_cards %}
+      <article>
+        <div>
+          <b>{{ creative.label }} · {{ creative.headline }}</b>
+          <small>{{ creative.body }}</small>
+          <small>{{ creative.visual }}</small>
+        </div>
+        <span class="status status-approved">{{ creative.cta }}</span>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<section class="premium-card">
+  <div class="premium-card-head"><h2>Procena dosega po segmentu</h2><span>{{ targeting.segment_rows|length }}</span></div>
+  <div class="premium-list">
+    {% for row in targeting.segment_rows %}
+    <article>
+      <div>
+        <b>{{ row.segment.name }}</b>
+        <small>{{ row.segment.city or "Srbija" }} · {{ row.segment.age_group or "18+" }} · {{ row.segment.interests or "široko" }}</small>
+        <small>Min nivo {{ row.segment.min_user_level }} · min kvalitet {{ "%.0f"|format(row.segment.min_quality_score) }}%</small>
+        {% if row.sample_users %}
+        <small>Primer korisnika:
+          {% for sample in row.sample_users %}
+            {{ sample.user.full_name }}{% if sample.user.city %} ({{ sample.user.city }}){% endif %}{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        </small>
+        {% endif %}
+      </div>
+      <div style="text-align:right;">
+        <strong>{{ row.matched_count }}</strong>
+        <small>{{ row.fit_label }}</small>
+      </div>
+    </article>
+    {% else %}
+    <div class="premium-empty"><h3>Nema segmenata</h3><p>Kreiraj prvi segment da odmah vidiš ko najbolje odgovara tvojoj kampanji.</p></div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="premium-card">
+  <div class="premium-card-head"><h2>Targeting smernice</h2><span>pre launch-a</span></div>
+  <div class="premium-list">
+    {% for tip in targeting.targeting_suggestions %}
+    <article><div><small>{{ tip }}</small></div></article>
+    {% endfor %}
+  </div>
+</section>
 {% endblock %}
