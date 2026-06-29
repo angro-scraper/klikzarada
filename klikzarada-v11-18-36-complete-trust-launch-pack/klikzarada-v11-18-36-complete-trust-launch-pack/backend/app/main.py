@@ -1,6 +1,7 @@
 import io
 import html
 import json
+import re
 import mimetypes
 from PIL import Image
 import time
@@ -138,6 +139,19 @@ def task_source_effective_url(source, api_key: str | None = None):
     endpoint = (getattr(source, "endpoint_url", "") or "").strip()
     if not endpoint:
         return None
+    parsed = urlparse(endpoint)
+    host = (parsed.netloc or "").lower()
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    if "seo-fast.ru" in host and (
+        parsed.path.rstrip("/") == "/api"
+        or "doc" in query
+        or "transitions" in query
+        or "objectInfo" in query
+    ):
+        query.pop("doc", None)
+        query.pop("transitions", None)
+        query.pop("objectInfo", None)
+        endpoint = urlunparse(parsed._replace(path="/api/transitions", query=urlencode(query)))
     token = (api_key or getattr(source, "api_key", None) or "").strip()
     if token:
         if "{api_key}" in endpoint:
@@ -169,6 +183,52 @@ def task_source_extract_items(payload):
                 if nested:
                     return nested
     return []
+
+def task_source_extract_html_items(raw: str, source):
+    if not raw or not raw.strip():
+        return []
+    text = re.sub(r"<script\b.*?</script>", " ", raw, flags=re.I | re.S)
+    text = re.sub(r"<style\b.*?</style>", " ", text, flags=re.I | re.S)
+    text = re.sub(r"<[^>]+>", "\n", text)
+    text = html.unescape(text)
+    lines = [re.sub(r"\s+", " ", line).strip() for line in text.splitlines()]
+    lines = [line for line in lines if line]
+    items = []
+    last_title = None
+    for line in lines:
+        if len(line) < 3:
+            continue
+        price_match = re.search(r'(?:(?:\d+[.,]?\d*)\s*(?:RSD|руб\.?|рублей|rub|rsd)|Цена[:\s]*\d+)', line, re.I)
+        if price_match:
+            reward = 50.0
+            num_match = re.search(r'(\d+(?:[.,]\d+)?)', line)
+            if num_match:
+                try:
+                    reward = float(num_match.group(1).replace(",", "."))
+                except Exception:
+                    reward = 50.0
+            title = last_title or source.name
+            if title and len(title) > 2:
+                items.append({
+                    "title": title[:160],
+                    "description": line[:500],
+                    "instructions": line[:500],
+                    "proof_required": "Pošaljite dokaz izvršenja.",
+                    "task_type": "external_html",
+                    "category": getattr(source, "name", "Imported") or "Imported",
+                    "target_url": (getattr(source, "endpoint_url", "") or "").strip() or "/",
+                    "reward_rsd": reward,
+                    "total_slots": 1,
+                    "estimated_minutes": 5,
+                    "min_user_level": "Bronza",
+                    "featured": False,
+                    "remote_id": f"html:{len(items)}:{hashlib.sha1((title + line).encode('utf-8', 'ignore')).hexdigest()[:12]}",
+                })
+            last_title = None
+        else:
+            if len(line) > 8 and not re.search(r'(?:home|login|logout|admin|doc|api|support|telegram|facebook|instagram|settings|kontakt)', line, re.I):
+                last_title = line
+    return items
 
 def task_source_text(item, *keys, default=""):
     for key in keys:
@@ -274,16 +334,19 @@ def import_tasks_from_source(db: Session, source, admin_id: int | None = None):
     endpoint = task_source_effective_url(source)
     if not endpoint:
         raise HTTPException(400, "Izvor nema endpoint URL.")
-    req = UrlRequest(endpoint, headers={"Accept": "application/json", "User-Agent": "KlikZarada-Importer/1.0"})
+    req = UrlRequest(endpoint, headers={"Accept": "application/json, text/html;q=0.9, */*;q=0.8", "User-Agent": "KlikZarada-Importer/1.0"})
     with urlopen(req, timeout=30) as resp:
-        raw = resp.read().decode("utf-8", "replace")
+        raw_bytes = resp.read()
+    raw = raw_bytes.decode("utf-8", "replace")
     try:
         payload = json.loads(raw)
-    except Exception as exc:
-        raise HTTPException(400, f"API nije vratio validan JSON: {exc}")
-    items = task_source_extract_items(payload)
+        items = task_source_extract_items(payload)
+    except Exception:
+        items = task_source_extract_html_items(raw, source)
     if not items:
-        raise HTTPException(400, "API odgovor ne sadrži listu zadataka.")
+        if not raw.strip():
+            raise HTTPException(400, "Partner endpoint je vratio prazan odgovor.")
+        raise HTTPException(400, "Partner endpoint nije JSON feed. Za ovaj izvor treba public list/page URL ili drugačiji adapter.")
     created = 0
     skipped = 0
     queue_items = 0
@@ -1860,10 +1923,21 @@ def admin_task_source_sync(source_id: int, request: Request, db: Session = Depen
     source = db.query(TaskSourceV11).filter(TaskSourceV11.id == source_id).first()
     if not source:
         raise HTTPException(404)
-    result = import_tasks_from_source(db, source, admin_id=admin.id if admin else None)
-    audit(db, admin, "task_source_sync", "TaskSourceV11", source.id, f"{source.name} imported={result['created']} skipped={result['skipped']}")
-    db.commit()
-    return RedirectResponse(f"/admin/import-moderation?msg=imported", 303)
+    try:
+        result = import_tasks_from_source(db, source, admin_id=admin.id if admin else None)
+        audit(db, admin, "task_source_sync", "TaskSourceV11", source.id, f"{source.name} imported={result['created']} skipped={result['skipped']}")
+        db.commit()
+        return RedirectResponse(f"/admin/import-moderation?msg=imported", 303)
+    except HTTPException as exc:
+        db.rollback()
+        audit(db, admin, "task_source_sync_error", "TaskSourceV11", source.id, f"{source.name} error={exc.detail}")
+        db.commit()
+        return RedirectResponse("/admin/system-settings?msg=remote_error#task-sources", 303)
+    except Exception as exc:
+        db.rollback()
+        audit(db, admin, "task_source_sync_error", "TaskSourceV11", source.id, f"{source.name} error={exc}")
+        db.commit()
+        return RedirectResponse("/admin/system-settings?msg=remote_error#task-sources", 303)
 
 
 @app.post("/admin/system-settings/task-source/{source_id}/toggle")
@@ -1921,10 +1995,21 @@ def admin_import_moderation_source_sync(source_id: int, request: Request, db: Se
     source = db.query(TaskSourceV11).filter(TaskSourceV11.id == source_id).first()
     if not source:
         raise HTTPException(404)
-    result = import_tasks_from_source(db, source, admin_id=admin.id if admin else None)
-    audit(db, admin, "task_source_sync", "TaskSourceV11", source.id, f"{source.name} imported={result['created']} skipped={result['skipped']}")
-    db.commit()
-    return RedirectResponse("/admin/import-moderation?msg=imported", 303)
+    try:
+        result = import_tasks_from_source(db, source, admin_id=admin.id if admin else None)
+        audit(db, admin, "task_source_sync", "TaskSourceV11", source.id, f"{source.name} imported={result['created']} skipped={result['skipped']}")
+        db.commit()
+        return RedirectResponse("/admin/import-moderation?msg=imported", 303)
+    except HTTPException as exc:
+        db.rollback()
+        audit(db, admin, "task_source_sync_error", "TaskSourceV11", source.id, f"{source.name} error={exc.detail}")
+        db.commit()
+        return RedirectResponse("/admin/import-moderation?msg=remote_error", 303)
+    except Exception as exc:
+        db.rollback()
+        audit(db, admin, "task_source_sync_error", "TaskSourceV11", source.id, f"{source.name} error={exc}")
+        db.commit()
+        return RedirectResponse("/admin/import-moderation?msg=remote_error", 303)
 
 
 @app.post("/admin/import-moderation/source/{source_id}/preview-create")

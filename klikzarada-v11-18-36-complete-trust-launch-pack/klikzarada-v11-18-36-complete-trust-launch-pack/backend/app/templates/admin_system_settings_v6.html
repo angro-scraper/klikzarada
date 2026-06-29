@@ -2,6 +2,9 @@
 {% set title = "System settings - Admin" %}
 {% block app_content %}
 <div class="section-heading left"><span>V6 Settings</span><h2>Sistemska podešavanja</h2></div>
+{% if flash %}
+<div class="flash {{ flash[0] }}">{{ flash[1] }}</div>
+{% endif %}
 <div class="card-box" style="margin:18px 0;padding:18px">
   <strong>Brzi finansijski unos</strong>
   <p style="margin:8px 0 14px">Ovo je isto polje koje koristi i admin finansije, pa računi ostaju usklađeni na oba mesta.</p>
@@ -34,7 +37,7 @@
           <option value="manual">Ručni unos</option>
         </select>
       </div>
-      <div><label>Endpoint / URL</label><input name="endpoint_url" placeholder="https://partner.example/api/tasks"></div>
+      <div><label>Endpoint / URL</label><input name="endpoint_url" placeholder="https://seo-fast.ru/api/transitions"></div>
       <div><label>API ključ</label><input name="api_key" placeholder="api_..."></div>
       <div><label>Kontakt / partner</label><input name="contact_name" placeholder="Ime partnera ili kontakta"></div>
       <div><label>Način uvoza</label>
@@ -49,6 +52,7 @@
     <textarea name="instructions" rows="3" placeholder="Uslovi korišćenja, dozvola za prikaz, mapping polja, frekvencija sinhronizacije..."></textarea>
     <button class="btn btn-primary">Dodaj izvor zadataka</button>
   </form>
+  <div class="hint">Ako uneseš SEO-fast docs URL sa <code>?doc=objectInfo</code>, sistem ga automatski normalizuje na pravi <code>/api/transitions</code> endpoint.</div>
   <div class="table-card" style="margin-top:16px">
     <table>
       <thead><tr><th>Naziv</th><th>Tip</th><th>Endpoint</th><th>API ključ</th><th>Način</th><th>Status</th><th>Akcija</th></tr></thead>
