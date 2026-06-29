@@ -21,6 +21,26 @@
 </section>
 
 <div class="premium-dashboard-grid">
+  <section class="premium-card gradient">
+    <div class="premium-card-head"><h2>Wallet progress</h2><span>signal</span></div>
+    <div class="premium-money-grid">
+      <article><small>Streak</small><strong>{{ streak }}</strong></article>
+      <article><small>Quality</small><strong>{{ "%.0f"|format(quality) }}%</strong></article>
+      <article><small>Do praga</small><strong>{{ "%.0f"|format(next_payout_gap) }} RSD</strong></article>
+      <article><small>Isplate</small><strong>{{ withdrawals_count }}</strong></article>
+    </div>
+  </section>
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Sledeće akcije</h2><span>šta diže zaradu</span></div>
+    <div class="premium-list">
+      {% for action in action_cards %}
+      <article><div><b>{{ action.title }}</b><small>{{ action.desc }}</small></div><a class="mini-btn" href="{{ action.url }}">Otvori</a></article>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<div class="premium-dashboard-grid">
   <section class="premium-card">
     <div class="premium-card-head"><h2>Transakcije</h2><span>{{ txs|length }}</span></div>
     <div class="premium-table-wrap">
@@ -41,7 +61,7 @@
     <div class="premium-card-head"><h2>Kako povećati zaradu?</h2><span>saveti</span></div>
     <div class="premium-suggestion-box">
       <h3>Radi zadatke sa većom nagradom</h3>
-      <p>Bolji quality score i aktivan streak otvaraju bolje zadatke i bržu proveru dokaza.</p>
+      <p>Bolji quality score i aktivan streak otvaraju bolje zadatke i bržu proveru dokaza. Sledeći kvalitetni cilj ti je {{ "%.0f"|format(next_quality_target) }}%.</p>
       <a class="premium-btn blue" href="/korisnik/motivacija-v115">Otvori motivaciju</a>
     </div>
   </section>

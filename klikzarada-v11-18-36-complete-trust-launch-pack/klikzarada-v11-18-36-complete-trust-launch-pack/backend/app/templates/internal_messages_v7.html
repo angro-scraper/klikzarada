@@ -1,7 +1,34 @@
 {% extends "app_base.html" %}
 {% set title = "Poruke - KlikZarada" %}
 {% block app_content %}
-<div class="section-heading left"><span>V7 Messages</span><h2>Interna komunikacija</h2></div>
+<section class="premium-panel-hero">
+  <div><span>PORUKE</span><h1>Interna komunikacija</h1><p>Brz kontakt sa adminom, oglašivačem ili korisnikom bez izlaska iz platforme.</p></div>
+  <div class="premium-panel-actions"><a class="premium-btn white" href="/korisnik/notifikacije">Notifikacije</a></div>
+</section>
+<section class="premium-stat-grid">
+  <article class="blue"><small>Inbox</small><strong>{{ unread_count }}</strong><span>primljeno</span></article>
+  <article class="purple"><small>Poslato</small><strong>{{ sent|length }}</strong><span>poruka</span></article>
+  <article class="green"><small>Kontakti</small><strong>{{ contact_cards|length }}</strong><span>brzi izbor</span></article>
+  <article class="orange"><small>Status</small><strong>live</strong><span>in-app</span></article>
+</section>
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Brzi kontakti</h2><span>kome pišeš</span></div>
+    <div class="premium-list">
+      {% for card in contact_cards %}
+      <article><div><b>{{ card.label }}</b><small>{{ card.meta }}</small></div></article>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="premium-card gradient">
+    <div class="premium-card-head"><h2>Predlozi naslova</h2><span>faster workflow</span></div>
+    <div class="premium-list">
+      {% for subject in quick_subjects %}
+      <article><div><small>{{ subject }}</small></div></article>
+      {% endfor %}
+    </div>
+  </section>
+</div>
 <form class="form-panel" method="post" action="/poruke/posalji">
   <div class="form-grid"><div><label>Primaoc</label><select name="recipient_id">{% for u in users %}<option value="{{ u.id }}">{{ u.full_name }} · {{ u.email }}</option>{% endfor %}</select></div><div><label>Naslov</label><input name="subject" required></div></div>
   <label>Poruka</label><textarea name="body" required></textarea>

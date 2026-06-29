@@ -1,6 +1,35 @@
 
 {% extends "app_base.html" %}{% set title="Nova kampanja" %}{% block app_content %}
-<div class="head"><div><span class="eyebrow">Oglašavanje</span><h1>Nova kampanja</h1><p>Koristite šablon ili unesite kampanju ručno. Budžet se rezerviše pri slanju.</p></div><a class="ghost" href="/oglasivac/sabloni">Šabloni kampanja</a></div>
+<section class="premium-panel-hero advertiser">
+  <div><span>OGLAŠAVANJE</span><h1>Nova kampanja</h1><p>Koristite šablon ili unesite kampanju ručno. Budžet se rezerviše pri slanju, a ispod odmah vidiš preporučene pakete i procenu troška.</p></div>
+  <div class="premium-panel-actions"><a class="premium-btn white" href="/oglasivac/sabloni">Šabloni kampanja</a><a class="premium-btn white" href="/oglasivac/budzet">Budžet</a></div>
+</section>
+{% if builder is defined %}
+<section class="premium-stat-grid">
+  <article class="green"><small>Dostupan budžet</small><strong>{{ "%.0f"|format(builder.health.available) }}</strong><span>RSD</span></article>
+  <article class="blue"><small>Advertiser score</small><strong>{{ builder.health.score }}</strong><span>{{ builder.health.health }}</span></article>
+  <article class="purple"><small>Predlog paketa</small><strong>{{ builder.suggested_package.name }}</strong><span>{{ "%.0f"|format(builder.suggested_package.estimated_total_rsd) }} RSD</span></article>
+  <article class="orange"><small>Procena provizije</small><strong>{{ "%.0f"|format(builder.estimated_fee_rsd) }}</strong><span>RSD</span></article>
+</section>
+<div class="premium-dashboard-grid">
+  <section class="premium-card gradient">
+    <div class="premium-card-head"><h2>Self-serve paketi</h2><span>starter / growth / scale</span></div>
+    <div class="premium-list">
+      {% for pkg in builder.packages %}
+      <article><div><b>{{ pkg.name }}</b><small>{{ pkg.reward_rsd }} RSD × {{ pkg.slots }} · {{ pkg.goal }}</small></div><span class="status status-{{ 'approved' if pkg.fit == 'strong' else 'pending' if pkg.fit == 'tight' else 'rejected' }}">{{ pkg.fit }}</span></article>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Planner signal</h2><span>pre slanja</span></div>
+    <div class="premium-list">
+      {% for tip in builder.suggestions %}
+      <article><div><small>{{ tip }}</small></div></article>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endif %}
 <form class="formcard" method="post" action="/oglasivac/nova-kampanja">
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
 <label>Naziv</label><input name="title" required value="{{ tpl.name if tpl is defined and tpl else '' }}">

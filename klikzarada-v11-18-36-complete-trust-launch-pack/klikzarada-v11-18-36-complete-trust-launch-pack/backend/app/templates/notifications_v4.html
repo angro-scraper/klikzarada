@@ -1,5 +1,19 @@
 
 {% extends "app_base.html" %}{% set title="Notifikacije" %}{% block app_content %}
-<div class="head"><div><span class="eyebrow">Notifikacije</span><h1>Obaveštenja</h1><p>Ovde vidiš sistemske poruke, statuse i admin obaveštenja.</p></div></div>
-<div class="table"><table><tr><th>Datum</th><th>Naslov</th><th>Poruka</th><th>Status</th></tr>{% for n in notes %}<tr><td>{{ n.created_at }}</td><td>{{ n.title }}</td><td>{{ n.body }}</td><td><span class="status {{ n.status }}">{{ n.status }}</span></td></tr>{% else %}<tr><td colspan="4">Nema notifikacija.</td></tr>{% endfor %}</table></div>
+<section class="premium-panel-hero">
+  <div><span>NOTIFIKACIJE</span><h1>Obaveštenja i sledeći klik</h1><p>Ovde vidiš sistemske poruke, statuse i admin obaveštenja, ali i gde odmah treba da odeš posle poruke.</p></div>
+  <div class="premium-panel-actions"><a class="premium-btn white" href="/poruke">Poruke</a></div>
+</section>
+<div class="premium-list">
+  {% for row in action_rows %}
+  <article class="premium-card">
+    <div class="premium-card-head"><h2>{{ row.note.title }}</h2><span>{{ row.note.status }}</span></div>
+    <p>{{ row.note.body }}</p>
+    <div class="premium-command-links"><a href="{{ row.action.url }}">{{ row.action.label }}</a></div>
+    <small>{{ row.note.created_at }}</small>
+  </article>
+  {% else %}
+  <div class="premium-empty"><h3>Nema notifikacija</h3><p>Kada sistem pošalje poruku, videćeš je ovde.</p></div>
+  {% endfor %}
+</div>
 {% endblock %}

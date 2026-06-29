@@ -11,6 +11,7 @@
     <a class="premium-btn blue" href="/oglasivac/nova-kampanja">Nova kampanja</a>
     <a class="premium-btn green" href="/oglasivac/promocija-v111">Baner reklame</a>
     <a class="premium-btn white" href="/oglasivac/boost-v111">Top pozicija</a>
+    <a class="premium-btn white" href="/oglasivac/performance-v11836">Performance</a>
   </div>
 </section>
 
@@ -29,6 +30,29 @@
 </section>
 
 <div class="premium-dashboard-grid">
+  <section class="premium-card gradient">
+    <div class="premium-card-head"><h2>Health signal</h2><span>{{ health.health }}</span></div>
+    <div class="premium-money-grid">
+      <article><small>Advertiser score</small><strong>{{ health.score }}</strong></article>
+      <article><small>Pacing</small><strong>{{ health.pacing }}</strong></article>
+      <article><small>ROI signal</small><strong>{{ "%.1f"|format(health.roi_ratio) }}%</strong></article>
+      <article><small>Live banneri</small><strong>{{ live_banners }}</strong></article>
+    </div>
+  </section>
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Sledeći potezi</h2><span>growth ops</span></div>
+    <div class="premium-list">
+      {% for action in next_actions %}
+      <article>
+        <div><b>{{ action.title }}</b><small>{{ action.desc }}</small></div>
+        <a class="mini-btn" href="{{ action.url }}">Otvori</a>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<div class="premium-dashboard-grid">
   <section class="premium-card">
     <div class="premium-card-head"><h2>Aktivne kampanje</h2><a href="/oglasivac/kampanje">Sve kampanje</a></div>
     <div class="premium-list">
@@ -45,7 +69,18 @@
   </section>
 
   <section class="premium-card gradient">
-    <div class="premium-card-head"><h2>Brza monetizacija</h2><span>preporuka</span></div>
+    <div class="premium-card-head"><h2>Self-serve paketi</h2><span>preporuka</span></div>
+    <div class="premium-list">
+      {% for pkg in package_mix[:3] %}
+      <article>
+        <div>
+          <b>{{ pkg.name }}</b>
+          <small>{{ pkg.reward_rsd }} RSD × {{ pkg.slots }} slotova · {{ "%.0f"|format(pkg.estimated_total_rsd) }} RSD</small>
+        </div>
+        <span class="status status-{{ 'approved' if pkg.fit == 'strong' else 'pending' if pkg.fit == 'tight' else 'rejected' }}">{{ pkg.fit }}</span>
+      </article>
+      {% endfor %}
+    </div>
     <div class="premium-suggestion-box">
       <h3>Podignite najbolju kampanju na prvo mesto</h3>
       <p>Top pozicija donosi veću vidljivost i brže izvršenje zadataka, dok banner slotovi dodatno pojačavaju domet.</p>
@@ -70,6 +105,15 @@
 
   <section class="premium-card">
     <div class="premium-card-head"><h2>Dopuna budžeta</h2><a href="/oglasivac/budzet">Budžet</a></div>
+    {% if payment_intents %}
+    <div class="premium-list" style="margin-bottom:14px;">
+      {% for intent in payment_intents[:2] %}
+      <article>
+        <div><b>{{ intent.reference }}</b><small>{{ "%.0f"|format(intent.amount_rsd) }} RSD · {{ intent.status }}</small></div>
+      </article>
+      {% endfor %}
+    </div>
+    {% endif %}
     <form class="premium-form" method="post" action="/oglasivac/budzet/zahtev">
       <label>Iznos RSD</label>
       <input type="number" name="amount_rsd" value="5000" min="500">
@@ -77,6 +121,31 @@
       <textarea name="note" placeholder="Npr. uplata preko računa"></textarea>
       <button class="premium-btn blue full">Pošalji zahtev</button>
     </form>
+  </section>
+</div>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Fakture i naplata</h2><a href="/oglasivac/fakture">Sve fakture</a></div>
+    <div class="premium-list">
+      {% for invoice in invoices[:5] %}
+      <article>
+        <div><b>{{ invoice.invoice_no }}</b><small>{{ invoice.status }} · {{ "%.0f"|format(invoice.amount_rsd) }} RSD</small></div>
+        <a class="mini-btn" href="/fakture/{{ invoice.id }}/pdf">PDF</a>
+      </article>
+      {% else %}
+      <div class="premium-empty"><h3>Nema faktura</h3><p>Kada admin izda fakture za ovaj nalog, videćeš ih ovde.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Performance snapshot</h2><a href="/oglasivac/performance-v11836">Detalji</a></div>
+    <div class="premium-money-grid">
+      <article><small>Aktivne</small><strong>{{ performance_summary.active_tasks }}</strong></article>
+      <article><small>Pending</small><strong>{{ performance_summary.pending_tasks }}</strong></article>
+      <article><small>Approved</small><strong>{{ performance_summary.approved_results }}</strong></article>
+      <article><small>Pending banneri</small><strong>{{ pending_banners }}</strong></article>
+    </div>
   </section>
 </div>
 

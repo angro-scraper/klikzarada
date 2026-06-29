@@ -10,6 +10,7 @@
   <div class="kz115-hero-actions">
     <a class="btn btn-primary" href="/korisnik/zadaci">Svi zadaci</a>
     <a class="btn btn-secondary" href="/korisnik/motivacija-v115">Motivacija</a>
+    <a class="btn btn-secondary" href="/korisnik/notifikacije">Notifikacije</a>
   </div>
 </section>
 
@@ -35,6 +36,8 @@
       <div class="kz-user-mini-grid">
         <article><b>Zarađeno danas</b><strong>{{ "%.0f"|format(daily_earned) }} RSD</strong></article>
         <article><b>Zadataka danas</b><strong>{{ tasks_today }}</strong></article>
+        <article><b>Streak</b><strong>{{ streak }}</strong></article>
+        <article><b>Do isplate</b><strong>{{ "%.0f"|format(next_payout_gap) }} RSD</strong></article>
       </div>
       <div class="kz-user-progress-head"><b>Tvoj napredak</b><span>{% if score %}+{{ "%.0f"|format(score.quality_score-50 if score.quality_score > 50 else score.quality_score) }}%{% else %}+28%{% endif %} ★★★★★</span></div>
       <div class="kz-user-chart">
@@ -67,6 +70,15 @@
   <div class="kz1111-stat orange"><small>Na čekanju</small><strong>{{ pending_count }}</strong><span>provera</span></div>
   <div class="kz1111-stat red"><small>Odbijeno</small><strong>{{ rejected_count }}</strong><span>dokaza</span></div>
   <div class="kz1111-stat purple"><small>Preporuke</small><strong>{{ refs|length }}</strong><span>pozvano</span></div>
+</section>
+
+<section class="premium-card">
+  <div class="premium-card-head"><h2>Sledeće najbolje akcije</h2><span>progress</span></div>
+  <div class="premium-list">
+    {% for action in action_cards %}
+    <article><div><b>{{ action.title }}</b><small>{{ action.desc }}</small></div><a class="mini-btn" href="{{ action.url }}">Otvori</a></article>
+    {% endfor %}
+  </div>
 </section>
 
 <div class="kz-user-content-grid">

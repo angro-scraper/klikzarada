@@ -869,6 +869,152 @@ def v11843_reports_context(db: Session):
     }
 
 
+def v11844_campaign_builder_context(db: Session, advertiser, tpl=None):
+    pricing = v11836_pricing_summary(db)
+    packages = [
+        {"name": "Starter", "reward_rsd": 40, "slots": 60, "goal": "brzi test tržišta", "recommended_for": "small business"},
+        {"name": "Growth", "reward_rsd": 70, "slots": 180, "goal": "stabilan priliv lead-ova", "recommended_for": "rast kampanje"},
+        {"name": "Scale", "reward_rsd": 110, "slots": 350, "goal": "veći reach i signal performansi", "recommended_for": "agency / enterprise"},
+    ]
+    if tpl:
+        seed_reward = float(getattr(tpl, "suggested_reward_rsd", 0) or 0)
+        seed_slots = int(getattr(tpl, "suggested_slots", 0) or 0)
+    else:
+        seed_reward = 60.0
+        seed_slots = 100
+    fee = v111_price_percent(db, "platform_commission_percent", PLATFORM_FEE_PERCENT) if "v111_price_percent" in globals() else PLATFORM_FEE_PERCENT
+    estimated_total = round(cost_for_task(seed_reward, seed_slots, fee), 2)
+    estimated_fee = round((estimated_total - (seed_reward * seed_slots)), 2)
+    health = v11837_advertiser_health_row(db, advertiser)
+    suggested_package = packages[0]
+    for package in packages:
+        package_total = round(cost_for_task(package["reward_rsd"], package["slots"], fee), 2)
+        package["estimated_total_rsd"] = package_total
+        package["estimated_fee_rsd"] = round(package_total - (package["reward_rsd"] * package["slots"]), 2)
+        package["fit"] = "strong" if advertiser.advertiser_budget_rsd >= package_total else "tight" if advertiser.advertiser_budget_rsd >= package_total * 0.65 else "stretch"
+        if health["available"] >= package_total:
+            suggested_package = package
+    suggestions = [
+        f"Sa budžetom {health['available']:.0f} RSD trenutno najbezbednije prolazi paket {suggested_package['name']}.",
+        "Ako je cilj brza validacija, drži manji broj slotova i jasniji proof zahtev.",
+        "Ako je pacing spor, digni reward ili suzi ciljnu grupu umesto da samo dodaješ više slotova.",
+    ]
+    return {
+        "packages": packages,
+        "suggested_package": suggested_package,
+        "estimated_total_rsd": estimated_total,
+        "estimated_fee_rsd": estimated_fee,
+        "fee_percent": fee,
+        "health": health,
+        "pricing": pricing,
+        "suggestions": suggestions,
+    }
+
+
+def v11844_advertiser_workspace_context(db: Session, advertiser, tasks, subs, txs):
+    health = v11837_advertiser_health_row(db, advertiser)
+    performance_summary = {
+        "approved_results": sum(1 for s in subs if s.status == "approved"),
+        "pending_results": sum(1 for s in subs if s.status == "pending"),
+        "rejected_results": sum(1 for s in subs if s.status == "rejected"),
+        "active_tasks": sum(1 for t in tasks if t.status == "active"),
+        "pending_tasks": sum(1 for t in tasks if t.status == "pending"),
+    }
+    payment_intents = db.query(PaymentIntentV8).filter(PaymentIntentV8.advertiser_id == advertiser.id).order_by(PaymentIntentV8.created_at.desc()).limit(10).all()
+    invoices = db.query(Invoice).filter(Invoice.advertiser_id == advertiser.id).order_by(Invoice.created_at.desc()).limit(10).all()
+    live_banners = db.query(PaidAdBannerV111).filter(PaidAdBannerV111.advertiser_id == advertiser.id, PaidAdBannerV111.status == "active").count() if "PaidAdBannerV111" in globals() else 0
+    pending_banners = db.query(PaidAdBannerV111).filter(PaidAdBannerV111.advertiser_id == advertiser.id, PaidAdBannerV111.status == "pending").count() if "PaidAdBannerV111" in globals() else 0
+    low_budget = health["available"] < max(5000, health["reserved"] * 0.3 if health["reserved"] else 5000)
+    next_actions = []
+    if low_budget:
+        next_actions.append({"title": "Dopuni budžet", "desc": "Kampanje mogu stati ako ne uđe nova uplata.", "url": "/oglasivac/budzet"})
+    if pending_banners:
+        next_actions.append({"title": "Završi banner rezervaciju", "desc": f"{pending_banners} bannera čeka aktivaciju ili potvrdu.", "url": "/oglasivac/promocija-v111"})
+    if performance_summary["pending_tasks"]:
+        next_actions.append({"title": "Sačekaj admin approval", "desc": f"{performance_summary['pending_tasks']} kampanja je još na proveri.", "url": "/oglasivac/kampanje"})
+    if not next_actions:
+        next_actions.append({"title": "Pojačaj najjaču kampanju", "desc": "Aktivan nalog je spreman za boost ili banner slot.", "url": "/oglasivac/boost-v111"})
+    package_mix = v11844_campaign_builder_context(db, advertiser)["packages"]
+    return {
+        "health": health,
+        "performance_summary": performance_summary,
+        "payment_intents": payment_intents,
+        "invoices": invoices,
+        "live_banners": live_banners,
+        "pending_banners": pending_banners,
+        "next_actions": next_actions,
+        "package_mix": package_mix,
+    }
+
+
+def v11844_user_growth_context(db: Session, user, subs, txs, withdrawals, refs, score):
+    approved_total = sum(float(s.reward_rsd or 0) for s in subs if s.status == "approved")
+    pending_total = sum(float(s.reward_rsd or 0) for s in subs if s.status == "pending")
+    rejected_total = sum(float(s.reward_rsd or 0) for s in subs if s.status == "rejected")
+    today = datetime.utcnow().date()
+    active_days = sorted({(s.created_at or datetime.utcnow()).date() for s in subs if s.created_at})
+    streak = 0
+    cursor = today
+    day_set = set(active_days)
+    while cursor in day_set:
+        streak += 1
+        cursor -= timedelta(days=1)
+    payout_ready = float(user.balance_rsd or 0) >= MIN_WITHDRAWAL_RSD
+    next_payout_gap = max(0.0, MIN_WITHDRAWAL_RSD - float(user.balance_rsd or 0))
+    quality = float((score.quality_score if score else getattr(user, "quality_score", 0)) or 0)
+    next_quality_target = 90 if quality >= 75 else 75 if quality >= 50 else 60
+    action_cards = []
+    if pending_total > 0:
+        action_cards.append({"title": "Sačekaj proveru dokaza", "desc": f"{pending_total:.0f} RSD je trenutno na čekanju.", "url": "/korisnik/panel"})
+    if not payout_ready:
+        action_cards.append({"title": "Dođi do praga za isplatu", "desc": f"Nedostaje još {next_payout_gap:.0f} RSD do minimalne isplate.", "url": "/korisnik/zadaci"})
+    if len(refs) == 0:
+        action_cards.append({"title": "Pošalji referral link", "desc": "Prvi referral donosi dodatni bonus i širi prihod.", "url": "/korisnik/referral"})
+    if not action_cards:
+        action_cards.append({"title": "Traži veće zadatke", "desc": "Imaš dobar signal, otvori preporuke i premium taskove.", "url": "/korisnik/preporuke"})
+    return {
+        "approved_total": approved_total,
+        "pending_total": pending_total,
+        "rejected_total": rejected_total,
+        "streak": streak,
+        "payout_ready": payout_ready,
+        "next_payout_gap": next_payout_gap,
+        "quality": quality,
+        "next_quality_target": next_quality_target,
+        "action_cards": action_cards,
+        "withdrawals_count": len(withdrawals),
+    }
+
+
+def v11844_notification_action(note, role: str):
+    text = f"{getattr(note, 'title', '')} {getattr(note, 'body', '')}".lower()
+    if "budžet" in text or "dopuna" in text or "uplata" in text:
+        return {"label": "Budžet", "url": "/oglasivac/budzet" if role == "oglasivac" else "/admin/approval-center-v11"}
+    if "kampanj" in text:
+        return {"label": "Kampanje", "url": "/oglasivac/kampanje" if role == "oglasivac" else "/korisnik/panel" if role == "korisnik" else "/admin/kampanje"}
+    if "ispl" in text:
+        return {"label": "Isplate", "url": "/korisnik/isplate" if role == "korisnik" else "/admin/payouts-v11"}
+    if "žalb" in text or "refund" in text:
+        return {"label": "Refund", "url": "/admin/disputes-v11836" if role == "admin" else "/korisnik/tiketi"}
+    return {"label": "Poruke", "url": "/poruke"}
+
+
+def v11844_message_workspace_context(user, users, inbox, sent):
+    unread_count = len(inbox)
+    contact_cards = []
+    for candidate in users[:8]:
+        if candidate.id == user.id:
+            continue
+        role_label = "Admin podrška" if candidate.role == "admin" else "Oglašivač" if candidate.role == "oglasivac" else "Korisnik"
+        contact_cards.append({"id": candidate.id, "label": candidate.full_name, "meta": role_label})
+    quick_subjects = [
+        "Pitanje oko kampanje" if user.role == "oglasivac" else "Pitanje oko isplate",
+        "Treba mi pomoć oko naloga",
+        "Potvrda sledećeg koraka",
+    ]
+    return {"unread_count": unread_count, "contact_cards": contact_cards[:6], "quick_subjects": quick_subjects}
+
+
 def v11837_advertiser_health_row(db: Session, advertiser):
     tasks = db.query(Task).filter(Task.advertiser_id == advertiser.id).all()
     task_ids = [t.id for t in tasks]
@@ -1759,6 +1905,7 @@ def user_panel(request:Request, msg:str|None=None, db:Session=Depends(get_db)):
         "progress_bars": progress_bars,
         "score": score,
     }
+    data.update(v11844_user_growth_context(db, u, subs, txs, withdrawals, refs, score))
     return templates.TemplateResponse("user_app.html", {"request":request,"user":u,"flash":flash(msg),**data})
 
 @app.get("/korisnik/profil", response_class=HTMLResponse)
@@ -1808,13 +1955,15 @@ def advertiser_panel(request:Request, msg:str|None=None, db:Session=Depends(get_
     tasks=db.query(Task).filter(Task.advertiser_id==u.id).order_by(Task.created_at.desc()).all()
     subs=db.query(TaskSubmission).join(Task).filter(Task.advertiser_id==u.id).order_by(TaskSubmission.created_at.desc()).all()
     txs=db.query(AdvertiserBudgetTransaction).filter(AdvertiserBudgetTransaction.advertiser_id==u.id).order_by(AdvertiserBudgetTransaction.created_at.desc()).all()
-    return templates.TemplateResponse("advertiser_app.html", {"request":request,"user":u,"flash":flash(msg),"tasks":tasks,"subs":subs,"txs":txs})
+    ctx = v11844_advertiser_workspace_context(db, u, tasks, subs, txs)
+    return templates.TemplateResponse("advertiser_app.html", {"request":request,"user":u,"flash":flash(msg),"tasks":tasks,"subs":subs,"txs":txs, **ctx})
 
 @app.get("/oglasivac/nova-kampanja", response_class=HTMLResponse)
 def new_campaign(request:Request, db:Session=Depends(get_db)):
     u=require(request,db); check_role(u,["oglasivac","admin"])
     fee = v111_price_percent(db, "platform_commission_percent", PLATFORM_FEE_PERCENT) if "v111_price_percent" in globals() else PLATFORM_FEE_PERCENT
-    return templates.TemplateResponse("campaign_form.html", {"request":request,"user":u,"error":None,"fee":fee})
+    builder = v11844_campaign_builder_context(db, u)
+    return templates.TemplateResponse("campaign_form.html", {"request":request,"user":u,"error":None,"fee":fee,"builder":builder})
 
 @app.post("/oglasivac/nova-kampanja")
 def create_campaign(request:Request, title:str=Form(...), category:str=Form(...), task_type:str=Form(...), target_url:str=Form(""), description:str=Form(...), instructions:str=Form(...), proof_required:str=Form(...), example_proof:str=Form(""), reward_rsd:float=Form(...), total_slots:int=Form(...), target_city:str=Form("Srbija"), target_age_group:str=Form("18+"), target_interests:str=Form(""), proof_file_required:Optional[str]=Form(None), db:Session=Depends(get_db)):
@@ -1822,7 +1971,8 @@ def create_campaign(request:Request, title:str=Form(...), category:str=Form(...)
     fee = v111_price_percent(db, "platform_commission_percent", PLATFORM_FEE_PERCENT) if "v111_price_percent" in globals() else PLATFORM_FEE_PERCENT
     total=cost_for_task(reward_rsd,total_slots,fee)
     if u.advertiser_budget_rsd < total:
-        return templates.TemplateResponse("campaign_form.html", {"request":request,"user":u,"error":f"Nedovoljno budžeta. Potrebno {total:.0f} RSD, dostupno {u.advertiser_budget_rsd:.0f} RSD.","fee":fee}, status_code=400)
+        builder = v11844_campaign_builder_context(db, u)
+        return templates.TemplateResponse("campaign_form.html", {"request":request,"user":u,"error":f"Nedovoljno budžeta. Potrebno {total:.0f} RSD, dostupno {u.advertiser_budget_rsd:.0f} RSD.","fee":fee,"builder":builder}, status_code=400)
     t=Task(advertiser_id=u.id,title=title,category=category,task_type=task_type,target_url=target_url,description=description,instructions=instructions,proof_required=proof_required,example_proof=example_proof,reward_rsd=reward_rsd,platform_fee_percent=fee,total_slots=total_slots,target_city=target_city,target_age_group=target_age_group,target_interests=target_interests,proof_file_required=bool(proof_file_required),status="pending")
     u.advertiser_budget_rsd-=total; u.advertiser_reserved_rsd+=total
     db.add(t); db.flush(); add_budget_tx(db,u,-total,"reserve_campaign",f"Rezervisan budžet za kampanju: {title}")
@@ -2084,7 +2234,8 @@ def my_notifications(request: Request, db: Session = Depends(get_db)):
         if n.user_id == u.id and n.status == "unread":
             n.status = "read"
     db.commit()
-    return templates.TemplateResponse("notifications_v4.html", {"request": request, "user": u, "notes": notes})
+    action_rows = [{"note": n, "action": v11844_notification_action(n, u.role)} for n in notes]
+    return templates.TemplateResponse("notifications_v4.html", {"request": request, "user": u, "notes": notes, "action_rows": action_rows})
 
 @app.get("/korisnik/tiketi", response_class=HTMLResponse)
 @app.get("/oglasivac/tiketi", response_class=HTMLResponse)
@@ -2141,7 +2292,8 @@ def campaign_from_template(template_id:int, request:Request, db:Session=Depends(
     u=require(request,db); check_role(u,["oglasivac","admin"])
     item=db.query(CampaignTemplate).filter(CampaignTemplate.id==template_id).first()
     if not item: raise HTTPException(404)
-    return templates.TemplateResponse("campaign_form.html", {"request":request,"user":u,"error":None,"fee":PLATFORM_FEE_PERCENT,"tpl":item})
+    builder = v11844_campaign_builder_context(db, u, item)
+    return templates.TemplateResponse("campaign_form.html", {"request":request,"user":u,"error":None,"fee":PLATFORM_FEE_PERCENT,"tpl":item,"builder":builder})
 
 @app.post("/oglasivac/kupon")
 def apply_coupon(request:Request, code:str=Form(...), db:Session=Depends(get_db)):
@@ -3753,7 +3905,8 @@ def internal_messages(request: Request, msg: str | None = None, db: Session = De
     inbox = db.query(InternalMessage).filter(InternalMessage.recipient_id == u.id).order_by(InternalMessage.created_at.desc()).all()
     sent = db.query(InternalMessage).filter(InternalMessage.sender_id == u.id).order_by(InternalMessage.created_at.desc()).limit(50).all()
     users = db.query(User).order_by(User.full_name).limit(200).all()
-    return templates.TemplateResponse("internal_messages_v7.html", {"request": request, "user": u, "inbox": inbox, "sent": sent, "users": users, "flash": flash(msg)})
+    workspace = v11844_message_workspace_context(u, users, inbox, sent)
+    return templates.TemplateResponse("internal_messages_v7.html", {"request": request, "user": u, "inbox": inbox, "sent": sent, "users": users, "flash": flash(msg), **workspace})
 
 
 @app.post("/poruke/posalji")
@@ -8150,11 +8303,13 @@ def user_wallet_v1161(request: Request, db: Session = Depends(get_db)):
     total_out = abs(sum(float(t.amount_rsd or 0) for t in txs if float(t.amount_rsd or 0) < 0))
     approved_total = sum(float(s.reward_rsd or 0) for s in subs if s.status == "approved")
     pending_total = sum(float(s.reward_rsd or 0) for s in subs if s.status == "pending")
+    growth = v11844_user_growth_context(db, u, subs, txs, withdrawals, refs, score)
     return templates.TemplateResponse("user_wallet_v1161.html", {
         "request": request, "user": u, "flash": None,
         "txs": txs, "withdrawals": withdrawals, "score": score,
         "total_in": total_in, "total_out": total_out,
         "approved_total": approved_total, "pending_total": pending_total,
+        **growth,
     })
 
 @app.get("/korisnik/isplate", response_class=HTMLResponse)
