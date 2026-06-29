@@ -2299,7 +2299,6 @@ def withdrawal(amount_rsd:float=Form(...), payment_method:str=Form(...), payment
 # ADVERTISER
 @app.get("/oglasivac/panel", response_class=HTMLResponse)
 @app.get("/oglasivac/kampanje", response_class=HTMLResponse)
-@app.get("/oglasivac/budzet", response_class=HTMLResponse)
 # V11.11 disabled old route /oglasivac/dokazi
 @app.get("/oglasivac/izvestaji", response_class=HTMLResponse)
 def advertiser_panel(request:Request, msg:str|None=None, db:Session=Depends(get_db)):
@@ -2310,6 +2309,30 @@ def advertiser_panel(request:Request, msg:str|None=None, db:Session=Depends(get_
     ctx = v11844_advertiser_workspace_context(db, u, tasks, subs, txs)
     targeting = v11845_advertiser_targeting_context(db, u)
     return templates.TemplateResponse("advertiser_app.html", {"request":request,"user":u,"flash":flash(msg),"tasks":tasks,"subs":subs,"txs":txs, "targeting": targeting, **ctx})
+
+
+@app.get("/oglasivac/budzet", response_class=HTMLResponse)
+def advertiser_budget(request: Request, msg: str | None = None, db: Session = Depends(get_db)):
+    u = require(request, db); check_role(u, ["oglasivac", "admin"])
+    tasks = db.query(Task).filter(Task.advertiser_id == u.id).order_by(Task.created_at.desc()).all()
+    subs = db.query(TaskSubmission).join(Task).filter(Task.advertiser_id == u.id).order_by(TaskSubmission.created_at.desc()).all()
+    txs = db.query(AdvertiserBudgetTransaction).filter(AdvertiserBudgetTransaction.advertiser_id == u.id).order_by(AdvertiserBudgetTransaction.created_at.desc()).all()
+    payment_intents = db.query(PaymentIntentV8).filter(PaymentIntentV8.advertiser_id == u.id).order_by(PaymentIntentV8.created_at.desc()).all()
+    invoices = db.query(Invoice).filter(Invoice.advertiser_id == u.id).order_by(Invoice.created_at.desc()).limit(10).all()
+    ctx = v11844_advertiser_workspace_context(db, u, tasks, subs, txs)
+    topup_requests = [tx for tx in txs if getattr(tx, "tx_type", "") == "topup_request"][:12]
+    return templates.TemplateResponse("advertiser_budget_v11846.html", {
+        "request": request,
+        "user": u,
+        "flash": flash(msg),
+        "tasks": tasks,
+        "subs": subs,
+        "txs": txs,
+        "payment_intents": payment_intents,
+        "invoices": invoices,
+        "topup_requests": topup_requests,
+        **ctx,
+    })
 
 @app.get("/oglasivac/nova-kampanja", response_class=HTMLResponse)
 def new_campaign(request:Request, db:Session=Depends(get_db)):
@@ -4807,10 +4830,7 @@ def api_status_v8(db: Session = Depends(get_db)):
 
 @app.get("/oglasivac/payments-v8", response_class=HTMLResponse)
 def advertiser_payments_v8(request: Request, msg: str | None = None, db: Session = Depends(get_db)):
-    u = require(request, db)
-    check_role(u, ["oglasivac", "admin"])
-    intents = db.query(PaymentIntentV8).filter(PaymentIntentV8.advertiser_id == u.id).order_by(PaymentIntentV8.created_at.desc()).all()
-    return templates.TemplateResponse("advertiser_payments_v8.html", {"request": request, "user": u, "intents": intents, "flash": flash(msg)})
+    return RedirectResponse(f"/oglasivac/budzet{('?msg=' + msg) if msg else ''}", 303)
 
 
 @app.post("/oglasivac/payments-v8/create")
@@ -10529,7 +10549,7 @@ def v11833_topup_request(db: Session, advertiser, amount_rsd: float, note: str =
         return None, "bad_amount"
     tx = AdvertiserBudgetTransaction(
         advertiser_id=advertiser.id,
-        amount_rsd=0,
+        amount_rsd=amount,
         tx_type="topup_request",
         description=f"Zahtev za dopunu: {amount:.0f} RSD. {note}".strip()
     )

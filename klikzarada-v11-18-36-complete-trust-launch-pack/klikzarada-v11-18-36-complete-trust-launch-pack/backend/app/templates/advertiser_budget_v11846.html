@@ -1,0 +1,182 @@
+{% extends "app_base.html" %}
+{% set title = "Budžet - Oglašivač" %}
+{% block app_content %}
+<section class="kz1111-hero finance">
+  <div>
+    <span>ADVERTISER BUDGET</span>
+    <h1>Dopuna budžeta i finansijski signal</h1>
+    <p>Ovo je sada poseban ekran za oglašivača: vidiš dostupan i rezervisan budžet, zahteve za dopunu, pending uplate i najvažnije fakture bez vraćanja na opšti panel.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/oglasivac/reklame-v111">Baner reklame</a>
+    <a class="btn btn-secondary" href="/oglasivac/fakture">Fakture</a>
+    <a class="btn btn-secondary" href="/oglasivac/panel">Nazad na panel</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat green"><small>Dostupno</small><strong>{{ "%.0f"|format(user.advertiser_budget_rsd or 0) }}</strong><span>RSD</span></div>
+  <div class="kz1111-stat blue"><small>Rezervisano</small><strong>{{ "%.0f"|format(user.advertiser_reserved_rsd or 0) }}</strong><span>RSD</span></div>
+  <div class="kz1111-stat purple"><small>Potrošeno</small><strong>{{ "%.0f"|format(user.advertiser_spent_rsd or 0) }}</strong><span>RSD</span></div>
+  <div class="kz1111-stat orange"><small>Pending uplate</small><strong>{{ payment_intents|selectattr("status", "equalto", "pending")|list|length }}</strong><span>čeka potvrdu</span></div>
+</section>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Pošalji zahtev za dopunu</h2>
+      <span>top-up request</span>
+    </div>
+    <form class="form-panel kz1111-tech-form" method="post" action="/oglasivac/budzet/zahtev">
+      <label>Iznos RSD</label>
+      <input type="number" name="amount_rsd" value="5000" min="500" step="1">
+      <label>Napomena</label>
+      <textarea name="note" placeholder="Npr. uplata preko računa, agency replenishment, kampanja za jul"></textarea>
+      <button class="btn btn-primary">Pošalji zahtev za dopunu</button>
+    </form>
+  </section>
+
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Šta dalje</h2>
+      <span>finance workflow</span>
+    </div>
+    <div class="kz1111-proof-grid">
+      <article class="kz1111-proof-card variant-approved">
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-approved">1</span>
+            <span class="kz1111-proof-tiny approved">zahtev</span>
+          </div>
+          <strong>Pošalji zahtev</strong>
+        </div>
+        <h3>Oglašivač traži dopunu</h3>
+        <p>Zahtev odlazi adminu/finance timu i ostaje zabeležen u istoriji transakcija.</p>
+      </article>
+      <article class="kz1111-proof-card variant-pending">
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-pending">2</span>
+            <span class="kz1111-proof-tiny pending">potvrda</span>
+          </div>
+          <strong>Admin potvrđuje uplatu</strong>
+        </div>
+        <h3>Budžet se oslobađa za kampanje</h3>
+        <p>Kad uplata bude potvrđena, dostupni budžet odmah raste i možeš da rezervišeš bannere ili pokreneš kampanju.</p>
+      </article>
+    </div>
+  </section>
+</div>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Pending payment intents</h2>
+      <span>{{ payment_intents|length }}</span>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Ref</th>
+            <th>Iznos</th>
+            <th>Metod</th>
+            <th>Status</th>
+            <th>Datum</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for intent in payment_intents %}
+          <tr>
+            <td><strong>{{ intent.reference }}</strong></td>
+            <td>{{ "%.0f"|format(intent.amount_rsd) }} RSD</td>
+            <td>{{ intent.method }}</td>
+            <td><span class="status status-{{ intent.status }}">{{ intent.status }}</span></td>
+            <td>{{ intent.created_at }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5">Nema payment intent zahteva.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Zahtevi i transakcije</h2>
+      <span>{{ topup_requests|length }} top-up request</span>
+    </div>
+    <div class="kz1111-smoke-list">
+      {% for tx in topup_requests %}
+      <article>
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-pending">request</span>
+            <span class="kz1111-proof-tiny pending">{{ tx.tx_type }}</span>
+          </div>
+          <strong>{{ "%.0f"|format(tx.amount_rsd) }} RSD</strong>
+        </div>
+        <p>{{ tx.description }}</p>
+        <small>{{ tx.created_at }}</small>
+      </article>
+      {% endfor %}
+      {% for tx in txs[:6] %}
+      {% if tx.tx_type != "topup_request" %}
+      <article>
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-approved">tx</span>
+            <span class="kz1111-proof-tiny approved">{{ tx.tx_type }}</span>
+          </div>
+          <strong>{{ "%.0f"|format(tx.amount_rsd) }} RSD</strong>
+        </div>
+        <p>{{ tx.description }}</p>
+        <small>{{ tx.created_at }}</small>
+      </article>
+      {% endif %}
+      {% else %}
+      {% if not topup_requests %}
+      <div class="kz1111-empty"><h3>Nema budžet aktivnosti</h3><p>Kada pošalješ dopunu ili admin potvrdi uplatu, ovde ćeš videti ceo trag.</p></div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Dokumenti i fakture</h2>
+    <span>{{ invoices|length }}</span>
+  </div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Broj</th>
+          <th>Tip</th>
+          <th>Iznos</th>
+          <th>Status</th>
+          <th>Akcije</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for invoice in invoices %}
+        <tr>
+          <td><strong>{{ invoice.invoice_no }}</strong></td>
+          <td>{{ invoice.invoice_type }}</td>
+          <td>{{ "%.0f"|format(invoice.amount_rsd) }} RSD</td>
+          <td><span class="status status-{{ invoice.status }}">{{ invoice.status }}</span></td>
+          <td class="actions">
+            <a class="btn btn-mini btn-secondary" href="/fakture/{{ invoice.id }}">Otvori</a>
+            <a class="btn btn-mini btn-secondary" href="/fakture/{{ invoice.id }}/pdf">PDF</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5">Nema faktura.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
