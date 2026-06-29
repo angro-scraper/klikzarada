@@ -1,53 +1,6 @@
 {% extends "app_base.html" %}
 {% set title="Admin dashboard" %}
 {% block app_content %}
-<section class="admin-v1184-top-grid">
-  <section class="premium-panel-hero admin admin-v1184-hero">
-    <div>
-      <span>ADMIN COMMAND CENTER</span>
-      <h1>Kontrola platforme</h1>
-      <p>Jedan pregled za moderaciju, finansije, reklame, oglašivače i live operacije. Fokus je da odmah vidiš šta traži akciju, šta donosi prihod i gde postoji rizik.</p>
-    </div>
-    <div class="premium-panel-actions admin-v1184-hero-actions">
-      <a class="premium-btn blue" href="/admin/oglasivaci">CRM i oglašivači</a>
-      <a class="premium-btn green" href="/admin/finansije">Finansije</a>
-      <a class="premium-btn white" href="/admin/reklame-v111">Reklame</a>
-      <a class="premium-btn white" href="/admin/deploy-v11">Launch i live</a>
-    </div>
-  </section>
-
-  <aside class="premium-card admin-v1184-overview-card">
-    <div class="premium-card-head">
-      <h2>Brzi pregled</h2>
-      <span>uživo</span>
-    </div>
-    <div class="admin-v1184-overview-grid">
-      <article>
-        <small>Nalozi</small>
-        <strong>{{ users|length if users is defined else users_count if users_count is defined else "0" }}</strong>
-      </article>
-      <article>
-        <small>Kampanje</small>
-        <strong>{{ tasks|length if tasks is defined else "0" }}</strong>
-      </article>
-      <article>
-        <small>Oglašivači</small>
-        <strong>{{ advertisers|length if advertisers is defined else "0" }}</strong>
-      </article>
-      <article>
-        <small>Pending top-up</small>
-        <strong>{{ topup_inbox|selectattr("status", "equalto", "pending")|list|length if topup_inbox is defined else "0" }}</strong>
-      </article>
-    </div>
-    <div class="admin-v1184-overview-links">
-      <a href="/admin/dokazi">Dokazi</a>
-      <a href="/admin/isplate">Isplate</a>
-      <a href="/admin/cene-v111">Margina</a>
-      <a href="/admin/security-v11">Security</a>
-    </div>
-  </aside>
-</section>
-
 <section class="premium-stat-grid">
   <article class="blue"><small>Nalozi</small><strong>{{ users|length if users is defined else users_count if users_count is defined else "0" }}</strong><span>ukupno</span></article>
   <article class="orange"><small>Kampanje na čekanju</small><strong>{{ pending_tasks|length if pending_tasks is defined else "0" }}</strong><span>moderacija</span></article>
