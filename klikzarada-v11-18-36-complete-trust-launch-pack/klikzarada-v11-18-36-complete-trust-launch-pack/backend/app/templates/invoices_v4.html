@@ -2,23 +2,23 @@
 {% set title = "Fakture" %}
 {% block app_content %}
 
-{% set issued_items = invoices|selectattr("status", "equalto", "issued")|list %}
 {% set paid_items = invoices|selectattr("status", "equalto", "paid")|list %}
-{% set cancelled_items = invoices|selectattr("status", "equalto", "cancelled")|list %}
 {% set total_amount = invoices|sum(attribute="amount_rsd") %}
-{% set paid_amount = paid_items|sum(attribute="amount_rsd") %}
+{% set rows = invoice_rows if invoice_rows is defined else [] %}
+{% set stats = invoice_stats if invoice_stats is defined else {} %}
+{% set table_rows = rows if rows else invoices %}
 
 <section class="kz1111-hero finance">
   <div>
-    <span>{% if mode == "admin" %}NAPLATA{% else %}FAKTURE{% endif %}</span>
-    <h1>{% if mode == "admin" %}Predračuni, fakture i uplata oglašivača{% else %}Moji finansijski dokumenti{% endif %}</h1>
-    <p>{% if mode == "admin" %}Ovo je komandni sto za dokumente prema firmama: ko duguje, ko je platio i gde treba povezati naplatu sa budžetom, payout tokom i revenue planom.{% else %}Na jednom mestu vidiš sve dokumente, statuse i iznose vezane za tvoj oglašivački nalog.{% endif %}</p>
+    <span>{% if mode == "admin" %}BILLING I NAPLATA{% else %}FAKTURE{% endif %}</span>
+    <h1>{% if mode == "admin" %}Ponude, fakture i payment follow-up{% else %}Moji finansijski dokumenti{% endif %}</h1>
+    <p>{% if mode == "admin" %}Ovaj ekran sada radi kao billing komandni sto: vidiš ko duguje, ko kasni, šta je poslato i gde već postoji uplata na čekanju koju treba potvrditi.{% else %}Na jednom mestu vidiš sve dokumente, statuse i iznose vezane za tvoj oglašivački nalog.{% endif %}</p>
   </div>
   <div class="kz1111-hero-actions">
     {% if mode == "admin" %}
     <a class="btn btn-primary" href="/admin/finansije">Finansije</a>
-    <a class="btn btn-secondary" href="/admin/payouts-v11">Payouts</a>
-    <a class="btn btn-secondary" href="/admin/revenue-v9">Revenue</a>
+    <a class="btn btn-secondary" href="/admin/payments-v8">Top-up inbox</a>
+    <a class="btn btn-secondary" href="/admin/payouts-v11">Payout ops</a>
     {% else %}
     <a class="btn btn-primary" href="/oglasivac/budzet">Budžet</a>
     <a class="btn btn-secondary" href="/oglasivac/panel">Panel</a>
@@ -28,16 +28,16 @@
 
 <section class="kz1111-stat-grid colored">
   <div class="kz1111-stat blue"><small>Dokumenti</small><strong>{{ invoices|length }}</strong><span>ukupno</span></div>
-  <div class="kz1111-stat orange"><small>Issued</small><strong>{{ issued_items|length }}</strong><span>čeka uplatu</span></div>
-  <div class="kz1111-stat green"><small>Plaćeno</small><strong>{{ "%.0f"|format(paid_amount) }}</strong><span>RSD potvrđeno</span></div>
-  <div class="kz1111-stat purple"><small>Portfelj</small><strong>{{ "%.0f"|format(total_amount) }}</strong><span>RSD kroz dokumente</span></div>
+  <div class="kz1111-stat orange"><small>Kasni</small><strong>{{ stats.late or 0 }}</strong><span>traži follow-up</span></div>
+  <div class="kz1111-stat green"><small>Plaćeno</small><strong>{{ "%.0f"|format((stats.paid_amount or 0) if stats else (paid_items|sum(attribute='amount_rsd'))) }}</strong><span>RSD potvrđeno</span></div>
+  <div class="kz1111-stat purple"><small>Otvoreno</small><strong>{{ "%.0f"|format((stats.due_amount or 0) if stats else total_amount) }}</strong><span>RSD na naplati</span></div>
 </section>
 
 {% if mode == "admin" %}
 <section class="kz1111-section">
   <div class="kz1111-section-head">
     <h2>Kreiraj novi dokument</h2>
-    <span>predračun / faktura / izveštaj</span>
+    <span>ponuda / predračun / faktura / izveštaj</span>
   </div>
   <div class="kz1111-grid-two">
     <form class="form-panel kz1111-tech-form" method="post" action="/admin/fakture/nova">
@@ -51,6 +51,7 @@
         <div>
           <label>Tip dokumenta</label>
           <select name="invoice_type">
+            <option value="ponuda">ponuda</option>
             <option value="predracun">predracun</option>
             <option value="faktura">faktura</option>
             <option value="izvestaj">izvestaj</option>
@@ -62,21 +63,91 @@
         </div>
       </div>
       <label>Opis</label>
-      <textarea name="description" placeholder="Šta se naplaćuje: kampanje, banneri, boost, servis, mesečni plan..."></textarea>
+      <textarea name="description" placeholder="Šta se naplaćuje: slot zakup, kampanja, boost, mesečni paket, agency retainer..."></textarea>
       <button class="btn btn-primary">Kreiraj dokument</button>
     </form>
     <div class="kz1111-ledger-card">
-      <small>Operativni tok</small>
-      <strong>Od naplate do aktivnog budžeta</strong>
-      <p>Predračun pokreće uplatu, potvrđena uplata otključava budžet oglašivaču, a zatim admin kroz reklame i kampanje pretvara taj budžet u promet i proviziju.</p>
+      <small>Billing workflow</small>
+      <strong>PDF-ready dokument i isti dan follow-up</strong>
+      <p>Dokument otvara print prikaz, može odmah da se pošalje oglašivaču, a ako uplata već postoji u top-up inboxu admin je potvrđuje bez menjanja ekrana.</p>
       <div class="kz1111-proof-legend">
-        <span>Fakture poveži sa budžetom i top-up zahtevima.</span>
-        <span>Payout koristiš da odvojiš isplatu korisnicima od priliva firmi.</span>
-        <span>Revenue pokazuje da li trenutni cenovnik nosi dovoljno marže.</span>
+        <span>Dospelo: issued + 7 dana.</span>
+        <span>Kasni: otvoren dokument preko roka.</span>
+        <span>Pending uplata: Payment inbox već ima signal za potvrdu.</span>
       </div>
     </div>
   </div>
 </section>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Follow-up inbox</h2>
+      <span>{{ invoice_followups|length if invoice_followups is defined else 0 }} prioriteta</span>
+    </div>
+    <div class="kz1111-smoke-list">
+      {% for item in invoice_followups %}
+      <article>
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-{{ item.invoice.status }}">{{ item.invoice.status }}</span>
+            <span class="kz1111-proof-tiny {% if item.level == 'danger' %}rejected{% elif item.level == 'warning' %}pending{% else %}approved{% endif %}">{{ item.invoice.invoice_type }}</span>
+          </div>
+          <strong>{{ item.invoice.invoice_no }}</strong>
+        </div>
+        <p><b>{{ item.advertiser.company_name or item.advertiser.full_name }}</b> · {{ "%.0f"|format(item.invoice.amount_rsd) }} RSD</p>
+        <p>{{ item.note }}</p>
+        <div class="actions">
+          <a class="btn btn-mini btn-secondary" target="_blank" href="/fakture/{{ item.invoice.id }}">PDF / Print</a>
+          <a class="btn btn-mini btn-secondary" href="/fakture/{{ item.invoice.id }}/pdf">PDF fajl</a>
+          <form method="post" action="/admin/fakture/{{ item.invoice.id }}/send">
+            <button class="btn btn-mini btn-primary">Pošalji</button>
+          </form>
+          {% if item.latest_intent and item.latest_intent.status == "pending" %}
+          <form method="post" action="/admin/payments-v8/{{ item.latest_intent.id }}/confirm">
+            <input type="hidden" name="next_url" value="/admin/fakture">
+            <input class="mini-input" name="admin_note" placeholder="potvrda uplate">
+            <button class="btn btn-mini btn-success">Potvrdi uplatu</button>
+          </form>
+          {% endif %}
+        </div>
+      </article>
+      {% else %}
+      <div class="kz1111-empty"><h3>Nema hitnih follow-up stavki</h3><p>Otvorene fakture trenutno nemaju kašnjenje ni uplatu na čekanju.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Šta ovaj billing sloj sada pokriva</h2>
+      <span>realni ops tok</span>
+    </div>
+    <div class="kz1111-proof-grid">
+      <article class="kz1111-proof-card variant-approved">
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-approved">ponuda</span>
+            <span class="kz1111-proof-tiny approved">PDF</span>
+          </div>
+          <strong>Slanje dokumenta</strong>
+        </div>
+        <h3>Jedan klik do print / PDF prikaza</h3>
+        <p>Prodaja ili admin odmah otvara dokument i šalje ga oglašivaču bez ručnog kopanja po sistemu.</p>
+      </article>
+      <article class="kz1111-proof-card variant-pending">
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-pending">follow-up</span>
+            <span class="kz1111-proof-tiny pending">naplata</span>
+          </div>
+          <strong>Status naplate</strong>
+        </div>
+        <h3>Dospelo / plaćeno / kasni</h3>
+        <p>Otvorene stavke su sortirane tako da odmah vidiš gde treba podsetnik, a gde potvrda uplate i puštanje budžeta.</p>
+      </article>
+    </div>
+  </section>
+</div>
 {% endif %}
 
 <section class="kz1111-section">
@@ -98,7 +169,8 @@
         </tr>
       </thead>
       <tbody>
-        {% for i in invoices %}
+        {% for row in table_rows %}
+        {% set i = row.invoice if row.invoice is defined else row %}
         <tr>
           <td><strong>{{ i.invoice_no }}</strong><br><small>{{ i.invoice_type }}</small></td>
           <td>
@@ -111,12 +183,31 @@
             {% endif %}
           </td>
           <td><strong>{{ "%.0f"|format(i.amount_rsd) }} RSD</strong></td>
-          <td><span class="status status-{{ i.status }}">{{ i.status }}</span></td>
-          <td>{{ i.issued_at or i.created_at }}</td>
-          <td style="max-width:260px;">{{ i.description or "-" }}</td>
+          <td>
+            <span class="status status-{{ i.status }}">{{ i.status }}</span>
+            {% if row.bucket is defined %}
+            <br><small>{{ row.bucket }}</small>
+            {% endif %}
+          </td>
+          <td>
+            {{ i.issued_at or i.created_at }}
+            {% if row.due_at is defined %}
+            <br><small>dosp.: {{ row.due_at.strftime("%Y-%m-%d") }}</small>
+            {% endif %}
+          </td>
+          <td style="max-width:260px;">
+            {{ i.description or "-" }}
+            {% if row.pending_amount is defined and row.pending_amount %}
+            <br><small>pending uplata: {{ "%.0f"|format(row.pending_amount) }} RSD</small>
+            {% endif %}
+          </td>
           <td class="actions">
             <a class="btn btn-mini btn-secondary" target="_blank" href="/fakture/{{ i.id }}">Otvori</a>
+            <a class="btn btn-mini btn-secondary" href="/fakture/{{ i.id }}/pdf">PDF</a>
             {% if mode == "admin" %}
+            <form method="post" action="/admin/fakture/{{ i.id }}/send">
+              <button class="btn btn-mini btn-ghost">Pošalji</button>
+            </form>
             <form method="post" action="/admin/fakture/{{ i.id }}/paid">
               <button class="btn btn-mini btn-primary">Plaćeno</button>
             </form>
@@ -133,49 +224,5 @@
     </table>
   </div>
 </section>
-
-{% if mode == "admin" %}
-<section class="kz1111-section">
-  <div class="kz1111-section-head">
-    <h2>Šta još prati admin</h2>
-    <span>vezane funkcije</span>
-  </div>
-  <div class="kz1111-proof-grid">
-    <article class="kz1111-proof-card variant-approved">
-      <div class="kz1111-card-top">
-        <div class="kz1111-proof-badges">
-          <span class="status status-approved">uplata</span>
-          <span class="kz1111-proof-tiny approved">budžet</span>
-        </div>
-        <strong>Naplata firmi</strong>
-      </div>
-      <h3>Predračun mora da vodi u budžet</h3>
-      <p>Kada oglašivač plati, admin lako nastavlja na budžete i reklame bez ručnog traženja sledećeg koraka.</p>
-    </article>
-    <article class="kz1111-proof-card variant-pending">
-      <div class="kz1111-card-top">
-        <div class="kz1111-proof-badges">
-          <span class="status status-pending">obrada</span>
-          <span class="kz1111-proof-tiny pending">payout</span>
-        </div>
-        <strong>Odvoj priliv od odliva</strong>
-      </div>
-      <h3>Payout ne sme da bude slepa tačka</h3>
-      <p>U istom admin paketu prati se koliko stiže od oglašivača, a koliko izlazi ka korisnicima i partnerima.</p>
-    </article>
-    <article class="kz1111-proof-card variant-rejected">
-      <div class="kz1111-card-top">
-        <div class="kz1111-proof-badges">
-          <span class="status status-rejected">kontrola</span>
-          <span class="kz1111-proof-tiny rejected">revenue</span>
-        </div>
-        <strong>Cenovnik i marža</strong>
-      </div>
-      <h3>Dokument bez modela je samo evidencija</h3>
-      <p>Zato su revenue forecast i affiliate obračuni direktno vezani za ovaj ekran, ne kao sporedni modul.</p>
-    </article>
-  </div>
-</section>
-{% endif %}
 
 {% endblock %}

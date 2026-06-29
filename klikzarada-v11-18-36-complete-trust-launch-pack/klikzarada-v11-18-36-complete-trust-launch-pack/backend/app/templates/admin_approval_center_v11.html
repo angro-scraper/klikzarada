@@ -1,0 +1,104 @@
+{% extends "app_base.html" %}
+{% set title = "Approval center" %}
+{% block app_content %}
+<section class="kz1111-hero finance">
+  <div>
+    <span>APPROVAL CENTER</span>
+    <h1>Odluke koje ne smeju da čekaju</h1>
+    <p>Jedan admin ekran za invoice follow-up, payout obradu, refund approval i pending top-up zahteve, bez skakanja kroz pet različitih modula.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/admin/fakture">Fakture</a>
+    <a class="btn btn-secondary" href="/admin/payouts-v11">Payouts</a>
+    <a class="btn btn-secondary" href="/admin/disputes-v11836">Refunds</a>
+    <a class="btn btn-secondary" href="/admin/payments-v8">Top-up inbox</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Invoice akcije</small><strong>{{ stats.invoice_actions }}</strong><span>due / late</span></div>
+  <div class="kz1111-stat orange"><small>Payout odluke</small><strong>{{ stats.payout_actions }}</strong><span>queue</span></div>
+  <div class="kz1111-stat red"><small>Refund review</small><strong>{{ stats.refund_review }}</strong><span>finance odluka</span></div>
+  <div class="kz1111-stat purple"><small>Top-up pending</small><strong>{{ stats.topup_pending }}</strong><span>uplata oglašivača</span></div>
+</section>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head"><h2>Fakture za akciju</h2><span>{{ invoice_action_rows|length }}</span></div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>Faktura</th><th>Oglašivač</th><th>Status</th><th>Iznos</th><th>Akcija</th></tr></thead>
+        <tbody>
+          {% for row in invoice_action_rows %}
+          <tr>
+            <td><strong>{{ row.invoice.invoice_no }}</strong><br><small>{{ row.due_at.strftime("%Y-%m-%d") }}</small></td>
+            <td>{{ row.advertiser.company_name or row.advertiser.full_name }}</td>
+            <td><span class="status status-{{ 'rejected' if row.bucket == 'late' else 'pending' }}">{{ row.bucket }}</span></td>
+            <td>{{ "%.0f"|format(row.invoice.amount_rsd) }} RSD</td>
+            <td><a class="btn btn-mini btn-secondary" href="/admin/fakture">Otvori</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5">Nema invoice akcija.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="kz1111-section">
+    <div class="kz1111-section-head"><h2>Payout queue</h2><span>{{ payout_action_rows|length }}</span></div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>Korisnik</th><th>Iznos</th><th>Readiness</th><th>Note</th><th>Akcija</th></tr></thead>
+        <tbody>
+          {% for row in payout_action_rows %}
+          <tr>
+            <td>{{ row.withdrawal.user.full_name if row.withdrawal.user else "-" }}</td>
+            <td>{{ "%.0f"|format(row.withdrawal.amount_rsd) }} RSD</td>
+            <td><span class="status status-{{ 'approved' if row.readiness == 'ready' else 'pending' if row.readiness == 'review' else 'rejected' }}">{{ row.readiness }}</span></td>
+            <td>{{ row.readiness_note }}</td>
+            <td><a class="btn btn-mini btn-secondary" href="/admin/payouts-v11">Otvori</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5">Nema payout akcija.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head"><h2>Refund review</h2><span>{{ refund_review|length }}</span></div>
+    <div class="premium-list">
+      {% for row in refund_review %}
+      <article>
+        <div>
+          <b>Dispute #{{ row.dispute.id }}</b>
+          <small>{{ (row.advertiser.company_name or row.advertiser.full_name) if row.advertiser else "Bez oglašivača" }} · {{ "%.0f"|format(row.rollback_amount) }} RSD · {{ row.reason_code or "manual_adjustment" }}</small>
+        </div>
+        <a class="btn btn-mini btn-secondary" href="/admin/disputes-v11836">Otvori refund</a>
+      </article>
+      {% else %}
+      <div class="premium-empty"><h3>Nema refund review slučajeva</h3><p>Kada dispute traži finance odluku, pojaviće se ovde.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="kz1111-section">
+    <div class="kz1111-section-head"><h2>Pending top-up</h2><span>{{ pending_topups|length }}</span></div>
+    <div class="premium-list">
+      {% for item in pending_topups %}
+      <article>
+        <div>
+          <b>{{ item.advertiser.company_name or item.advertiser.full_name }}</b>
+          <small>{{ item.reference }} · {{ "%.0f"|format(item.amount_rsd) }} RSD</small>
+        </div>
+        <a class="btn btn-mini btn-secondary" href="/admin/payments-v8">Otvori top-up</a>
+      </article>
+      {% else %}
+      <div class="premium-empty"><h3>Nema pending top-up zahteva</h3><p>Kada oglašivači pošalju uplatu na proveru, pojaviće se ovde.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

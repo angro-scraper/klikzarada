@@ -1,74 +1,115 @@
 {% extends "app_base.html" %}
-{% set title = "Payouts V11" %}
+{% set title = "Payout Ops" %}
 {% block app_content %}
 
 <section class="kz1111-hero finance">
   <div>
     <span>PAYOUT OPS</span>
-    <h1>Isplata metode, holds i export</h1>
-    <p>Ovde admin proverava payout profile korisnika, pravi export za isplatu i kontroliše pomoćne blokade pre slanja novca.</p>
+    <h1>Batch isplate, hold razlozi i audit trag</h1>
+    <p>Ovo više nije samo spisak metoda. Sada vidiš readiness queue za isplatu, ko je blokiran, ko je stale i šta je poslednje urađeno nad payout tokom.</p>
   </div>
   <div class="kz1111-hero-actions">
     <a class="btn btn-primary" href="/admin/isplate">Isplate</a>
     <a class="btn btn-secondary" href="/admin/finansije">Finansije</a>
+    <a class="btn btn-secondary" href="/admin/disputes-v11836">Disputes</a>
   </div>
 </section>
 
 <section class="kz1111-stat-grid colored">
-  <div class="kz1111-stat blue"><small>Metode</small><strong>{{ methods|length }}</strong><span>registrovano</span></div>
-  <div class="kz1111-stat green"><small>Verified</small><strong>{{ methods|selectattr("status", "equalto", "verified")|list|length }}</strong><span>spremno</span></div>
-  <div class="kz1111-stat orange"><small>Pending</small><strong>{{ methods|selectattr("status", "equalto", "pending")|list|length }}</strong><span>čeka pregled</span></div>
-  <div class="kz1111-stat purple"><small>Exporti</small><strong>{{ exports|length }}</strong><span>obračuni</span></div>
+  <div class="kz1111-stat blue"><small>Metode</small><strong>{{ stats.methods or methods|length }}</strong><span>registrovano</span></div>
+  <div class="kz1111-stat green"><small>Spremno</small><strong>{{ stats.ready_count or 0 }}</strong><span>za batch</span></div>
+  <div class="kz1111-stat orange"><small>Hold</small><strong>{{ stats.hold_count or 0 }}</strong><span>blokirano</span></div>
+  <div class="kz1111-stat purple"><small>Pending</small><strong>{{ "%.0f"|format(stats.pending_total_rsd or 0) }}</strong><span>RSD na čekanju</span></div>
 </section>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Kreiraj payout batch</h2>
+      <span>samo verified i bez hold-a</span>
+    </div>
+    <form class="form-panel kz1111-tech-form" method="post" action="/admin/payouts-v11/batch-create">
+      <label>Naslov batch-a</label>
+      <input name="title" value="Novi payout batch">
+      <button class="btn btn-primary">Napravi batch od spremnih isplata</button>
+    </form>
+    <form class="form-panel kz1111-tech-form" method="post" action="/admin/payouts-v11/export">
+      <label>Naslov bank exporta</label>
+      <input name="title" value="Bank export">
+      <button class="btn btn-secondary">Kreiraj export</button>
+    </form>
+  </section>
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Kontrolni signal</h2>
+      <span>payout health</span>
+    </div>
+    <div class="kz1111-proof-grid">
+      <article class="kz1111-proof-card variant-approved">
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-approved">batch</span>
+            <span class="kz1111-proof-tiny approved">bank</span>
+          </div>
+          <strong>Bank export</strong>
+        </div>
+        <h3>{{ batches|length }} batch zapisa</h3>
+        <p>Spremne stavke se grupišu pre isplate da ops tim ne radi ručno jedan po jedan payout.</p>
+      </article>
+      <article class="kz1111-proof-card variant-pending">
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-pending">audit</span>
+            <span class="kz1111-proof-tiny pending">trag</span>
+          </div>
+          <strong>Hold i stale kontrola</strong>
+        </div>
+        <h3>{{ stats.stale_count or 0 }} stavki čeka predugo</h3>
+        <p>Admin odmah vidi gde nedostaje verifikacija, gde postoji hold razlog i šta se poslednje menjalo u payout toku.</p>
+      </article>
+    </div>
+  </section>
+</div>
 
 <section class="kz1111-section">
   <div class="kz1111-section-head">
-    <h2>Kreiraj payout export</h2>
-    <span>pending isplate</span>
-  </div>
-  <form class="form-panel kz1111-tech-form" method="post" action="/admin/payouts-v11/export">
-    <label>Naslov exporta</label>
-    <input name="title" value="Isplata export">
-    <button class="btn btn-primary">Kreiraj export od na čekanju isplata</button>
-  </form>
-</section>
-
-<section class="kz1111-section">
-  <div class="kz1111-section-head">
-    <h2>Payout metode korisnika</h2>
-    <span>{{ methods|length }}</span>
+    <h2>Payout queue</h2>
+    <span>{{ queue|length }} pending zahteva</span>
   </div>
   <div class="premium-table-wrap">
     <table>
       <thead>
         <tr>
           <th>Korisnik</th>
-          <th>Metod</th>
-          <th>Podaci</th>
-          <th>Status</th>
-          <th>Akcije</th>
+          <th>Iznos</th>
+          <th>Metoda</th>
+          <th>Readiness</th>
+          <th>Hold / napomena</th>
+          <th>Datum</th>
         </tr>
       </thead>
       <tbody>
-        {% for m in methods %}
+        {% for item in queue %}
         <tr>
-          <td>{{ m.user.full_name if m.user else "-" }}</td>
-          <td>{{ m.method_type }}</td>
-          <td style="max-width:320px;word-break:break-word;">{{ m.account_data }}</td>
-          <td><span class="status status-{{ m.status }}">{{ m.status }}</span></td>
-          <td class="actions">
-            <form method="post" action="/admin/payouts-v11/method/{{ m.id }}/verified">
-              <input class="mini-input" name="admin_note" placeholder="note">
-              <button class="btn btn-mini btn-primary">Verify</button>
-            </form>
-            <form method="post" action="/admin/payouts-v11/method/{{ m.id }}/rejected">
-              <input class="mini-input" name="admin_note" placeholder="reason">
-              <button class="btn btn-mini btn-danger">Reject</button>
-            </form>
+          <td><strong>{{ item.withdrawal.user.full_name if item.withdrawal.user else "-" }}</strong><br><small>{{ item.withdrawal.user.email if item.withdrawal.user else "-" }}</small></td>
+          <td>{{ "%.0f"|format(item.withdrawal.amount_rsd) }} RSD</td>
+          <td>
+            {% if item.method %}
+            {{ item.method.method_type }}
+            <br><small>{{ item.method.status }}</small>
+            {% else %}
+            -
+            {% endif %}
           </td>
+          <td>
+            <span class="status status-{% if item.readiness == 'ready' %}approved{% elif item.readiness == 'hold' %}rejected{% else %}pending{% endif %}">{{ item.readiness }}</span>
+            {% if item.is_stale %}<br><small>stale 72h+</small>{% endif %}
+          </td>
+          <td style="max-width:260px;">{{ item.readiness_note }}</td>
+          <td>{{ item.withdrawal.created_at }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="5">Nema metoda.</td></tr>
+        <tr><td colspan="6">Nema pending isplata.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -78,23 +119,40 @@
 <div class="kz1111-grid-two">
   <section class="kz1111-section">
     <div class="kz1111-section-head">
-      <h2>Payout exporti</h2>
-      <span>{{ exports|length }}</span>
+      <h2>Payout metode korisnika</h2>
+      <span>{{ methods|length }}</span>
     </div>
     <div class="premium-table-wrap">
       <table>
-        <thead><tr><th>Title</th><th>Rows</th><th>Total</th><th>Status</th><th>Path</th></tr></thead>
-        <tbody>
-          {% for e in exports %}
+        <thead>
           <tr>
-            <td>{{ e.title }}</td>
-            <td>{{ e.rows_count }}</td>
-            <td>{{ "%.0f"|format(e.total_amount_rsd) }}</td>
-            <td><span class="status status-{{ e.status }}">{{ e.status }}</span></td>
-            <td>{{ e.csv_path or "" }}</td>
+            <th>Korisnik</th>
+            <th>Metod</th>
+            <th>Podaci</th>
+            <th>Status</th>
+            <th>Akcije</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in methods %}
+          <tr>
+            <td>{{ m.user.full_name if m.user else "-" }}</td>
+            <td>{{ m.method_type }}</td>
+            <td style="max-width:320px;word-break:break-word;">{{ m.account_data }}</td>
+            <td><span class="status status-{{ m.status }}">{{ m.status }}</span></td>
+            <td class="actions">
+              <form method="post" action="/admin/payouts-v11/method/{{ m.id }}/verified">
+                <input class="mini-input" name="admin_note" placeholder="note">
+                <button class="btn btn-mini btn-primary">Verify</button>
+              </form>
+              <form method="post" action="/admin/payouts-v11/method/{{ m.id }}/rejected">
+                <input class="mini-input" name="admin_note" placeholder="reason">
+                <button class="btn btn-mini btn-danger">Reject</button>
+              </form>
+            </td>
           </tr>
           {% else %}
-          <tr><td colspan="5">Nema exporta.</td></tr>
+          <tr><td colspan="5">Nema metoda.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -103,27 +161,78 @@
 
   <section class="kz1111-section">
     <div class="kz1111-section-head">
-      <h2>Hold i pending signal</h2>
-      <span>{{ holds|length }} holds / {{ pending_withdrawals|length }} pending</span>
+      <h2>Hold i audit trail</h2>
+      <span>{{ holds|length }} hold / {{ audit_rows|length }} logova</span>
     </div>
     <div class="kz1111-smoke-list">
-      {% for h in holds %}
+      {% for h in holds[:8] %}
       <article>
         <div class="kz1111-card-top">
           <div class="kz1111-proof-badges">
             <span class="status status-{{ h.status }}">{{ h.status }}</span>
-            <span class="kz1111-proof-tiny approved">Hold</span>
+            <span class="kz1111-proof-tiny rejected">hold</span>
           </div>
-          <strong>{{ h.title if h.title is defined else "Payout hold" }}</strong>
+          <strong>{{ h.user.full_name if h.user else "Korisnik" }}</strong>
         </div>
-        <p>{{ h.reason if h.reason is defined else h.note if h.note is defined else "" }}</p>
-        <small>{{ h.created_at }}</small>
+        <p>{{ h.reason or "Bez razloga." }}</p>
+        <small>{{ "%.0f"|format(h.amount_rsd) }} RSD · {{ h.created_at }}</small>
       </article>
-      {% else %}
-      <div class="kz1111-empty"><h3>Nema aktivnih hold-ova</h3><p>Pending isplate trenutno nemaju dodatne payout blokade.</p></div>
       {% endfor %}
+      {% for log in audit_rows[:8] %}
+      <article>
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-approved">audit</span>
+            <span class="kz1111-proof-tiny approved">{{ log.entity_type }}</span>
+          </div>
+          <strong>{{ log.action }}</strong>
+        </div>
+        <p>{{ log.reason or "Bez dodatne napomene." }}</p>
+        <small>{{ log.created_at }}</small>
+      </article>
+      {% endfor %}
+      {% if not holds and not audit_rows %}
+      <div class="kz1111-empty"><h3>Nema hold-ova ni payout logova</h3><p>Kada payout tim krene da radi batch i verifikacije, ovde ćeš imati čist audit trag.</p></div>
+      {% endif %}
     </div>
   </section>
 </div>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Batch i export istorija</h2>
+    <span>{{ batches|length }} batch / {{ exports|length }} export</span>
+  </div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead><tr><th>Tip</th><th>Title</th><th>Rows</th><th>Total</th><th>Status</th><th>Datum</th></tr></thead>
+      <tbody>
+        {% for b in batches %}
+        <tr>
+          <td>batch</td>
+          <td>{{ b.title }}</td>
+          <td>-</td>
+          <td>{{ "%.0f"|format(b.total_amount_rsd) }} RSD</td>
+          <td><span class="status status-{{ b.status }}">{{ b.status }}</span></td>
+          <td>{{ b.created_at }}</td>
+        </tr>
+        {% endfor %}
+        {% for e in exports %}
+        <tr>
+          <td>export</td>
+          <td>{{ e.title }}</td>
+          <td>{{ e.rows_count }}</td>
+          <td>{{ "%.0f"|format(e.total_amount_rsd) }} RSD</td>
+          <td><span class="status status-{{ e.status }}">{{ e.status }}</span></td>
+          <td>{{ e.created_at }}</td>
+        </tr>
+        {% endfor %}
+        {% if not batches and not exports %}
+        <tr><td colspan="6">Nema batch ni export istorije.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
 
 {% endblock %}

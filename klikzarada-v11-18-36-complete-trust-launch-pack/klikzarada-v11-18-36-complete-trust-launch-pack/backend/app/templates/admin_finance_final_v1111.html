@@ -11,6 +11,9 @@
     <a class="btn btn-primary" href="/admin/fakture">Fakture</a>
     <a class="btn btn-secondary" href="/admin/isplate">Isplate</a>
     <a class="btn btn-secondary" href="/admin/payouts-v11">Payout alati</a>
+    <a class="btn btn-secondary" href="/admin/collections-v11">Collections</a>
+    <a class="btn btn-secondary" href="/admin/finance-v11834">Reconciliation</a>
+    <a class="btn btn-secondary" href="/admin/disputes-v11836">Refunds</a>
   </div>
 </section>
 
@@ -63,6 +66,71 @@
   {% endfor %}
 </section>
 
+{% if refund_signal is defined and refund_signal.alerts %}
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Refund finance signal</h2>
+    <span>dispute rollback monitoring</span>
+  </div>
+  <div class="kz1111-proof-grid">
+    {% for alert in refund_signal.alerts %}
+    <article class="kz1111-proof-card {% if alert.level == 'warning' %}variant-pending{% elif alert.level == 'success' %}variant-approved{% else %}variant-manual{% endif %}">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-{% if alert.level == 'warning' %}pending{% elif alert.level == 'success' %}approved{% else %}pending{% endif %}">{{ alert.level }}</span>
+          <span class="kz1111-proof-tiny {% if alert.level == 'warning' %}pending{% elif alert.level == 'success' %}approved{% else %}pending{% endif %}">refund</span>
+        </div>
+        <strong>{{ alert.title }}</strong>
+      </div>
+      <h3>{{ alert.count }}</h3>
+      <p>{{ alert.desc }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Pending review</h2>
+      <span>{{ refund_signal.pending_review|length }}</span>
+    </div>
+    <div class="premium-list">
+      {% for row in refund_signal.pending_review %}
+      {% set advertiser_name = (row.advertiser.company_name or row.advertiser.full_name) if row.advertiser else "Bez oglašivača" %}
+      <article>
+        <div>
+          <b>Dispute #{{ row.dispute.id }}</b>
+          <small>{{ advertiser_name }} · {{ "%.0f"|format(row.rollback_amount) }} RSD</small>
+        </div>
+      </article>
+      {% else %}
+      <div class="premium-empty"><h3>Nema pending review refund-a</h3><p>Kada support ili ops pošalju refund u finance review, pojaviće se ovde.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Approved refunds</h2>
+      <span>{{ refund_signal.approved|length }}</span>
+    </div>
+    <div class="premium-list">
+      {% for row in refund_signal.approved %}
+      {% set advertiser_name = (row.advertiser.company_name or row.advertiser.full_name) if row.advertiser else "Bez oglašivača" %}
+      <article>
+        <div>
+          <b>Dispute #{{ row.dispute.id }}</b>
+          <small>{{ advertiser_name }} · {{ "%.0f"|format(row.rollback_amount) }} RSD · {{ row.reason_code or 'manual_adjustment' }}</small>
+        </div>
+      </article>
+      {% else %}
+      <div class="premium-empty"><h3>Nema approved refund-a</h3><p>Kada refund prođe approval i čeka izvršenje, finance ga vidi ovde.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endif %}
+
 <section class="kz1111-section">
   <div class="kz1111-section-head">
     <h2>Računi i referenca plaćanja</h2>
@@ -103,8 +171,11 @@
   </div>
   <div class="kz1111-command-grid">
     <a href="/admin/fakture">Pregled faktura</a>
+    <a href="/admin/collections-v11">Collections</a>
+    <a href="/admin/finance-v11834">Reconciliation</a>
     <a href="/admin/isplate">Pregled isplata</a>
     <a href="/admin/payouts-v11">Payout metode</a>
+    <a href="/admin/disputes-v11836">Refund approval</a>
     <a href="/admin/cene-v111">Cene i provizije</a>
     <a href="/admin/system-settings">Računi i bank podaci</a>
     <a href="/admin/dokazi">Dokazi</a>

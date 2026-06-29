@@ -1,0 +1,81 @@
+{% extends "app_base.html" %}
+{% set title = "Alerts center" %}
+{% block app_content %}
+<section class="kz1111-hero finance">
+  <div>
+    <span>ALERTS CENTER</span>
+    <h1>Šta trenutno traži reakciju</h1>
+    <p>Finansijski warning-i, slot konflikti, renewal rizik, refund review i slabi advertiser/campaign signali na jednom mestu.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/admin/ops-v11835">Ops</a>
+    <a class="btn btn-secondary" href="/admin/finance-v11834">Reconciliation</a>
+    <a class="btn btn-secondary" href="/admin/renewals-v11">Renewals</a>
+    <a class="btn btn-secondary" href="/admin/oglasivaci">Oglašivači</a>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head"><h2>Aktivni alerti</h2><span>{{ alerts|length }}</span></div>
+  <div class="kz1111-proof-grid">
+    {% for item in alerts %}
+    <article class="kz1111-proof-card {% if item.level == 'critical' %}variant-rejected{% else %}variant-pending{% endif %}">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-{{ 'rejected' if item.level == 'critical' else 'pending' }}">{{ item.level }}</span>
+        </div>
+        <strong>{{ item.title }}</strong>
+      </div>
+      <p>{{ item.desc }}</p>
+      <a class="btn btn-mini btn-secondary" href="{{ item.url }}">Otvori</a>
+    </article>
+    {% else %}
+    <div class="premium-empty"><h3>Nema aktivnih alerta</h3><p>Trenutno nema kritičnih ili warning signala koji traže admin akciju.</p></div>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head"><h2>Low advertiser health</h2><span>{{ low_health|length }}</span></div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>Oglašivač</th><th>Score</th><th>Budžet</th><th>Top-up</th><th>Akcija</th></tr></thead>
+        <tbody>
+          {% for row in low_health %}
+          <tr>
+            <td><strong>{{ row.advertiser.company_name or row.advertiser.full_name }}</strong></td>
+            <td><span class="status status-rejected">{{ row.score }}</span></td>
+            <td>{{ "%.0f"|format(row.available) }} / {{ "%.0f"|format(row.reserved) }}</td>
+            <td>{{ row.pending_topups }}</td>
+            <td><a class="btn btn-mini btn-secondary" href="/admin/oglasivaci">Otvori</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5">Nema low-health oglašivača.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="kz1111-section">
+    <div class="kz1111-section-head"><h2>Slow campaigns</h2><span>{{ slow_campaigns|length }}</span></div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>Kampanja</th><th>Completion</th><th>ROI</th><th>Akcija</th></tr></thead>
+        <tbody>
+          {% for row in slow_campaigns %}
+          <tr>
+            <td><strong>{{ row.task.title }}</strong></td>
+            <td>{{ "%.1f"|format(row.completion) }}%</td>
+            <td>{{ "%.1f"|format(row.roi_ratio) }}%</td>
+            <td><a class="btn btn-mini btn-secondary" href="/admin/kampanje">Otvori</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">Nema slow kampanja.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

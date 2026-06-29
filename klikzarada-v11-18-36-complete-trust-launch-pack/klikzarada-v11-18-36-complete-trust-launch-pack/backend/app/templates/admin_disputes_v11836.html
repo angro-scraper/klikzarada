@@ -1,29 +1,164 @@
-{% extends "base.html" %}
-{% block content %}
-<div style="max-width:1180px;margin:24px auto;padding:0 16px;">
-  <h1>Dispute / žalbe</h1>
-  <p style="color:#64748b;">Pregled žalbi korisnika na odbijene dokaze.</p>
-  <div style="background:#fff;border:1px solid #d8e5f5;border-radius:16px;overflow:hidden;">
-    <table style="width:100%;border-collapse:collapse;">
-      <thead style="background:#f8fafc;"><tr><th style="padding:12px;text-align:left;">ID</th><th>Korisnik</th><th>Dokaz</th><th>Razlog</th><th>Status</th><th>Akcije</th></tr></thead>
+{% extends "app_base.html" %}
+{% set title = "Disputes" %}
+{% block app_content %}
+
+<section class="kz1111-hero finance">
+  <div>
+    <span>DISPUTE I REFUND TOK</span>
+    <h1>Žalbe, rollback budžeta i odobravanje</h1>
+    <p>Ovaj ekran sada pokriva ne samo odgovor korisniku, već i operativni refund sloj prema oglašivaču kada je potreban rollback budžeta.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/admin/payouts-v11">Payout ops</a>
+    <a class="btn btn-secondary" href="/admin/fakture">Billing</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Open</small><strong>{{ dispute_stats.open or 0 }}</strong><span>čeka odluku</span></div>
+  <div class="kz1111-stat green"><small>Accepted</small><strong>{{ dispute_stats.accepted or 0 }}</strong><span>odobreno</span></div>
+  <div class="kz1111-stat orange"><small>Rejected</small><strong>{{ dispute_stats.rejected or 0 }}</strong><span>zatvoreno</span></div>
+  <div class="kz1111-stat purple"><small>Refund ready</small><strong>{{ dispute_stats.refund_ready or 0 }}</strong><span>može rollback</span></div>
+</section>
+
+<section class="kz1111-stat-grid colored" style="margin-top:16px;">
+  <div class="kz1111-stat blue"><small>Pending review</small><strong>{{ dispute_stats.refund_pending_review or 0 }}</strong><span>finance čekanje</span></div>
+  <div class="kz1111-stat green"><small>Approved</small><strong>{{ dispute_stats.refund_approved or 0 }}</strong><span>spremno za refund</span></div>
+</section>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Refund kandidati</h2>
+      <span>rollback budžeta</span>
+    </div>
+    <div class="kz1111-smoke-list">
+      {% for row in refund_candidates %}
+      {% if row.rollback_amount > 0 %}
+      <article>
+        {% set advertiser_name = (row.advertiser.company_name or row.advertiser.full_name) if row.advertiser else "Bez oglašivača" %}
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-{{ row.dispute.status }}">{{ row.dispute.status }}</span>
+            <span class="kz1111-proof-tiny {% if row.already_refunded %}approved{% else %}pending{% endif %}">{{ row.refund_state }}</span>
+          </div>
+          <strong>Dispute #{{ row.dispute.id }}</strong>
+        </div>
+        <p><b>{{ advertiser_name }}</b></p>
+        <p>{{ "%.0f"|format(row.rollback_amount) }} RSD · task: {{ row.task.title if row.task else "-" }}</p>
+        <p>{{ row.dispute.reason }}</p>
+        {% if row.reason_code %}
+        <small>reason code: {{ row.reason_code }}</small>
+        {% endif %}
+        {% if not row.already_refunded and row.advertiser %}
+        <form class="form-panel kz1111-tech-form" method="post" action="/admin/disputes-v11836/{{ row.dispute.id }}/refund">
+          <label>Approval status</label>
+          <select name="approval_status">
+            <option value="pending_review" {% if row.refund_state == 'pending_review' %}selected{% endif %}>pending_review</option>
+            <option value="approved" {% if row.refund_state == 'approved' %}selected{% endif %}>approved</option>
+            <option value="rejected" {% if row.refund_state == 'rejected' %}selected{% endif %}>rejected</option>
+            <option value="refunded" {% if row.refund_state == 'refunded' %}selected{% endif %}>refunded</option>
+          </select>
+          <label>Reason code</label>
+          <select name="reason_code">
+            {% for code, label in refund_reason_options %}
+            <option value="{{ code }}" {% if row.reason_code == code %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <label>Rollback amount</label>
+          <input type="number" step="1" name="rollback_amount" value="{{ "%.0f"|format(row.rollback_amount) }}">
+          <label>Odluka</label>
+          <input name="decision" value="Refund/rollback odobren">
+          <button class="btn btn-primary">Sačuvaj refund status</button>
+        </form>
+        {% else %}
+        <small>{% if row.already_refunded %}Rollback je već evidentiran.{% else %}Nema oglašivača za rollback.{% endif %}</small>
+        {% endif %}
+      </article>
+      {% endif %}
+      {% else %}
+      <div class="kz1111-empty"><h3>Nema refund kandidata</h3><p>Kada dispute utiče na budžet oglašivača, ovde će se pojaviti rollback akcija.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Šta ovaj tok rešava</h2>
+      <span>ops i finance zajedno</span>
+    </div>
+    <div class="kz1111-proof-grid">
+      <article class="kz1111-proof-card variant-approved">
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-approved">korisnik</span>
+            <span class="kz1111-proof-tiny approved">žalba</span>
+          </div>
+          <strong>Reverzija dokaza</strong>
+        </div>
+        <h3>Žalba vraća dokaz u pregled</h3>
+        <p>Kad admin prihvati žalbu, submission se vraća u kontrolu umesto da ostane mrtva tačka.</p>
+      </article>
+      <article class="kz1111-proof-card variant-pending">
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-pending">oglašivač</span>
+            <span class="kz1111-proof-tiny pending">refund</span>
+          </div>
+          <strong>Rollback budžeta</strong>
+        </div>
+        <h3>Dispute više nije samo support</h3>
+        <p>Ako spor zahteva povraćaj troška, admin iz istog ekrana vraća budžet i ostavlja audit trag.</p>
+      </article>
+    </div>
+  </section>
+</div>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Sve žalbe</h2>
+    <span>{{ disputes|length }}</span>
+  </div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Korisnik</th>
+          <th>Task / dokaz</th>
+          <th>Razlog</th>
+          <th>Status</th>
+          <th>Akcije</th>
+        </tr>
+      </thead>
       <tbody>
       {% for d in disputes %}
-        <tr style="border-top:1px solid #e5edf7;">
-          <td style="padding:10px 12px;">#{{ d.id }}</td>
-          <td style="padding:10px 12px;">{{ d.opened_by.email if d.opened_by else '' }}</td>
-          <td style="padding:10px 12px;">#{{ d.submission_id }}</td>
-          <td style="padding:10px 12px;">{{ d.reason }}</td>
-          <td style="padding:10px 12px;font-weight:900;">{{ d.status }}</td>
-          <td style="padding:10px 12px;">
+        <tr>
+          <td>#{{ d.id }}</td>
+          <td>{{ d.opened_by.email if d.opened_by else '' }}</td>
+          <td>#{{ d.submission_id }}<br><small>{{ d.submission.task.title if d.submission and d.submission.task else "-" }}</small></td>
+          <td style="max-width:280px;">{{ d.reason }}</td>
+          <td><span class="status status-{{ d.status }}">{{ d.status }}</span></td>
+          <td class="actions">
             {% if d.status == 'open' %}
-            <form method="post" action="/admin/disputes-v11836/{{ d.id }}/accept" style="display:inline;"><button style="background:#16a34a;color:#fff;border:0;border-radius:8px;padding:7px 10px;">Prihvati</button></form>
-            <form method="post" action="/admin/disputes-v11836/{{ d.id }}/reject" style="display:inline;"><button style="background:#dc2626;color:#fff;border:0;border-radius:8px;padding:7px 10px;">Odbij</button></form>
+            <form method="post" action="/admin/disputes-v11836/{{ d.id }}/accept">
+              <input class="mini-input" name="decision" placeholder="odluka">
+              <button class="btn btn-mini btn-primary">Prihvati</button>
+            </form>
+            <form method="post" action="/admin/disputes-v11836/{{ d.id }}/reject">
+              <input class="mini-input" name="decision" placeholder="razlog">
+              <button class="btn btn-mini btn-danger">Odbij</button>
+            </form>
+            {% else %}
+            <small>{{ d.admin_decision or "-" }}</small>
             {% endif %}
           </td>
         </tr>
+      {% else %}
+        <tr><td colspan="6">Nema žalbi.</td></tr>
       {% endfor %}
       </tbody>
     </table>
   </div>
-</div>
+</section>
+
 {% endblock %}

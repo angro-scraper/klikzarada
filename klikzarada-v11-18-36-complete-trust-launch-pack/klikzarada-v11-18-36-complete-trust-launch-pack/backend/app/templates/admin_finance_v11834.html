@@ -1,58 +1,74 @@
-{% extends "base.html" %}
-{% block content %}
-<div class="kz-page" style="max-width:1180px;margin:24px auto;padding:0 16px;">
-  <div style="display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:18px;">
-    <div>
-      <h1 style="margin:0;font-size:28px;">Finance reconciliation</h1>
-      <p style="margin:6px 0 0;color:#64748b;">Pregled para u sistemu: korisnici, oglašivači, dokazi, isplate i transakcije.</p>
-    </div>
-    <div style="display:flex;gap:10px;">
-      <a href="/admin/finance-v11834.csv" style="background:#0b67f1;color:#fff;padding:10px 14px;border-radius:10px;text-decoration:none;font-weight:800;">CSV export</a>
-      <form method="post" action="/admin/finance-v11834/fix-small-negatives">
-        <button style="background:#111827;color:#fff;padding:10px 14px;border-radius:10px;border:0;font-weight:800;">Fix tiny negatives</button>
-      </form>
-    </div>
+{% extends "app_base.html" %}
+{% set title = "Finance Reconciliation" %}
+{% block app_content %}
+<section class="kz1111-hero finance">
+  <div>
+    <span>RECONCILIATION</span>
+    <h1>Usaglašavanje finansija sistema</h1>
+    <p>Pregled para u sistemu: korisnici, oglašivači, dokazi, isplate i transakcije. Ovo je ekran za proveru da li knjige i operativa pričaju istu priču.</p>
   </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/admin/finansije">Finansije</a>
+    <a class="btn btn-secondary" href="/admin/collections-v11">Collections</a>
+    <a class="btn btn-secondary" href="/admin/disputes-v11836">Refunds</a>
+    <a class="btn btn-secondary" href="/admin/finance-v11834.csv">CSV export</a>
+  </div>
+</section>
 
-  {% if snapshot.warnings %}
-  <div style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:14px 16px;border-radius:14px;margin-bottom:16px;">
-    <b>Upozorenja:</b>
-    <ul style="margin:8px 0 0;">
-      {% for w in snapshot.warnings %}<li>{{ w }}</li>{% endfor %}
-    </ul>
+{% if snapshot.warnings %}
+<section class="kz1111-section">
+  <div class="kz1111-empty">
+    <h3>Upozorenja u reconciliation-u</h3>
+    {% for w in snapshot.warnings %}
+    <p>{{ w }}</p>
+    {% endfor %}
   </div>
-  {% else %}
-  <div style="background:#ecfdf5;border:1px solid #bbf7d0;color:#166534;padding:14px 16px;border-radius:14px;margin-bottom:16px;">
-    <b>Status:</b> Finansijski snapshot je bez upozorenja.
+</section>
+{% else %}
+<section class="kz1111-section">
+  <div class="kz1111-empty">
+    <h3>Status je čist</h3>
+    <p>Finansijski snapshot trenutno nema warning signale.</p>
   </div>
-  {% endif %}
+</section>
+{% endif %}
 
-  <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px;">
-    <div style="background:#fff;border:1px solid #d8e5f5;border-radius:16px;padding:16px;"><small>Korisnički balans</small><h2>{{ snapshot.users.balance_rsd }} RSD</h2></div>
-    <div style="background:#fff;border:1px solid #d8e5f5;border-radius:16px;padding:16px;"><small>Pending zarada</small><h2>{{ snapshot.users.pending_rsd }} RSD</h2></div>
-    <div style="background:#fff;border:1px solid #d8e5f5;border-radius:16px;padding:16px;"><small>Budžet oglašivača</small><h2>{{ snapshot.advertisers.available_budget_rsd }} RSD</h2></div>
-    <div style="background:#fff;border:1px solid #d8e5f5;border-radius:16px;padding:16px;"><small>Rezervisano</small><h2>{{ snapshot.advertisers.reserved_rsd }} RSD</h2></div>
-    <div style="background:#fff;border:1px solid #d8e5f5;border-radius:16px;padding:16px;"><small>Potrošeno</small><h2>{{ snapshot.advertisers.spent_rsd }} RSD</h2></div>
-    <div style="background:#fff;border:1px solid #d8e5f5;border-radius:16px;padding:16px;"><small>Odobrene nagrade</small><h2>{{ snapshot.submissions.approved_rewards_rsd }} RSD</h2></div>
-    <div style="background:#fff;border:1px solid #d8e5f5;border-radius:16px;padding:16px;"><small>Isplate pending</small><h2>{{ snapshot.withdrawals.pending_rsd }} RSD</h2></div>
-    <div style="background:#fff;border:1px solid #d8e5f5;border-radius:16px;padding:16px;"><small>Isplaćeno</small><h2>{{ snapshot.withdrawals.paid_rsd }} RSD</h2></div>
-  </div>
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Korisnički balans</small><strong>{{ "%.0f"|format(snapshot.users.balance_rsd) }}</strong><span>RSD</span></div>
+  <div class="kz1111-stat orange"><small>Pending zarada</small><strong>{{ "%.0f"|format(snapshot.users.pending_rsd) }}</strong><span>RSD</span></div>
+  <div class="kz1111-stat purple"><small>Budžet oglašivača</small><strong>{{ "%.0f"|format(snapshot.advertisers.available_budget_rsd) }}</strong><span>RSD</span></div>
+  <div class="kz1111-stat green"><small>Isplate pending</small><strong>{{ "%.0f"|format(snapshot.withdrawals.pending_rsd) }}</strong><span>RSD</span></div>
+</section>
 
-  <div style="background:#fff;border:1px solid #d8e5f5;border-radius:16px;overflow:hidden;">
-    <table style="width:100%;border-collapse:collapse;">
-      <thead style="background:#f8fafc;">
-        <tr><th style="text-align:left;padding:12px;">Sekcija</th><th style="text-align:left;padding:12px;">Metrika</th><th style="text-align:right;padding:12px;">Vrednost</th></tr>
-      </thead>
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Reconciliation tabela</h2>
+    <span>sekcije i metrike</span>
+  </div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead><tr><th>Sekcija</th><th>Metrika</th><th>Vrednost</th></tr></thead>
       <tbody>
         {% for section, metric, value in rows %}
-        <tr style="border-top:1px solid #e5edf7;">
-          <td style="padding:10px 12px;color:#64748b;">{{ section }}</td>
-          <td style="padding:10px 12px;font-weight:700;">{{ metric }}</td>
-          <td style="padding:10px 12px;text-align:right;">{{ value }}</td>
+        <tr>
+          <td>{{ section }}</td>
+          <td><strong>{{ metric }}</strong></td>
+          <td>{{ value }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-</div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Brza akcija</h2>
+    <span>tiny negatives</span>
+  </div>
+  <form class="form-panel kz1111-tech-form" method="post" action="/admin/finance-v11834/fix-small-negatives">
+    <p>Ovo popravlja samo male rounding negative ostatke, ne stvarne finansijske rupe.</p>
+    <button class="btn btn-primary">Fix tiny negatives</button>
+  </form>
+</section>
 {% endblock %}

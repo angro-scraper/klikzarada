@@ -11,6 +11,8 @@
     <div class="premium-panel-actions">
       <a class="premium-btn blue" href="/admin/cene-v111">Cene i provizije</a>
       <a class="premium-btn green" href="/admin/v11">Dashboard</a>
+      <a class="premium-btn white" href="/admin/renewals-v11">Renewals</a>
+      <a class="premium-btn white" href="/admin/revenue-v9">Revenue</a>
       <a class="premium-btn white" href="/api/v1/v11/banner-slots-health">Health</a>
       <a class="premium-btn white" href="/oglasivac/promocija-v111">Pogledaj oglašivača</a>
     </div>
@@ -78,6 +80,136 @@
     <span>minimalni prag</span>
   </article>
 </section>
+
+{% if ads_profit is defined %}
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Profit signal</h2>
+    <span>slotovi i kampanje</span>
+  </div>
+  <div class="premium-money-grid">
+    <article><small>Profit po slotovima</small><strong>{{ "%.0f"|format(ads_profit.totals.slot_profit_rsd) }} RSD</strong></article>
+    <article><small>Profit po kampanjama</small><strong>{{ "%.0f"|format(ads_profit.totals.campaign_profit_rsd) }} RSD</strong></article>
+    <article><small>Boost revenue</small><strong>{{ "%.0f"|format(ads_profit.totals.boost_revenue_rsd) }} RSD</strong></article>
+  </div>
+</section>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Profit upozorenja</h2>
+      <span>negative / low margin</span>
+    </div>
+    <div class="kz1111-smoke-list">
+      {% for warning in ads_profit.slot_warnings %}
+      <article><strong>Slot</strong><p>{{ warning }}</p></article>
+      {% endfor %}
+      {% for warning in ads_profit.campaign_warnings %}
+      <article><strong>Kampanja</strong><p>{{ warning }}</p></article>
+      {% endfor %}
+      {% if not ads_profit.slot_warnings and not ads_profit.campaign_warnings %}
+      <div class="kz1111-empty"><h3>Nema profit upozorenja</h3><p>Trenutno nema slotova ni kampanja sa negativnom ili niskom marginom.</p></div>
+      {% endif %}
+    </div>
+  </section>
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Best slots i best kampanje</h2>
+      <span>top performers</span>
+    </div>
+    <div class="kz1111-smoke-list">
+      {% for row in ads_profit.best_slots %}
+      <article><strong>{{ row.slot.title }}</strong><p>Profit {{ "%.0f"|format(row.profit_rsd) }} RSD · margina {{ "%.1f"|format(row.margin_percent) }}%</p></article>
+      {% endfor %}
+      {% for row in ads_profit.best_campaigns %}
+      <article><strong>{{ row.task.title }}</strong><p>Profit {{ "%.0f"|format(row.profit_rsd) }} RSD · margina {{ "%.1f"|format(row.margin_percent) }}%</p></article>
+      {% endfor %}
+      {% if not ads_profit.best_slots and not ads_profit.best_campaigns %}
+      <div class="kz1111-empty"><h3>Nema istaknutih performera</h3><p>Kada slotovi i kampanje počnu da nose jaču maržu, ovde ćeš odmah videti pobednike.</p></div>
+      {% endif %}
+    </div>
+  </section>
+</div>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Profit po slotu</h2>
+      <span>{{ ads_profit.filtered_slot_rows|length if ads_profit.filtered_slot_rows is defined else ads_profit.slot_rows|length }} slotova</span>
+    </div>
+    <div class="kz1111-command-grid" style="margin-bottom:14px;">
+      <a href="/admin/reklame-v111?profit_filter=all&campaign_filter={{ ads_profit.campaign_filter or 'all' }}">Svi slotovi</a>
+      <a href="/admin/reklame-v111?profit_filter=best&campaign_filter={{ ads_profit.campaign_filter or 'all' }}">Best slots</a>
+      <a href="/admin/reklame-v111?profit_filter=low&campaign_filter={{ ads_profit.campaign_filter or 'all' }}">Low margin</a>
+      <a href="/admin/reklame-v111?profit_filter=negative&campaign_filter={{ ads_profit.campaign_filter or 'all' }}">Negative</a>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Slot</th>
+            <th>Booking</th>
+            <th>View revenue</th>
+            <th>Viewer cost</th>
+            <th>Profit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in ads_profit.filtered_slot_rows if ads_profit.filtered_slot_rows is defined else ads_profit.slot_rows %}
+          <tr>
+            <td><strong>{{ row.slot.title }}</strong><br><small>{{ row.banners_count }} bannera · {{ row.level }}</small></td>
+            <td>{{ "%.0f"|format(row.booking_revenue) }} RSD</td>
+            <td>{{ "%.0f"|format(row.view_revenue) }} RSD</td>
+            <td>{{ "%.0f"|format(row.viewer_cost) }} RSD</td>
+            <td><strong>{{ "%.0f"|format(row.profit_rsd) }} RSD</strong><br><small>{{ "%.1f"|format(row.margin_percent) }}% margin</small></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5">Nema slot profit podataka.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Profit po kampanji</h2>
+      <span>{{ ads_profit.filtered_campaign_rows|length if ads_profit.filtered_campaign_rows is defined else ads_profit.campaign_rows|length }} kampanja</span>
+    </div>
+    <div class="kz1111-command-grid" style="margin-bottom:14px;">
+      <a href="/admin/reklame-v111?profit_filter={{ ads_profit.profit_filter or 'all' }}&campaign_filter=all">Sve kampanje</a>
+      <a href="/admin/reklame-v111?profit_filter={{ ads_profit.profit_filter or 'all' }}&campaign_filter=best">Best kampanje</a>
+      <a href="/admin/reklame-v111?profit_filter={{ ads_profit.profit_filter or 'all' }}&campaign_filter=low">Low margin</a>
+      <a href="/admin/reklame-v111?profit_filter={{ ads_profit.profit_filter or 'all' }}&campaign_filter=negative">Negative</a>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Kampanja</th>
+            <th>Approved spend</th>
+            <th>Platform fee</th>
+            <th>Boost</th>
+            <th>Profit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in ads_profit.filtered_campaign_rows if ads_profit.filtered_campaign_rows is defined else ads_profit.campaign_rows %}
+          <tr>
+            <td><strong>{{ row.task.title }}</strong><br><small>{{ row.submissions_count }} submissiona · {{ row.level }} · {{ "%.1f"|format(row.margin_percent) }}% margin</small></td>
+            <td>{{ "%.0f"|format(row.approved_cost) }} RSD</td>
+            <td>{{ "%.0f"|format(row.platform_fee) }} RSD</td>
+            <td>{{ "%.0f"|format(row.boost_revenue) }} RSD</td>
+            <td><strong>{{ "%.0f"|format(row.profit_rsd) }} RSD</strong></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5">Nema kampanja sa boost/profit signalom.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endif %}
 
 <section class="kz1111-section">
   <div class="kz1111-section-head">
@@ -530,21 +662,120 @@
 </section>
 {% endif %}
 
+{% if inventory_month is defined %}
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Mesečni inventory planner</h2>
+    <span>{{ inventory_month.month_label }} · {{ "%.1f"|format(inventory_month.utilization_percent) }}% zauzeće</span>
+  </div>
+  <div class="premium-money-grid">
+    <article><small>Zauzeti slot-dani</small><strong>{{ inventory_month.booked_days }}</strong></article>
+    <article><small>Kapacitet</small><strong>{{ inventory_month.total_days }}</strong></article>
+    <article><small>Conflict warning</small><strong>{{ inventory_month.conflicts|length }}</strong></article>
+    <article><small>Renewal reminder</small><strong>{{ inventory_month.renewals|length }}</strong></article>
+  </div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Slot</th>
+          {% for d in inventory_month.dates %}
+          <th>{{ d.strftime("%d") }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in inventory_month.rows %}
+        <tr>
+          <td><strong>{{ row.slot.title }}</strong><br><small>{{ row.slot.code }}</small></td>
+          {% for cell in row.cells %}
+          <td>
+            {% if cell.status == "free" %}
+            <span class="status status-approved">free</span>
+            {% elif cell.status == "conflict" %}
+            <span class="status status-rejected">conflict</span>
+            <br><small>{{ cell.bookings|length }}x</small>
+            {% elif cell.status == "pending" %}
+            <span class="status status-pending">reserved</span>
+            <br><small>{{ cell.bookings[0].advertiser.company_name or cell.bookings[0].advertiser.full_name }}</small>
+            {% else %}
+            <span class="status status-active">live</span>
+            <br><small>{{ cell.bookings[0].advertiser.company_name or cell.bookings[0].advertiser.full_name }}</small>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Conflict warning</h2>
+      <span>{{ inventory_month.conflicts|length }} preklapanja</span>
+    </div>
+    <div class="kz1111-smoke-list">
+      {% for conflict in inventory_month.conflicts %}
+      <article>
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-rejected">conflict</span>
+            <span class="kz1111-proof-tiny rejected">{{ conflict.date.strftime("%d.%m") }}</span>
+          </div>
+          <strong>{{ conflict.slot.title }}</strong>
+        </div>
+        <p>{% for booking in conflict.bookings %}{{ booking.title }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+        <small>Treba odlučiti koji banner ostaje live u ovom slotu.</small>
+      </article>
+      {% else %}
+      <div class="kz1111-empty"><h3>Nema konflikata</h3><p>Mesečni planner trenutno nema duplo rezervisane slotove.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Renewal reminder</h2>
+      <span>{{ inventory_month.renewals|length }} uskoro ističe</span>
+    </div>
+    <div class="kz1111-smoke-list">
+      {% for item in inventory_month.renewals %}
+      <article>
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-pending">{{ item.days_to_end }}d</span>
+            <span class="kz1111-proof-tiny pending">{{ item.slot.title if item.slot else "slot" }}</span>
+          </div>
+          <strong>{{ item.banner.title }}</strong>
+        </div>
+        <p>{{ item.advertiser.company_name or item.advertiser.full_name }}</p>
+        <small>Istek: {{ item.ends_at.strftime("%Y-%m-%d") }}</small>
+      </article>
+      {% else %}
+      <div class="kz1111-empty"><h3>Nema skoro isteklih zakupa</h3><p>Kada banner ulazi u završne dane zakupa, ovde izlazi reminder za renew.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endif %}
+
 <section class="kz1111-section">
   <div class="kz1111-section-head">
-    <h2>Sledeće funkcije koje vrede dodati</h2>
-    <span>ad-sales roadmap</span>
+    <h2>Ad-sales funkcije koje su sada pokrivene</h2>
+    <span>planner / pricing / workflow</span>
   </div>
   <div class="kz1111-grid-two">
     <div class="kz1111-ledger-card">
       <small>Prodaja</small>
-      <strong>Kalendar rezervacije slotova</strong>
-      <p>Treba dodati pregled po danima da admin odmah vidi koji premium slot je zauzet, slobodan ili delimično rezervisan.</p>
+      <strong>Mesečni kalendar zauzeća slotova</strong>
+      <p>Admin sada ima i kratki i mesečni planner, conflict warning i reminder pre isteka bannera da sales ne gubi renewal.</p>
     </div>
     <div class="kz1111-ledger-card">
       <small>Optimizacija</small>
       <strong>Pacing i ROI signal po oglašivaču</strong>
-      <p>Korisno je da admin vidi da li reklama troši budžet prebrzo, presporo ili zdravo i da iz ovog ekrana pređe na korekciju cene ili placement-a.</p>
+      <p>Odatle sledeći prirodan korak ostaje još detaljniji profit po kampanji i po slotu, ali workflow i inventar više nisu slepa tačka.</p>
     </div>
   </div>
 </section>

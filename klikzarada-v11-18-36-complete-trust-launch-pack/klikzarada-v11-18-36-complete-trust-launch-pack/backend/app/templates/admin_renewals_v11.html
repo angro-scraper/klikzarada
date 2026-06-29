@@ -1,0 +1,52 @@
+{% extends "app_base.html" %}
+{% set title = "Renewals" %}
+{% block app_content %}
+<section class="premium-panel-hero admin banner-launch-hero">
+  <div>
+    <span>RENEWALS I FORECAST</span>
+    <h1>Istek bannera, boost-ova i sledeći prodajni ciklus</h1>
+    <p>Admin i sales ovde vide šta uskoro ističe, gde treba renew i koji slotovi ostaju prazni ako se ništa ne uradi.</p>
+  </div>
+  <div class="premium-panel-actions">
+    <a class="premium-btn blue" href="/admin/reklame-v111">Reklame</a>
+    <a class="premium-btn green" href="/admin/revenue-v9">Revenue</a>
+    <a class="premium-btn white" href="/admin/oglasivaci">Oglašivači</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Banner renewals</small><strong>{{ banner_renewals|length }}</strong><span>uskoro ističe</span></div>
+  <div class="kz1111-stat orange"><small>Boost renewals</small><strong>{{ boost_renewals|length }}</strong><span>top pozicije</span></div>
+  <div class="kz1111-stat purple"><small>Conflict warning</small><strong>{{ inventory.conflicts|length if inventory is defined else 0 }}</strong><span>planner</span></div>
+  <div class="kz1111-stat green"><small>Zauzeće</small><strong>{{ "%.1f"|format(inventory.utilization_percent if inventory is defined else 0) }}%</strong><span>mesečno</span></div>
+</section>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head"><h2>Banner renewals</h2><span>{{ banner_renewals|length }}</span></div>
+    <div class="kz1111-smoke-list">
+      {% for item in banner_renewals %}
+      <article>
+        <strong>{{ item.banner.title }}</strong>
+        <p>{{ item.advertiser.company_name or item.advertiser.full_name }} · {{ item.slot.title if item.slot else "slot" }} · {{ item.days_to_end }} dana do isteka</p>
+      </article>
+      {% else %}
+      <div class="kz1111-empty"><h3>Nema aktivnih banner renewals</h3><p>Kada se banner približi isteku, pojaviće se ovde.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="kz1111-section">
+    <div class="kz1111-section-head"><h2>Boost renewals</h2><span>{{ boost_renewals|length }}</span></div>
+    <div class="kz1111-smoke-list">
+      {% for item in boost_renewals %}
+      <article>
+        <strong>{{ item.boost.title }}</strong>
+        <p>{{ item.boost.advertiser.company_name or item.boost.advertiser.full_name }} · {{ item.boost.promotion_type }} · {{ item.days_to_end }} dana do isteka</p>
+      </article>
+      {% else %}
+      <div class="kz1111-empty"><h3>Nema boost renewals</h3><p>Kada boost ulazi u završne dane zakupa, videćeš ga ovde.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

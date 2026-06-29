@@ -1,0 +1,89 @@
+{% extends "app_base.html" %}
+{% set title = "Reports hub" %}
+{% block app_content %}
+<section class="kz1111-hero finance">
+  <div>
+    <span>REPORTS HUB</span>
+    <h1>Revenue, oglašivači i inventar</h1>
+    <p>Dnevni revenue snapshot, top oglašivači po potrošnji, najjači slotovi i kampanje sa najvećim troškom na jednom admin pregledu.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/admin/revenue-v9">Revenue</a>
+    <a class="btn btn-secondary" href="/admin/reklame-v111">Reklame</a>
+    <a class="btn btn-secondary" href="/admin/oglasivaci-baza-v117">Baza oglašivača</a>
+    <a class="btn btn-secondary" href="/admin/cene-v111">Cene</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Revenue danas</small><strong>{{ "%.0f"|format(snapshot.revenue_today) }}</strong><span>RSD</span></div>
+  <div class="kz1111-stat orange"><small>Advertiser cost danas</small><strong>{{ "%.0f"|format(snapshot.cost_today) }}</strong><span>RSD</span></div>
+  <div class="kz1111-stat purple"><small>Approved danas</small><strong>{{ snapshot.approved_today }}</strong><span>submissions</span></div>
+  <div class="kz1111-stat green"><small>Slot utilization</small><strong>{{ "%.1f"|format(snapshot.utilization_percent) }}%</strong><span>mesec</span></div>
+</section>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head"><h2>Top oglašivači</h2><span>{{ top_advertisers|length }}</span></div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>Oglašivač</th><th>Spent</th><th>Reserved</th><th>Available</th></tr></thead>
+        <tbody>
+          {% for row in top_advertisers %}
+          <tr>
+            <td><strong>{{ row.advertiser.company_name or row.advertiser.full_name }}</strong></td>
+            <td>{{ "%.0f"|format(row.spent) }} RSD</td>
+            <td>{{ "%.0f"|format(row.reserved) }} RSD</td>
+            <td>{{ "%.0f"|format(row.available) }} RSD</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">Nema oglašivača.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="kz1111-section">
+    <div class="kz1111-section-head"><h2>Top slot utilization</h2><span>{{ slot_rows|length }}</span></div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead><tr><th>Slot</th><th>Booked days</th><th>Utilization</th><th>Akcija</th></tr></thead>
+        <tbody>
+          {% for row in slot_rows %}
+          <tr>
+            <td><strong>{{ row.slot.title }}</strong></td>
+            <td>{{ row.booked_days }}</td>
+            <td>{{ "%.1f"|format(row.utilization) }}%</td>
+            <td><a class="btn btn-mini btn-secondary" href="/admin/reklame-v111">Otvori</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">Nema slot podataka.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head"><h2>Kampanje sa najvećim troškom</h2><span>{{ campaign_rows|length }}</span></div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead><tr><th>Kampanja</th><th>Approved cost</th><th>ROI</th><th>Pacing</th><th>Akcija</th></tr></thead>
+      <tbody>
+        {% for row in campaign_rows %}
+        <tr>
+          <td><strong>{{ row.task.title }}</strong><br><small>{{ (row.task.advertiser.company_name or row.task.advertiser.full_name) if row.task.advertiser else "-" }}</small></td>
+          <td>{{ "%.0f"|format(row.approved_cost) }} RSD</td>
+          <td>{{ "%.1f"|format(row.roi_ratio) }}%</td>
+          <td>{{ row.pacing }}</td>
+          <td><a class="btn btn-mini btn-secondary" href="/admin/kampanje">Otvori</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5">Nema kampanja.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

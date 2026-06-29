@@ -13,6 +13,12 @@
       <a class="premium-btn white" href="/admin/dokazi">Dokazi</a>
       <a class="premium-btn white" href="/admin/mapa-platforme">Mapa platforme</a>
       <a class="premium-btn white" href="/admin/reklame-v111">Reklame</a>
+      <a class="premium-btn white" href="/admin/collections-v11">Collections</a>
+      <a class="premium-btn white" href="/admin/approval-center-v11">Approval</a>
+      <a class="premium-btn white" href="/admin/finance-v11834">Reconciliation</a>
+      <a class="premium-btn white" href="/admin/alerts-v11">Alerts</a>
+      <a class="premium-btn white" href="/admin/reports-v11">Reports</a>
+      <a class="premium-btn white" href="/admin/renewals-v11">Renewals</a>
       <a class="premium-btn white" href="/admin/oglasivaci-baza-v117">Oglašivači</a>
       <a class="premium-btn white" href="/admin/launch-v9">Launch</a>
       <a class="premium-btn white" href="/admin/golive-v9">Go-live</a>
@@ -69,6 +75,8 @@
       <a href="/admin/reklame-v111"><b>Reklame i slotovi</b><small>Banneri, top pozicije i plaćena isticanja za oglašivače.</small></a>
       <a href="/admin/cene-v111"><b>Cene i provizije</b><small>Kontrola monetizacije, split-a i procenata platforme.</small></a>
       <a href="/admin/fakture"><b>Fakture oglašivačima</b><small>Naplata prema firmama i pregled statusa uplata.</small></a>
+      <a href="/admin/approval-center-v11"><b>Approval center</b><small>Invoice, payout, refund i top-up odluke na jednom mestu.</small></a>
+      <a href="/admin/renewals-v11"><b>Renewals</b><small>Istek bannera, boost-ova i sledeći prodajni ciklus.</small></a>
     </div>
   </article>
   <article class="premium-card admin-v1172-priority">
@@ -80,6 +88,8 @@
       <a href="/admin/dokazi"><b>Dokazi</b><small>{{ stats.pending_submissions }} ceka pregled i direktno usporava kampanje.</small></a>
       <a href="/admin/isplate"><b>Isplate</b><small>{{ stats.pending_withdrawals }} zahteva obradu pre nego sto pravi support pritisak.</small></a>
       <a href="/admin/finansije"><b>Budzet</b><small>{{ "%.0f"|format(stats.total_budget) }} RSD je trenutno u sistemu oglasivaca.</small></a>
+      <a href="/admin/collections-v11"><b>Collections</b><small>Dospelo, kasni i prioriteti za follow-up naplatu.</small></a>
+      <a href="/admin/alerts-v11"><b>Alerts</b><small>Finansije, slotovi, refund i pacing warning signali.</small></a>
     </div>
   </article>
   <article class="premium-card admin-v1172-priority">
@@ -134,6 +144,7 @@
     <div class="admin-v1172-priority-list">
       <a href="/admin/oglasivaci-baza-v117"><b>Baza oglašivača</b><small>Firma, kontakt, budžet, kampanje i potrošnja na jednom mestu.</small></a>
       <a href="/admin/budget-v11"><b>Budžeti oglašivača</b><small>Alerti, rezervacije i stanje sredstava po nalogu.</small></a>
+      <a href="/admin/reports-v11"><b>Reports</b><small>Dnevni revenue snapshot, top oglašivači i iskorišćenost slotova.</small></a>
       <a href="/admin/affiliate-v9"><b>Affiliate i partneri</b><small>Akvizicija firmi preko partnera i obračun provizije.</small></a>
     </div>
   </article>
@@ -149,17 +160,6 @@
     </div>
   </article>
 </section>
-
-{% set admin_banner = admin_dashboard_banner if admin_dashboard_banner is defined else none %}
-<a class="premium-card admin-dashboard-banner" href="{{ admin_banner.target_url if admin_banner and admin_banner.target_url in ['/admin/v11', '/admin/mapa-platforme', '/admin/kampanje', '/admin/dokazi', '/admin/finansije', '/admin/isplate', '/admin/fakture', '/admin/payouts-v11', '/admin/reklame-v111', '/admin/cene-v111', '/admin/oglasivaci-baza-v117', '/admin/oglasivaci', '/admin/budget-v11', '/admin/affiliate-v9', '/admin/revenue-v9', '/admin/launch-v9', '/admin/golive-v9', '/admin/smoke-v11', '/admin/deploy-v11', '/admin/daily-desk-v11', '/admin/ops-v11835', '/admin/feature-flags', '/admin/system-settings', '/admin/security-v11'] else '/admin/reklame-v111' }}">
-  <img src="{{ admin_banner.image_url if admin_banner and admin_banner.image_url else '/static/img/banner_generic.svg' }}" alt="{{ admin_banner.title if admin_banner else 'Premium admin dashboard slot' }}">
-  <div>
-    <small>{{ admin_banner.slot.title if admin_banner and admin_banner.slot else 'Prodajni prostor' }}</small>
-    <strong>{{ admin_banner.title if admin_banner else 'Premium prostor za admin dashboard' }}</strong>
-    <p>{{ admin_banner.body if admin_banner and admin_banner.body else 'Poseban oglasni prostor za premium kampanje, ekskluzivne ponude i direktnu vidljivost u admin prikazu.' }}</p>
-  </div>
-  <span><b>Podesi</b><em>u reklamama →</em></span>
-</a>
 
 <section class="premium-stat-grid">
   <article class="blue"><small>Aktivne kampanje</small><strong>{{ stats.active_tasks }}</strong><span>na mreži</span></article>
@@ -264,8 +264,13 @@
         <a href="/admin/finansije">Finansije</a>
         <a href="/admin/isplate">Isplate</a>
         <a href="/admin/fakture">Fakture</a>
+        <a href="/admin/collections-v11">Collections</a>
+        <a href="/admin/finance-v11834">Reconciliation</a>
+        <a href="/admin/approval-center-v11">Approval</a>
         <a href="/admin/payouts-v11">Payouts</a>
         <a href="/admin/revenue-v9">Revenue</a>
+        <a href="/admin/disputes-v11836">Refunds</a>
+        <a href="/admin/alerts-v11">Alerts</a>
       </div>
     </article>
     <article class="premium-command-card">
@@ -276,8 +281,10 @@
         <a href="/admin/oglasivaci">Oglašivači</a>
         <a href="/admin/budget-v11">Budžeti</a>
         <a href="/admin/reklame-v111">Reklame</a>
+        <a href="/admin/renewals-v11">Renewals</a>
         <a href="/admin/cene-v111">Cene</a>
         <a href="/admin/affiliate-v9">Affiliate</a>
+        <a href="/admin/reports-v11">Reports</a>
       </div>
     </article>
     <article class="premium-command-card">
@@ -297,6 +304,7 @@
       <p>Bezbednost, feature kontrole i glavna podešavanja platforme.</p>
       <div class="premium-command-links">
         <a href="/admin/security-v11">Security</a>
+        <a href="/admin/alerts-v11">Alerts</a>
         <a href="/admin/feature-flags">Feature flags</a>
         <a href="/admin/system-settings">System settings</a>
       </div>

@@ -1,0 +1,76 @@
+{% extends "app_base.html" %}
+{% set title = "Collections" %}
+{% block app_content %}
+<section class="kz1111-hero finance">
+  <div>
+    <span>COLLECTIONS</span>
+    <h1>Naplata, aging i follow-up prioriteti</h1>
+    <p>Ovde admin vidi šta dospeva danas, šta ulazi u rizik u naredna 3 dana i koje fakture već kasne pa traže akciju.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/admin/fakture">Fakture</a>
+    <a class="btn btn-secondary" href="/admin/finansije">Finansije</a>
+    <a class="btn btn-secondary" href="/admin/finance-v11834">Reconciliation</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Danas dospeva</small><strong>{{ due_today|length }}</strong><span>traži kontakt</span></div>
+  <div class="kz1111-stat orange"><small>Uskoro dospeva</small><strong>{{ due_soon|length }}</strong><span>0-3 dana</span></div>
+  <div class="kz1111-stat red"><small>Kasni</small><strong>{{ late|length }}</strong><span>hitno</span></div>
+  <div class="kz1111-stat purple"><small>Otvoren iznos</small><strong>{{ "%.0f"|format(stats.due_amount or 0) }}</strong><span>RSD</span></div>
+</section>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head"><h2>Danas i uskoro</h2><span>follow-up</span></div>
+    <div class="kz1111-smoke-list">
+      {% for row in due_today %}
+      <article><strong>{{ row.invoice.invoice_no }}</strong><p>{{ row.advertiser.company_name or row.advertiser.full_name }} · danas dospeva · {{ "%.0f"|format(row.invoice.amount_rsd) }} RSD</p></article>
+      {% endfor %}
+      {% for row in due_soon %}
+      <article><strong>{{ row.invoice.invoice_no }}</strong><p>{{ row.advertiser.company_name or row.advertiser.full_name }} · za {{ row.days_left }} dana · {{ "%.0f"|format(row.invoice.amount_rsd) }} RSD</p></article>
+      {% endfor %}
+      {% if not due_today and not due_soon %}
+      <div class="kz1111-empty"><h3>Nema skorih dospeća</h3><p>Trenutno nema faktura koje traže follow-up u naredna tri dana.</p></div>
+      {% endif %}
+    </div>
+  </section>
+  <section class="kz1111-section">
+    <div class="kz1111-section-head"><h2>Kasni</h2><span>eskalacija</span></div>
+    <div class="kz1111-smoke-list">
+      {% for row in late %}
+      <article><strong>{{ row.invoice.invoice_no }}</strong><p>{{ row.advertiser.company_name or row.advertiser.full_name }} · kasni {{ (0 - row.days_left) }} dana · {{ "%.0f"|format(row.invoice.amount_rsd) }} RSD</p></article>
+      {% else %}
+      <div class="kz1111-empty"><h3>Nema kašnjenja</h3><p>Otvorene fakture trenutno ne kasne preko roka.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head"><h2>Otvorene fakture</h2><span>{{ rows|length }}</span></div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead><tr><th>Broj</th><th>Oglašivač</th><th>Status</th><th>Dospelo</th><th>Iznos</th><th>Akcija</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td><strong>{{ row.invoice.invoice_no }}</strong><br><small>{{ row.invoice.invoice_type }}</small></td>
+          <td>{{ row.advertiser.company_name or row.advertiser.full_name }}</td>
+          <td><span class="status status-{{ row.invoice.status }}">{{ row.bucket }}</span></td>
+          <td>{{ row.due_at.strftime("%Y-%m-%d") }}</td>
+          <td>{{ "%.0f"|format(row.invoice.amount_rsd) }} RSD</td>
+          <td class="actions">
+            <a class="btn btn-mini btn-secondary" href="/fakture/{{ row.invoice.id }}/pdf">PDF</a>
+            <form method="post" action="/admin/fakture/{{ row.invoice.id }}/send"><button class="btn btn-mini btn-primary">Pošalji</button></form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">Nema faktura.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -64,6 +64,12 @@ ADMIN_FOCUS_ALLOWED_PATHS = (
     "/admin/feature-flags",
     "/admin/system-settings",
     "/admin/security-v11",
+    "/admin/collections-v11",
+    "/admin/renewals-v11",
+    "/admin/finance-v11834",
+    "/admin/approval-center-v11",
+    "/admin/alerts-v11",
+    "/admin/reports-v11",
 )
 
 def cost_for_task(reward: float, slots: int, fee: float = PLATFORM_FEE_PERCENT):
@@ -183,6 +189,683 @@ def v11837_margin_snapshot(db: Session):
         "status": status,
         "warnings": warnings,
         "packages": packages,
+    }
+
+
+def v11840_invoice_due_at(invoice):
+    base_dt = getattr(invoice, "issued_at", None) or getattr(invoice, "created_at", None) or datetime.utcnow()
+    return base_dt + timedelta(days=7)
+
+
+def v11840_invoice_bucket(invoice):
+    status = (getattr(invoice, "status", "") or "").strip()
+    if status == "paid":
+        return "paid"
+    if status == "cancelled":
+        return "cancelled"
+    if status == "draft":
+        return "draft"
+    due_at = v11840_invoice_due_at(invoice)
+    return "late" if due_at.date() < datetime.utcnow().date() else "due"
+
+
+def v11840_invoice_ops_context(db: Session, invoices):
+    today = datetime.utcnow().date()
+    intents = db.query(PaymentIntentV8).order_by(PaymentIntentV8.created_at.desc()).all()
+    intent_map = {}
+    for intent in intents:
+        intent_map.setdefault(intent.advertiser_id, []).append(intent)
+
+    rows = []
+    followups = []
+    for invoice in invoices:
+        advertiser = invoice.advertiser
+        due_at = v11840_invoice_due_at(invoice)
+        bucket = v11840_invoice_bucket(invoice)
+        days_left = (due_at.date() - today).days
+        advertiser_intents = intent_map.get(invoice.advertiser_id, [])
+        latest_intent = advertiser_intents[0] if advertiser_intents else None
+        pending_amount = round(sum(v11837_money(x.amount_rsd) for x in advertiser_intents if x.status == "pending"), 2)
+        confirmed_amount = round(sum(v11837_money(x.amount_rsd) for x in advertiser_intents if x.status == "confirmed"), 2)
+        row = {
+            "invoice": invoice,
+            "advertiser": advertiser,
+            "due_at": due_at,
+            "bucket": bucket,
+            "days_left": days_left,
+            "latest_intent": latest_intent,
+            "pending_amount": pending_amount,
+            "confirmed_amount": confirmed_amount,
+            "pdf_url": f"/fakture/{invoice.id}",
+        }
+        rows.append(row)
+        if bucket in ["due", "late"] or pending_amount > 0:
+            if bucket == "late":
+                note = f"Kasni {abs(days_left)} dana."
+                level = "danger"
+            elif bucket == "due":
+                note = f"Dospelo za {max(0, days_left)} dana."
+                level = "warning"
+            else:
+                note = "Čeka uplatu."
+                level = "info"
+            if pending_amount > 0:
+                note += f" Postoji top-up/inbound uplata na čekanju: {pending_amount:.0f} RSD."
+            followups.append({
+                "invoice": invoice,
+                "advertiser": advertiser,
+                "note": note,
+                "level": level,
+                "latest_intent": latest_intent,
+            })
+
+    stats = {
+        "total": len(rows),
+        "issued": sum(1 for row in rows if row["invoice"].status == "issued"),
+        "paid": sum(1 for row in rows if row["bucket"] == "paid"),
+        "late": sum(1 for row in rows if row["bucket"] == "late"),
+        "due_amount": round(sum(v11837_money(row["invoice"].amount_rsd) for row in rows if row["bucket"] in ["due", "late"]), 2),
+        "paid_amount": round(sum(v11837_money(row["invoice"].amount_rsd) for row in rows if row["bucket"] == "paid"), 2),
+    }
+    return {"rows": rows, "followups": followups[:12], "stats": stats}
+
+
+def v11840_inventory_month_context(db: Session):
+    today = datetime.utcnow().date()
+    month_start = today.replace(day=1)
+    next_month = (month_start + timedelta(days=32)).replace(day=1)
+    days_in_month = (next_month - month_start).days
+    dates = [month_start + timedelta(days=i) for i in range(days_in_month)]
+    slots = db.query(HomeBannerSlotV111).order_by(HomeBannerSlotV111.id.asc()).all() if "HomeBannerSlotV111" in globals() else []
+    banners = db.query(PaidAdBannerV111).filter(PaidAdBannerV111.status.in_(["active", "pending"])).order_by(PaidAdBannerV111.created_at.desc()).all() if "PaidAdBannerV111" in globals() else []
+    rows = []
+    conflicts = []
+    booked_days = 0
+    total_days = max(1, len(slots) * len(dates))
+    for slot in slots:
+        slot_banners = [b for b in banners if getattr(b, "slot_id", None) == slot.id]
+        cells = []
+        for day in dates:
+            day_bookings = []
+            for banner in slot_banners:
+                start_dt, end_dt = v11837_banner_window(banner)
+                if start_dt.date() <= day < end_dt.date():
+                    day_bookings.append(banner)
+            if day_bookings:
+                booked_days += 1
+            if len(day_bookings) > 1:
+                conflicts.append({
+                    "slot": slot,
+                    "date": day,
+                    "bookings": day_bookings,
+                })
+            if not day_bookings:
+                status = "free"
+            elif len(day_bookings) > 1:
+                status = "conflict"
+            elif day_bookings[0].status == "pending":
+                status = "pending"
+            else:
+                status = "active"
+            cells.append({"date": day, "bookings": day_bookings, "status": status})
+        rows.append({"slot": slot, "cells": cells})
+
+    renewals = []
+    for banner in banners:
+        start_dt, end_dt = v11837_banner_window(banner)
+        days_to_end = (end_dt.date() - today).days
+        if 0 <= days_to_end <= 10:
+            renewals.append({
+                "banner": banner,
+                "slot": banner.slot,
+                "advertiser": banner.advertiser,
+                "ends_at": end_dt,
+                "days_to_end": days_to_end,
+            })
+
+    utilization_percent = round((booked_days / total_days) * 100, 1) if total_days else 0.0
+    return {
+        "month_label": month_start.strftime("%B %Y"),
+        "dates": dates,
+        "rows": rows,
+        "conflicts": conflicts[:20],
+        "renewals": sorted(renewals, key=lambda item: item["ends_at"])[:20],
+        "utilization_percent": utilization_percent,
+        "booked_days": booked_days,
+        "total_days": total_days,
+    }
+
+
+def v11840_payout_ops_context(db: Session):
+    methods = db.query(PayoutMethodV11).order_by(PayoutMethodV11.created_at.desc()).all()
+    holds = db.query(PayoutHoldV11).order_by(PayoutHoldV11.created_at.desc()).all()
+    exports = db.query(PayoutExportV11).order_by(PayoutExportV11.created_at.desc()).all()
+    pending_withdrawals = db.query(Withdrawal).filter(Withdrawal.status == "pending").order_by(Withdrawal.created_at.asc()).all()
+    batches = db.query(PayoutBatch).order_by(PayoutBatch.created_at.desc()).limit(12).all()
+    audit_rows = db.query(AuditLog).filter(
+        or_(
+            AuditLog.entity_type.in_(["Withdrawal", "PayoutBatch", "PayoutMethodV11"]),
+            AuditLog.action.like("%payout%"),
+            AuditLog.action.like("%withdraw%")
+        )
+    ).order_by(AuditLog.created_at.desc()).limit(20).all()
+
+    method_map = {}
+    for method in methods:
+        if method.user_id not in method_map:
+            method_map[method.user_id] = method
+    active_holds = {}
+    for hold in holds:
+        if hold.status == "active":
+            active_holds.setdefault(hold.user_id, []).append(hold)
+
+    queue = []
+    stale_cutoff = datetime.utcnow() - timedelta(hours=72)
+    for withdrawal in pending_withdrawals:
+        payout_method = method_map.get(withdrawal.user_id)
+        user_holds = active_holds.get(withdrawal.user_id, [])
+        if user_holds:
+            readiness = "hold"
+            readiness_note = user_holds[0].reason or "Aktivan hold."
+        elif not payout_method:
+            readiness = "missing_method"
+            readiness_note = "Nema payout metoda."
+        elif payout_method.status != "verified":
+            readiness = "review"
+            readiness_note = f"Metoda je {payout_method.status}."
+        else:
+            readiness = "ready"
+            readiness_note = "Spremno za batch."
+        queue.append({
+            "withdrawal": withdrawal,
+            "method": payout_method,
+            "holds": user_holds,
+            "readiness": readiness,
+            "readiness_note": readiness_note,
+            "is_stale": (withdrawal.created_at or datetime.utcnow()) <= stale_cutoff,
+        })
+
+    stats = {
+        "methods": len(methods),
+        "verified_methods": sum(1 for x in methods if x.status == "verified"),
+        "pending_total_rsd": round(sum(v11837_money(x.amount_rsd) for x in pending_withdrawals), 2),
+        "ready_count": sum(1 for x in queue if x["readiness"] == "ready"),
+        "hold_count": sum(1 for x in queue if x["readiness"] == "hold"),
+        "stale_count": sum(1 for x in queue if x["is_stale"]),
+    }
+    return {
+        "methods": methods,
+        "holds": holds,
+        "exports": exports,
+        "pending_withdrawals": pending_withdrawals,
+        "batches": batches,
+        "queue": queue,
+        "audit_rows": audit_rows,
+        "stats": stats,
+    }
+
+
+def v11840_dispute_ops_context(db: Session, disputes):
+    refund_candidates = []
+    for dispute in disputes:
+        submission = dispute.submission
+        task = submission.task if submission else None
+        advertiser = task.advertiser if task else None
+        rollback_amount = round(v11837_money(submission.advertiser_cost_rsd if submission else 0), 2)
+        refund_state = "not_started"
+        reason_code = ""
+        refund_logs = db.query(AuditLog).filter(
+            AuditLog.entity_type == "Dispute",
+            AuditLog.entity_id == dispute.id,
+            AuditLog.action.in_(["dispute_refund_stage_v11840", "dispute_refund_v11836"])
+        ).order_by(AuditLog.created_at.desc()).all()
+        if refund_logs:
+            latest_reason = refund_logs[0].reason or ""
+            refund_state = latest_reason.split("|")[0].strip() if "|" in latest_reason else latest_reason.strip() or "not_started"
+            for log in refund_logs:
+                payload = log.reason or ""
+                if "reason_code=" in payload:
+                    reason_code = payload.split("reason_code=")[-1].split("|")[0].strip()
+                    break
+        already_refunded = False
+        if advertiser and rollback_amount > 0:
+            exists = db.query(AdvertiserBudgetTransaction).filter(
+                AdvertiserBudgetTransaction.advertiser_id == advertiser.id,
+                AdvertiserBudgetTransaction.tx_type == "dispute_refund",
+                AdvertiserBudgetTransaction.description.like(f"%Dispute #{dispute.id}%"),
+            ).first()
+            already_refunded = bool(exists)
+            if already_refunded:
+                refund_state = "refunded"
+        refund_candidates.append({
+            "dispute": dispute,
+            "submission": submission,
+            "task": task,
+            "advertiser": advertiser,
+            "rollback_amount": rollback_amount,
+            "already_refunded": already_refunded,
+            "refund_state": refund_state,
+            "reason_code": reason_code,
+        })
+    stats = {
+        "open": sum(1 for d in disputes if d.status == "open"),
+        "accepted": sum(1 for d in disputes if d.status == "accepted"),
+        "rejected": sum(1 for d in disputes if d.status == "rejected"),
+        "refund_ready": sum(1 for row in refund_candidates if row["rollback_amount"] > 0 and not row["already_refunded"]),
+        "refund_pending_review": sum(1 for row in refund_candidates if row["refund_state"] == "pending_review"),
+        "refund_approved": sum(1 for row in refund_candidates if row["refund_state"] == "approved"),
+    }
+    return {"refund_candidates": refund_candidates, "stats": stats}
+
+
+def v11841_refund_reason_options():
+    return [
+        ("invalid_delivery", "Invalid delivery / dokaz"),
+        ("campaign_abort", "Campaign abort / prekid kampanje"),
+        ("duplicate_charge", "Duplicate charge"),
+        ("manual_adjustment", "Manual adjustment"),
+        ("quality_failure", "Quality failure"),
+        ("customer_success", "Customer success goodwill"),
+    ]
+
+
+def v11841_pdf_safe(value):
+    text = str(value or "")
+    mapping = str.maketrans({
+        "č": "c", "ć": "c", "ž": "z", "š": "s", "đ": "dj",
+        "Č": "C", "Ć": "C", "Ž": "Z", "Š": "S", "Đ": "Dj",
+    })
+    return text.translate(mapping)
+
+
+def v11841_register_unicode_pdf_font():
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    candidates = [
+        Path("app/static/fonts/DejaVuSans.ttf"),
+        Path("app/static/fonts/Arial.ttf"),
+        Path("C:/Windows/Fonts/arial.ttf"),
+        Path("C:/Windows/Fonts/calibri.ttf"),
+        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+        Path("/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf"),
+    ]
+    font_name = "Helvetica"
+    for path in candidates:
+        try:
+            if path.exists():
+                pdfmetrics.registerFont(TTFont("KZUnicode", str(path)))
+                font_name = "KZUnicode"
+                break
+        except Exception:
+            continue
+    return font_name
+
+
+def v11841_wrap_pdf_text(text, max_chars=82):
+    words = v11841_pdf_safe(text).split()
+    if not words:
+        return [""]
+    lines = []
+    current = words[0]
+    for word in words[1:]:
+        candidate = f"{current} {word}"
+        if len(candidate) <= max_chars:
+            current = candidate
+        else:
+            lines.append(current)
+            current = word
+    lines.append(current)
+    return lines
+
+
+def v11841_render_invoice_pdf(invoice):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.colors import HexColor
+    from reportlab.pdfgen import canvas
+
+    buffer = io.BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+    navy = HexColor("#0f265c")
+    accent = HexColor("#5b8def")
+    light = HexColor("#eef4ff")
+    muted = HexColor("#5b6475")
+
+    advertiser = invoice.advertiser
+    due_at = v11840_invoice_due_at(invoice)
+    font_name = v11841_register_unicode_pdf_font()
+    text_fn = (lambda value: str(value or "")) if font_name != "Helvetica" else v11841_pdf_safe
+    pdf.setTitle(v11841_pdf_safe(invoice.invoice_no))
+    pdf.setFillColor(light)
+    pdf.roundRect(36, height - 170, width - 72, 120, 22, fill=1, stroke=0)
+    pdf.setFillColor(navy)
+    pdf.setFont(font_name, 26)
+    pdf.drawString(56, height - 92, text_fn("KlikZarada"))
+    pdf.setFont(font_name, 18)
+    pdf.drawString(56, height - 118, text_fn(f"{invoice.invoice_type.upper()} {invoice.invoice_no}"))
+    pdf.setFont(font_name, 10)
+    pdf.setFillColor(muted)
+    pdf.drawString(56, height - 138, text_fn("Platforma za oglase, kampanje i monetizaciju."))
+
+    y = height - 210
+    pdf.setFillColor(navy)
+    pdf.setFont(font_name, 12)
+    pdf.drawString(56, y, text_fn("Oglašivač"))
+    pdf.drawString(320, y, text_fn("Dokument"))
+    pdf.setFont(font_name, 11)
+    pdf.setFillColor(muted)
+    left_rows = [
+        f"Naziv: {advertiser.company_name or advertiser.full_name}",
+        f"Email: {advertiser.email or '-'}",
+        f"PIB: {getattr(advertiser, 'company_pib', None) or '-'}",
+    ]
+    right_rows = [
+        f"Izdat: {(invoice.issued_at or invoice.created_at).strftime('%Y-%m-%d') if (invoice.issued_at or invoice.created_at) else '-'}",
+        f"Dospelo: {due_at.strftime('%Y-%m-%d')}",
+        f"Status: {invoice.status}",
+    ]
+    for idx, row in enumerate(left_rows):
+        pdf.drawString(56, y - 24 - (idx * 18), text_fn(row))
+    for idx, row in enumerate(right_rows):
+        pdf.drawString(320, y - 24 - (idx * 18), text_fn(row))
+
+    y -= 98
+    pdf.setFillColor(accent)
+    pdf.roundRect(56, y - 34, width - 112, 44, 14, fill=1, stroke=0)
+    pdf.setFillColor(HexColor("#ffffff"))
+    pdf.setFont(font_name, 16)
+    pdf.drawString(72, y - 18, text_fn(f"Iznos za uplatu: {invoice.amount_rsd:.0f} RSD"))
+
+    y -= 74
+    pdf.setFillColor(navy)
+    pdf.setFont(font_name, 12)
+    pdf.drawString(56, y, text_fn("Opis stavke"))
+    pdf.setFillColor(muted)
+    pdf.setFont(font_name, 11)
+    for line in v11841_wrap_pdf_text(text_fn(invoice.description or "Bez dodatnog opisa."), 84):
+        y -= 18
+        pdf.drawString(56, y, line)
+
+    y -= 36
+    pdf.setFillColor(navy)
+    pdf.setFont(font_name, 12)
+    pdf.drawString(56, y, text_fn("Operativna napomena"))
+    pdf.setFillColor(muted)
+    pdf.setFont(font_name, 11)
+    note_lines = v11841_wrap_pdf_text(text_fn("Ovaj dokument je deo admin billing toka KlikZarada platforme. Nakon potvrde uplate admin može direktno da poveže prihod sa budžetom oglašivača i aktivacijom kampanje ili banner zakupa."), 84)
+    for line in note_lines:
+        y -= 18
+        pdf.drawString(56, y, line)
+
+    pdf.setStrokeColor(light)
+    pdf.line(56, 72, width - 56, 72)
+    pdf.setFillColor(muted)
+    pdf.setFont(font_name, 9)
+    pdf.drawString(56, 56, text_fn("KlikZarada admin PDF export"))
+    pdf.drawRightString(width - 56, 56, text_fn(f"Generisano {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}"))
+    pdf.showPage()
+    pdf.save()
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def v11841_profit_level(profit_rsd: float, margin_percent: float = 0.0):
+    if profit_rsd < 0:
+        return "negative"
+    if profit_rsd == 0 or margin_percent < 12:
+        return "low"
+    if margin_percent >= 30 or profit_rsd >= 5000:
+        return "best"
+    return "healthy"
+
+
+def v11841_ads_profit_context(db: Session, slots, banners, boosts):
+    slot_rows = []
+    for slot in slots:
+        slot_banners = [banner for banner in banners if getattr(banner, "slot_id", None) == slot.id]
+        booking_revenue = round(sum(v11837_money(b.price_rsd) for b in slot_banners if b.status in ["active", "pending", "expired"]), 2)
+        view_revenue = round(sum(v11837_money(b.view_cost_rsd) * int(getattr(b, "views_count", 0) or 0) for b in slot_banners), 2)
+        viewer_cost = round(sum(v11837_money(b.viewer_reward_rsd) * int(getattr(b, "views_count", 0) or 0) for b in slot_banners), 2)
+        profit_rsd = round(booking_revenue + view_revenue - viewer_cost, 2)
+        margin_percent = round((profit_rsd / booking_revenue) * 100, 1) if booking_revenue > 0 else 0.0
+        slot_rows.append({
+            "slot": slot,
+            "banners_count": len(slot_banners),
+            "booking_revenue": booking_revenue,
+            "view_revenue": view_revenue,
+            "viewer_cost": viewer_cost,
+            "profit_rsd": profit_rsd,
+            "margin_percent": margin_percent,
+            "level": v11841_profit_level(profit_rsd, margin_percent),
+        })
+
+    task_ids = sorted({boost.task_id for boost in boosts if getattr(boost, "task_id", None)})
+    tasks = db.query(Task).filter(Task.id.in_(task_ids)).all() if task_ids else []
+    task_map = {task.id: task for task in tasks}
+    campaign_rows = []
+    for task in tasks:
+        submissions = db.query(TaskSubmission).filter(TaskSubmission.task_id == task.id).all()
+        approved_cost = round(sum(v11837_money(sub.advertiser_cost_rsd) for sub in submissions if sub.status == "approved"), 2)
+        platform_fee = round(sum(v11837_money(sub.platform_fee_rsd) for sub in submissions if sub.status == "approved"), 2)
+        task_boosts = [boost for boost in boosts if boost.task_id == task.id and boost.status in ["active", "pending", "expired"]]
+        boost_revenue = round(sum(v11837_money(boost.price_rsd) for boost in task_boosts), 2)
+        profit_rsd = round(platform_fee + boost_revenue, 2)
+        margin_percent = round((profit_rsd / approved_cost) * 100, 1) if approved_cost > 0 else 0.0
+        campaign_rows.append({
+            "task": task,
+            "submissions_count": len(submissions),
+            "approved_cost": approved_cost,
+            "platform_fee": platform_fee,
+            "boost_revenue": boost_revenue,
+            "profit_rsd": profit_rsd,
+            "margin_percent": margin_percent,
+            "level": v11841_profit_level(profit_rsd, margin_percent),
+        })
+    campaign_rows.sort(key=lambda item: item["profit_rsd"], reverse=True)
+    slot_rows.sort(key=lambda item: item["profit_rsd"], reverse=True)
+    slot_warnings = []
+    campaign_warnings = []
+    for item in slot_rows:
+        if item["level"] == "negative":
+            slot_warnings.append(f"Slot {item['slot'].title} je u minusu {item['profit_rsd']:.0f} RSD.")
+        elif item["level"] == "low":
+            slot_warnings.append(f"Slot {item['slot'].title} ima nisku marginu {item['margin_percent']:.1f}%.")
+    for item in campaign_rows:
+        if item["level"] == "negative":
+            campaign_warnings.append(f"Kampanja {item['task'].title} je negativna po profitu.")
+        elif item["level"] == "low":
+            campaign_warnings.append(f"Kampanja {item['task'].title} ima nisku marginu {item['margin_percent']:.1f}%.")
+    return {
+        "slot_rows": slot_rows,
+        "campaign_rows": campaign_rows,
+        "best_slots": [item for item in slot_rows if item["level"] == "best"][:5],
+        "negative_slots": [item for item in slot_rows if item["level"] == "negative"][:5],
+        "low_slots": [item for item in slot_rows if item["level"] == "low"][:5],
+        "best_campaigns": [item for item in campaign_rows if item["level"] == "best"][:5],
+        "negative_campaigns": [item for item in campaign_rows if item["level"] == "negative"][:5],
+        "low_campaigns": [item for item in campaign_rows if item["level"] == "low"][:5],
+        "slot_warnings": slot_warnings[:8],
+        "campaign_warnings": campaign_warnings[:8],
+        "totals": {
+            "slot_profit_rsd": round(sum(item["profit_rsd"] for item in slot_rows), 2),
+            "campaign_profit_rsd": round(sum(item["profit_rsd"] for item in campaign_rows), 2),
+            "boost_revenue_rsd": round(sum(v11837_money(boost.price_rsd) for boost in boosts if boost.status in ["active", "pending", "expired"]), 2),
+        },
+    }
+
+
+def v11841_finance_refund_signal(db: Session):
+    disputes = db.query(Dispute).order_by(Dispute.created_at.desc()).limit(300).all()
+    ops = v11840_dispute_ops_context(db, disputes)
+    pending_review = [row for row in ops["refund_candidates"] if row["refund_state"] == "pending_review"]
+    approved = [row for row in ops["refund_candidates"] if row["refund_state"] == "approved" and not row["already_refunded"]]
+    refunded_today = [
+        row for row in ops["refund_candidates"]
+        if row["already_refunded"] and row["dispute"].resolved_at and row["dispute"].resolved_at.date() == datetime.utcnow().date()
+    ]
+    alerts = []
+    if pending_review:
+        alerts.append({"level": "warning", "title": "Refund čeka finance review", "count": len(pending_review), "desc": "Potrebna je odluka pre vraćanja budžeta oglašivaču."})
+    if approved:
+        alerts.append({"level": "info", "title": "Refund approved, čeka izvršenje", "count": len(approved), "desc": "Approval je prošao, ali rollback još nije knjižen."})
+    if refunded_today:
+        alerts.append({"level": "success", "title": "Današnji refund rollback", "count": len(refunded_today), "desc": "Danas je već vraćen budžet na deo dispute slučajeva."})
+    return {
+        "stats": ops["stats"],
+        "pending_review": pending_review[:6],
+        "approved": approved[:6],
+        "alerts": alerts,
+    }
+
+
+def v11842_collections_context(db: Session):
+    invoices = db.query(Invoice).order_by(Invoice.created_at.desc()).all()
+    ops = v11840_invoice_ops_context(db, invoices)
+    today = datetime.utcnow().date()
+    due_today = [row for row in ops["rows"] if row["bucket"] == "due" and row["days_left"] <= 0]
+    due_soon = [row for row in ops["rows"] if row["bucket"] == "due" and 0 < row["days_left"] <= 3]
+    late = [row for row in ops["rows"] if row["bucket"] == "late"]
+    return {
+        "rows": ops["rows"],
+        "followups": ops["followups"],
+        "stats": ops["stats"],
+        "due_today": due_today[:10],
+        "due_soon": due_soon[:10],
+        "late": late[:10],
+        "today": today,
+    }
+
+
+def v11842_renewals_context(db: Session):
+    inventory = v11840_inventory_month_context(db)
+    boosts = db.query(PaidPromotionRequestV111).filter(
+        PaidPromotionRequestV111.status.in_(["active", "pending"])
+    ).order_by(PaidPromotionRequestV111.created_at.desc()).all() if "PaidPromotionRequestV111" in globals() else []
+    today = datetime.utcnow().date()
+    boost_renewals = []
+    for boost in boosts:
+        end_dt = getattr(boost, "ends_at", None) or ((getattr(boost, "starts_at", None) or getattr(boost, "created_at", None) or datetime.utcnow()) + timedelta(days=max(1, int(getattr(boost, "days_count", 1) or 1))))
+        days_to_end = (end_dt.date() - today).days
+        if 0 <= days_to_end <= 10:
+            boost_renewals.append({
+                "boost": boost,
+                "days_to_end": days_to_end,
+                "ends_at": end_dt,
+            })
+    return {
+        "inventory": inventory,
+        "banner_renewals": inventory["renewals"],
+        "boost_renewals": sorted(boost_renewals, key=lambda item: item["ends_at"])[:20],
+    }
+
+
+def v11843_approval_center_context(db: Session):
+    invoices = db.query(Invoice).order_by(Invoice.created_at.desc()).all()
+    invoice_ops = v11840_invoice_ops_context(db, invoices)
+    payout_ops = v11840_payout_ops_context(db)
+    disputes = db.query(Dispute).order_by(Dispute.created_at.desc()).limit(300).all()
+    dispute_ops = v11840_dispute_ops_context(db, disputes)
+    payment_intents = db.query(PaymentIntentV8).order_by(PaymentIntentV8.created_at.desc()).all()
+    pending_topups = [intent for intent in payment_intents if intent.status == "pending"][:12]
+    refund_review = [row for row in dispute_ops["refund_candidates"] if row["refund_state"] == "pending_review"][:12]
+    refund_approved = [row for row in dispute_ops["refund_candidates"] if row["refund_state"] == "approved" and not row["already_refunded"]][:12]
+    invoice_action_rows = [row for row in invoice_ops["rows"] if row["bucket"] in ["due", "late"]][:12]
+    payout_action_rows = [row for row in payout_ops["queue"] if row["readiness"] in ["ready", "review", "hold", "missing_method"]][:12]
+    stats = {
+        "invoice_actions": len(invoice_action_rows),
+        "payout_actions": len(payout_action_rows),
+        "refund_review": len(refund_review),
+        "topup_pending": len(pending_topups),
+    }
+    return {
+        "invoice_action_rows": invoice_action_rows,
+        "payout_action_rows": payout_action_rows,
+        "refund_review": refund_review,
+        "refund_approved": refund_approved,
+        "pending_topups": pending_topups,
+        "stats": stats,
+    }
+
+
+def v11843_alert_center_context(db: Session):
+    finance_snapshot = v11834_finance_snapshot(db)
+    collections = v11842_collections_context(db)
+    renewals = v11842_renewals_context(db)
+    refund_signal = v11841_finance_refund_signal(db)
+    advertisers = db.query(User).filter(User.role == "oglasivac").all()
+    health_rows = sorted(
+        [v11837_advertiser_health_row(db, adv) for adv in advertisers],
+        key=lambda row: row["score"]
+    )
+    low_health = [row for row in health_rows if row["score"] < 45][:8]
+    active_tasks = db.query(Task).filter(Task.status == "active").order_by(Task.created_at.desc()).limit(40).all()
+    slow_campaigns = [row for row in [v11837_campaign_signal_row(db, task) for task in active_tasks] if row["pacing"] == "spor"][:8]
+    alerts = []
+    for warning in finance_snapshot.get("warnings") or []:
+        alerts.append({"level": "critical", "title": "Finance mismatch", "desc": warning, "url": "/admin/finance-v11834"})
+    if collections["late"]:
+        alerts.append({"level": "warning", "title": "Kasne fakture", "desc": f"{len(collections['late'])} faktura kasni i traži follow-up.", "url": "/admin/collections-v11"})
+    if renewals["inventory"]["conflicts"]:
+        alerts.append({"level": "critical", "title": "Slot conflict", "desc": f"{len(renewals['inventory']['conflicts'])} konflikta u banner kalendaru.", "url": "/admin/reklame-v111"})
+    if renewals["banner_renewals"] or renewals["boost_renewals"]:
+        alerts.append({"level": "warning", "title": "Renewal reminder", "desc": f"{len(renewals['banner_renewals']) + len(renewals['boost_renewals'])} booking/boost ističe uskoro.", "url": "/admin/renewals-v11"})
+    if refund_signal["pending_review"]:
+        alerts.append({"level": "warning", "title": "Refund review", "desc": f"{len(refund_signal['pending_review'])} refund slučajeva čeka finance odluku.", "url": "/admin/disputes-v11836"})
+    if low_health:
+        alerts.append({"level": "warning", "title": "Low advertiser health", "desc": f"{len(low_health)} oglašivača ima slab score i traži CRM ili top-up akciju.", "url": "/admin/oglasivaci"})
+    if slow_campaigns:
+        alerts.append({"level": "warning", "title": "Slow campaign pacing", "desc": f"{len(slow_campaigns)} aktivnih kampanja troši sporo ili bez rezultata.", "url": "/admin/kampanje"})
+    return {
+        "alerts": alerts[:12],
+        "low_health": low_health,
+        "slow_campaigns": slow_campaigns,
+        "finance_snapshot": finance_snapshot,
+        "collections": collections,
+        "renewals": renewals,
+        "refund_signal": refund_signal,
+    }
+
+
+def v11843_reports_context(db: Session):
+    advertisers = db.query(User).filter(User.role == "oglasivac").all()
+    top_advertisers = []
+    for adv in advertisers:
+        top_advertisers.append({
+            "advertiser": adv,
+            "available": v11837_money(adv.advertiser_budget_rsd),
+            "reserved": v11837_money(adv.advertiser_reserved_rsd),
+            "spent": v11837_money(adv.advertiser_spent_rsd),
+        })
+    top_advertisers = sorted(top_advertisers, key=lambda row: row["spent"], reverse=True)[:10]
+    inventory = v11840_inventory_month_context(db)
+    slot_rows = []
+    for row in inventory["rows"]:
+        booked = sum(1 for cell in row["cells"] if cell["status"] in ["active", "pending", "conflict"])
+        utilization = round((booked / max(1, len(row["cells"]))) * 100, 1)
+        slot_rows.append({"slot": row["slot"], "booked_days": booked, "utilization": utilization})
+    slot_rows = sorted(slot_rows, key=lambda item: item["utilization"], reverse=True)[:10]
+    campaigns = db.query(Task).order_by(Task.created_at.desc()).limit(80).all()
+    campaign_rows = []
+    for task in campaigns:
+        signal = v11837_campaign_signal_row(db, task)
+        campaign_rows.append(signal)
+    campaign_rows = sorted(campaign_rows, key=lambda row: row["approved_cost"], reverse=True)[:10]
+    today = datetime.utcnow().date()
+    submissions_today = db.query(TaskSubmission).filter(func.date(TaskSubmission.created_at) == today.isoformat()).all()
+    revenue_today = round(sum(v11837_money(s.platform_fee_rsd) for s in submissions_today if s.status == "approved"), 2)
+    cost_today = round(sum(v11837_money(s.advertiser_cost_rsd) for s in submissions_today if s.status == "approved"), 2)
+    snapshot = {
+        "revenue_today": revenue_today,
+        "cost_today": cost_today,
+        "approved_today": sum(1 for s in submissions_today if s.status == "approved"),
+        "utilization_percent": inventory["utilization_percent"],
+    }
+    return {
+        "top_advertisers": top_advertisers,
+        "slot_rows": slot_rows,
+        "campaign_rows": campaign_rows,
+        "snapshot": snapshot,
     }
 
 
@@ -1491,6 +2174,18 @@ def invoice_print(invoice_id:int, request:Request, db:Session=Depends(get_db)):
         raise HTTPException(404)
     return templates.TemplateResponse("invoice_print_v4.html", {"request":request,"user":u,"invoice":inv})
 
+
+@app.get("/fakture/{invoice_id}/pdf")
+def invoice_pdf_download(invoice_id:int, request:Request, db:Session=Depends(get_db)):
+    u=require(request,db)
+    inv=db.query(Invoice).filter(Invoice.id==invoice_id).first()
+    if not inv or (u.role != "admin" and inv.advertiser_id != u.id):
+        raise HTTPException(404)
+    pdf_bytes = v11841_render_invoice_pdf(inv)
+    filename = f"{re.sub(r'[^A-Za-z0-9._-]+', '-', inv.invoice_no)}.pdf"
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
+
 @app.get("/admin/tiketi", response_class=HTMLResponse)
 def admin_tickets(request:Request, msg:str|None=None, db:Session=Depends(get_db)):
     u=require(request,db); check_role(u,["admin"])
@@ -1551,7 +2246,8 @@ def admin_invoices(request:Request, msg:str|None=None, db:Session=Depends(get_db
     u=require(request,db); check_role(u,["admin"])
     invoices=db.query(Invoice).order_by(Invoice.created_at.desc()).all()
     advertisers=db.query(User).filter(User.role=="oglasivac").order_by(User.full_name).all()
-    return templates.TemplateResponse("invoices_v4.html", {"request":request,"user":u,"invoices":invoices,"advertisers":advertisers,"mode":"admin","flash":flash(msg)})
+    ops = v11840_invoice_ops_context(db, invoices)
+    return templates.TemplateResponse("invoices_v4.html", {"request":request,"user":u,"invoices":invoices,"advertisers":advertisers,"mode":"admin","flash":flash(msg), "invoice_rows": ops["rows"], "invoice_followups": ops["followups"], "invoice_stats": ops["stats"]})
 
 @app.post("/admin/fakture/nova")
 def admin_create_invoice(
@@ -2375,6 +3071,32 @@ def admin_crm_create(request: Request, company_name: str = Form(...), contact_na
     audit(db, u, "crm_lead_create", "SalesLead", None, company_name)
     db.commit()
     target = next_url if next_url.startswith("/admin") else "/admin/crm"
+    separator = "&" if "?" in target else "?"
+    return RedirectResponse(f"{target}{separator}msg=saved", 303)
+
+
+@app.post("/admin/fakture/{invoice_id}/send")
+def admin_invoice_send(invoice_id:int, request:Request, channel:str=Form("email"), next_url: str | None = None, db:Session=Depends(get_db)):
+    u=require(request,db); check_role(u,["admin"])
+    inv=db.query(Invoice).filter(Invoice.id==invoice_id).first()
+    if not inv:
+        raise HTTPException(404)
+    adv = inv.advertiser
+    if channel == "email" and adv and (adv.email or "").strip():
+        subject = f"KlikZarada dokument {inv.invoice_no}"
+        body = (
+            f"Poštovanje,\n\n"
+            f"poslat vam je dokument {inv.invoice_no} ({inv.invoice_type}) na iznos {inv.amount_rsd:.0f} RSD.\n"
+            f"Status: {inv.status}\n"
+            f"Opis: {inv.description or '-'}\n"
+            f"Pregled: /fakture/{inv.id}\n"
+            f"PDF: /fakture/{inv.id}/pdf\n"
+        )
+        v11836_email(db, adv.email, subject, body)
+    notify(db, adv, None, "Dokument poslat", f"Dokument {inv.invoice_no} je spreman za pregled.") if adv else None
+    audit(db,u,"invoice_send","Invoice",inv.id,f"{channel}:{inv.invoice_no}")
+    db.commit()
+    target = next_url or "/admin/fakture"
     separator = "&" if "?" in target else "?"
     return RedirectResponse(f"{target}{separator}msg=saved", 303)
 
@@ -4737,11 +5459,8 @@ def admin_security_v11(request: Request, db: Session = Depends(get_db)):
 @app.get("/admin/payouts-v11", response_class=HTMLResponse)
 def admin_payouts_v11(request: Request, db: Session = Depends(get_db)):
     u = require(request, db); check_role(u, ["admin"])
-    methods = db.query(PayoutMethodV11).order_by(PayoutMethodV11.created_at.desc()).all()
-    holds = db.query(PayoutHoldV11).order_by(PayoutHoldV11.created_at.desc()).all()
-    exports = db.query(PayoutExportV11).order_by(PayoutExportV11.created_at.desc()).all()
-    pending_withdrawals = db.query(Withdrawal).filter(Withdrawal.status == "pending").order_by(Withdrawal.created_at.asc()).all()
-    return templates.TemplateResponse("admin_payouts_v11.html", {"request": request, "user": u, "methods": methods, "holds": holds, "exports": exports, "pending_withdrawals": pending_withdrawals})
+    ops = v11840_payout_ops_context(db)
+    return templates.TemplateResponse("admin_payouts_v11.html", {"request": request, "user": u, **ops})
 
 
 @app.post("/admin/payouts-v11/method/{method_id}/{status}")
@@ -4764,6 +5483,25 @@ def admin_payout_export_v11(request: Request, title: str = Form("Payout export")
     total = sum(w.amount_rsd for w in pending)
     export = PayoutExportV11(title=title.strip(), status="created", csv_path="scripts/payout_export_demo.csv", total_amount_rsd=total, rows_count=len(pending))
     db.add(export)
+    db.commit()
+    return RedirectResponse("/admin/payouts-v11?msg=saved", 303)
+
+
+@app.post("/admin/payouts-v11/batch-create")
+def admin_payout_batch_create_v11(request: Request, title: str = Form("Payout batch"), db: Session = Depends(get_db)):
+    u = require(request, db); check_role(u, ["admin"])
+    ops = v11840_payout_ops_context(db)
+    ready = [item["withdrawal"] for item in ops["queue"] if item["readiness"] == "ready"]
+    if not ready:
+        return RedirectResponse("/admin/payouts-v11?msg=no_ready_items", 303)
+    total = sum(v11837_money(w.amount_rsd) for w in ready)
+    batch = PayoutBatch(title=title.strip(), status="ready", total_amount_rsd=total, created_by_id=u.id)
+    db.add(batch)
+    db.flush()
+    for withdrawal in ready:
+        db.add(PayoutBatchItem(batch_id=batch.id, withdrawal_id=withdrawal.id, amount_rsd=withdrawal.amount_rsd, status="included"))
+        withdrawal.admin_note = f"Uključen u payout batch #{batch.id}"
+    audit(db, u, "payout_batch_create_v11", "PayoutBatch", batch.id, f"items={len(ready)} total={total}")
     db.commit()
     return RedirectResponse("/admin/payouts-v11?msg=saved", 303)
 
@@ -6127,7 +6865,23 @@ def admin_ads_final_v1110(request: Request, db: Session = Depends(get_db)):
     advertisers = db.query(User).filter(User.role == "oglasivac").order_by(User.id.asc()).all()
     pricing_summary = v11836_pricing_summary(db)
     slot_calendar = v11837_slot_booking_calendar(db, 14)
+    inventory_month = v11840_inventory_month_context(db)
+    ads_profit = v11841_ads_profit_context(db, slots, banners, boosts)
     sales_packages = v11837_margin_snapshot(db)["packages"]
+    profit_filter = (request.query_params.get("profit_filter") or "all").strip()
+    campaign_filter = (request.query_params.get("campaign_filter") or "all").strip()
+    if profit_filter in ["negative", "low", "best", "healthy"]:
+        ads_profit["filtered_slot_rows"] = [row for row in ads_profit["slot_rows"] if row["level"] == profit_filter]
+    else:
+        ads_profit["filtered_slot_rows"] = ads_profit["slot_rows"]
+        profit_filter = "all"
+    if campaign_filter in ["negative", "low", "best", "healthy"]:
+        ads_profit["filtered_campaign_rows"] = [row for row in ads_profit["campaign_rows"] if row["level"] == campaign_filter]
+    else:
+        ads_profit["filtered_campaign_rows"] = ads_profit["campaign_rows"]
+        campaign_filter = "all"
+    ads_profit["profit_filter"] = profit_filter
+    ads_profit["campaign_filter"] = campaign_filter
     selected_advertiser_id = int(request.query_params.get("advertiser_id") or 0)
     selected_slot_id = int(request.query_params.get("slot_id") or 0)
     lead_id = int(request.query_params.get("lead_id") or 0)
@@ -6152,7 +6906,7 @@ def admin_ads_final_v1110(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("admin_ads_v111.html", {
         "request": request, "user": u, "slots": slots, "banners": banners, "boosts": boosts, "views": views,
         "advertisers": advertisers, "pricing_summary": pricing_summary, "slot_calendar": slot_calendar, "sales_packages": sales_packages,
-        "booking_prefill": booking_prefill, "go_no_go": v11839_go_no_go_summary(db),
+        "booking_prefill": booking_prefill, "go_no_go": v11839_go_no_go_summary(db), "inventory_month": inventory_month, "ads_profit": ads_profit,
     })
 
 
@@ -6315,6 +7069,7 @@ def admin_finance_final_v1111(request: Request, msg: str | None = None, db: Sess
     payout_methods = db.query(PayoutMethodV11).order_by(PayoutMethodV11.created_at.desc()).limit(8).all()
     payout_exports = db.query(PayoutExportV11).order_by(PayoutExportV11.created_at.desc()).limit(6).all()
     finance_accounts = v11836_public_accounts(db)
+    refund_signal = v11841_finance_refund_signal(db)
     rows = [
         {"title":"Provizija platforme", "amount": total_fee, "desc":"Ukupna odobrena provizija iz zadataka.", "color":"blue"},
         {"title":"Odobreno korisnicima", "amount": total_rewards, "desc":"Ukupno odobrene nagrade korisnicima.", "color":"green"},
@@ -6339,6 +7094,7 @@ def admin_finance_final_v1111(request: Request, msg: str | None = None, db: Sess
         "invoice_total": invoice_total,
         "invoice_count": invoice_count,
         "withdrawal_counts": withdrawal_counts,
+        "refund_signal": refund_signal,
     })
 
 @app.get("/api/v1/v11/perfect-ui-audit")
@@ -7296,7 +8052,6 @@ def admin_v11_premium_dashboard_v116(request: Request, db: Session = Depends(get
         banners = db.query(PaidAdBannerV111).order_by(PaidAdBannerV111.created_at.desc()).limit(6).all()
     if "PaidPromotionRequestV111" in globals():
         boosts = db.query(PaidPromotionRequestV111).order_by(PaidPromotionRequestV111.created_at.desc()).limit(20).all()
-    admin_dashboard_banner = v11817_active_banner_for_code(db, "admin_dashboard_banner") if "v11817_active_banner_for_code" in globals() else None
     automation_summary = {
         "auto_approved": db.query(AutoEngineLogV114).filter(AutoEngineLogV114.event_type == "submission_auto_approved").count(),
         "auto_rejected": db.query(AutoEngineLogV114).filter(AutoEngineLogV114.event_type == "submission_auto_rejected").count(),
@@ -7359,7 +8114,6 @@ def admin_v11_premium_dashboard_v116(request: Request, db: Session = Depends(get
         "latest_withdrawals": pending_withdrawals[:8],
         "banners": banners[:6],
         "boosts": boosts[:6],
-        "admin_dashboard_banner": admin_dashboard_banner,
         "automation_summary": automation_summary,
         "dashboard_mix": dashboard_mix,
         "proof_mix": proof_mix,
@@ -9282,6 +10036,66 @@ def admin_finance_v11834(request: Request, db: Session = Depends(get_db)):
         "flash": None,
     })
 
+
+@app.get("/admin/collections-v11", response_class=HTMLResponse)
+def admin_collections_v11(request: Request, db: Session = Depends(get_db)):
+    u = require(request, db); check_role(u, ["admin"])
+    ctx = v11842_collections_context(db)
+    return templates.TemplateResponse("admin_collections_v11.html", {
+        "request": request,
+        "user": u,
+        "flash": None,
+        **ctx,
+    })
+
+
+@app.get("/admin/renewals-v11", response_class=HTMLResponse)
+def admin_renewals_v11(request: Request, db: Session = Depends(get_db)):
+    u = require(request, db); check_role(u, ["admin"])
+    ctx = v11842_renewals_context(db)
+    return templates.TemplateResponse("admin_renewals_v11.html", {
+        "request": request,
+        "user": u,
+        "flash": None,
+        **ctx,
+    })
+
+
+@app.get("/admin/approval-center-v11", response_class=HTMLResponse)
+def admin_approval_center_v11(request: Request, db: Session = Depends(get_db)):
+    u = require(request, db); check_role(u, ["admin"])
+    ctx = v11843_approval_center_context(db)
+    return templates.TemplateResponse("admin_approval_center_v11.html", {
+        "request": request,
+        "user": u,
+        "flash": None,
+        **ctx,
+    })
+
+
+@app.get("/admin/alerts-v11", response_class=HTMLResponse)
+def admin_alerts_v11(request: Request, db: Session = Depends(get_db)):
+    u = require(request, db); check_role(u, ["admin"])
+    ctx = v11843_alert_center_context(db)
+    return templates.TemplateResponse("admin_alerts_v11.html", {
+        "request": request,
+        "user": u,
+        "flash": None,
+        **ctx,
+    })
+
+
+@app.get("/admin/reports-v11", response_class=HTMLResponse)
+def admin_reports_v11(request: Request, db: Session = Depends(get_db)):
+    u = require(request, db); check_role(u, ["admin"])
+    ctx = v11843_reports_context(db)
+    return templates.TemplateResponse("admin_reports_v11.html", {
+        "request": request,
+        "user": u,
+        "flash": None,
+        **ctx,
+    })
+
 @app.get("/admin/finance-v11834.csv")
 def admin_finance_v11834_csv(request: Request, db: Session = Depends(get_db)):
     u = require(request, db); check_role(u, ["admin"])
@@ -9928,7 +10742,8 @@ def user_open_dispute_v11836(submission_id: int, request: Request, reason: str =
 def admin_disputes_v11836(request: Request, db: Session = Depends(get_db)):
     admin = require(request, db); check_role(admin, ["admin"])
     disputes = db.query(Dispute).order_by(Dispute.created_at.desc()).limit(300).all()
-    return templates.TemplateResponse("admin_disputes_v11836.html", {"request": request, "user": admin, "disputes": disputes, "flash": None})
+    ops = v11840_dispute_ops_context(db, disputes)
+    return templates.TemplateResponse("admin_disputes_v11836.html", {"request": request, "user": admin, "disputes": disputes, "flash": None, "refund_candidates": ops["refund_candidates"], "dispute_stats": ops["stats"], "refund_reason_options": v11841_refund_reason_options()})
 
 @app.post("/admin/disputes-v11836/{dispute_id}/{action}")
 def admin_dispute_action_v11836(dispute_id: int, action: str, request: Request, decision: str = Form(""), db: Session = Depends(get_db)):
@@ -9957,6 +10772,72 @@ def admin_dispute_action_v11836(dispute_id: int, action: str, request: Request, 
     audit(db, admin, f"dispute_{action}_v11836", "Dispute", d.id, decision)
     db.commit()
     return RedirectResponse(f"/admin/disputes-v11836?msg={action}", 303)
+
+
+@app.post("/admin/disputes-v11836/{dispute_id}/refund")
+def admin_dispute_refund_v11836(
+    dispute_id: int,
+    request: Request,
+    rollback_amount: float = Form(0),
+    decision: str = Form(""),
+    approval_status: str = Form("refunded"),
+    reason_code: str = Form("manual_adjustment"),
+    db: Session = Depends(get_db),
+):
+    admin = require(request, db); check_role(admin, ["admin"])
+    dispute = db.query(Dispute).filter(Dispute.id == dispute_id).first()
+    if not dispute:
+        return RedirectResponse("/admin/disputes-v11836?msg=not_found", 303)
+    submission = dispute.submission
+    task = submission.task if submission else None
+    advertiser = task.advertiser if task else None
+    amount = max(0.0, float(rollback_amount or 0))
+    if not advertiser or amount <= 0:
+        return RedirectResponse("/admin/disputes-v11836?msg=bad_action", 303)
+    allowed_statuses = {"pending_review", "approved", "rejected", "refunded"}
+    if approval_status not in allowed_statuses:
+        approval_status = "refunded"
+    if reason_code not in {code for code, _ in v11841_refund_reason_options()}:
+        reason_code = "manual_adjustment"
+    decision_text = (decision.strip() or "Refund/rollback odobren").strip()
+    audit(db, admin, "dispute_refund_stage_v11840", "Dispute", dispute.id, f"{approval_status}|reason_code={reason_code}|amount={amount}|decision={decision_text}")
+    dispute.admin_decision = f"[{approval_status}] [{reason_code}] {decision_text}"
+    if approval_status == "pending_review":
+        notify(db, None, "admin", "Refund čeka finance review", f"Dispute #{dispute.id} čeka pregled refund toka za {amount:.0f} RSD.")
+    if approval_status == "rejected":
+        if dispute.status == "open":
+            dispute.status = "rejected"
+            dispute.resolved_at = datetime.utcnow()
+        notify(db, None, "admin", "Refund odbijen", f"Dispute #{dispute.id} refund je odbijen. Reason: {reason_code}.")
+        db.commit()
+        return RedirectResponse("/admin/disputes-v11836?msg=saved", 303)
+    if approval_status in {"pending_review", "approved"}:
+        if dispute.status == "open" and approval_status == "approved":
+            dispute.status = "accepted"
+        if approval_status == "approved":
+            notify(db, None, "admin", "Refund approved", f"Dispute #{dispute.id} je odobren i čeka konačni rollback {amount:.0f} RSD.")
+        db.commit()
+        return RedirectResponse("/admin/disputes-v11836?msg=saved", 303)
+    exists = db.query(AdvertiserBudgetTransaction).filter(
+        AdvertiserBudgetTransaction.advertiser_id == advertiser.id,
+        AdvertiserBudgetTransaction.tx_type == "dispute_refund",
+        AdvertiserBudgetTransaction.description.like(f"%Dispute #{dispute.id}%"),
+    ).first()
+    if exists:
+        return RedirectResponse("/admin/disputes-v11836?msg=already_refunded", 303)
+    advertiser.advertiser_budget_rsd = v11837_money(getattr(advertiser, "advertiser_budget_rsd", 0) + amount)
+    add_budget_tx(db, advertiser, amount, "dispute_refund", f"Dispute #{dispute.id} rollback budget for submission #{submission.id if submission else '-'}")
+    dispute.admin_decision = f"[refunded] [{reason_code}] {decision_text}"
+    if dispute.status == "open":
+        dispute.status = "accepted"
+        dispute.resolved_at = datetime.utcnow()
+    elif not dispute.resolved_at:
+        dispute.resolved_at = datetime.utcnow()
+    notify(db, advertiser, None, "Refund odobren", f"Vraćeno je {amount:.0f} RSD na budžet zbog dispute toka. Razlog: {reason_code}.")
+    notify(db, None, "admin", "Refund izvršen", f"Rollback budžeta za dispute #{dispute.id} je knjižen u iznosu {amount:.0f} RSD.")
+    audit(db, admin, "dispute_refund_v11836", "Dispute", dispute.id, f"refunded|reason_code={reason_code}|rollback={amount}")
+    db.commit()
+    return RedirectResponse("/admin/disputes-v11836?msg=saved", 303)
 
 @app.get("/admin/daily-v11836", response_class=HTMLResponse)
 def admin_daily_v11836(request: Request, db: Session = Depends(get_db)):
