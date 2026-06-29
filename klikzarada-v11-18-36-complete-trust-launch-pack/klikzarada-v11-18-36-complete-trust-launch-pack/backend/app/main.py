@@ -11,7 +11,7 @@ from app.models import TaskReservationV115, UserScoreV115, UserBadgeV115, DailyR
 from app.models import PlatformVisitV117, UserDirectoryV117, AdvertiserDirectoryV117
 import secrets
 import csv, io, uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from pathlib import Path
 from typing import Optional
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, Response
@@ -49,6 +49,7 @@ ADMIN_FOCUS_ALLOWED_PATHS = (
     "/admin/promocija-v111",
     "/admin/banneri-v111",
     "/admin/cene-v111",
+    "/admin/payments-v8",
     "/admin/oglasivaci",
     "/admin/oglasivaci-baza-v117",
     "/admin/budget-v11",
@@ -77,6 +78,183 @@ def add_tx(db, user, amount, tx_type, desc):
 
 def add_budget_tx(db, adv, amount, tx_type, desc):
     db.add(AdvertiserBudgetTransaction(advertiser_id=adv.id, amount_rsd=amount, tx_type=tx_type, description=desc))
+
+
+def v11837_money(value):
+    try:
+        return round(float(value or 0), 2)
+    except Exception:
+        return 0.0
+
+
+def v11837_parse_date(value: str | None):
+    raw = (value or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d")
+    except Exception:
+        return None
+
+
+def v11837_banner_window(banner):
+    start_dt = getattr(banner, "starts_at", None) or getattr(banner, "created_at", None) or datetime.utcnow()
+    days_count = max(1, int(getattr(banner, "days_count", 1) or 1))
+    end_dt = getattr(banner, "ends_at", None) or (start_dt + timedelta(days=days_count))
+    return start_dt, end_dt
+
+
+def v11837_slot_booking_calendar(db: Session, days: int = 14):
+    start_day = datetime.utcnow().date()
+    dates = [start_day + timedelta(days=i) for i in range(days)]
+    slots = db.query(HomeBannerSlotV111).order_by(HomeBannerSlotV111.id.asc()).all() if "HomeBannerSlotV111" in globals() else []
+    banners = db.query(PaidAdBannerV111).filter(PaidAdBannerV111.status.in_(["active", "pending"])).order_by(PaidAdBannerV111.created_at.desc()).all() if "PaidAdBannerV111" in globals() else []
+    rows = []
+    for slot in slots:
+        slot_banners = [b for b in banners if getattr(b, "slot_id", None) == slot.id]
+        cells = []
+        for day in dates:
+            booking = None
+            for banner in slot_banners:
+                start_dt, end_dt = v11837_banner_window(banner)
+                if start_dt.date() <= day < end_dt.date():
+                    booking = banner
+                    break
+            cells.append({
+                "date": day,
+                "booking": booking,
+                "status": getattr(booking, "status", "free") if booking else "free",
+            })
+        rows.append({"slot": slot, "cells": cells})
+    return {"dates": dates, "rows": rows}
+
+
+def v11837_margin_snapshot(db: Session):
+    def get_price(key: str, default_rsd: float = 0.0, default_percent: float = 0.0):
+        row = db.query(MonetizationPricingV111).filter(MonetizationPricingV111.key == key).first() if "MonetizationPricingV111" in globals() else None
+        if not row:
+            return default_percent if default_percent else default_rsd
+        if row.value_percent:
+            return float(row.value_percent)
+        return float(row.value_rsd or default_rsd)
+
+    ad_cost = get_price("AD_VIEW_COST_RSD", 8.0)
+    ad_reward = get_price("AD_VIEW_REWARD_RSD", 5.0)
+    platform_percent = get_price("AD_VIEW_PLATFORM_PERCENT", 0.0, 37.5)
+    user_percent = get_price("AD_VIEW_USER_PERCENT", 0.0, 62.5)
+    margin_rsd = max(0.0, round(ad_cost - ad_reward, 2))
+    margin_percent = round((margin_rsd / ad_cost) * 100, 2) if ad_cost > 0 else 0.0
+    min_healthy_margin_rsd = max(2.0, round(ad_cost * 0.25, 2))
+    status = "healthy" if margin_rsd >= min_healthy_margin_rsd and platform_percent >= 25 else "warning"
+    warnings = []
+    if margin_rsd < min_healthy_margin_rsd:
+        warnings.append(f"Platformi ostaje samo {margin_rsd:.2f} RSD po validnom prikazu, a minimum je {min_healthy_margin_rsd:.2f} RSD.")
+    if platform_percent < 25:
+        warnings.append(f"Platform fee je {platform_percent:.1f}% i ispod je preporučenog praga od 25%.")
+
+    packages = [
+        {
+            "name": "Small Business",
+            "price": round((get_price("BANNER_HOME_MID_7D", 3000.0) / 7) * 7, 0),
+            "segment": "lokalne firme i prvi test budžet",
+            "mix": "1 srednji banner + osnovni campaign push",
+        },
+        {
+            "name": "Agency",
+            "price": round((get_price("BANNER_HOME_TOP_7D", 5000.0) / 7) * 14 + get_price("BOOST_TOP_POSITION_3D", 1500.0), 0),
+            "segment": "agencije i višekanalne kampanje",
+            "mix": "2 nedelje premium slota + top pozicija",
+        },
+        {
+            "name": "Enterprise",
+            "price": round((get_price("BANNER_HOME_TOP_7D", 5000.0) / 7) * 30 + 15000, 0),
+            "segment": "veći budžeti i duži zakup",
+            "mix": "mesečni zakup + upravljanje promocijom + prioritetna podrška",
+        },
+    ]
+    return {
+        "ad_cost": ad_cost,
+        "ad_reward": ad_reward,
+        "platform_percent": platform_percent,
+        "user_percent": user_percent,
+        "margin_rsd": margin_rsd,
+        "margin_percent": margin_percent,
+        "min_healthy_margin_rsd": min_healthy_margin_rsd,
+        "status": status,
+        "warnings": warnings,
+        "packages": packages,
+    }
+
+
+def v11837_advertiser_health_row(db: Session, advertiser):
+    tasks = db.query(Task).filter(Task.advertiser_id == advertiser.id).all()
+    task_ids = [t.id for t in tasks]
+    submissions = db.query(TaskSubmission).filter(TaskSubmission.task_id.in_(task_ids)).all() if task_ids else []
+    pending_topups = db.query(PaymentIntentV8).filter(PaymentIntentV8.advertiser_id == advertiser.id, PaymentIntentV8.status == "pending").count()
+    approved = sum(1 for s in submissions if s.status == "approved")
+    pending = sum(1 for s in submissions if s.status == "pending")
+    active_tasks = sum(1 for t in tasks if t.status == "active")
+    pending_tasks = sum(1 for t in tasks if t.status == "pending")
+    available = v11837_money(advertiser.advertiser_budget_rsd)
+    reserved = v11837_money(advertiser.advertiser_reserved_rsd)
+    spent = v11837_money(advertiser.advertiser_spent_rsd)
+    approved_cost = round(sum(v11837_money(s.advertiser_cost_rsd) for s in submissions if s.status == "approved"), 2)
+    platform_fee = round(sum(v11837_money(s.platform_fee_rsd) for s in submissions if s.status == "approved"), 2)
+    roi_ratio = round((platform_fee / approved_cost) * 100, 2) if approved_cost > 0 else 0.0
+
+    score = 100
+    if available <= 0:
+        score -= 40
+    elif available < 5000:
+        score -= 20
+    if reserved > available and active_tasks > 0:
+        score -= 15
+    if pending_topups > 0:
+        score -= 10
+    if pending > approved and pending >= 5:
+        score -= 15
+    if active_tasks == 0 and spent == 0:
+        score -= 10
+    score = max(0, min(100, score))
+    health = "green" if score >= 75 else "yellow" if score >= 45 else "red"
+    pacing = "jak" if approved >= 10 or (active_tasks > 0 and approved >= pending) else "spor" if active_tasks > 0 and approved == 0 else "stabilan"
+    return {
+        "advertiser": advertiser,
+        "score": score,
+        "health": health,
+        "available": available,
+        "reserved": reserved,
+        "spent": spent,
+        "active_tasks": active_tasks,
+        "pending_tasks": pending_tasks,
+        "approved": approved,
+        "pending": pending,
+        "pending_topups": pending_topups,
+        "roi_ratio": roi_ratio,
+        "pacing": pacing,
+    }
+
+
+def v11837_campaign_signal_row(db: Session, task):
+    submissions = db.query(TaskSubmission).filter(TaskSubmission.task_id == task.id).all()
+    approved = sum(1 for s in submissions if s.status == "approved")
+    pending = sum(1 for s in submissions if s.status == "pending")
+    approved_cost = round(sum(v11837_money(s.advertiser_cost_rsd) for s in submissions if s.status == "approved"), 2)
+    platform_fee = round(sum(v11837_money(s.platform_fee_rsd) for s in submissions if s.status == "approved"), 2)
+    roi_ratio = round((platform_fee / approved_cost) * 100, 2) if approved_cost > 0 else 0.0
+    total_slots = max(1, int(getattr(task, "total_slots", 0) or 1))
+    completion = round((approved / total_slots) * 100, 2)
+    age_days = max(0, (datetime.utcnow() - (task.created_at or datetime.utcnow())).days)
+    pacing = "jak" if completion >= 60 or approved >= 10 else "spor" if task.status == "active" and age_days >= 3 and approved == 0 else "stabilan"
+    return {
+        "task": task,
+        "approved": approved,
+        "pending": pending,
+        "completion": completion,
+        "roi_ratio": roi_ratio,
+        "pacing": pacing,
+        "approved_cost": approved_cost,
+    }
 
 def audit(db, admin, action, entity, entity_id, reason=""):
     db.add(AuditLog(admin_id=admin.id if admin else None, action=action, entity_type=entity, entity_id=entity_id, reason=reason))
@@ -699,13 +877,24 @@ def antifraud(db):
 def admin_panel(request:Request, msg:str|None=None, db:Session=Depends(get_db)):
     u=require(request,db); check_role(u,["admin"])
     data=admin_data(db)
+    health_rows = [v11837_advertiser_health_row(db, adv) for adv in data["advertisers"]]
+    health_rows = sorted(health_rows, key=lambda row: (row["score"], row["pending_topups"] * -1))[:8]
+    campaign_rows = [v11837_campaign_signal_row(db, task) for task in data["tasks"][:24] if getattr(task, "advertiser_id", None)]
+    campaign_rows = sorted(campaign_rows, key=lambda row: (0 if row["pacing"] == "spor" else 1 if row["pacing"] == "stabilan" else 2, row["completion"]))[:8]
+    topup_inbox = db.query(PaymentIntentV8).order_by(PaymentIntentV8.created_at.desc()).limit(12).all()
+    margin_snapshot = v11837_margin_snapshot(db)
     data.update({
         "platform_revenue":db.query(func.coalesce(func.sum(TaskSubmission.platform_fee_rsd),0)).filter(TaskSubmission.status=="approved").scalar(),
         "rewards":db.query(func.coalesce(func.sum(TaskSubmission.reward_rsd),0)).filter(TaskSubmission.status=="approved").scalar(),
         "adv_available":db.query(func.coalesce(func.sum(User.advertiser_budget_rsd),0)).filter(User.role=="oglasivac").scalar(),
         "adv_reserved":db.query(func.coalesce(func.sum(User.advertiser_reserved_rsd),0)).filter(User.role=="oglasivac").scalar(),
         "signals":antifraud(db),
-        "settings":{"fee":PLATFORM_FEE_PERCENT,"referral":REFERRAL_BONUS_RSD,"min_withdrawal":MIN_WITHDRAWAL_RSD}
+        "settings":{"fee":PLATFORM_FEE_PERCENT,"referral":REFERRAL_BONUS_RSD,"min_withdrawal":MIN_WITHDRAWAL_RSD},
+        "health_rows": health_rows,
+        "campaign_rows": campaign_rows,
+        "topup_inbox": topup_inbox,
+        "margin_snapshot": margin_snapshot,
+        "sales_packages": margin_snapshot["packages"],
     })
     return templates.TemplateResponse("admin_app.html", {"request":request,"user":u,"flash":flash(msg),**data})
 
@@ -2955,7 +3144,7 @@ def admin_payments_v8(request: Request, db: Session = Depends(get_db)):
 
 
 @app.post("/admin/payments-v8/{intent_id}/{action}")
-def admin_payment_action_v8(intent_id: int, action: str, request: Request, admin_note: str = Form(""), db: Session = Depends(get_db)):
+def admin_payment_action_v8(intent_id: int, action: str, request: Request, admin_note: str = Form(""), next_url: str = Form(""), db: Session = Depends(get_db)):
     u = require(request, db)
     check_role(u, ["admin"])
     intent = db.query(PaymentIntentV8).filter(PaymentIntentV8.id == intent_id).first()
@@ -2978,7 +3167,9 @@ def admin_payment_action_v8(intent_id: int, action: str, request: Request, admin
         raise HTTPException(400)
     audit(db, u, f"v8_payment_{action}", "PaymentIntentV8", intent.id, admin_note)
     db.commit()
-    return RedirectResponse("/admin/payments-v8?msg=saved", 303)
+    target = next_url if next_url.startswith("/admin") else "/admin/payments-v8"
+    separator = "&" if "?" in target else "?"
+    return RedirectResponse(f"{target}{separator}msg=saved", 303)
 
 
 @app.get("/admin/jobs-v8", response_class=HTMLResponse)
@@ -3339,7 +3530,20 @@ def admin_revenue_v9(request: Request, db: Session = Depends(get_db)):
     forecasts = db.query(RevenueForecastV9).order_by(RevenueForecastV9.created_at.desc()).all()
     lines = db.query(RevenueForecastLineV9).all()
     pricing = db.query(PricingExperimentV9).order_by(PricingExperimentV9.created_at.desc()).all()
-    return templates.TemplateResponse("admin_revenue_v9.html", {"request": request, "user": u, "forecasts": forecasts, "lines": lines, "pricing": pricing})
+    margin_snapshot = v11837_margin_snapshot(db)
+    forecast_alerts = []
+    for line in lines:
+        fee = v11837_money(getattr(line, "platform_fee_percent", 0))
+        if fee < margin_snapshot["platform_percent"]:
+            forecast_alerts.append({
+                "label": getattr(line, "label", "-"),
+                "forecast": line.forecast.title if getattr(line, "forecast", None) else "-",
+                "message": f"Forecast line koristi fee {fee:.1f}% ispod trenutnog preporučenog praga {margin_snapshot['platform_percent']:.1f}%.",
+            })
+    return templates.TemplateResponse("admin_revenue_v9.html", {
+        "request": request, "user": u, "forecasts": forecasts, "lines": lines, "pricing": pricing,
+        "margin_snapshot": margin_snapshot, "sales_packages": margin_snapshot["packages"], "forecast_alerts": forecast_alerts,
+    })
 
 
 @app.post("/admin/revenue-v9/forecast")
@@ -4924,6 +5128,8 @@ async def admin_quick_banner_v1142(
     image_fit: str = Form("cover"),
     target_url: str = Form("/"),
     price_rsd: float = Form(0),
+    days_count: int = Form(7),
+    start_date: str = Form(""),
     status: str = Form("active"),
     db: Session = Depends(get_db)
 ):
@@ -4946,8 +5152,11 @@ async def admin_quick_banner_v1142(
     }.get(status, status)
     if status not in ["active", "pending", "rejected", "expired"]:
         status = "pending"
-    days_count = 7
+    days_count = max(1, int(days_count or 7))
     daily_price = float(price_rsd or 0) if float(price_rsd or 0) > 0 else (float(slot.price_rsd or 0) / 7 if float(slot.price_rsd or 0) else 0)
+    planned_start = v11837_parse_date(start_date) or datetime.utcnow()
+    if status == "active" and planned_start.date() > datetime.utcnow().date():
+        status = "pending"
     banner = PaidAdBannerV111(
         advertiser_id=advertiser.id,
         slot_id=slot.id,
@@ -4960,8 +5169,8 @@ async def admin_quick_banner_v1142(
         viewer_reward_rsd=v111_price_rsd(db, "ad_view_reward_rsd", 5) if "v111_price_rsd" in globals() else 5,
         days_count=days_count,
         status=status,
-        starts_at=datetime.utcnow() if status == "active" else None,
-        ends_at=(datetime.utcnow() + timedelta(days=days_count)) if status == "active" else None
+        starts_at=planned_start,
+        ends_at=(planned_start + timedelta(days=days_count))
     )
     db.add(banner)
     db.commit()
@@ -5500,7 +5709,12 @@ def admin_ads_final_v1110(request: Request, db: Session = Depends(get_db)):
     views = db.query(PaidAdViewV111).order_by(PaidAdViewV111.created_at.desc()).limit(100).all() if "PaidAdViewV111" in globals() else []
     advertisers = db.query(User).filter(User.role == "oglasivac").order_by(User.id.asc()).all()
     pricing_summary = v11836_pricing_summary(db)
-    return templates.TemplateResponse("admin_ads_v111.html", {"request": request, "user": u, "slots": slots, "banners": banners, "boosts": boosts, "views": views, "advertisers": advertisers, "pricing_summary": pricing_summary})
+    slot_calendar = v11837_slot_booking_calendar(db, 14)
+    sales_packages = v11837_margin_snapshot(db)["packages"]
+    return templates.TemplateResponse("admin_ads_v111.html", {
+        "request": request, "user": u, "slots": slots, "banners": banners, "boosts": boosts, "views": views,
+        "advertisers": advertisers, "pricing_summary": pricing_summary, "slot_calendar": slot_calendar, "sales_packages": sales_packages,
+    })
 
 
 @app.get("/api/v1/v11/layout-audit-map")
@@ -5822,12 +6036,16 @@ def admin_prices_final_v1113(request: Request, db: Session = Depends(get_db)):
     for key,title,desc,amount,unit in defaults:
         kz113_set_price(db, key, title, desc, amount, unit)
     prices = db.query(MonetizationPricingV111).order_by(MonetizationPricingV111.key).all() if "MonetizationPricingV111" in globals() else []
+    margin_snapshot = v11837_margin_snapshot(db)
     return templates.TemplateResponse("admin_prices_final_v1113.html", {
         "request": request, "user": u, "flash": None, "prices": prices,
         "ad_cost": kz113_get_price(db, "AD_VIEW_COST_RSD", 8),
         "ad_reward": kz113_get_price(db, "AD_VIEW_REWARD_RSD", 5),
         "platform_percent": kz113_get_price(db, "AD_VIEW_PLATFORM_PERCENT", 37.5),
         "user_percent": kz113_get_price(db, "AD_VIEW_USER_PERCENT", 62.5),
+        "margin_snapshot": margin_snapshot,
+        "sales_packages": margin_snapshot["packages"],
+        "pricing_summary": v11836_pricing_summary(db),
     })
 
 @app.post("/admin/cene-v111/split")
@@ -7486,6 +7704,7 @@ async def admin_banner_maker_v11819(
     target_url: str = Form("/"),
     price_rsd: float = Form(0),
     days_count: int = Form(7),
+    start_date: str = Form(""),
     status: str = Form("active"),
     theme: str = Form("blue"),
     accent: str = Form("#ffffff"),
@@ -7511,6 +7730,9 @@ async def admin_banner_maker_v11819(
     days_count = max(1, int(days_count or 7))
     daily_price = float(price_rsd or 0) if float(price_rsd or 0) > 0 else (float(slot.price_rsd or 0) / 7 if float(slot.price_rsd or 0) else 0)
     price_total = daily_price * days_count
+    planned_start = v11837_parse_date(start_date) or datetime.utcnow()
+    if status == "active" and planned_start.date() > datetime.utcnow().date():
+        status = "pending"
     banner = PaidAdBannerV111(
         advertiser_id=advertiser.id,
         slot_id=slot.id,
@@ -7523,8 +7745,8 @@ async def admin_banner_maker_v11819(
         viewer_reward_rsd=v111_price_rsd(db, "ad_view_reward_rsd", 5) if "v111_price_rsd" in globals() else 5,
         days_count=days_count,
         status=status,
-        starts_at=datetime.utcnow() if status == "active" else None,
-        ends_at=(datetime.utcnow() + timedelta(days=days_count)) if status == "active" else None,
+        starts_at=planned_start,
+        ends_at=(planned_start + timedelta(days=days_count)),
         admin_note="Kreirano preko admin bannermakera."
     )
     db.add(banner)

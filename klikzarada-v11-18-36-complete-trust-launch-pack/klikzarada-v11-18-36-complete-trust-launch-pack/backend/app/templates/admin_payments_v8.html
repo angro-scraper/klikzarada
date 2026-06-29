@@ -1,6 +1,55 @@
 {% extends "app_base.html" %}
-{% set title = "Plaćanjes V8 - Admin" %}
+{% set title = "Top-up Inbox" %}
 {% block app_content %}
-<div class="section-heading left"><span>Plaćanjes</span><h2>Potvrda dopuna budžeta</h2></div>
-<div class="table-card"><table><thead><tr><th>Ref</th><th>Oglašivač</th><th>Iznos</th><th>Status</th><th>Akcije</th></tr></thead><tbody>{% for i in intents %}<tr><td>{{ i.reference }}</td><td>{{ i.advertiser.full_name }}</td><td>{{ "%.0f"|format(i.amount_rsd) }} RSD</td><td><span class="status status-{{ i.status }}">{{ i.status }}</span></td><td class="actions">{% if i.status == "na čekanju" %}<form method="post" action="/admin/payments-v8/{{ i.id }}/confirm"><input class="mini-input" name="admin_note" placeholder="note"><button class="btn btn-mini btn-primary">Confirm</button></form><form method="post" action="/admin/payments-v8/{{ i.id }}/reject"><input class="mini-input" name="admin_note" placeholder="reason"><button class="btn btn-mini btn-danger">Reject</button></form>{% endif %}</td></tr>{% else %}<tr><td colspan="5">Nema zahteva.</td></tr>{% endfor %}</tbody></table></div>
+<section class="kz1111-hero finance">
+  <div>
+    <span>TOP-UP INBOX</span>
+    <h1>Potvrda dopuna budžeta</h1>
+    <p>Ovde admin vidi sve zahteve za dopunu budžeta oglašivača i brzo potvrđuje ili odbija uplatu bez lutanja kroz stare ekrane.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-secondary" href="/admin/oglasivaci">Oglašivači</a>
+    <a class="btn btn-primary" href="/admin/budget-v11">Budžeti</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Zahtevi</small><strong>{{ intents|length }}</strong><span>ukupno</span></div>
+  <div class="kz1111-stat orange"><small>Pending</small><strong>{{ intents|selectattr("status", "equalto", "pending")|list|length }}</strong><span>čeka obradu</span></div>
+  <div class="kz1111-stat green"><small>Confirmed</small><strong>{{ intents|selectattr("status", "equalto", "confirmed")|list|length }}</strong><span>odobreno</span></div>
+  <div class="kz1111-stat purple"><small>Rejected</small><strong>{{ intents|selectattr("status", "equalto", "rejected")|list|length }}</strong><span>odbijeno</span></div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Inbox dopuna</h2>
+    <span>pending / confirmed / rejected</span>
+  </div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead><tr><th>Ref</th><th>Oglašivač</th><th>Iznos</th><th>Metod</th><th>Status</th><th>Akcije</th></tr></thead>
+      <tbody>
+        {% for i in intents %}
+        <tr>
+          <td>{{ i.reference }}</td>
+          <td><strong>{{ i.advertiser.company_name or i.advertiser.full_name }}</strong><br><small>{{ i.advertiser.email }}</small></td>
+          <td>{{ "%.0f"|format(i.amount_rsd) }} RSD</td>
+          <td>{{ i.method }}</td>
+          <td><span class="status status-{{ i.status }}">{{ i.status }}</span></td>
+          <td class="actions">
+            {% if i.status == "pending" %}
+            <form method="post" action="/admin/payments-v8/{{ i.id }}/confirm"><input class="mini-input" name="admin_note" placeholder="note"><button class="btn btn-mini btn-primary">Confirm</button></form>
+            <form method="post" action="/admin/payments-v8/{{ i.id }}/reject"><input class="mini-input" name="admin_note" placeholder="reason"><button class="btn btn-mini btn-danger">Reject</button></form>
+            {% else %}
+            <small>{{ i.admin_note or "-" }}</small>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">Nema zahteva.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endblock %}

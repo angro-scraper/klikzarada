@@ -58,6 +58,90 @@
   </article>
 </section>
 
+{% if health_rows is defined %}
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Advertiser health score</h2><span>budžet / pace / top-up</span></div>
+    <div class="premium-table-wrap">
+      <table><thead><tr><th>Oglašivač</th><th>Score</th><th>Budžet</th><th>Pacing</th><th>ROI</th><th>Top-up</th></tr></thead><tbody>
+      {% for row in health_rows %}
+      <tr>
+        <td><strong>{{ row.advertiser.company_name or row.advertiser.full_name }}</strong><br><small>{{ row.active_tasks }} aktivnih · {{ row.pending_tasks }} pending</small></td>
+        <td><span class="status status-{{ 'approved' if row.health == 'green' else 'pending' if row.health == 'yellow' else 'rejected' }}">{{ row.score }}</span></td>
+        <td>{{ "%.0f"|format(row.available) }} / {{ "%.0f"|format(row.reserved) }}</td>
+        <td>{{ row.pacing }}</td>
+        <td>{{ "%.1f"|format(row.roi_ratio) }}%</td>
+        <td>{{ row.pending_topups }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6">Nema oglašivača.</td></tr>
+      {% endfor %}
+      </tbody></table>
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Top-up inbox</h2><span>pending / confirmed / rejected</span></div>
+    <div class="premium-list">
+      {% for item in topup_inbox %}
+      <article>
+        <div>
+          <b>{{ item.advertiser.company_name or item.advertiser.full_name }}</b>
+          <small>{{ item.reference }} · {{ "%.0f"|format(item.amount_rsd) }} RSD · {{ item.status }}</small>
+        </div>
+        {% if item.status == "pending" %}
+        <div class="premium-command-links">
+          <form method="post" action="/admin/payments-v8/{{ item.id }}/confirm"><input type="hidden" name="next_url" value="/admin/oglasivaci"><button class="btn btn-mini btn-primary">Confirm</button></form>
+          <form method="post" action="/admin/payments-v8/{{ item.id }}/reject"><input type="hidden" name="next_url" value="/admin/oglasivaci"><button class="btn btn-mini btn-danger">Reject</button></form>
+        </div>
+        {% else %}
+        <span class="status status-{{ item.status }}">{{ item.status }}</span>
+        {% endif %}
+      </article>
+      {% else %}
+      <div class="premium-empty"><h3>Nema top-up zahteva</h3><p>Kada oglašivači pošalju zahtev za dopunu, pojaviće se ovde.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<div class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>ROI i pacing po kampanji</h2><span>heuristika</span></div>
+    <div class="premium-table-wrap">
+      <table><thead><tr><th>Kampanja</th><th>Pacing</th><th>Completion</th><th>ROI</th><th>Trošak</th></tr></thead><tbody>
+      {% for row in campaign_rows %}
+      <tr>
+        <td><strong>{{ row.task.title }}</strong><br><small>{{ (row.task.advertiser.company_name or row.task.advertiser.full_name) if row.task.advertiser else "-" }}</small></td>
+        <td><span class="status status-{{ 'approved' if row.pacing == 'jak' else 'pending' if row.pacing == 'stabilan' else 'rejected' }}">{{ row.pacing }}</span></td>
+        <td>{{ "%.1f"|format(row.completion) }}%</td>
+        <td>{{ "%.1f"|format(row.roi_ratio) }}%</td>
+        <td>{{ "%.0f"|format(row.approved_cost) }} RSD</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">Nema kampanja za signal.</td></tr>
+      {% endfor %}
+      </tbody></table>
+    </div>
+  </section>
+
+  {% if margin_snapshot is defined %}
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Margin warning</h2><span>pricing guardrail</span></div>
+    <div class="premium-empty">
+      <h3>{{ "%.2f"|format(margin_snapshot.margin_rsd) }} RSD platform margin</h3>
+      <p>Minimalno zdrava margina je {{ "%.2f"|format(margin_snapshot.min_healthy_margin_rsd) }} RSD po validnom prikazu.</p>
+      {% for warning in margin_snapshot.warnings %}
+      <p>{{ warning }}</p>
+      {% else %}
+      <p>Trenutni odnos cena i nagrade izgleda zdravo.</p>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endif %}
+
 {% if automation_summary is defined %}
 <section class="premium-card">
   <div class="premium-card-head"><h2>Automation summary</h2><span>sistem</span></div>

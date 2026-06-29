@@ -79,6 +79,31 @@
   </div>
 </section>
 
+{% if margin_snapshot is defined %}
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Margin guardrail</h2>
+    <span>{{ margin_snapshot.status }}</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <div class="kz1111-ledger-card">
+      <small>Platform margin</small>
+      <strong>{{ "%.2f"|format(margin_snapshot.margin_rsd) }} RSD / {{ "%.1f"|format(margin_snapshot.margin_percent) }}%</strong>
+      <p>Minimalno zdrava margina je {{ "%.2f"|format(margin_snapshot.min_healthy_margin_rsd) }} RSD po validnom prikazu.</p>
+    </div>
+    <div class="kz1111-ledger-card">
+      <small>Upozorenja</small>
+      <strong>{% if margin_snapshot.warnings %}Potrebna korekcija{% else %}Pricing izgleda zdravo{% endif %}</strong>
+      {% for warning in margin_snapshot.warnings %}
+      <p>{{ warning }}</p>
+      {% else %}
+      <p>Trenutni split ostavlja dovoljno prostora platformi i ne traži hitnu korekciju.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
 <div class="premium-dashboard-grid">
   <section class="premium-card gradient">
     <div class="premium-card-head">
@@ -171,4 +196,28 @@
     </div>
   </div>
 </section>
+
+{% if sales_packages is defined %}
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Sales paketi</h2>
+    <span>small business / agency / enterprise</span>
+  </div>
+  <div class="kz1111-proof-grid">
+    {% for pkg in sales_packages %}
+    <article class="kz1111-proof-card variant-approved">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-approved">{{ pkg.name }}</span>
+          <span class="kz1111-proof-tiny approved">{{ pkg.segment }}</span>
+        </div>
+        <strong>{{ "%.0f"|format(pkg.price) }} RSD</strong>
+      </div>
+      <h3>{{ pkg.mix }}</h3>
+      <p>Predlog paketa koji sales tim može da koristi kao početnu komercijalnu ponudu.</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 {% endblock %}

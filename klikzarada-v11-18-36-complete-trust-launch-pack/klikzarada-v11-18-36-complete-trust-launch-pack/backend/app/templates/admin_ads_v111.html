@@ -144,6 +144,10 @@
         <div><label>Cena / 24 sata (RSD)</label><input type="number" step="0.01" name="price_rsd" value="0"></div>
       </div>
       <div class="form-grid">
+        <div><label>Start datum</label><input type="date" name="start_date"></div>
+        <div><label>Trajanje (dana)</label><input type="number" name="days_count" value="1" min="1"></div>
+      </div>
+      <div class="form-grid">
         <div>
           <label>Theme</label>
           <select name="theme">
@@ -187,7 +191,6 @@
         <div><b>Live preview</b><span>Ovde će se pojaviti uploadovana slika.</span></div>
       </div>
       <div class="form-grid">
-        <div><label>Trajanje (dana)</label><input type="number" name="days_count" value="1" min="1"></div>
         <div>
           <label>Status</label>
           <select name="status">
@@ -234,6 +237,10 @@
         <div><label>Link</label><input name="target_url" value="/" placeholder="https://... ili /stranica"></div>
         <div><label>Cena / 24 sata (RSD)</label><input type="number" step="0.01" name="price_rsd" value="0"></div>
       </div>
+      <div class="form-grid">
+        <div><label>Start datum</label><input type="date" name="start_date"></div>
+        <div><label>Trajanje (dana)</label><input type="number" name="days_count" value="7" min="1"></div>
+      </div>
       <label>Image URL</label>
       <input name="image_url" placeholder="https://.../slika.png">
       <div class="kz-upload-box">
@@ -245,7 +252,6 @@
         <div><b>Live preview</b><span>Ovde će se pojaviti uploadovana slika.</span></div>
       </div>
       <div class="form-grid">
-        <div><label>Trajanje (dana)</label><input type="number" name="days_count" value="1" min="1"></div>
         <div>
           <label>Status</label>
           <select name="status">
@@ -458,6 +464,44 @@
     </table>
   </div>
 </section>
+
+{% if slot_calendar is defined %}
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Kalendar rezervacije slotova</h2>
+    <span>narednih {{ slot_calendar.dates|length }} dana</span>
+  </div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Slot</th>
+          {% for d in slot_calendar.dates %}
+          <th>{{ d.strftime("%d.%m") }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in slot_calendar.rows %}
+        <tr>
+          <td><strong>{{ row.slot.title }}</strong><br><small>{{ row.slot.code }}</small></td>
+          {% for cell in row.cells %}
+          <td>
+            {% if cell.booking %}
+            <span class="status status-{{ cell.status }}">{{ cell.status }}</span>
+            <br><small>{{ cell.booking.advertiser.company_name or cell.booking.advertiser.full_name }}</small>
+            {% else %}
+            <span class="status status-approved">free</span>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
 
 <section class="kz1111-section">
   <div class="kz1111-section-head">

@@ -21,6 +21,31 @@
   <div class="kz1111-stat orange"><small>Revenue model</small><strong>{{ "%.0f"|format(lines|sum(attribute='estimated_revenue_rsd')) }}</strong><span>RSD procena</span></div>
 </section>
 
+{% if margin_snapshot is defined %}
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Margin i revenue warning</h2>
+    <span>{{ margin_snapshot.status }}</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <div class="kz1111-ledger-card">
+      <small>Platform margin</small>
+      <strong>{{ "%.2f"|format(margin_snapshot.margin_rsd) }} RSD / prikaz</strong>
+      <p>Minimalno zdrava margina je {{ "%.2f"|format(margin_snapshot.min_healthy_margin_rsd) }} RSD.</p>
+    </div>
+    <div class="kz1111-ledger-card">
+      <small>Forecast upozorenja</small>
+      <strong>{% if forecast_alerts %}Postoje forecast odstupanja{% else %}Forecast prati trenutni pricing{% endif %}</strong>
+      {% for alert in forecast_alerts %}
+      <p>{{ alert.forecast }} / {{ alert.label }}: {{ alert.message }}</p>
+      {% else %}
+      <p>Trenutne forecast linije ne padaju ispod preporučenog fee praga.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
 <section class="kz1111-section">
   <div class="kz1111-section-head">
     <h2>Novi forecast i line</h2>
@@ -118,5 +143,29 @@
     {% endfor %}
   </div>
 </section>
+
+{% if sales_packages is defined %}
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Sales paketi</h2>
+    <span>segmentacija ponude</span>
+  </div>
+  <div class="kz1111-proof-grid">
+    {% for pkg in sales_packages %}
+    <article class="kz1111-proof-card variant-approved">
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-approved">{{ pkg.name }}</span>
+          <span class="kz1111-proof-tiny approved">{{ pkg.segment }}</span>
+        </div>
+        <strong>{{ "%.0f"|format(pkg.price) }} RSD</strong>
+      </div>
+      <h3>{{ pkg.mix }}</h3>
+      <p>Ovo može biti prodajna osnova pre nego što tim pravi specijalnu ponudu po meri klijenta.</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 
 {% endblock %}
