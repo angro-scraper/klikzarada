@@ -1,6 +1,121 @@
-{% extends "app_base.html" %}{% set title="Security V11" %}{% block app_content %}
-<div class="section-heading left"><span>V11 Security</span><h2>Login attempts, devices i admin 2FA</h2></div>
-<div class="grid-2"><div class="table-card"><table><thead><tr><th>Email</th><th>Success</th><th>IP</th><th>Note</th><th>Datum</th></tr></thead><tbody>{% for a in attempts %}<tr><td>{{ a.email or "" }}</td><td>{{ a.success }}</td><td>{{ a.ip_address or "" }}</td><td>{{ a.note or "" }}</td><td>{{ a.created_at }}</td></tr>{% else %}<tr><td colspan="5">Nema attempt-a.</td></tr>{% endfor %}</tbody></table></div>
-<div class="table-card"><table><thead><tr><th>Korisnik</th><th>IP</th><th>Status</th><th>Last seen</th></tr></thead><tbody>{% for d in devices %}<tr><td>{{ d.user.full_name }}</td><td>{{ d.ip_address or "" }}</td><td>{{ d.status }}</td><td>{{ d.last_seen_at }}</td></tr>{% else %}<tr><td colspan="4">Nema device session-a.</td></tr>{% endfor %}</tbody></table></div></div>
-<div class="section-heading left panel-space"><span>Admin 2FA demo</span><h2>2FA kodovi</h2></div><div class="table-card"><table><thead><tr><th>Admin</th><th>Code</th><th>Status</th><th>Created</th></tr></thead><tbody>{% for c in codes %}<tr><td>{{ c.admin.full_name }}</td><td>{{ c.code }}</td><td>{{ c.status }}</td><td>{{ c.created_at }}</td></tr>{% endfor %}</tbody></table></div>
+{% extends "app_base.html" %}
+{% set title = "Security V11" %}
+{% block app_content %}
+
+<section class="kz1111-hero finance">
+  <div>
+    <span>SECURITY</span>
+    <h1>Login attempts, uređaji i admin 2FA</h1>
+    <p>Jedno mesto za osnovnu bezbednosnu sliku sistema: neuspele i uspešne prijave, aktivne uređaje i 2FA tok za admin pristup.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/admin/feature-flags">Feature flags</a>
+    <a class="btn btn-secondary" href="/admin/system-settings">System settings</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Attempti</small><strong>{{ attempts|length }}</strong><span>poslednjih zapisa</span></div>
+  <div class="kz1111-stat red"><small>Neuspešni</small><strong>{{ attempts|selectattr("success", "equalto", false)|list|length }}</strong><span>traže pažnju</span></div>
+  <div class="kz1111-stat green"><small>Uređaji</small><strong>{{ devices|length }}</strong><span>sesije</span></div>
+  <div class="kz1111-stat purple"><small>2FA kodovi</small><strong>{{ codes|length }}</strong><span>admin evidencija</span></div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Login attempts</h2>
+    <span>{{ attempts|length }}</span>
+  </div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Success</th>
+          <th>IP</th>
+          <th>Note</th>
+          <th>Datum</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in attempts %}
+        <tr>
+          <td>{{ a.email or "" }}</td>
+          <td><span class="status status-{{ 'approved' if a.success else 'rejected' }}">{{ "yes" if a.success else "no" }}</span></td>
+          <td>{{ a.ip_address or "" }}</td>
+          <td>{{ a.note or "" }}</td>
+          <td>{{ a.created_at }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5">Nema attempt-a.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Device sessioni</h2>
+      <span>{{ devices|length }}</span>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Korisnik</th>
+            <th>IP</th>
+            <th>Status</th>
+            <th>Last seen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in devices %}
+          <tr>
+            <td>{{ d.user.full_name if d.user else "-" }}</td>
+            <td>{{ d.ip_address or "" }}</td>
+            <td><span class="status status-{{ d.status }}">{{ d.status }}</span></td>
+            <td>{{ d.last_seen_at }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">Nema device session-a.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Admin 2FA kodovi</h2>
+      <span>{{ codes|length }}</span>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Admin</th>
+            <th>Code</th>
+            <th>Status</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in codes %}
+          <tr>
+            <td>{{ c.admin.full_name if c.admin else "-" }}</td>
+            <td>{{ c.code }}</td>
+            <td><span class="status status-{{ c.status }}">{{ c.status }}</span></td>
+            <td>{{ c.created_at }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">Nema 2FA kodova.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
 {% endblock %}

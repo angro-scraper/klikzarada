@@ -1,14 +1,36 @@
 {% extends "app_base.html" %}
 {% set title = "System settings - Admin" %}
 {% block app_content %}
-<div class="section-heading left"><span>V6 Settings</span><h2>Sistemska podešavanja</h2></div>
+
+<section class="kz1111-hero finance">
+  <div>
+    <span>SYSTEM SETTINGS</span>
+    <h1>Sistemska podešavanja i izvori zadataka</h1>
+    <p>Centralno mesto za finansijske reference, tehničke ključeve i odobrene task izvore. Odatle držimo ceo sistem usklađenim.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/admin/feature-flags">Feature flags</a>
+    <a class="btn btn-secondary" href="/admin/finansije">Finansije</a>
+  </div>
+</section>
+
 {% if flash %}
 <div class="flash {{ flash[0] }}">{{ flash[1] }}</div>
 {% endif %}
-<div class="card-box" style="margin:18px 0;padding:18px">
-  <strong>Brzi finansijski unos</strong>
-  <p style="margin:8px 0 14px">Ovo je isto polje koje koristi i admin finansije, pa računi ostaju usklađeni na oba mesta.</p>
-  <form class="form-panel" method="post" action="/admin/system-settings/finance-save">
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Settings</small><strong>{{ settings|length }}</strong><span>ključeva</span></div>
+  <div class="kz1111-stat green"><small>Task izvori</small><strong>{{ task_sources|length }}</strong><span>odobreno</span></div>
+  <div class="kz1111-stat orange"><small>Finansije</small><strong>sync</strong><span>računi povezani</span></div>
+  <div class="kz1111-stat purple"><small>Kontrola</small><strong>core</strong><span>glavna pravila</span></div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Brzi finansijski unos</h2>
+    <span>računi i reference</span>
+  </div>
+  <form class="form-panel kz1111-tech-form" method="post" action="/admin/system-settings/finance-save">
     <input type="hidden" name="next_url" value="/admin/system-settings">
     <div class="form-grid">
       <div><label>Račun za uplatu oglašivača</label><input name="advertiser_payment_account" value="{{ finance_accounts.advertiser_payment_account }}" required></div>
@@ -22,11 +44,14 @@
     <textarea name="bank_note" rows="3">{{ finance_accounts.bank_note }}</textarea>
     <button class="btn btn-primary">Sačuvaj finansijske podatke</button>
   </form>
-</div>
-<div class="card-box" id="task-sources" style="margin:18px 0;padding:18px">
-  <strong>Izvori zadataka</strong>
-  <p style="margin:8px 0 14px">Ovde držimo samo odobrene izvore: partner API, RSS, CSV ili ručni unos. To je bezbedniji put od preuzimanja sa tuđih sajtova bez dozvole.</p>
-  <form class="form-panel" method="post" action="/admin/system-settings/task-source-save">
+</section>
+
+<section class="kz1111-section" id="task-sources">
+  <div class="kz1111-section-head">
+    <h2>Izvori zadataka</h2>
+    <span>partner api / rss / csv / manual</span>
+  </div>
+  <form class="form-panel kz1111-tech-form" method="post" action="/admin/system-settings/task-source-save">
     <div class="form-grid">
       <div><label>Naziv izvora</label><input name="name" required placeholder="Partner feed ili naziv sajta"></div>
       <div><label>Tip izvora</label>
@@ -53,7 +78,7 @@
     <button class="btn btn-primary">Dodaj izvor zadataka</button>
   </form>
   <div class="hint">Ako uneseš SEO-fast docs URL sa <code>?doc=objectInfo</code>, sistem ga automatski normalizuje na pravi <code>/api/transitions</code> endpoint.</div>
-  <div class="table-card" style="margin-top:16px">
+  <div class="premium-table-wrap" style="margin-top:16px">
     <table>
       <thead><tr><th>Naziv</th><th>Tip</th><th>Endpoint</th><th>API ključ</th><th>Način</th><th>Status</th><th>Akcija</th></tr></thead>
       <tbody>
@@ -64,7 +89,7 @@
           <td>{{ source.endpoint_url or "—" }}</td>
           <td>{{ "postavljen" if source.api_key else "—" }}</td>
           <td>{{ source.import_mode }}</td>
-          <td>{{ source.status }}</td>
+          <td><span class="status status-{{ source.status }}">{{ source.status }}</span></td>
           <td>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <form method="post" action="/admin/system-settings/task-source/{{ source.id }}/sync" style="margin:0">
@@ -82,19 +107,41 @@
       </tbody>
     </table>
   </div>
-</div>
-<form class="form-panel" method="post" action="/admin/system-settings/save"><div class="form-grid"><div><label>Key</label><input name="key" required></div><div><label>Value</label><input name="value" required></div></div><label>Opis</label><textarea name="description"></textarea><button class="btn btn-primary">Sačuvaj</button></form>
-<div class="card-box" style="margin:18px 0;padding:18px">
-  <strong>Predloženi ključevi za finansije</strong>
-  <p style="margin:8px 0 0">Računi i reference su sada uredive kroz gornji form, a ovde ostaju kao tehnička lista ključeva za napredne izmene:</p>
-  <ul style="margin:10px 0 0 18px">
-    <li><code>advertiser_payment_account</code> - račun za uplatu oglašivača</li>
-    <li><code>advertiser_payment_holder</code> - naziv primaoca za uplatu oglašivača</li>
-    <li><code>user_payout_account</code> - račun sa kog se vrše isplate</li>
-    <li><code>user_payout_holder</code> - naziv primaoca za isplatu korisnika</li>
-    <li><code>payment_reference</code> - poziv na broj / namena uplate</li>
-    <li><code>payout_reference</code> - poziv na broj / namena isplate</li>
-  </ul>
-</div>
-<div class="table-card"><table><thead><tr><th>Key</th><th>Value</th><th>Opis</th><th>Updated</th></tr></thead><tbody>{% for s in settings %}<tr><td>{{ s.key }}</td><td>{{ s.value }}</td><td>{{ s.description }}</td><td>{{ s.updated_at }}</td></tr>{% endfor %}</tbody></table></div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Tehnički key/value unos</h2>
+    <span>napredna podešavanja</span>
+  </div>
+  <form class="form-panel kz1111-tech-form" method="post" action="/admin/system-settings/save">
+    <div class="two">
+      <div><label>Key</label><input name="key" required></div>
+      <div><label>Value</label><input name="value" required></div>
+    </div>
+    <label>Opis</label>
+    <textarea name="description"></textarea>
+    <button class="btn btn-primary">Sačuvaj</button>
+  </form>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Lista podešavanja</h2>
+    <span>{{ settings|length }}</span>
+  </div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead><tr><th>Key</th><th>Value</th><th>Opis</th><th>Updated</th></tr></thead>
+      <tbody>
+        {% for s in settings %}
+        <tr><td>{{ s.key }}</td><td>{{ s.value }}</td><td>{{ s.description }}</td><td>{{ s.updated_at }}</td></tr>
+        {% else %}
+        <tr><td colspan="4">Nema sistemskih podešavanja.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
 {% endblock %}

@@ -1,8 +1,147 @@
-{% extends "app_base.html" %}{% set title="Launch OS - Admin" %}{% block app_content %}
-<div class="section-heading left"><span>V9 Launch</span><h2>Launch kampanje i taskovi</h2></div>
-<div class="grid-2">
-<form class="form-panel" method="post" action="/admin/launch-v9/campaign"><h3>Nova launch kampanja</h3><label>Naziv</label><input name="name" required><label>Kanal</label><select name="channel"><option>email</option><option>facebook</option><option>linkedin</option><option>groups</option><option>agencies</option><option>manual</option></select><label>Cilj</label><textarea name="goal"></textarea><label>Budžet RSD</label><input type="number" name="budget_rsd" value="0"><button class="btn btn-primary">Dodaj kampanju</button></form>
-<form class="form-panel" method="post" action="/admin/launch-v9/task"><h3>Novi launch task</h3><label>Kampanja</label><select name="campaign_id"><option value="0">Bez kampanje</option>{% for c in campaigns %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select><label>Task</label><input name="title" required><div class="form-grid"><div><label>Owner</label><input name="owner" value="admin"></div><div><label>Priority</label><select name="priority"><option>low</option><option>medium</option><option>high</option><option>critical</option></select></div></div><label>Note</label><textarea name="note"></textarea><button class="btn btn-primary">Dodaj task</button></form>
-</div>
-<div class="table-card"><table><thead><tr><th>Task</th><th>Kampanja</th><th>Priority</th><th>Status</th><th>Akcije</th></tr></thead><tbody>{% for t in tasks %}<tr><td>{{ t.title }}<br><small>{{ t.note or "" }}</small></td><td>{{ t.campaign.name if t.campaign else "-" }}</td><td>{{ t.priority }}</td><td><span class="status status-{{ t.status }}">{{ t.status }}</span></td><td class="actions"><form method="post" action="/admin/launch-v9/task/{{ t.id }}/doing"><button class="btn btn-mini btn-primary">Doing</button></form><form method="post" action="/admin/launch-v9/task/{{ t.id }}/done"><button class="btn btn-mini btn-secondary">Done</button></form><form method="post" action="/admin/launch-v9/task/{{ t.id }}/blocked"><button class="btn btn-mini btn-danger">Blocked</button></form></td></tr>{% else %}<tr><td colspan="5">Nema taskova.</td></tr>{% endfor %}</tbody></table></div>
+{% extends "app_base.html" %}
+{% set title = "Launch OS - Admin" %}
+{% block app_content %}
+
+<section class="kz1111-hero finance">
+  <div>
+    <span>LAUNCH OS</span>
+    <h1>Launch kampanje i taskovi</h1>
+    <p>Ovde držimo operativni plan za izlazak na tržište: kampanje, vlasništvo nad zadacima i prioritet rada pre svakog većeg guranja platforme.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/admin/golive-v9">Go-live</a>
+    <a class="btn btn-secondary" href="/admin/v11">Dashboard</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Kampanje</small><strong>{{ campaigns|length }}</strong><span>launch tokovi</span></div>
+  <div class="kz1111-stat purple"><small>Taskovi</small><strong>{{ tasks|length }}</strong><span>ukupno</span></div>
+  <div class="kz1111-stat orange"><small>Blokirano</small><strong>{{ tasks|selectattr("status", "equalto", "blocked")|list|length }}</strong><span>traži odluku</span></div>
+  <div class="kz1111-stat green"><small>Završeno</small><strong>{{ tasks|selectattr("status", "equalto", "done")|list|length }}</strong><span>zatvoreno</span></div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Dodaj nove stavke</h2>
+    <span>kampanja / task</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <form class="form-panel kz1111-tech-form" method="post" action="/admin/launch-v9/campaign">
+      <h3>Nova launch kampanja</h3>
+      <label>Naziv</label>
+      <input name="name" required>
+      <label>Kanal</label>
+      <select name="channel">
+        <option>email</option>
+        <option>facebook</option>
+        <option>linkedin</option>
+        <option>groups</option>
+        <option>agencies</option>
+        <option>manual</option>
+      </select>
+      <label>Cilj</label>
+      <textarea name="goal"></textarea>
+      <label>Budžet RSD</label>
+      <input type="number" name="budget_rsd" value="0">
+      <button class="btn btn-primary">Dodaj kampanju</button>
+    </form>
+    <form class="form-panel kz1111-tech-form" method="post" action="/admin/launch-v9/task">
+      <h3>Novi launch task</h3>
+      <label>Kampanja</label>
+      <select name="campaign_id">
+        <option value="0">Bez kampanje</option>
+        {% for c in campaigns %}
+        <option value="{{ c.id }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <label>Task</label>
+      <input name="title" required>
+      <div class="two">
+        <div>
+          <label>Owner</label>
+          <input name="owner" value="admin">
+        </div>
+        <div>
+          <label>Priority</label>
+          <select name="priority">
+            <option>low</option>
+            <option>medium</option>
+            <option>high</option>
+            <option>critical</option>
+          </select>
+        </div>
+      </div>
+      <label>Due date</label>
+      <input name="due_date" placeholder="2026-07-01">
+      <label>Napomena</label>
+      <textarea name="note"></textarea>
+      <button class="btn btn-primary">Dodaj task</button>
+    </form>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Task board</h2>
+    <span>{{ tasks|length }}</span>
+  </div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Task</th>
+          <th>Kampanja</th>
+          <th>Owner</th>
+          <th>Priority</th>
+          <th>Status</th>
+          <th>Akcije</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tasks %}
+        <tr>
+          <td><strong>{{ t.title }}</strong><br><small>{{ t.note or "" }}</small></td>
+          <td>{{ t.campaign.name if t.campaign else "-" }}</td>
+          <td>{{ t.owner or "-" }}</td>
+          <td>{{ t.priority }}</td>
+          <td><span class="status status-{{ t.status }}">{{ t.status }}</span></td>
+          <td class="actions">
+            <form method="post" action="/admin/launch-v9/task/{{ t.id }}/doing"><button class="btn btn-mini btn-primary">Doing</button></form>
+            <form method="post" action="/admin/launch-v9/task/{{ t.id }}/done"><button class="btn btn-mini btn-secondary">Done</button></form>
+            <form method="post" action="/admin/launch-v9/task/{{ t.id }}/blocked"><button class="btn btn-mini btn-danger">Blocked</button></form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">Nema taskova.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Kampanje</h2>
+    <span>{{ campaigns|length }}</span>
+  </div>
+  <div class="kz1111-smoke-list">
+    {% for c in campaigns %}
+    <article>
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-{{ c.status }}">{{ c.status }}</span>
+          <span class="kz1111-proof-tiny approved">{{ c.channel }}</span>
+        </div>
+        <strong>{{ c.name }}</strong>
+      </div>
+      <p>{{ c.goal or "Nema definisan cilj." }}</p>
+      <small>Budžet: {{ "%.0f"|format(c.budget_rsd or 0) }} RSD</small>
+    </article>
+    {% else %}
+    <div class="kz1111-empty"><h3>Nema launch kampanja</h3><p>Dodaj prvu kampanju da kreneš sa planom izlaska na tržište.</p></div>
+    {% endfor %}
+  </div>
+</section>
+
 {% endblock %}
