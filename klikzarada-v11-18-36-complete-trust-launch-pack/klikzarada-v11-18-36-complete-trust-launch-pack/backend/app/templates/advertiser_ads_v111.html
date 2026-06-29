@@ -60,6 +60,85 @@
   </article>
 </section>
 
+{% if slot_calendar is defined %}
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Slot booking kalendar</h2>
+    <span>14 dana unapred</span>
+  </div>
+  <div class="premium-empty" style="margin-bottom:16px;">
+    <h3>Slobodno, zauzeto i tvoje rezervacije</h3>
+    <p>Pre nego što pošalješ banner, vidi koje pozicije su slobodne po datumima i izaberi početak zakupa bez konflikta.</p>
+  </div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Slot</th>
+          {% for day in slot_calendar.dates %}
+          <th>{{ day.strftime("%d.%m") }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in slot_calendar.rows %}
+        <tr>
+          <td><strong>{{ row.slot.title }}</strong></td>
+          {% for cell in row.cells %}
+          <td>
+            {% if cell.booking %}
+              {% if cell.is_mine %}
+              <span class="status status-approved">moje</span>
+              {% else %}
+              <span class="status status-pending">{{ cell.status }}</span>
+              {% endif %}
+            {% else %}
+            <span class="status status-approved">free</span>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+{% if inventory_month is defined %}
+<div class="premium-dashboard-grid" style="margin-top:18px;">
+  <section class="premium-card gradient">
+    <div class="premium-card-head">
+      <h2>Mesečni inventory planner</h2>
+      <span>{{ inventory_month.month_label }}</span>
+    </div>
+    <div class="premium-money-grid">
+      <article><small>Popunjenost</small><strong>{{ "%.1f"|format(inventory_month.utilization_percent) }}%</strong></article>
+      <article><small>Booked days</small><strong>{{ inventory_month.booked_days }}</strong></article>
+      <article><small>Ukupni kapacitet</small><strong>{{ inventory_month.total_days }}</strong></article>
+      <article><small>Moji live/pending</small><strong>{{ my_live_count or 0 }}</strong></article>
+    </div>
+  </section>
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Bitni signali</h2>
+      <span>pre rezervacije</span>
+    </div>
+    <div class="premium-list">
+      {% for conflict in inventory_month.conflicts[:3] %}
+      <article><div><b>Conflict warning</b><small>{{ conflict.slot.title }} · {{ conflict.date.strftime("%d.%m.%Y") }}</small></div></article>
+      {% endfor %}
+      {% for item in inventory_month.renewals[:3] %}
+      <article><div><b>Renewal reminder</b><small>{{ item.slot.title if item.slot else "Slot" }} ističe za {{ item.days_to_end }} dana</small></div></article>
+      {% endfor %}
+      {% if not inventory_month.conflicts and not inventory_month.renewals %}
+      <article><div><b>Kalendar je čist</b><small>Trenutno nema konflikata ni hitnih isteka zakupa.</small></div></article>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endif %}
+
 <div class="premium-dashboard-grid banner-launch-grid">
   <section class="premium-card gradient banner-launch-panel" id="banner-maker">
     <div class="premium-card-head">
@@ -159,7 +238,10 @@
             <label>Trajanje (dana)</label>
             <input type="number" name="days_count" value="1" min="1">
           </div>
-          <div></div>
+          <div>
+            <label>Početak zakupa</label>
+            <input type="date" name="start_date" value="{{ request.query_params.get('start_date') or '' }}">
+          </div>
         </div>
         <button class="btn btn-primary">Napravi banner i pošalji na objavu</button>
       </form>
@@ -209,7 +291,10 @@
             <label>Trajanje (dana)</label>
             <input type="number" name="days_count" value="1" min="1">
           </div>
-          <div></div>
+          <div>
+            <label>Početak zakupa</label>
+            <input type="date" name="start_date" value="{{ request.query_params.get('start_date') or '' }}">
+          </div>
         </div>
         <button class="btn btn-ghost">Pošalji ručno pripremljen banner</button>
       </form>

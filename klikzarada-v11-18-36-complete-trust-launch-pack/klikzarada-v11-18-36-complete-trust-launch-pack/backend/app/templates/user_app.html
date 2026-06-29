@@ -83,6 +83,20 @@
   </div>
 </section>
 
+<section class="premium-card">
+  <div class="premium-card-head"><h2>Motivacioni signal</h2><span>{{ tier_ctx.tier.name }}</span></div>
+  <div class="premium-money-grid">
+    <article><small>Streak</small><strong>{{ streak }}</strong></article>
+    <article><small>Bedževi</small><strong>{{ approved_count }}</strong></article>
+    <article><small>Tier progress</small><strong>{{ tier_ctx.progress }}%</strong></article>
+    <article><small>Do isplate</small><strong>{{ "%.0f"|format(next_payout_gap) }} RSD</strong></article>
+  </div>
+  <div class="premium-list">
+    <article><div><b>Sledeći tier</b><small>{% if tier_ctx.next_tier %}{{ tier_ctx.next_tier.name }} · {% if tier_ctx.requirements %}{{ tier_ctx.requirements|join(", ") }}{% else %}spreman za upgrade{% endif %}{% else %}Već si u najjačem tier-u{% endif %}</small></div></article>
+    <article><div><b>Nastavi momentum</b><small>Održavaj streak, uzimaj dnevne misije i koristi pametne preporuke da biraš bolji task mix.</small></div><a class="mini-btn" href="/korisnik/motivacija-v115">Motivacija</a></article>
+  </div>
+</section>
+
 <div class="premium-dashboard-grid">
   <section class="premium-card gradient">
     <div class="premium-card-head"><h2>Reputation tier</h2><span>{{ tier_ctx.tier.name }}</span></div>

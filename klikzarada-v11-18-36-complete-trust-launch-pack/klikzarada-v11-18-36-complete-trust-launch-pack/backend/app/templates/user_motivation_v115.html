@@ -58,6 +58,15 @@
     </section>
 
     <section class="kz115-section">
+      <div class="kz115-head"><h2>Sledeći unlockovi</h2><span>momentum</span></div>
+      <div class="kz115-status-list">
+        <article><b>Streak bonus</b><p>{% if score.streak_days >= 7 %}Aktivan bonus za kontinuitet rada i viši prioritet zadataka.{% else %}Još {{ 7 - score.streak_days }} dana do jačeg streak bonusa.{% endif %}</p></article>
+        <article><b>Badge hunt</b><p>{% if badges|length >= 3 %}Imaš dobar tempo. Sledeći korak je da otključaš ređe bedževe i održiš kvalitet.{% else %}Skupi još bedževa da ti panel otvara jače misije i bolji signal poverenja.{% endif %}</p></article>
+        <article><b>Tier upgrade</b><p>{% if tier_ctx.next_tier %}Ciljaj {{ tier_ctx.next_tier.name }} tier kroz kvalitet, streak i odobrene dokaze.{% else %}Već si na vrhu reputacione lestvice.{% endif %}</p></article>
+      </div>
+    </section>
+
+    <section class="kz115-section">
       <div class="kz115-head"><h2>Dnevne misije</h2><span>{{ missions|length }}</span></div>
       <div class="kz115-mission-list">
         {% for m in missions %}

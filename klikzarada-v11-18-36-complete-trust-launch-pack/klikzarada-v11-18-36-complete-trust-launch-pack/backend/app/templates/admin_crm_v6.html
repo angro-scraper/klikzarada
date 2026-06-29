@@ -1,11 +1,198 @@
 {% extends "app_base.html" %}
 {% set title = "CRM - Admin" %}
 {% block app_content %}
-<div class="section-heading left"><span>V6 CRM</span><h2>Sales pipeline</h2></div>
-<form class="form-panel" method="post" action="/admin/crm/novi">
-<div class="form-grid"><div><label>Firma</label><input name="company_name" required></div><div><label>Kontakt</label><input name="contact_name"></div></div>
-<div class="form-grid"><div><label>Email</label><input name="email"></div><div><label>Telefon</label><input name="phone"></div></div>
-<div class="form-grid"><div><label>Source</label><input name="source" value="manual"></div><div><label>Potencijalni budžet</label><input type="number" name="potential_budget_rsd" value="0"></div></div>
-<label>Napomene</label><textarea name="notes"></textarea><button class="btn btn-primary">Dodaj lead</button></form>
-<div class="table-card"><table><thead><tr><th>Firma</th><th>Kontakt</th><th>Status</th><th>Budžet</th><th>Napomene</th><th>Promeni status</th></tr></thead><tbody>{% for l in leads %}<tr><td>{{ l.company_name }}</td><td>{{ l.contact_name or "" }}<br><small>{{ l.email or "" }} {{ l.phone or "" }}</small></td><td><span class="status status-{{ l.status }}">{{ l.status }}</span></td><td>{{ "%.0f"|format(l.potential_budget_rsd) }} RSD</td><td>{{ l.notes or "" }}</td><td><form method="post" action="/admin/crm/{{ l.id }}/status"><select name="status"><option>new</option><option>contacted</option><option>demo</option><option>proposal</option><option>won</option><option>lost</option></select><input class="mini-input" name="notes" placeholder="note"><button class="btn btn-mini btn-primary">Sačuvaj</button></form></td></tr>{% else %}<tr><td colspan="6">Nema leadova.</td></tr>{% endfor %}</tbody></table></div>
+<section class="kz1111-hero finance">
+  <div>
+    <span>ADVERTISER CRM</span>
+    <h1>Lead, uplata i live banner u jednom toku</h1>
+    <p>Ovde prodajni tok više nije obična tabela. Za svakog oglašivača vidiš status pipeline-a, sledeću akciju, CRM timeline i direktan prelaz na rezervaciju slota.</p>
+  </div>
+  <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/admin/reklame-v111">Rezerviši slot</a>
+    <a class="btn btn-secondary" href="/admin/oglasivaci">Oglašivači</a>
+    <a class="btn btn-secondary" href="/admin/fakture">Billing</a>
+  </div>
+</section>
+
+<section class="kz1111-stat-grid colored">
+  <div class="kz1111-stat blue"><small>Leadovi</small><strong>{{ stats.total }}</strong><span>ukupno</span></div>
+  <div class="kz1111-stat orange"><small>Aktivni pipeline</small><strong>{{ stats.new + stats.contacted + stats.proposal }}</strong><span>u radu</span></div>
+  <div class="kz1111-stat green"><small>Won</small><strong>{{ stats.won }}</strong><span>zatvoreni poslovi</span></div>
+  <div class="kz1111-stat purple"><small>Pipeline value</small><strong>{{ "%.0f"|format(stats.budget_total_rsd) }}</strong><span>RSD potencijal</span></div>
+</section>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Novi lead</h2>
+      <span>CRM intake</span>
+    </div>
+    <form class="form-panel kz1111-tech-form" method="post" action="/admin/crm/novi">
+      <div class="form-grid">
+        <div><label>Firma</label><input name="company_name" required></div>
+        <div><label>Kontakt</label><input name="contact_name"></div>
+      </div>
+      <div class="form-grid">
+        <div><label>Email</label><input name="email"></div>
+        <div><label>Telefon</label><input name="phone"></div>
+      </div>
+      <div class="form-grid">
+        <div><label>Source</label><input name="source" value="manual"></div>
+        <div><label>Potencijalni budžet</label><input type="number" name="potential_budget_rsd" value="0"></div>
+      </div>
+      <div class="form-grid">
+        <div>
+          <label>Status</label>
+          <select name="status">
+            <option value="new">new</option>
+            <option value="contacted">contacted</option>
+            <option value="demo">demo</option>
+            <option value="proposal">proposal</option>
+            <option value="won">won</option>
+            <option value="lost">lost</option>
+          </select>
+        </div>
+        <div><label>Paket</label><input name="package_name" placeholder="Small Business / Agency / Enterprise"></div>
+      </div>
+      <div class="form-grid">
+        <div><label>Sledeća akcija</label><input name="next_action" placeholder="Poziv, ponuda, rezervacija..."></div>
+        <div><label>Risk flags</label><input name="risk_flags" placeholder="npr. budget_slow, no_owner"></div>
+      </div>
+      <label>Napomene</label>
+      <textarea name="notes" placeholder="Kontekst razgovora, brief, zahtevi kampanje"></textarea>
+      <button class="btn btn-primary">Dodaj lead u workflow</button>
+    </form>
+  </section>
+
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Sales paketi</h2>
+      <span>template ponude</span>
+    </div>
+    <div class="kz1111-proof-grid">
+      {% for pkg in sales_packages %}
+      <article class="kz1111-proof-card variant-approved">
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-approved">paket</span>
+            <span class="kz1111-proof-tiny approved">{{ pkg.segment }}</span>
+          </div>
+          <strong>{{ pkg.name }}</strong>
+        </div>
+        <h3>{{ "%.0f"|format(pkg.price) }} RSD</h3>
+        <p>{{ pkg.mix }}</p>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Sales workflow</h2>
+    <span>{{ rows|length }} leadova</span>
+  </div>
+  <div class="kz1111-smoke-list">
+    {% for row in rows %}
+    <article>
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-{{ row.lead.status }}">{{ row.lead.status }}</span>
+          <span class="kz1111-proof-tiny {% if row.advertiser %}approved{% else %}pending{% endif %}">{% if row.advertiser %}matched advertiser{% else %}lead only{% endif %}</span>
+        </div>
+        <strong>{{ row.lead.company_name }}</strong>
+      </div>
+
+      <p><b>{{ row.lead.contact_name or "Kontakt nije unet" }}</b> · {{ row.lead.email or "-" }} · {{ row.lead.phone or "-" }}</p>
+      <p>Owner: {{ row.workflow.owner_name }} · Paket: {{ row.workflow.package_name or "-" }} · Budget: {{ "%.0f"|format(row.lead.potential_budget_rsd or 0) }} RSD</p>
+      <p>Sledeće: {{ row.workflow.next_action }}</p>
+      {% if row.workflow.risk_flags %}
+      <p>Risk: {{ row.workflow.risk_flags }}</p>
+      {% endif %}
+
+      <div class="premium-money-grid" style="margin-top:12px;">
+        <article><small>Rezervacija</small><strong>{{ row.workflow.reservation_state }}</strong></article>
+        <article><small>Uplata</small><strong>{{ row.workflow.payment_state }}</strong></article>
+        <article><small>Live</small><strong>{{ row.workflow.live_state }}</strong></article>
+        <article><small>Aktivni banneri</small><strong>{{ row.workflow.active_banners }}</strong></article>
+      </div>
+
+      <div class="premium-command-links" style="margin-top:12px;">
+        {% for step in row.workflow.workflow %}
+        <a href="javascript:void(0)">{{ step.title }}: {{ step.state }}</a>
+        {% endfor %}
+      </div>
+
+      <form class="form-panel kz1111-tech-form" method="post" action="/admin/crm/{{ row.lead.id }}/plan" style="margin-top:14px;">
+        <input type="hidden" name="next_url" value="/admin/crm">
+        <div class="form-grid">
+          <div>
+            <label>Status</label>
+            <select name="status">
+              {% for option in ["new", "contacted", "demo", "proposal", "won", "lost"] %}
+              <option value="{{ option }}" {% if row.lead.status == option %}selected{% endif %}>{{ option }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div><label>Paket</label><input name="package_name" value="{{ row.workflow.package_name or '' }}"></div>
+        </div>
+        <div class="form-grid">
+          <div><label>Next action</label><input name="next_action" value="{{ row.meta.next_action or row.workflow.next_action }}"></div>
+          <div><label>Risk flags</label><input name="risk_flags" value="{{ row.meta.risk_flags or row.workflow.risk_flags }}"></div>
+        </div>
+        <label>Notes</label>
+        <textarea name="notes">{{ row.meta.note_body }}</textarea>
+        <button class="btn btn-primary">Sačuvaj workflow plan</button>
+      </form>
+
+      <form class="form-panel kz1111-tech-form" method="post" action="/admin/crm/{{ row.lead.id }}/activity" style="margin-top:14px;">
+        <input type="hidden" name="next_url" value="/admin/crm">
+        <div class="form-grid">
+          <div>
+            <label>Aktivnost</label>
+            <select name="activity_type">
+              <option value="call">poziv</option>
+              <option value="email">email</option>
+              <option value="meeting">sastanak</option>
+              <option value="proposal">ponuda</option>
+              <option value="message">poruka</option>
+              <option value="note">note</option>
+            </select>
+          </div>
+          <div>
+            <label>Rezultat</label>
+            <select name="result">
+              <option value="open">open</option>
+              <option value="done">done</option>
+              <option value="waiting_payment">waiting_payment</option>
+              <option value="follow_up">follow_up</option>
+            </select>
+          </div>
+        </div>
+        <label>Timeline note</label>
+        <input name="note" placeholder="Šta je dogovoreno, šta je poslato, kada je follow-up">
+        <button class="btn btn-secondary">Dodaj CRM aktivnost</button>
+      </form>
+
+      {% if row.slot_links %}
+      <div class="premium-command-links" style="margin-top:14px;">
+        {% for link in row.slot_links %}
+        <a href="{{ link.url }}">Rezerviši {{ link.slot.title }}</a>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="premium-list" style="margin-top:14px;">
+        {% for activity in row.timeline.activities %}
+        <article><div><b>{{ activity.activity_type }}</b><small>{{ activity.note or "Bez dodatne beleške." }}</small></div><span class="status status-approved">{{ activity.result }}</span></article>
+        {% else %}
+        <article><div><b>Nema timeline aktivnosti</b><small>Dodaj poziv, email, sastanak ili poslatu ponudu da pipeline bude merljiv.</small></div></article>
+        {% endfor %}
+      </div>
+    </article>
+    {% else %}
+    <div class="kz1111-empty"><h3>Nema leadova</h3><p>Dodaj prvi lead da krene sales workflow.</p></div>
+    {% endfor %}
+  </div>
+</section>
 {% endblock %}

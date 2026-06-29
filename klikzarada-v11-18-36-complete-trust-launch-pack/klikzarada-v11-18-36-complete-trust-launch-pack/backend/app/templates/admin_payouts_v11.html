@@ -22,6 +22,13 @@
   <div class="kz1111-stat purple"><small>Pending</small><strong>{{ "%.0f"|format(stats.pending_total_rsd or 0) }}</strong><span>RSD na čekanju</span></div>
 </section>
 
+{% if refund_signal is defined %}
+<section class="kz1111-stat-grid colored" style="margin-top:16px;">
+  <div class="kz1111-stat blue"><small>Refund review</small><strong>{{ refund_signal.refund_pending_review or 0 }}</strong><span>finance odluka</span></div>
+  <div class="kz1111-stat green"><small>Refund approved</small><strong>{{ refund_signal.refund_approved or 0 }}</strong><span>rollback spreman</span></div>
+</section>
+{% endif %}
+
 <div class="kz1111-grid-two">
   <section class="kz1111-section">
     <div class="kz1111-section-head">
@@ -86,6 +93,7 @@
           <th>Readiness</th>
           <th>Hold / napomena</th>
           <th>Datum</th>
+          <th>Akcije</th>
         </tr>
       </thead>
       <tbody>
@@ -107,9 +115,23 @@
           </td>
           <td style="max-width:260px;">{{ item.readiness_note }}</td>
           <td>{{ item.withdrawal.created_at }}</td>
+          <td class="actions">
+            <form method="post" action="/admin/payouts-v11/withdrawal/{{ item.withdrawal.id }}/paid">
+              <input class="mini-input" name="note" placeholder="isplaćeno">
+              <button class="btn btn-mini btn-primary">Paid</button>
+            </form>
+            <form method="post" action="/admin/payouts-v11/withdrawal/{{ item.withdrawal.id }}/hold">
+              <input class="mini-input" name="note" placeholder="hold reason">
+              <button class="btn btn-mini btn-secondary">Hold</button>
+            </form>
+            <form method="post" action="/admin/payouts-v11/withdrawal/{{ item.withdrawal.id }}/reject">
+              <input class="mini-input" name="note" placeholder="reject reason">
+              <button class="btn btn-mini btn-danger">Reject</button>
+            </form>
+          </td>
         </tr>
         {% else %}
-        <tr><td colspan="6">Nema pending isplata.</td></tr>
+        <tr><td colspan="7">Nema pending isplata.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -176,6 +198,12 @@
         </div>
         <p>{{ h.reason or "Bez razloga." }}</p>
         <small>{{ "%.0f"|format(h.amount_rsd) }} RSD · {{ h.created_at }}</small>
+        {% if h.status == "active" %}
+        <form class="form-panel kz1111-tech-form" method="post" action="/admin/payouts-v11/hold/{{ h.id }}/released" style="margin-top:10px;">
+          <input name="note" placeholder="release note">
+          <button class="btn btn-secondary">Release hold</button>
+        </form>
+        {% endif %}
       </article>
       {% endfor %}
       {% for log in audit_rows[:8] %}
@@ -197,6 +225,33 @@
     </div>
   </section>
 </div>
+
+{% if refund_candidates is defined %}
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Refund approval signal</h2>
+    <span>povezano sa payout ops</span>
+  </div>
+  <div class="kz1111-smoke-list">
+    {% for row in refund_candidates %}
+    <article>
+      <div class="kz1111-card-top">
+        <div class="kz1111-proof-badges">
+          <span class="status status-{{ row.dispute.status }}">{{ row.dispute.status }}</span>
+          <span class="kz1111-proof-tiny {% if row.refund_state == 'approved' %}approved{% else %}pending{% endif %}">{{ row.refund_state }}</span>
+        </div>
+        <strong>Dispute #{{ row.dispute.id }}</strong>
+      </div>
+      <p>{{ (row.advertiser.company_name or row.advertiser.full_name) if row.advertiser else "Bez oglašivača" }}</p>
+      <p>{{ "%.0f"|format(row.rollback_amount) }} RSD rollback · {{ row.reason_code or "reason code nije unet" }}</p>
+      <a class="btn btn-secondary" href="/admin/disputes-v11836">Otvori refund approval</a>
+    </article>
+    {% else %}
+    <div class="kz1111-empty"><h3>Nema refund signala</h3><p>Kad refund tok dođe do finance odluke, ovde će se pojaviti kao payout signal.</p></div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 
 <section class="kz1111-section">
   <div class="kz1111-section-head">

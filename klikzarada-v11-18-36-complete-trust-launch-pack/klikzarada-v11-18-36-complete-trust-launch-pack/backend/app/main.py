@@ -135,6 +135,24 @@ def v11837_slot_booking_calendar(db: Session, days: int = 14):
     return {"dates": dates, "rows": rows}
 
 
+def v11837_slot_conflicts(db: Session, slot_id: int, planned_start: datetime, days_count: int, exclude_banner_id: int | None = None):
+    if "PaidAdBannerV111" not in globals():
+        return []
+    planned_end = planned_start + timedelta(days=max(1, int(days_count or 1)))
+    query = db.query(PaidAdBannerV111).filter(
+        PaidAdBannerV111.slot_id == slot_id,
+        PaidAdBannerV111.status.in_(["active", "pending"]),
+    )
+    if exclude_banner_id:
+        query = query.filter(PaidAdBannerV111.id != exclude_banner_id)
+    conflicts = []
+    for banner in query.order_by(PaidAdBannerV111.created_at.desc()).all():
+        start_dt, end_dt = v11837_banner_window(banner)
+        if planned_start < end_dt and planned_end > start_dt:
+            conflicts.append(banner)
+    return conflicts
+
+
 def v11837_margin_snapshot(db: Session):
     def get_price(key: str, default_rsd: float = 0.0, default_percent: float = 0.0):
         row = db.query(MonetizationPricingV111).filter(MonetizationPricingV111.key == key).first() if "MonetizationPricingV111" in globals() else None
@@ -3556,14 +3574,78 @@ def admin_data_export_action(request_id: int, action: str, request: Request, adm
 
 
 @app.get("/admin/crm", response_class=HTMLResponse)
-def admin_crm(request: Request, status: str | None = None, db: Session = Depends(get_db)):
+def admin_crm(request: Request, status: str | None = None, msg: str | None = None, db: Session = Depends(get_db)):
     u = require(request, db)
     check_role(u, ["admin"])
     query = db.query(SalesLead)
     if status and status != "Sve":
         query = query.filter(SalesLead.status == status)
     leads = query.order_by(SalesLead.updated_at.desc()).all()
-    return templates.TemplateResponse("admin_crm_v6.html", {"request": request, "user": u, "leads": leads, "status": status or "Sve"})
+    all_leads = db.query(SalesLead).all()
+    advertisers = db.query(User).filter(User.role == "oglasivac").order_by(User.created_at.desc()).all()
+    slots = db.query(HomeBannerSlotV111).filter(HomeBannerSlotV111.is_active == True).order_by(HomeBannerSlotV111.id.asc()).limit(4).all() if "HomeBannerSlotV111" in globals() else []
+    sales_packages = v11837_margin_snapshot(db).get("packages", [])
+    advertisers_by_email = {((item.email or "").strip().lower()): item for item in advertisers if (item.email or "").strip()}
+    advertisers_by_company = {((item.company_name or "").strip().lower()): item for item in advertisers if (item.company_name or "").strip()}
+    crm_rows = []
+    for lead in leads:
+        advertiser = advertisers_by_email.get(((lead.email or "").strip().lower())) or advertisers_by_company.get(((lead.company_name or "").strip().lower()))
+        meta = v11838_parse_sales_notes(lead.notes)
+        workflow = v11838_sales_workflow_row(db, advertiser, lead, sales_packages) if advertiser else {
+            "status": lead.status,
+            "package_name": meta["package_name"],
+            "recommended_package": v11838_recommended_package(sales_packages, type("LeadBudget", (), {"advertiser_budget_rsd": 0})(), lead) if sales_packages else None,
+            "next_action": meta["next_action"] or "Kontaktirati lead i zaključati sledeći korak.",
+            "risk_flags": meta["risk_flags"],
+            "note_body": meta["note_body"],
+            "payment_state": "nema",
+            "reservation_state": "nema",
+            "live_state": "nema",
+            "active_banners": 0,
+            "pending_banners": 0,
+            "priority": 35,
+            "owner_name": lead.owner.full_name if getattr(lead, "owner", None) else "-",
+            "workflow": [
+                {"title": "Lead", "state": lead.status},
+                {"title": "Paket", "state": meta["package_name"] or "unset"},
+                {"title": "Rezervacija", "state": "nema"},
+                {"title": "Uplata", "state": "nema"},
+                {"title": "Live banner", "state": "nema"},
+            ],
+        }
+        timeline = v11839_timeline_rows(db, lead=lead, advertiser=advertiser, limit=5)
+        slot_links = []
+        if advertiser:
+            package_name = workflow.get("package_name") or meta["package_name"]
+            for slot in slots:
+                slot_links.append({"slot": slot, "url": v11839_booking_link(slot, advertiser, lead, package_name)})
+        crm_rows.append({
+            "lead": lead,
+            "advertiser": advertiser,
+            "meta": meta,
+            "workflow": workflow,
+            "timeline": timeline,
+            "slot_links": slot_links,
+        })
+    stats = {
+        "total": len(all_leads),
+        "new": sum(1 for item in all_leads if item.status == "new"),
+        "contacted": sum(1 for item in all_leads if item.status == "contacted"),
+        "proposal": sum(1 for item in all_leads if item.status == "proposal"),
+        "won": sum(1 for item in all_leads if item.status == "won"),
+        "lost": sum(1 for item in all_leads if item.status == "lost"),
+        "budget_total_rsd": round(sum(v11837_money(item.potential_budget_rsd) for item in all_leads), 2),
+    }
+    return templates.TemplateResponse("admin_crm_v6.html", {
+        "request": request,
+        "user": u,
+        "leads": leads,
+        "rows": crm_rows,
+        "status": status or "Sve",
+        "stats": stats,
+        "sales_packages": sales_packages,
+        "flash": flash(msg),
+    })
 
 
 @app.post("/admin/crm/novi")
@@ -6031,7 +6113,9 @@ def admin_security_v11(request: Request, db: Session = Depends(get_db)):
 def admin_payouts_v11(request: Request, db: Session = Depends(get_db)):
     u = require(request, db); check_role(u, ["admin"])
     ops = v11840_payout_ops_context(db)
-    return templates.TemplateResponse("admin_payouts_v11.html", {"request": request, "user": u, **ops})
+    disputes = db.query(Dispute).order_by(Dispute.created_at.desc()).limit(60).all()
+    refund_ops = v11840_dispute_ops_context(db, disputes)
+    return templates.TemplateResponse("admin_payouts_v11.html", {"request": request, "user": u, **ops, "refund_signal": refund_ops["stats"], "refund_candidates": refund_ops["refund_candidates"][:5]})
 
 
 @app.post("/admin/payouts-v11/method/{method_id}/{status}")
@@ -6073,6 +6157,48 @@ def admin_payout_batch_create_v11(request: Request, title: str = Form("Payout ba
         db.add(PayoutBatchItem(batch_id=batch.id, withdrawal_id=withdrawal.id, amount_rsd=withdrawal.amount_rsd, status="included"))
         withdrawal.admin_note = f"Uključen u payout batch #{batch.id}"
     audit(db, u, "payout_batch_create_v11", "PayoutBatch", batch.id, f"items={len(ready)} total={total}")
+    db.commit()
+    return RedirectResponse("/admin/payouts-v11?msg=saved", 303)
+
+
+@app.post("/admin/payouts-v11/withdrawal/{wid}/{action}")
+def admin_payout_withdrawal_action_v11(wid: int, action: str, request: Request, note: str = Form(""), db: Session = Depends(get_db)):
+    admin = require(request, db); check_role(admin, ["admin"])
+    withdrawal = db.query(Withdrawal).filter(Withdrawal.id == wid).first()
+    if not withdrawal:
+        raise HTTPException(404)
+    if action in ["paid", "pay", "approve"]:
+        result = v11832_pay_withdrawal(db, admin, withdrawal, note)
+    elif action in ["reject", "rejected"]:
+        result = v11832_reject_withdrawal(db, admin, withdrawal, note)
+    elif action == "hold":
+        if withdrawal.status != "pending":
+            result = f"already_{withdrawal.status}"
+        else:
+            reason = note.strip() or "manual_review"
+            db.add(PayoutHoldV11(user_id=withdrawal.user_id, amount_rsd=v11837_money(withdrawal.amount_rsd), reason=reason, status="active"))
+            withdrawal.admin_note = reason
+            audit(db, admin, "withdrawal_hold_v11846", "Withdrawal", withdrawal.id, reason)
+            notify(db, withdrawal.user, None, "Isplata na proveri", f"Zahtev za isplatu {withdrawal.amount_rsd:.0f} RSD je stavljen na proveru.")
+            db.commit()
+            result = "hold"
+    else:
+        result = "bad_action"
+    return RedirectResponse(f"/admin/payouts-v11?msg={result}", 303)
+
+
+@app.post("/admin/payouts-v11/hold/{hold_id}/{status}")
+def admin_payout_hold_status_v11(hold_id: int, status: str, request: Request, note: str = Form(""), db: Session = Depends(get_db)):
+    admin = require(request, db); check_role(admin, ["admin"])
+    hold = db.query(PayoutHoldV11).filter(PayoutHoldV11.id == hold_id).first()
+    if not hold:
+        raise HTTPException(404)
+    if status not in ["released", "cancelled", "active"]:
+        raise HTTPException(400)
+    hold.status = status
+    if note.strip():
+        hold.reason = f"{hold.reason or ''} | {note.strip()}".strip(" |")
+    audit(db, admin, f"payout_hold_{status}_v11846", "PayoutHoldV11", hold.id, hold.reason)
     db.commit()
     return RedirectResponse("/admin/payouts-v11?msg=saved", 303)
 
@@ -6634,7 +6760,29 @@ def advertiser_ads_v111(request: Request, msg: str | None = None, db: Session = 
         slots = db.query(HomeBannerSlotV111).filter(HomeBannerSlotV111.is_active == True).order_by(HomeBannerSlotV111.id.asc()).all()
     banners = db.query(PaidAdBannerV111).filter(PaidAdBannerV111.advertiser_id == u.id).order_by(PaidAdBannerV111.created_at.desc()).all()
     pricing_summary = v11836_pricing_summary(db)
-    return templates.TemplateResponse("advertiser_ads_v111.html", {"request": request, "user": u, "slots": slots, "banners": banners, "flash": flash(msg), "pricing_summary": pricing_summary})
+    slot_calendar = v11837_slot_booking_calendar(db, 14)
+    inventory_month = v11840_inventory_month_context(db)
+    advertiser_calendar = {"dates": slot_calendar["dates"], "rows": []}
+    for row in slot_calendar["rows"]:
+        advertiser_calendar["rows"].append({
+            "slot": row["slot"],
+            "cells": [{
+                **cell,
+                "is_mine": bool(cell["booking"] and getattr(cell["booking"], "advertiser_id", None) == u.id),
+            } for cell in row["cells"]],
+        })
+    my_live = [b for b in banners if getattr(b, "status", "") in ["pending", "active"]]
+    return templates.TemplateResponse("advertiser_ads_v111.html", {
+        "request": request,
+        "user": u,
+        "slots": slots,
+        "banners": banners,
+        "flash": flash(msg),
+        "pricing_summary": pricing_summary,
+        "slot_calendar": advertiser_calendar,
+        "inventory_month": inventory_month,
+        "my_live_count": len(my_live),
+    })
 
 
 @app.get("/oglasivac/banneri-v111", response_class=HTMLResponse)
@@ -6648,7 +6796,7 @@ def advertiser_promocija_v111(request: Request, msg: str | None = None, db: Sess
 
 
 @app.post("/oglasivac/reklame-v111")
-async def advertiser_ad_create_v111(request: Request, slot_id: int = Form(...), title: str = Form(...), body: str = Form(""), image_url: str = Form(""), upload_image: UploadFile | None = File(None), target_url: str = Form("/"), days_count: int = Form(7), image_fit: str = Form("cover"), db: Session = Depends(get_db)):
+async def advertiser_ad_create_v111(request: Request, slot_id: int = Form(...), title: str = Form(...), body: str = Form(""), image_url: str = Form(""), upload_image: UploadFile | None = File(None), target_url: str = Form("/"), days_count: int = Form(7), start_date: str = Form(""), image_fit: str = Form("cover"), db: Session = Depends(get_db)):
     u = require(request, db); check_role(u, ["oglasivac", "admin"])
     if "v11815_ensure_9_banner_slots" in globals():
         v11815_ensure_9_banner_slots(db)
@@ -6656,6 +6804,10 @@ async def advertiser_ad_create_v111(request: Request, slot_id: int = Form(...), 
     if not slot:
         raise HTTPException(404)
     days_count = max(1, int(days_count or 7))
+    planned_start = v11837_parse_date(start_date) or datetime.utcnow()
+    conflicts = v11837_slot_conflicts(db, slot.id, planned_start, days_count)
+    if conflicts:
+        return RedirectResponse("/oglasivac/banneri-v111?msg=slot_conflict", 303)
     daily_price = float(slot.price_rsd or 0) / 7 if float(slot.price_rsd or 0) else 0
     price = daily_price * days_count
 
@@ -6673,7 +6825,9 @@ async def advertiser_ad_create_v111(request: Request, slot_id: int = Form(...), 
         price_rsd=price, view_cost_rsd=v111_price_rsd(db, "ad_view_cost_rsd", 8),
         viewer_reward_rsd=v111_price_rsd(db, "ad_view_reward_rsd", 5),
         days_count=days_count, status="pending",
-        admin_note=(V11817_BANNER_RESERVED_MARK if u.role == "oglasivac" and price > 0 else None)
+        admin_note=(V11817_BANNER_RESERVED_MARK if u.role == "oglasivac" and price > 0 else None),
+        starts_at=planned_start,
+        ends_at=(planned_start + timedelta(days=days_count)),
     ))
     notify(db, None, "admin", "Nova banner reklama", f"Oglašivač {u.full_name} traži banner: {title}")
     db.commit()
@@ -9356,6 +9510,7 @@ async def advertiser_banner_maker_v11819(
     body: str = Form(""),
     target_url: str = Form("/"),
     days_count: int = Form(7),
+    start_date: str = Form(""),
     theme: str = Form("blue"),
     accent: str = Form("#ffffff"),
     icon: str = Form("megaphone"),
@@ -9370,7 +9525,13 @@ async def advertiser_banner_maker_v11819(
     slot = db.query(HomeBannerSlotV111).filter(HomeBannerSlotV111.id == slot_id, HomeBannerSlotV111.is_active == True).first()
     if not slot:
         raise HTTPException(404, "Slot nije pronađen")
-    price = float(slot.price_rsd or 0)
+    days_count = max(1, int(days_count or 7))
+    daily_price = float(slot.price_rsd or 0) / 7 if float(slot.price_rsd or 0) else 0
+    price = daily_price * days_count
+    planned_start = v11837_parse_date(start_date) or datetime.utcnow()
+    conflicts = v11837_slot_conflicts(db, slot.id, planned_start, days_count)
+    if conflicts:
+        return RedirectResponse("/oglasivac/banneri-v111?msg=slot_conflict", 303)
     if float(getattr(u, "advertiser_budget_rsd", 0) or 0) < price:
         return RedirectResponse("/oglasivac/banneri-v111?msg=budget_error", 303)
     if price > 0:
@@ -9388,9 +9549,11 @@ async def advertiser_banner_maker_v11819(
         price_rsd=price,
         view_cost_rsd=v111_price_rsd(db, "ad_view_cost_rsd", 8),
         viewer_reward_rsd=v111_price_rsd(db, "ad_view_reward_rsd", 5),
-        days_count=max(1, int(days_count or 7)),
+        days_count=days_count,
         status="pending",
-        admin_note=V11817_BANNER_RESERVED_MARK
+        admin_note=V11817_BANNER_RESERVED_MARK,
+        starts_at=planned_start,
+        ends_at=(planned_start + timedelta(days=days_count)),
     )
     db.add(banner)
     notify(db, None, "admin", "Novi banner iz bannermakera", f"Oglašivač {u.full_name} kreirao je banner: {title}")
@@ -9421,6 +9584,7 @@ async def advertiser_banneri_maker_v11819(
         body=body,
         target_url=target_url,
         days_count=days_count,
+        start_date=start_date,
         theme=theme,
         accent=accent,
         icon=icon,
@@ -9439,6 +9603,7 @@ async def advertiser_promocija_maker_v11819(
     body: str = Form(""),
     target_url: str = Form("/"),
     days_count: int = Form(7),
+    start_date: str = Form(""),
     theme: str = Form("blue"),
     accent: str = Form("#ffffff"),
     icon: str = Form("megaphone"),
@@ -9454,6 +9619,7 @@ async def advertiser_promocija_maker_v11819(
         body=body,
         target_url=target_url,
         days_count=days_count,
+        start_date=start_date,
         theme=theme,
         accent=accent,
         icon=icon,
