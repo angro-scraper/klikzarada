@@ -35,6 +35,15 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 PLATFORM_FEE_PERCENT = 20.0
 REFERRAL_BONUS_RSD = 15.0
 MIN_WITHDRAWAL_RSD = 1000.0
+ADMIN_FOCUS_ALLOWED_PATHS = (
+    "/admin/v11",
+    "/admin/dashboard",
+    "/admin/mapa-platforme",
+    "/admin/kampanje",
+    "/admin/dokazi",
+    "/admin/finansije",
+    "/admin/isplate",
+)
 
 def cost_for_task(reward: float, slots: int, fee: float = PLATFORM_FEE_PERCENT):
     return reward * slots * (1 + fee / 100)
@@ -113,6 +122,9 @@ def role_url(role):
 
 def check_role(user, roles):
     if user.role not in roles: raise HTTPException(403, "Nemate pristup.")
+
+def admin_focus_route_allowed(path: str) -> bool:
+    return any(path.startswith(prefix) for prefix in ADMIN_FOCUS_ALLOWED_PATHS)
 
 def flash(msg):
     m = {
@@ -6853,9 +6865,52 @@ def kz117_sync_directories(db: Session):
 @app.middleware("http")
 async def kz117_visit_tracking_middleware(request: Request, call_next):
     start = time.time()
+    path = request.url.path
+    if path.startswith("/admin") and not admin_focus_route_allowed(path):
+        db = SessionLocal()
+        try:
+            u = current_user(request, db)
+            if u and u.role == "admin":
+                return HTMLResponse(
+                    """
+                    <!doctype html>
+                    <html lang="sr">
+                    <head>
+                      <meta charset="utf-8">
+                      <meta name="viewport" content="width=device-width,initial-scale=1">
+                      <title>Admin focus mode</title>
+                      <style>
+                        body{margin:0;font-family:Arial,sans-serif;background:#f8fafc;color:#0f172a}
+                        main{max-width:760px;margin:72px auto;padding:40px;background:#fff;border:1px solid #dbe4f0;border-radius:24px;box-shadow:0 24px 60px rgba(15,23,42,.08)}
+                        h1{margin:0 0 16px;font-size:32px}
+                        p{margin:0 0 12px;font-size:18px;line-height:1.6;color:#475569}
+                        ul{margin:24px 0;padding-left:20px;color:#1e293b}
+                        a{color:#4f46e5;font-weight:700;text-decoration:none}
+                      </style>
+                    </head>
+                    <body>
+                      <main>
+                        <h1>Ova admin ruta je privremeno blokirana.</h1>
+                        <p>Drzimo fokus samo na ekranima koje trenutno sredjujemo, da bude jasno sta ispravljamo i gde.</p>
+                        <p>Aktivne rute su:</p>
+                        <ul>
+                          <li><a href="/admin/v11">Dashboard</a></li>
+                          <li><a href="/admin/mapa-platforme">Mapa platforme</a></li>
+                          <li><a href="/admin/kampanje">Kampanje</a></li>
+                          <li><a href="/admin/dokazi">Dokazi</a></li>
+                          <li><a href="/admin/finansije">Finansije</a></li>
+                          <li><a href="/admin/isplate">Isplate</a></li>
+                        </ul>
+                      </main>
+                    </body>
+                    </html>
+                    """,
+                    status_code=404,
+                )
+        finally:
+            db.close()
     response = await call_next(request)
     try:
-        path = request.url.path
         # Do not track static assets and favicon noise.
         if not (path.startswith("/static") or path in ["/favicon.ico", "/sw.js", "/robots.txt", "/sitemap.xml"]):
             db = SessionLocal()

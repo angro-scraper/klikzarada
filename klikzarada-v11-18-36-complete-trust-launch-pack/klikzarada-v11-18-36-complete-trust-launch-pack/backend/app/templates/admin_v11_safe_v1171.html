@@ -8,9 +8,10 @@
     <h1>Kontrola platforme</h1>
     <p>Moderacija, finansije, reklame, isplate, anti-fraud i automatizacija na jednom mestu. Ovde odmah vidiš gde sistem radi sam, gde ide ručna provera i gde postoji rizik.</p>
     <div class="premium-panel-actions">
-      <a class="premium-btn blue" href="/admin/promocija-v111">Reklame</a>
-      <a class="premium-btn green" href="/admin/cene-v111">Cene</a>
-      <a class="premium-btn white" href="/admin/daily-desk-v11">Daily Desk</a>
+      <a class="premium-btn blue" href="/admin/kampanje">Kampanje</a>
+      <a class="premium-btn green" href="/admin/finansije">Finansije</a>
+      <a class="premium-btn white" href="/admin/dokazi">Dokazi</a>
+      <a class="premium-btn white" href="/admin/mapa-platforme">Mapa platforme</a>
     </div>
   </div>
   <div class="premium-card banner-launch-hero-card">
@@ -27,8 +28,71 @@
   </div>
 </section>
 
+<section class="admin-v1172-control-strip">
+  <article class="admin-v1172-kpi violet">
+    <small>Moderacija sada</small>
+    <strong>{{ stats.pending_submissions }}</strong>
+    <span>dokaza ceka proveru</span>
+    <a href="/admin/dokazi">Otvori dokaze</a>
+  </article>
+  <article class="admin-v1172-kpi blue">
+    <small>Kampanje uzivo</small>
+    <strong>{{ stats.active_tasks }}</strong>
+    <span>aktivnih kampanja na mrezi</span>
+    <a href="/admin/kampanje">Otvori kampanje</a>
+  </article>
+  <article class="admin-v1172-kpi orange">
+    <small>Novac i obrada</small>
+    <strong>{{ stats.pending_withdrawals }}</strong>
+    <span>isplata je na cekanju</span>
+    <a href="/admin/isplate">Otvori isplate</a>
+  </article>
+  <article class="admin-v1172-kpi green">
+    <small>Budzet sistema</small>
+    <strong>{{ "%.0f"|format(stats.total_budget) }} RSD</strong>
+    <span>ukupan budzet oglasivaca u platformi</span>
+    <a href="/admin/finansije">Otvori finansije</a>
+  </article>
+</section>
+
+<section class="admin-v1172-priority-grid">
+  <article class="premium-card admin-v1172-priority">
+    <div class="premium-card-head">
+      <h2>Sta prvo gledas</h2>
+      <span>prioritet</span>
+    </div>
+    <div class="admin-v1172-priority-list">
+      <a href="/admin/dokazi"><b>Dokazi</b><small>{{ stats.pending_submissions }} ceka pregled i direktno usporava kampanje.</small></a>
+      <a href="/admin/isplate"><b>Isplate</b><small>{{ stats.pending_withdrawals }} zahteva obradu pre nego sto pravi support pritisak.</small></a>
+      <a href="/admin/finansije"><b>Budzet</b><small>{{ "%.0f"|format(stats.total_budget) }} RSD je trenutno u sistemu oglasivaca.</small></a>
+    </div>
+  </article>
+  <article class="premium-card admin-v1172-priority">
+    <div class="premium-card-head">
+      <h2>Tok kampanja</h2>
+      <span>fokus</span>
+    </div>
+    <div class="admin-v1172-priority-list">
+      <a href="/admin/kampanje"><b>Aktivne kampanje</b><small>{{ stats.active_tasks }} kampanja trenutno radi i odmah pokazuje da li layout prati realne podatke.</small></a>
+      <a href="/admin/kampanje"><b>Kampanje na cekanju</b><small>{{ stats.pending_tasks }} ceka moderaciju ili doradu pre objave.</small></a>
+      <a href="/admin/mapa-platforme"><b>Mapa platforme</b><small>Jedno mesto da pratimo kako su ekrani povezani i sta jos ostaje da se usaglasi.</small></a>
+    </div>
+  </article>
+  <article class="premium-card admin-v1172-priority">
+    <div class="premium-card-head">
+      <h2>Sta sada peglamo</h2>
+      <span>scope</span>
+    </div>
+    <div class="admin-v1172-priority-list">
+      <a href="/admin/v11"><b>Dashboard</b><small>Polazna tacka za novi admin izgled i raspodelu prioriteta.</small></a>
+      <a href="/admin/dokazi"><b>Dokazi</b><small>Najbrze otkriva da li spacing, tabele i statusi rade kako treba.</small></a>
+      <a href="/admin/finansije"><b>Finansije</b><small>Proveravamo kartice, iznose i preglednost bez mesanja drugih modula.</small></a>
+    </div>
+  </article>
+</section>
+
 {% set admin_banner = admin_dashboard_banner if admin_dashboard_banner is defined else none %}
-<a class="premium-card admin-dashboard-banner" href="{{ admin_banner.target_url if admin_banner else '/admin/reklame-v111' }}">
+<a class="premium-card admin-dashboard-banner" href="{{ admin_banner.target_url if admin_banner and admin_banner.target_url in ['/admin/v11', '/admin/mapa-platforme', '/admin/kampanje', '/admin/dokazi', '/admin/finansije', '/admin/isplate'] else '/admin/kampanje' }}">
   <img src="{{ admin_banner.image_url if admin_banner and admin_banner.image_url else '/static/img/banner_generic.svg' }}" alt="{{ admin_banner.title if admin_banner else 'Premium admin dashboard slot' }}">
   <div>
     <small>{{ admin_banner.slot.title if admin_banner and admin_banner.slot else 'Prodajni prostor' }}</small>
@@ -114,56 +178,32 @@
 
 <section class="premium-command-hub">
   <div class="premium-card-head">
-    <h2>Admin komande</h2>
-    <span>grupisano po oblastima</span>
+    <h2>Aktivne admin rute</h2>
+    <span>privremeni focus mode</span>
   </div>
   <div class="premium-command-grid">
     <article class="premium-command-card">
-      <h3>Finansije</h3>
-      <p>Budžeti, fakture, isplate i payout alati.</p>
+      <h3>Dashboard i mapa</h3>
+      <p>Polazna tačka i pregled strukture admin dela.</p>
       <div class="premium-command-links">
-        <a href="/admin/finansije">Finansije</a>
-        <a href="/admin/fakture">Fakture</a>
-        <a href="/admin/isplate">Isplate</a>
-        <a href="/admin/payouts-v11">Payout alati</a>
-        <a href="/admin/cene-v111">Cene</a>
-        <a href="/admin/system-settings">Računi</a>
+        <a href="/admin/v11">Dashboard</a>
+        <a href="/admin/mapa-platforme">Mapa platforme</a>
       </div>
     </article>
     <article class="premium-command-card">
       <h3>Kampanje</h3>
-      <p>Objava, pregled, dokazi i promocije.</p>
+      <p>Objava, pregled i moderacija kampanja i dokaza.</p>
       <div class="premium-command-links">
         <a href="/admin/kampanje">Kampanje</a>
         <a href="/admin/dokazi">Dokazi</a>
-        <a href="/admin/promocija-v111">Reklame</a>
-        <a href="/admin/import-moderation">Uvoz i moderacija</a>
-        <a href="/admin/fraud-v11">Anti-fraud</a>
-        <a href="/admin/workflows-v10">Automation</a>
       </div>
     </article>
     <article class="premium-command-card">
-      <h3>Ljudi</h3>
-      <p>Upravljanje korisnicima, oglašivačima i rastom.</p>
+      <h3>Novac</h3>
+      <p>Budžeti i obrada isplata u istom fokus paketu.</p>
       <div class="premium-command-links">
-        <a href="/admin/korisnici">Korisnici</a>
-        <a href="/admin/oglasivaci">Oglašivači</a>
-        <a href="/admin/referral">Referral</a>
-        <a href="/admin/growth">Growth</a>
-        <a href="/admin/planovi">Planovi</a>
-        <a href="/admin/analitika">Analitika</a>
-      </div>
-    </article>
-    <article class="premium-command-card">
-      <h3>Operacije</h3>
-      <p>Deploy, daily desk, bezbednost i setup.</p>
-      <div class="premium-command-links">
-        <a href="/admin/deploy-v11">Produkcija</a>
-        <a href="/admin/daily-desk-v11">Daily desk</a>
-        <a href="/admin/security-v11">Security</a>
-        <a href="/admin/feature-flags">Feature flags</a>
-        <a href="/admin/smart-v115">Smart auto</a>
-        <a href="/admin/auto-engine-v114">Auto engine</a>
+        <a href="/admin/finansije">Finansije</a>
+        <a href="/admin/isplate">Isplate</a>
       </div>
     </article>
   </div>
@@ -185,13 +225,13 @@
   <section class="premium-card">
     <div class="premium-card-head">
       <h2>Brza kontrola</h2>
-      <span>u jednoj kartici</span>
+      <span>samo aktivne sekcije</span>
     </div>
     <div class="premium-command-links" style="grid-template-columns:repeat(2,minmax(0,1fr));">
-      <a href="/admin/system-settings#task-sources">Task izvori</a>
-      <a href="/admin/moderation-v10">Queue</a>
-      <a href="/admin/finansije">Računi</a>
-      <a href="/admin/promocija-v111">Banner slotovi</a>
+      <a href="/admin/v11">Dashboard</a>
+      <a href="/admin/mapa-platforme">Mapa platforme</a>
+      <a href="/admin/dokazi">Queue dokaza</a>
+      <a href="/admin/finansije">Racuni i budzet</a>
     </div>
   </section>
 </div>
@@ -223,14 +263,14 @@
 
   <section class="premium-card">
     <div class="premium-card-head">
-      <h2>Reklame i isticanja</h2>
-      <a href="/admin/promocija-v111">Uredi reklame</a>
+      <h2>Kampanje i isticanja</h2>
+      <a href="/admin/kampanje">Otvori kampanje</a>
     </div>
     <div class="premium-list">
       {% for b in banners %}
         <article>
           <div><b>{{ b.title }}</b><small>{{ b.status }} · {{ "%.0f"|format(b.price_rsd) }} RSD</small></div>
-          <a class="mini-btn" href="/admin/promocija-v111">Otvori</a>
+          <a class="mini-btn" href="/admin/kampanje">Otvori</a>
         </article>
       {% else %}
         <div class="premium-empty"><h3>Nema banner reklama</h3><p>Kada oglašivač pošalje banner, pojaviće se ovde.</p></div>
@@ -238,7 +278,7 @@
       {% for x in boosts %}
         <article>
           <div><b>{{ x.title }}</b><small>{{ x.status }} · {{ "%.0f"|format(x.price_rsd) }} RSD</small></div>
-          <a class="mini-btn" href="/admin/promocija-v111">Otvori</a>
+          <a class="mini-btn" href="/admin/kampanje">Otvori</a>
         </article>
       {% endfor %}
     </div>
