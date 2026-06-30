@@ -92,6 +92,19 @@
 
 <section class="kz114-card-section">
   <div class="kz114-section-head">
+    <h2>Cenovnik na početnoj</h2>
+    <a href="/cenovnik">Otvori cenovnik ›</a>
+  </div>
+  <div class="kz114-metrics">
+    <div><b>{{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}%</b><span>provizija platforme</span></div>
+    <div><b>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}%</b><span>ide korisnicima</span></div>
+    <div><b>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD</b><span>minimalna isplata</span></div>
+    <div><b>{{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }} RSD</b><span>veliki banner / 24 sata</span></div>
+  </div>
+</section>
+
+<section class="kz114-card-section">
+  <div class="kz114-section-head">
     <h2>Sponzorski baneri na početnoj</h2>
     <a href="/oglasivac/promocija-v111">Postani sponzor ›</a>
   </div>
