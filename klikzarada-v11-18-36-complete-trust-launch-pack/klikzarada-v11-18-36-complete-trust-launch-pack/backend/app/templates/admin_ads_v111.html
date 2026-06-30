@@ -82,6 +82,8 @@
 </section>
 
 {% if ads_profit is defined %}
+{% set slot_profit_rows = ads_profit.filtered_slot_rows if ads_profit.filtered_slot_rows is defined else ads_profit.slot_rows %}
+{% set campaign_profit_rows = ads_profit.filtered_campaign_rows if ads_profit.filtered_campaign_rows is defined else ads_profit.campaign_rows %}
 <section class="premium-card">
   <div class="premium-card-head">
     <h2>Profit signal</h2>
@@ -155,7 +157,7 @@
           </tr>
         </thead>
         <tbody>
-          {% for row in ads_profit.filtered_slot_rows if ads_profit.filtered_slot_rows is defined else ads_profit.slot_rows %}
+          {% for row in slot_profit_rows %}
           <tr style="background:{{ '#fff1f2' if row.level == 'negative' else '#fff7ed' if row.level == 'low' else '#f0fdf4' if row.level == 'best' else '#f8fafc' }};">
             <td><strong>{{ row.slot.title }}</strong><br><small>{{ row.banners_count }} bannera · {{ row.level }}</small></td>
             <td>{{ "%.0f"|format(row.booking_revenue) }} RSD</td>
@@ -193,7 +195,7 @@
           </tr>
         </thead>
         <tbody>
-          {% for row in ads_profit.filtered_campaign_rows if ads_profit.filtered_campaign_rows is defined else ads_profit.campaign_rows %}
+          {% for row in campaign_profit_rows %}
           <tr style="background:{{ '#fff1f2' if row.level == 'negative' else '#fff7ed' if row.level == 'low' else '#f0fdf4' if row.level == 'best' else '#f8fafc' }};">
             <td><strong>{{ row.task.title }}</strong><br><small>{{ row.submissions_count }} submissiona · {{ row.level }} · {{ "%.1f"|format(row.margin_percent) }}% margin</small></td>
             <td>{{ "%.0f"|format(row.approved_cost) }} RSD</td>
@@ -486,7 +488,7 @@
       <article><small>Veliki banner</small><strong>{{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }} RSD</strong><span>po danu</span></article>
       <article><small>Srednji banner</small><strong>{{ "%.0f"|format(pricing_summary.banner_mid_day if pricing_summary is defined else 785) }} RSD</strong><span>po danu</span></article>
       <article><small>Top pozicija</small><strong>{{ "%.0f"|format(pricing_summary.boost_top_3d if pricing_summary is defined else 2500) }} RSD</strong><span>3 dana</span></article>
-      <article><small>Gledanje reklame</small><strong>{{ "%.0f"|format(pricing_summary.ad_view_cost_rsd if pricing_summary is defined else 10) }} RSD</strong><span>po prikazu</span></article>
+      <article><small>Gledanje reklame</small><strong>{{ "%.0f"|format(pricing_summary.ad_view_cost if pricing_summary is defined else 10) }} RSD</strong><span>po prikazu</span></article>
     </div>
     <a class="btn btn-ghost full" href="/admin/cene-v111">Uredi cene i provizije</a>
   </section>

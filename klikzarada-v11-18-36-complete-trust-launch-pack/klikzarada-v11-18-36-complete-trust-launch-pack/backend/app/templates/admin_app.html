@@ -75,6 +75,8 @@
 {% endif %}
 
 {% if sales_pipeline_summary is defined %}
+{% set pending_sub_rows = pending_subs if pending_subs is defined else [] %}
+{% set pending_withdraw_rows = pending_withdrawals if pending_withdrawals is defined else [] %}
 <section class="premium-stat-grid">
   <article class="blue"><small>Open leadovi</small><strong>{{ sales_pipeline_summary.open_leads }}</strong><span>new / contacted / proposal</span></article>
   <article class="orange"><small>Pending uplate</small><strong>{{ sales_pipeline_summary.pending_payments }}</strong><span>top-up inbox</span></article>
@@ -503,7 +505,7 @@
     <div class="premium-card-head"><h2>Dokazi na proveri</h2><a href="/admin/dokazi">Svi dokazi</a></div>
     <div class="premium-table-wrap">
       <table><thead><tr><th>Korisnik</th><th>Zadatak</th><th>Status</th></tr></thead><tbody>
-      {% for s in pending_subs[:8] if pending_subs is defined %}
+      {% for s in pending_sub_rows[:8] %}
       <tr><td>{{ s.user.full_name }}</td><td>{{ s.task.title }}</td><td><span class="status {{ s.status }}">{{ s.status }}</span></td></tr>
       {% else %}
       <tr><td colspan="3">Nema dokaza na čekanju.</td></tr>
@@ -516,7 +518,7 @@
     <div class="premium-card-head"><h2>Zahtevi za isplatu</h2><a href="/admin/isplate">Sve isplate</a></div>
     <div class="premium-table-wrap">
       <table><thead><tr><th>Korisnik</th><th>Iznos</th><th>Status</th></tr></thead><tbody>
-      {% for w in pending_withdrawals[:8] if pending_withdrawals is defined %}
+      {% for w in pending_withdraw_rows[:8] %}
       <tr><td>{{ w.user.full_name }}</td><td>{{ "%.0f"|format(w.amount_rsd) }} RSD</td><td>{{ w.status }}</td></tr>
       {% else %}
       <tr><td colspan="3">Nema zahteva za isplatu.</td></tr>

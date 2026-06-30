@@ -10,6 +10,13 @@
       <a class="btn btn-primary" href="/cenovnik">Otvori javni cenovnik</a>
       <a class="ghost" href="/admin/v11">Nazad na dashboard</a>
     </div>
+    <div class="kz-admin-prices-hero-actions" style="margin-top:12px;">
+      <a class="btn btn-secondary" href="/admin/reklame-v111">Reklame</a>
+      <a class="btn btn-secondary" href="/admin/revenue-v9">Revenue</a>
+      <a class="btn btn-secondary" href="/admin/oglasivaci">Oglašivači</a>
+      <a class="btn btn-secondary" href="/admin/security-v11">Security</a>
+      <a class="btn btn-secondary" href="/admin/system-settings">System settings</a>
+    </div>
   </div>
 
   <div class="kz-admin-prices-hero-box">
@@ -27,6 +34,11 @@
       <small>Isplata</small>
       <strong>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD</strong>
       <span>minimalni prag</span>
+    </article>
+    <article>
+      <small>Gledanje reklame</small>
+      <strong>{{ "%.0f"|format(pricing_summary.ad_view_cost if pricing_summary is defined else 10) }} RSD</strong>
+      <span>po prikazu</span>
     </article>
   </div>
 </section>
@@ -49,7 +61,7 @@
   </article>
   <article>
     <small>Validno gledanje</small>
-    <strong>{{ "%.0f"|format(pricing_summary.ad_view_cost_rsd if pricing_summary is defined else 10) }} RSD</strong>
+    <strong>{{ "%.0f"|format(pricing_summary.ad_view_cost if pricing_summary is defined else 10) }} RSD</strong>
     <span>Cena po prikazu</span>
   </article>
 </section>
