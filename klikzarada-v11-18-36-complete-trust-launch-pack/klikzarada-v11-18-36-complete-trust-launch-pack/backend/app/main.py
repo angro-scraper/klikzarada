@@ -65,6 +65,8 @@ ADMIN_FOCUS_ALLOWED_PATHS = (
     "/admin/feature-flags",
     "/admin/system-settings",
     "/admin/security-v11",
+    "/admin/email-outbox-v8",
+    "/admin/notification-queue-v11845",
     "/admin/collections-v11",
     "/admin/renewals-v11",
     "/admin/finance-v11834",
