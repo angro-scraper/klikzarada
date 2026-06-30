@@ -20,7 +20,7 @@
     <span>javni kontakt / admin vidljivost</span>
   </div>
   <div class="kz1111-proof-grid">
-    <article class="kz1111-proof-card variant-approved">
+    <a class="kz1111-proof-card variant-approved" href="mailto:{{ support_email }}" style="display:block;text-decoration:none;color:inherit;">
       <div class="kz1111-card-top">
         <div class="kz1111-proof-badges">
           <span class="status status-approved">email</span>
@@ -28,9 +28,10 @@
         </div>
         <strong>Glavni kontakt</strong>
       </div>
-      <h3><a href="mailto:{{ support_email }}">{{ support_email }}</a></h3>
-      <p>Ovo je zvanični kontakt za saradnju, oglašavanje i podršku. Vidljivo je u adminu, a javne strane ga koriste kroz klikabilan blok ili footer.</p>
-    </article>
+      <h3>{{ support_email }}</h3>
+      <p>Ovo je zvanični kontakt za saradnju, oglašavanje i podršku. Klik na karticu otvara email klijent odmah sa spremnim adresatom.</p>
+      <span class="premium-btn blue" style="align-self:flex-start;margin-top:10px;">Pošalji poruku</span>
+    </a>
   </div>
 </section>
 
