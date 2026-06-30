@@ -1,64 +1,217 @@
 {% extends "app_base.html" %}
 {% set title = "Communication queue - KlikZarada" %}
 {% block app_content %}
-<section class="premium-panel-hero">
-  <div><span>COMMUNICATION QUEUE</span><h1>Email / SMS / internal isporuka</h1><p>Centralno mesto za poruke koje izlaze iz sistema. Ovde admin vidi šta čeka, šta je poslato i gde je delivery zapela.</p></div>
-  <div class="premium-panel-actions"><a class="premium-btn white" href="/admin/email-outbox-v8">Email outbox</a></div>
-</section>
+<style>
+  .kz-comm-shell{display:grid;gap:18px}
+  .kz-comm-hero{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:18px;align-items:stretch}
+  .kz-comm-hero .premium-panel-hero,
+  .kz-comm-card,
+  .kz-comm-form,
+  .kz-comm-table,
+  .kz-comm-metrics > article{background:linear-gradient(180deg,rgba(17,27,45,.96),rgba(9,17,31,.96));border:1px solid var(--line);border-radius:24px;box-shadow:0 24px 70px rgba(0,0,0,.28)}
+  .kz-comm-hero .premium-panel-hero{padding:28px 30px;min-height:100%;display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+  .kz-comm-hero .premium-panel-hero h1{margin:10px 0 10px;font-size:clamp(34px,4vw,56px);line-height:1;letter-spacing:-.05em}
+  .kz-comm-hero .premium-panel-hero p{max-width:760px;font-size:17px;margin:0}
+  .kz-comm-hero .premium-panel-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;max-width:270px}
+  .kz-comm-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(37,99,235,.12);color:#93c5fd;font-weight:900;letter-spacing:.12em;text-transform:uppercase;font-size:11px}
+  .kz-comm-aside{padding:22px;display:grid;gap:14px}
+  .kz-comm-aside h2{margin:0;font-size:22px;letter-spacing:-.03em}
+  .kz-comm-aside p{margin:0}
+  .kz-comm-aside .kz-comm-mini{display:grid;gap:8px}
+  .kz-comm-aside .kz-comm-mini a{display:inline-flex;justify-content:center;align-items:center;min-height:48px;border-radius:14px;background:#fff;color:#0f172a;font-weight:900;padding:0 14px}
+  .kz-comm-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+  .kz-comm-metrics > article{padding:18px 20px;display:grid;gap:8px;min-height:108px}
+  .kz-comm-metrics small{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#93c5fd;font-weight:900}
+  .kz-comm-metrics strong{font-size:30px;line-height:1;color:#fff}
+  .kz-comm-metrics span{font-size:14px}
+  .kz-comm-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.88fr);gap:18px}
+  .kz-comm-card{padding:24px}
+  .kz-comm-card-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:16px}
+  .kz-comm-card-head h2{margin:0;font-size:28px;letter-spacing:-.04em}
+  .kz-comm-card-head span{font-weight:800;color:#93c5fd;text-transform:uppercase;letter-spacing:.08em;font-size:12px}
+  .kz-comm-form{padding:24px}
+  .kz-comm-form .cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .kz-comm-form .form-row{display:grid;gap:6px}
+  .kz-comm-form label{margin:12px 0 6px}
+  .kz-comm-form textarea{min-height:120px;resize:vertical}
+  .kz-comm-form .btn,.kz-comm-form .premium-btn{min-height:48px}
+  .kz-comm-table{padding:22px;overflow:hidden}
+  .kz-comm-table .premium-table-wrap{margin-top:10px}
+  .kz-comm-table table{min-width:980px}
+  .kz-comm-table td{vertical-align:middle}
+  .kz-comm-row{display:flex;flex-direction:column;gap:8px}
+  .kz-comm-row .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .kz-comm-pill{display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(148,163,184,.18);font-size:12px;font-weight:900}
+  .kz-comm-pill.email{color:#bfdbfe}
+  .kz-comm-pill.sms{color:#fcd34d}
+  .kz-comm-pill.internal{color:#c4b5fd}
+  .kz-comm-pill.queued{color:#fde68a;background:rgba(245,158,11,.14)}
+  .kz-comm-pill.sent{color:#86efac;background:rgba(34,197,94,.14)}
+  .kz-comm-pill.failed{color:#fecaca;background:rgba(239,68,68,.14)}
+  .kz-comm-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .kz-comm-actions form{display:flex;gap:8px;align-items:center}
+  .kz-comm-actions .btn-mini{min-height:34px;padding:7px 10px}
+  .kz-comm-empty{padding:18px;border:1px dashed rgba(148,163,184,.25);border-radius:18px;background:rgba(255,255,255,.03)}
+  @media (max-width: 1100px){
+    .kz-comm-hero,
+    .kz-comm-grid{grid-template-columns:1fr}
+    .kz-comm-hero .premium-panel-hero{flex-direction:column}
+    .kz-comm-hero .premium-panel-actions{max-width:none;justify-content:flex-start}
+    .kz-comm-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  }
+  @media (max-width: 760px){
+    .kz-comm-metrics{grid-template-columns:1fr}
+    .kz-comm-form .cols{grid-template-columns:1fr}
+    .kz-comm-card,
+    .kz-comm-form,
+    .kz-comm-table,
+    .kz-comm-hero .premium-panel-hero{padding:18px}
+    .kz-comm-table table{min-width:760px}
+    .kz-comm-actions{flex-direction:column;align-items:stretch}
+    .kz-comm-actions form{width:100%}
+    .kz-comm-actions .btn-mini{width:100%}
+  }
+</style>
 
-<section class="premium-stat-grid">
-  <article class="green"><small>Queued</small><strong>{{ stats.queued }}</strong><span>na čekanju</span></article>
-  <article class="blue"><small>Sent</small><strong>{{ stats.sent }}</strong><span>isporučeno</span></article>
-  <article class="orange"><small>Failed</small><strong>{{ stats.failed }}</strong><span>greške</span></article>
-  <article class="purple"><small>SMS</small><strong>{{ stats.sms }}</strong><span>stavki</span></article>
-</section>
+<section class="kz-comm-shell">
+  <div class="kz-comm-hero">
+    <section class="premium-panel-hero">
+      <div>
+        <span class="kz-comm-badge">Communication queue</span>
+        <h1>Email / SMS / internal isporuka</h1>
+        <p>Centralno mesto za poruke koje izlaze iz sistema. Ovde admin vidi šta čeka, šta je poslato i gde je delivery zapela.</p>
+      </div>
+      <div class="premium-panel-actions">
+        <a class="premium-btn white" href="/admin/email-outbox-v8">Email outbox</a>
+        <a class="premium-btn white" href="/admin/analitika-v117">Analitika</a>
+        <a class="premium-btn white" href="/admin/v11">Dashboard</a>
+      </div>
+    </section>
 
-<div class="premium-dashboard-grid">
-  <section class="premium-card">
-    <div class="premium-card-head"><h2>Nova queue stavka</h2><span>manual enqueue</span></div>
-    <form class="premium-form" method="post" action="/admin/notification-queue-v11845/create">
-      <div class="cols"><div><label>Kanal</label><select name="channel"><option>email</option><option>sms</option><option>internal</option></select></div><div><label>User ID (opciono)</label><input type="number" name="user_id" value="0"></div></div>
-      <label>Primaoc</label><input name="recipient" placeholder="email ili broj telefona">
-      <label>Naslov</label><input name="subject" required>
-      <label>Poruka</label><textarea name="body" required></textarea>
-      <button class="premium-btn blue full">Dodaj u queue</button>
-    </form>
+    <aside class="kz-comm-card kz-comm-aside">
+      <h2>Brzi signal</h2>
+      <p>Ovde je queue ekran namenjen brzom preseku, ne ručnom kopanju po tabeli.</p>
+      <div class="kz-comm-mini">
+        <a href="/admin/email-outbox-v8">Otvori email outbox</a>
+      </div>
+      <div class="kz-comm-mini">
+        <small>Najkorisnije akcije</small>
+        <p>Pošalji poruku, označi kao sent ili fail, i vrati se na CRM ili finansije bez gubljenja konteksta.</p>
+      </div>
+    </aside>
+  </div>
+
+  <section class="kz-comm-metrics">
+    <article class="green"><small>Queued</small><strong>{{ stats.queued }}</strong><span>na čekanju</span></article>
+    <article class="blue"><small>Sent</small><strong>{{ stats.sent }}</strong><span>isporučeno</span></article>
+    <article class="orange"><small>Failed</small><strong>{{ stats.failed }}</strong><span>greške</span></article>
+    <article class="purple"><small>SMS</small><strong>{{ stats.sms }}</strong><span>stavki</span></article>
   </section>
-  <section class="premium-card gradient">
-    <div class="premium-card-head"><h2>Pregled kanala</h2><span>mix</span></div>
-    <div class="premium-money-grid">
-      <article><small>Email</small><strong>{{ stats.email }}</strong></article>
-      <article><small>SMS</small><strong>{{ stats.sms }}</strong></article>
-      <article><small>Internal</small><strong>{{ stats.internal }}</strong></article>
-      <article><small>Ukupno</small><strong>{{ queue|length }}</strong></article>
+
+  <section class="kz-comm-grid">
+    <section class="kz-comm-form">
+      <div class="kz-comm-card-head">
+        <div>
+          <span>Manual enqueue</span>
+          <h2>Nova queue stavka</h2>
+        </div>
+        <span>internal ops</span>
+      </div>
+      <form method="post" action="/admin/notification-queue-v11845/create">
+        <div class="cols">
+          <div class="form-row">
+            <label>Kanal</label>
+            <select name="channel">
+              <option>email</option>
+              <option>sms</option>
+              <option>internal</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>User ID (opciono)</label>
+            <input type="number" name="user_id" value="0">
+          </div>
+        </div>
+        <label>Primaoc</label>
+        <input name="recipient" placeholder="email ili broj telefona">
+        <label>Naslov</label>
+        <input name="subject" required>
+        <label>Poruka</label>
+        <textarea name="body" required></textarea>
+        <button class="premium-btn blue full">Dodaj u queue</button>
+      </form>
+    </section>
+
+    <section class="kz-comm-card">
+      <div class="kz-comm-card-head">
+        <div>
+          <span>Channel mix</span>
+          <h2>Pregled kanala</h2>
+        </div>
+        <span>{{ queue|length }} ukupno</span>
+      </div>
+      <div class="premium-money-grid">
+        <article><small>Email</small><strong>{{ stats.email }}</strong></article>
+        <article><small>SMS</small><strong>{{ stats.sms }}</strong></article>
+        <article><small>Internal</small><strong>{{ stats.internal }}</strong></article>
+        <article><small>Ukupno</small><strong>{{ queue|length }}</strong></article>
+      </div>
+      <div class="kz-comm-empty">
+        <strong>Profi operativni tok</strong>
+        <p>Ovaj ekran je sada čistije organizovan i spreman za brzi pregled bez zagušenja.</p>
+      </div>
+    </section>
+  </section>
+
+  <section class="kz-comm-table">
+    <div class="kz-comm-card-head">
+      <div>
+        <span>Queue</span>
+        <h2>Stavke i statusi</h2>
+      </div>
+      <span>{{ queue|length }} stavki</span>
+    </div>
+    <div class="premium-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Kanal</th><th>Primaoc</th><th>Naslov</th><th>Status</th><th>Datum</th><th>Akcije</th></tr>
+        </thead>
+        <tbody>
+        {% for item in queue %}
+        <tr>
+          <td>
+            <div class="kz-comm-row">
+              <span class="kz-comm-pill {{ item.channel }}">{{ item.channel }}</span>
+            </div>
+          </td>
+          <td>
+            <div class="kz-comm-row">
+              <strong>{{ item.recipient }}</strong>
+            </div>
+          </td>
+          <td>
+            <div class="kz-comm-row">
+              <strong>{{ item.subject }}</strong>
+            </div>
+          </td>
+          <td>
+            <span class="kz-comm-pill {{ item.status }}">{{ item.status }}</span>
+          </td>
+          <td>{{ item.created_at }}</td>
+          <td>
+            <div class="kz-comm-actions">
+              <form method="post" action="/admin/notification-queue-v11845/{{ item.id }}/queued"><button class="btn btn-mini">Queue</button></form>
+              <form method="post" action="/admin/notification-queue-v11845/{{ item.id }}/sent"><button class="btn btn-mini btn-primary">Sent</button></form>
+              <form method="post" action="/admin/notification-queue-v11845/{{ item.id }}/failed"><button class="btn btn-mini btn-danger">Fail</button></form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">Queue je prazna.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
     </div>
   </section>
-</div>
-
-<section class="premium-card">
-  <div class="premium-card-head"><h2>Queue stavke</h2><span>{{ queue|length }}</span></div>
-  <div class="premium-table-wrap">
-    <table>
-      <thead><tr><th>Kanal</th><th>Primaoc</th><th>Naslov</th><th>Status</th><th>Datum</th><th>Akcije</th></tr></thead>
-      <tbody>
-      {% for item in queue %}
-      <tr>
-        <td>{{ item.channel }}</td>
-        <td>{{ item.recipient }}</td>
-        <td>{{ item.subject }}</td>
-        <td><span class="status {{ item.status }}">{{ item.status }}</span></td>
-        <td>{{ item.created_at }}</td>
-        <td class="actions">
-          <form method="post" action="/admin/notification-queue-v11845/{{ item.id }}/queued"><button class="btn btn-mini">Queue</button></form>
-          <form method="post" action="/admin/notification-queue-v11845/{{ item.id }}/sent"><button class="btn btn-mini btn-primary">Sent</button></form>
-          <form method="post" action="/admin/notification-queue-v11845/{{ item.id }}/failed"><button class="btn btn-mini btn-danger">Fail</button></form>
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="6">Queue je prazna.</td></tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
 </section>
 {% endblock %}
