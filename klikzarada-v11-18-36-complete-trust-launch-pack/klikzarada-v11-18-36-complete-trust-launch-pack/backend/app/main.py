@@ -7870,25 +7870,34 @@ def admin_hub_v1112(request: Request, db: Session = Depends(get_db)):
             {"title":"Glavni dashboard","url":"/admin/v11","desc":"Najvažniji pregled platforme."},
             {"title":"Mapa platforme","url":"/admin/mapa-platforme","desc":"Sve funkcije na jednoj strani."},
             {"title":"Dnevni radni sto","url":"/admin/daily-desk-v11","desc":"Dnevne operacije i obaveze."},
-            {"title":"Pametni panel","url":"/panel-v111","desc":"Brze sistemske komande."},
         ],
         "Operacije": [
             {"title":"Kampanje","url":"/admin/kampanje","desc":"Moderacija kampanja."},
             {"title":"Dokazi","url":"/admin/dokazi","desc":"Pregled i odobravanje dokaza."},
             {"title":"Isplate","url":"/admin/isplate","desc":"Obrada isplata korisnicima."},
-            {"title":"Tiketi","url":"/admin/tiketi","desc":"Podrška i korisnički zahtevi."},
+            {"title":"Launch","url":"/admin/launch-v9","desc":"Launch checklist i priprema za start."},
         ],
         "Novac i reklame": [
             {"title":"Finansije","url":"/admin/finansije","desc":"Prihodi, budžeti i isplate."},
             {"title":"Cene i provizije","url":"/admin/cene-v111","desc":"Podešavanje cena platforme."},
             {"title":"Banneri i isticanja","url":"/admin/reklame-v111","desc":"Reklame, top pozicija i slotovi."},
             {"title":"Budžeti oglašivača","url":"/admin/budget-v11","desc":"Kontrola sredstava oglašivača."},
+            {"title":"Payouts","url":"/admin/payouts-v11","desc":"Batch isplate i payout kontrola."},
+            {"title":"Payments","url":"/admin/payments-v8","desc":"Uplate i payment intents."},
+            {"title":"Collections","url":"/admin/collections-v11","desc":"Dospelo i kasni follow-up."},
+            {"title":"Renewals","url":"/admin/renewals-v11","desc":"Produženja i obnova bannera."},
+            {"title":"Approval","url":"/admin/approval-center-v11","desc":"Odobrenja za finance i refund tokove."},
+            {"title":"Reports","url":"/admin/reports-v11","desc":"Revenue snapshot i operativni pregled."},
         ],
         "Sistem": [
-            {"title":"Anti-fraud","url":"/admin/fraud-v11","desc":"Sumnjive aktivnosti i kontrola."},
-            {"title":"Automatizacija","url":"/admin/workflows-v10","desc":"Tokovi rada i okidači."},
-            {"title":"Legal","url":"/admin/legal-v11","desc":"Pravne stranice i usklađenost."},
-            {"title":"Produkcija","url":"/admin/deploy-v11","desc":"Deploy, smoke test i status."},
+            {"title":"Security","url":"/admin/security-v11","desc":"Pristup, uređaji i sigurnosni signali."},
+            {"title":"Alerts","url":"/admin/alerts-v11","desc":"Upozorenja i kritični statusi."},
+            {"title":"Comm queue","url":"/admin/notification-queue-v11845","desc":"Email, SMS i interna isporuka."},
+            {"title":"Email outbox","url":"/admin/email-outbox-v8","desc":"Spoljašnje poruke i delivery kontrola."},
+            {"title":"Feature flags","url":"/admin/feature-flags","desc":"Uključivanje funkcija bez novog deploy-a."},
+            {"title":"System settings","url":"/admin/system-settings","desc":"Globalna pravila i parametri sistema."},
+            {"title":"Deploy","url":"/admin/deploy-v11","desc":"Deploy, smoke test i status."},
+            {"title":"Ops","url":"/admin/ops-v11835","desc":"Operativni presek i tehnički signali."},
         ],
     }
     return templates.TemplateResponse("admin_hub_v1112.html", {
@@ -9379,6 +9388,18 @@ def admin_v11_premium_dashboard_v116(request: Request, db: Session = Depends(get
             {"title":"Fakture","url":"/admin/fakture","desc":"Ponude, invoice i naplata."},
             {"title":"Isplate","url":"/admin/isplate","desc":"Payout tok i odobravanja."},
         ],
+        "Naplata i signal": [
+            {"title":"Payouts","url":"/admin/payouts-v11","desc":"Batch isplate, hold reason i payout kontrola."},
+            {"title":"Payments","url":"/admin/payments-v8","desc":"Uplate i payment intents."},
+            {"title":"Collections","url":"/admin/collections-v11","desc":"Dospelo, kasni i follow-up naplata."},
+            {"title":"Renewals","url":"/admin/renewals-v11","desc":"Obnova bannera i produženje ugovora."},
+            {"title":"Approval","url":"/admin/approval-center-v11","desc":"Odobrenja za finance i refund tokove."},
+            {"title":"Alerts","url":"/admin/alerts-v11","desc":"Upozorenja za maržu, tok i rizik."},
+            {"title":"Reports","url":"/admin/reports-v11","desc":"Revenue snapshot i operativni izveštaji."},
+            {"title":"Email outbox","url":"/admin/email-outbox-v8","desc":"Spoljašnja pošta i delivery kontrola."},
+            {"title":"Comm queue","url":"/admin/notification-queue-v11845","desc":"Email, SMS i interna isporuka."},
+            {"title":"Finance snapshot","url":"/admin/finance-v11834","desc":"Brz finansijski presek i signali."},
+        ],
         "Launch i live": [
             {"title":"Launch","url":"/admin/launch-v9","desc":"Launch checklist i priprema za start."},
             {"title":"Go-live","url":"/admin/golive-v9","desc":"Final signal pre puštanja u produkciju."},
@@ -9631,7 +9652,6 @@ async def kz117_visit_tracking_middleware(request: Request, call_next):
                           <li><a href="/admin/payouts-v11">Payouts</a></li>
                           <li><a href="/admin/reklame-v111">Reklame</a></li>
                           <li><a href="/admin/cene-v111">Cene</a></li>
-                          <li><a href="/admin/oglasivaci-baza-v117">Baza oglasivaca</a></li>
                           <li><a href="/admin/oglasivaci">Oglasivaci</a></li>
                           <li><a href="/admin/budget-v11">Budzeti</a></li>
                           <li><a href="/admin/affiliate-v9">Affiliate</a></li>

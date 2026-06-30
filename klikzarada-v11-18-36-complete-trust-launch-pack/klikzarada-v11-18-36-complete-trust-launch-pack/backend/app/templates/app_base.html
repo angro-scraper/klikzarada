@@ -43,6 +43,21 @@
         </div>
       </div>
       <div class="premium-admin-nav-group">
+        <span class="premium-admin-nav-label">Naplata i signal</span>
+        <div class="premium-admin-nav-row secondary">
+          <a class="tone-amber {% if path.startswith('/admin/payouts-v11') %}active{% endif %}" href="/admin/payouts-v11">Payouts</a>
+          <a class="tone-amber {% if path.startswith('/admin/payments-v8') %}active{% endif %}" href="/admin/payments-v8">Payments</a>
+          <a class="tone-amber {% if path.startswith('/admin/collections-v11') %}active{% endif %}" href="/admin/collections-v11">Collections</a>
+          <a class="tone-amber {% if path.startswith('/admin/renewals-v11') %}active{% endif %}" href="/admin/renewals-v11">Renewals</a>
+          <a class="tone-amber {% if path.startswith('/admin/approval-center-v11') %}active{% endif %}" href="/admin/approval-center-v11">Approval</a>
+          <a class="tone-red {% if path.startswith('/admin/alerts-v11') %}active{% endif %}" href="/admin/alerts-v11">Alerts</a>
+          <a class="tone-blue {% if path.startswith('/admin/reports-v11') %}active{% endif %}" href="/admin/reports-v11">Reports</a>
+          <a class="tone-blue {% if path.startswith('/admin/email-outbox-v8') %}active{% endif %}" href="/admin/email-outbox-v8">Email outbox</a>
+          <a class="tone-blue {% if path.startswith('/admin/notification-queue-v11845') %}active{% endif %}" href="/admin/notification-queue-v11845">Comm queue</a>
+          <a class="tone-blue {% if path.startswith('/admin/finance-v11834') %}active{% endif %}" href="/admin/finance-v11834">Finance snapshot</a>
+        </div>
+      </div>
+      <div class="premium-admin-nav-group">
         <span class="premium-admin-nav-label">Launch i live</span>
         <div class="premium-admin-nav-row secondary">
           <a class="tone-amber {% if path.startswith('/admin/launch-v9') %}active{% endif %}" href="/admin/launch-v9">Launch</a>
