@@ -19,6 +19,7 @@
 <section class="kz118-quick-panel-links advertiser-links">
   <a href="/oglasivac/kampanje"><strong>Kampanje</strong><span>Aktivne i arhiva</span></a>
   <a href="/oglasivac/budzet"><strong>Budžet</strong><span>Dostupno i rezervisano</span></a>
+  <a href="/oglasivac/payments-v8"><strong>Uplata</strong><span>Direktna dopuna računa</span></a>
   <a href="/oglasivac/segmenti"><strong>Targeting</strong><span>Publika i creative preview</span></a>
   <a href="/oglasivac/reklame-v111"><strong>Reklame</strong><span>Banner slotovi i oglasi</span></a>
   <a href="/oglasivac/izvestaji"><strong>Izveštaji</strong><span>Rezultati i eksport</span></a>
@@ -148,12 +149,13 @@
       {% endfor %}
     </div>
     {% endif %}
-    <form class="premium-form" method="post" action="/oglasivac/budzet/zahtev">
+    <form class="premium-form" method="post" action="/oglasivac/payments-v8/create">
+      <input type="hidden" name="method" value="bank_transfer">
       <label>Iznos RSD</label>
       <input type="number" name="amount_rsd" value="5000" min="500">
       <label>Napomena</label>
-      <textarea name="note" placeholder="Npr. uplata preko računa"></textarea>
-      <button class="premium-btn blue full">Pošalji zahtev</button>
+      <textarea name="note" placeholder="Npr. direktna uplata na račun, kampanja za jul"></textarea>
+      <button class="premium-btn blue full">Kreiraj uplatu</button>
     </form>
   </section>
 </div>

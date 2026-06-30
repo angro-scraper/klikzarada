@@ -4,10 +4,11 @@
 <section class="kz1111-hero finance">
   <div>
     <span>ADVERTISER BUDGET</span>
-    <h1>Dopuna budžeta i finansijski signal</h1>
-    <p>Ovo je sada poseban ekran za oglašivača: vidiš dostupan i rezervisan budžet, zahteve za dopunu, pending uplate i najvažnije fakture bez vraćanja na opšti panel.</p>
+    <h1>Dopuna budžeta direktno na račun</h1>
+    <p>Oglašivač sada odmah šalje uplatu sa platforme na račun firme, bez posebnog zahteva za fakturu. Nakon knjiženja uplata se povezuje sa budžetom i kampanjama.</p>
   </div>
   <div class="kz1111-hero-actions">
+    <a class="btn btn-primary" href="/oglasivac/payments-v8">Uplati odmah</a>
     <a class="btn btn-primary" href="/oglasivac/reklame-v111">Baner reklame</a>
     <a class="btn btn-secondary" href="/oglasivac/fakture">Fakture</a>
     <a class="btn btn-secondary" href="/oglasivac/panel">Nazad na panel</a>
@@ -24,21 +25,47 @@
 <div class="kz1111-grid-two">
   <section class="kz1111-section">
     <div class="kz1111-section-head">
-      <h2>Pošalji zahtev za dopunu</h2>
-      <span>top-up request</span>
+      <h2>Uplata odmah na račun</h2>
+      <span>direct top-up</span>
     </div>
-    <form class="form-panel kz1111-tech-form" method="post" action="/oglasivac/budzet/zahtev">
+    <div class="kz1111-proof-grid" style="margin-bottom:18px;">
+      <article class="kz1111-proof-card variant-approved">
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-approved">račun</span>
+            <span class="kz1111-proof-tiny approved">platni nalog</span>
+          </div>
+          <strong>{{ finance_accounts.advertiser_payment_holder }}</strong>
+        </div>
+        <h3>{{ finance_accounts.advertiser_payment_account }}</h3>
+        <p><b>Namena:</b> {{ finance_accounts.payment_reference }}</p>
+        <p>{{ finance_accounts.bank_note }}</p>
+      </article>
+      <article class="kz1111-proof-card variant-pending">
+        <div class="kz1111-card-top">
+          <div class="kz1111-proof-badges">
+            <span class="status status-pending">ref</span>
+            <span class="kz1111-proof-tiny pending">tracking</span>
+          </div>
+          <strong>Bez fakture pre uplate</strong>
+        </div>
+        <h3>Pošalji uplatu, a sistem je veže za budžet</h3>
+        <p>Faktura i dokumentacija mogu da se vode naknadno, ali dopuna budžeta ide direktno sa ovog ekrana bez dodatnog koraka.</p>
+      </article>
+    </div>
+    <form class="form-panel kz1111-tech-form" method="post" action="/oglasivac/payments-v8/create">
+      <input type="hidden" name="method" value="bank_transfer">
       <label>Iznos RSD</label>
-      <input type="number" name="amount_rsd" value="5000" min="500" step="1">
-      <label>Napomena</label>
-      <textarea name="note" placeholder="Npr. uplata preko računa, agency replenishment, kampanja za jul"></textarea>
-      <button class="btn btn-primary">Pošalji zahtev za dopunu</button>
+      <input type="number" name="amount_rsd" value="5000" min="500" step="1" required>
+      <label>Napomena / reference</label>
+      <textarea name="note" placeholder="Npr. budžet za kampanju, agency top-up, direktna uplata sa platforme"></textarea>
+      <button class="btn btn-primary">Kreiraj uplatu i referencu</button>
     </form>
   </section>
 
   <section class="kz1111-section">
     <div class="kz1111-section-head">
-      <h2>Šta dalje</h2>
+      <h2>Šta se dešava posle uplate</h2>
       <span>finance workflow</span>
     </div>
     <div class="kz1111-proof-grid">
@@ -46,12 +73,12 @@
         <div class="kz1111-card-top">
           <div class="kz1111-proof-badges">
             <span class="status status-approved">1</span>
-            <span class="kz1111-proof-tiny approved">zahtev</span>
+            <span class="kz1111-proof-tiny approved">uplata</span>
           </div>
-          <strong>Pošalji zahtev</strong>
+          <strong>Kreiraj direktnu uplatu</strong>
         </div>
-        <h3>Oglašivač traži dopunu</h3>
-        <p>Zahtev odlazi adminu/finance timu i ostaje zabeležen u istoriji transakcija.</p>
+        <h3>Oglašivač šalje uplatu odmah</h3>
+        <p>Uplata je kreirana kao direktan bankovni top-up i ostaje zabeležena u istoriji transakcija.</p>
       </article>
       <article class="kz1111-proof-card variant-pending">
         <div class="kz1111-card-top">
@@ -59,7 +86,7 @@
             <span class="status status-pending">2</span>
             <span class="kz1111-proof-tiny pending">potvrda</span>
           </div>
-          <strong>Admin potvrđuje uplatu</strong>
+          <strong>Admin potvrđuje knjiženje</strong>
         </div>
         <h3>Budžet se oslobađa za kampanje</h3>
         <p>Kad uplata bude potvrđena, dostupni budžet odmah raste i možeš da rezervišeš bannere ili pokreneš kampanju.</p>
@@ -71,7 +98,7 @@
 <div class="kz1111-grid-two">
   <section class="kz1111-section">
     <div class="kz1111-section-head">
-      <h2>Pending payment intents</h2>
+      <h2>Direktne uplate i intenti</h2>
       <span>{{ payment_intents|length }}</span>
     </div>
     <div class="premium-table-wrap">
@@ -95,7 +122,7 @@
             <td>{{ intent.created_at }}</td>
           </tr>
           {% else %}
-          <tr><td colspan="5">Nema payment intent zahteva.</td></tr>
+          <tr><td colspan="5">Nema direktnih uplata.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -104,15 +131,15 @@
 
   <section class="kz1111-section">
     <div class="kz1111-section-head">
-      <h2>Zahtevi i transakcije</h2>
-      <span>{{ topup_requests|length }} top-up request</span>
+      <h2>Transakcije budžeta</h2>
+      <span>{{ budget_txs|length }} stavki</span>
     </div>
     <div class="kz1111-smoke-list">
-      {% for tx in topup_requests %}
+      {% for tx in budget_txs %}
       <article>
         <div class="kz1111-card-top">
           <div class="kz1111-proof-badges">
-            <span class="status status-pending">request</span>
+            <span class="status status-pending">budget</span>
             <span class="kz1111-proof-tiny pending">{{ tx.tx_type }}</span>
           </div>
           <strong>{{ "%.0f"|format(tx.amount_rsd) }} RSD</strong>
@@ -120,25 +147,8 @@
         <p>{{ tx.description }}</p>
         <small>{{ tx.created_at }}</small>
       </article>
-      {% endfor %}
-      {% for tx in txs[:6] %}
-      {% if tx.tx_type != "topup_request" %}
-      <article>
-        <div class="kz1111-card-top">
-          <div class="kz1111-proof-badges">
-            <span class="status status-approved">tx</span>
-            <span class="kz1111-proof-tiny approved">{{ tx.tx_type }}</span>
-          </div>
-          <strong>{{ "%.0f"|format(tx.amount_rsd) }} RSD</strong>
-        </div>
-        <p>{{ tx.description }}</p>
-        <small>{{ tx.created_at }}</small>
-      </article>
-      {% endif %}
       {% else %}
-      {% if not topup_requests %}
-      <div class="kz1111-empty"><h3>Nema budžet aktivnosti</h3><p>Kada pošalješ dopunu ili admin potvrdi uplatu, ovde ćeš videti ceo trag.</p></div>
-      {% endif %}
+      <div class="kz1111-empty"><h3>Nema budžet aktivnosti</h3><p>Kada pošalješ direktnu uplatu ili admin potvrdi knjiženje, ovde ćeš videti ceo trag.</p></div>
       {% endfor %}
     </div>
   </section>

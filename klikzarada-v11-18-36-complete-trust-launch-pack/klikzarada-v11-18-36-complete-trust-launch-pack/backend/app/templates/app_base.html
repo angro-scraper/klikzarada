@@ -5,7 +5,47 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{{ title if title else "KlikZarada panel" }}</title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/static/css/style.css?v=11826">
+  <link rel="stylesheet" href="/static/css/style.css?v=11827">
+  <style>
+    @media (max-width: 980px) {
+      .premium-app-topbar-inner {
+        width: calc(100vw - 20px) !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+      }
+      .premium-app-topbar-inner.admin-mode {
+        grid-template-columns: 1fr !important;
+        display: grid !important;
+      }
+      .premium-admin-hub,
+      .premium-app-nav,
+      .premium-app-user {
+        width: 100% !important;
+        margin-left: 0 !important;
+        justify-content: flex-start !important;
+      }
+      .premium-admin-hub,
+      .premium-app-nav {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        overflow: auto !important;
+      }
+      .premium-app-user {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+      }
+      .premium-page-shell {
+        width: calc(100vw - 20px) !important;
+      }
+      .premium-app-layout {
+        width: calc(100vw - 20px) !important;
+        grid-template-columns: 1fr !important;
+      }
+    }
+  </style>
 </head>
 <body class="premium-app-body {% if user and user.role == 'admin' %}premium-admin{% endif %}">
 {% set path = request.url.path if request else '/' %}
@@ -89,6 +129,7 @@
         <a class="{% if path.startswith('/oglasivac/kampanje') %}active{% endif %}" href="/oglasivac/kampanje">Kampanje</a>
         <a class="{% if path.startswith('/oglasivac/promocija-v111') or path.startswith('/oglasivac/banneri-v111') or path.startswith('/oglasivac/reklame-v111') or path.startswith('/oglasivac/boost-v111') %}active{% endif %}" href="/oglasivac/reklame-v111">Promocija</a>
         <a class="{% if path.startswith('/oglasivac/budzet') %}active{% endif %}" href="/oglasivac/budzet">Budžet</a>
+        <a class="{% if path.startswith('/oglasivac/payments-v8') %}active{% endif %}" href="/oglasivac/payments-v8">Uplata</a>
       {% elif user %}
         <a class="{% if path.startswith('/korisnik/panel') %}active{% endif %}" href="/korisnik/panel">Moj panel</a>
         <a class="{% if path.startswith('/korisnik/zadaci') %}active{% endif %}" href="/korisnik/zadaci">Zadaci</a>
@@ -129,7 +170,7 @@
       <div class="premium-side-card"><strong>Oglašivač</strong><span>Kampanje i promocije</span></div>
       <div class="premium-side-group"><span>Kampanje</span><a class="{% if path.startswith('/oglasivac/panel') %}active{% endif %}" href="/oglasivac/panel">Pregled</a><a class="{% if path.startswith('/oglasivac/nova-kampanja') %}active{% endif %}" href="/oglasivac/nova-kampanja">Nova kampanja</a><a class="{% if path.startswith('/oglasivac/kampanje') %}active{% endif %}" href="/oglasivac/kampanje">Moje kampanje</a><a class="{% if path.startswith('/oglasivac/performance-v11836') %}active{% endif %}" href="/oglasivac/performance-v11836">Performance</a><a class="{% if path.startswith('/oglasivac/dokazi') %}active{% endif %}" href="/oglasivac/dokazi">Dokazi korisnika</a></div>
       <div class="premium-side-group"><span>Promocija</span><a class="{% if path.startswith('/oglasivac/promocija-v111') or path.startswith('/oglasivac/banneri-v111') or path.startswith('/oglasivac/reklame-v111') %}active{% endif %}" href="/oglasivac/reklame-v111">Baner reklame</a><a class="{% if path.startswith('/oglasivac/boost-v111') %}active{% endif %}" href="/oglasivac/boost-v111">Top pozicija</a><a class="{% if path.startswith('/oglasivac/saveti-v115') %}active{% endif %}" href="/oglasivac/saveti-v115">Pametni saveti</a><a class="{% if path.startswith('/oglasivac/segmenti') %}active{% endif %}" href="/oglasivac/segmenti">Targeting studio</a></div>
-      <div class="premium-side-group"><span>Finansije</span><a class="{% if path.startswith('/oglasivac/budzet') %}active{% endif %}" href="/oglasivac/budzet">Budžet</a><a class="{% if path.startswith('/oglasivac/fakture') %}active{% endif %}" href="/oglasivac/fakture">Fakture</a><a class="{% if path.startswith('/oglasivac/izvestaji') %}active{% endif %}" href="/oglasivac/izvestaji">Izveštaji</a></div>
+      <div class="premium-side-group"><span>Finansije</span><a class="{% if path.startswith('/oglasivac/budzet') %}active{% endif %}" href="/oglasivac/budzet">Budžet</a><a class="{% if path.startswith('/oglasivac/payments-v8') %}active{% endif %}" href="/oglasivac/payments-v8">Uplata</a><a class="{% if path.startswith('/oglasivac/fakture') %}active{% endif %}" href="/oglasivac/fakture">Fakture</a><a class="{% if path.startswith('/oglasivac/izvestaji') %}active{% endif %}" href="/oglasivac/izvestaji">Izveštaji</a></div>
       <div class="premium-side-group"><span>Nalog</span><a class="{% if path.startswith('/oglasivac/notifikacije') %}active{% endif %}" href="/oglasivac/notifikacije">Notifikacije</a><a class="{% if path.startswith('/poruke') %}active{% endif %}" href="/poruke">Poruke</a><a class="{% if path.startswith('/oglasivac/tiketi') %}active{% endif %}" href="/oglasivac/tiketi">Podrška</a><a class="{% if path.startswith('/oglasivac/profil') %}active{% endif %}" href="/oglasivac/profil">Profil firme</a></div>
     {% else %}
       <div class="premium-side-card"><strong>Korisnik</strong><span>Zadaci i zarada</span></div>

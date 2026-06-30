@@ -1,7 +1,127 @@
 {% extends "app_base.html" %}
-{% set title = "Plaćanjes V8 - Oglašivač" %}
+{% set title = "Dopuna budžeta - Oglašivač" %}
 {% block app_content %}
-<div class="dashboard-head in-app"><div><span class="pill">V8 Plaćanjes</span><h1>Dopuna budžeta</h1><p>Kreirajte zahtev, admin potvrđuje uplatu i budžet se dodaje.</p></div><div class="balance-card"><span>Budžet</span><strong>{{ "%.0f"|format(user.advertiser_budget_rsd) }} RSD</strong></div></div>
-<form class="form-panel" method="post" action="/oglasivac/payments-v8/create"><div class="form-grid"><div><label>Iznos RSD</label><input type="number" name="amount_rsd" min="1" required></div><div><label>Metod</label><select name="method"><option>manual</option><option>bank</option><option>paypal_demo</option></select></div></div><button class="btn btn-primary">Kreiraj zahtev</button></form>
-<div class="table-card"><table><thead><tr><th>Ref</th><th>Iznos</th><th>Metod</th><th>Status</th><th>Napomena</th></tr></thead><tbody>{% for i in intents %}<tr><td>{{ i.reference }}</td><td>{{ "%.0f"|format(i.amount_rsd) }} RSD</td><td>{{ i.method }}</td><td><span class="status status-{{ i.status }}">{{ i.status }}</span></td><td>{{ i.admin_note or "" }}</td></tr>{% else %}<tr><td colspan="5">Nema zahteva.</td></tr>{% endfor %}</tbody></table></div>
+<section class="premium-panel-hero advertiser">
+  <div>
+    <span>DIREKTNA UPLATA</span>
+    <h1>Pošalji budžet odmah na račun</h1>
+    <p>Ovde ne tražiš fakturu unapred. Unosiš iznos, sistem kreira referencu i oglašivački budžet se povezuje sa bankovnim računom koji je podešen u adminu.</p>
+  </div>
+  <div class="premium-panel-actions">
+    <a class="premium-btn blue" href="/oglasivac/budzet">Nazad na budžet</a>
+    <a class="premium-btn green" href="/oglasivac/reklame-v111">Baner reklame</a>
+    <a class="premium-btn white" href="/oglasivac/fakture">Fakture</a>
+  </div>
+</section>
+
+<section class="premium-dashboard-grid">
+  <section class="premium-card gradient">
+    <div class="premium-card-head">
+      <h2>Račun za uplatu</h2>
+      <span>bank transfer</span>
+    </div>
+    <div class="premium-money-grid">
+      <article>
+        <small>Primalac</small>
+        <strong>{{ finance_accounts.advertiser_payment_holder }}</strong>
+      </article>
+      <article>
+        <small>Račun</small>
+        <strong>{{ finance_accounts.advertiser_payment_account }}</strong>
+      </article>
+      <article>
+        <small>Namena</small>
+        <strong>{{ finance_accounts.payment_reference }}</strong>
+      </article>
+      <article>
+        <small>Napomena</small>
+        <strong>{{ finance_accounts.bank_note }}</strong>
+      </article>
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Kreiraj uplatu</h2>
+      <span>bez fakture unapred</span>
+    </div>
+    <form class="premium-form" method="post" action="/oglasivac/payments-v8/create">
+      <input type="hidden" name="method" value="bank_transfer">
+      <label>Iznos RSD</label>
+      <input type="number" name="amount_rsd" min="500" step="1" value="5000" required>
+      <label>Napomena / referenca</label>
+      <textarea name="note" placeholder="Budžet za kampanju, banner slot ili direktna dopuna sa platforme"></textarea>
+      <button class="premium-btn blue full">Kreiraj uplatu</button>
+    </form>
+  </section>
+</section>
+
+<section class="premium-dashboard-grid">
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Pending uplati</h2>
+      <span>{{ payment_intents|length }}</span>
+    </div>
+    <div class="premium-list">
+      {% for intent in payment_intents[:6] %}
+      <article>
+        <div>
+          <b>{{ intent.reference }}</b>
+          <small>{{ "%.0f"|format(intent.amount_rsd) }} RSD · {{ intent.method }} · {{ intent.status }}</small>
+        </div>
+        <span class="status status-{{ intent.status }}">{{ intent.status }}</span>
+      </article>
+      {% else %}
+      <div class="premium-empty">
+        <h3>Nema pending uplata</h3>
+        <p>Kada pošalješ novu uplatu, ovde će se pojaviti referenca i status potvrde.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head">
+      <h2>Brzi status</h2>
+      <span>budžet</span>
+    </div>
+    <div class="premium-money-grid">
+      <article><small>Dostupno</small><strong>{{ "%.0f"|format(user.advertiser_budget_rsd or 0) }} RSD</strong></article>
+      <article><small>Rezervisano</small><strong>{{ "%.0f"|format(user.advertiser_reserved_rsd or 0) }} RSD</strong></article>
+      <article><small>Potrošeno</small><strong>{{ "%.0f"|format(user.advertiser_spent_rsd or 0) }} RSD</strong></article>
+      <article><small>Aktivne transakcije</small><strong>{{ txs|length }}</strong></article>
+    </div>
+  </section>
+</section>
+
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Istorija transakcija</h2>
+    <span>{{ txs|length }}</span>
+  </div>
+  <div class="premium-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Tip</th>
+          <th>Opis</th>
+          <th>Iznos</th>
+          <th>Datum</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tx in txs[:12] %}
+        <tr>
+          <td>{{ tx.tx_type }}</td>
+          <td>{{ tx.description }}</td>
+          <td>{{ "%.0f"|format(tx.amount_rsd) }} RSD</td>
+          <td>{{ tx.created_at }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4">Nema transakcija.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endblock %}

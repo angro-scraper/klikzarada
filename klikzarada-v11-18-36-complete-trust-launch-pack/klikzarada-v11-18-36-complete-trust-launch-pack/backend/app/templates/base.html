@@ -5,7 +5,37 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{{ title if title else "KlikZarada" }}</title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/static/css/style.css?v=11826">
+  <link rel="stylesheet" href="/static/css/style.css?v=11827">
+  <style>
+    @media (max-width: 980px) {
+      .kz117-nav {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+      }
+      .kz117-nav nav,
+      .kz118-actions {
+        width: 100% !important;
+        margin-left: 0 !important;
+        justify-content: flex-start !important;
+      }
+      .kz118-public-nav {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        overflow: auto !important;
+        justify-content: flex-start !important;
+      }
+      .kz118-actions {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+      }
+      .kz117-page-shell {
+        width: calc(100vw - 20px) !important;
+      }
+    }
+  </style>
 </head>
 <body class="kz117-public-body{% if extra_body_class %} {{ extra_body_class }}{% endif %}">
   {% set path = request.url.path if request else '/' %}

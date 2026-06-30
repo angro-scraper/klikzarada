@@ -2330,6 +2330,7 @@ def advertiser_budget(request: Request, msg: str | None = None, db: Session = De
     invoices = db.query(Invoice).filter(Invoice.advertiser_id == u.id).order_by(Invoice.created_at.desc()).limit(10).all()
     ctx = v11844_advertiser_workspace_context(db, u, tasks, subs, txs)
     topup_requests = [tx for tx in txs if getattr(tx, "tx_type", "") == "topup_request"][:12]
+    budget_txs = [tx for tx in txs if getattr(tx, "tx_type", "") in {"manual_topup", "topup_request", "payment_intent_created", "manual_topup_v11833"}]
     return templates.TemplateResponse("advertiser_budget_v11846.html", {
         "request": request,
         "user": u,
@@ -2340,6 +2341,8 @@ def advertiser_budget(request: Request, msg: str | None = None, db: Session = De
         "payment_intents": payment_intents,
         "invoices": invoices,
         "topup_requests": topup_requests,
+        "budget_txs": budget_txs,
+        "finance_accounts": v11836_public_accounts(db),
         **ctx,
     })
 
@@ -4857,19 +4860,36 @@ def api_status_v8(db: Session = Depends(get_db)):
 
 @app.get("/oglasivac/payments-v8", response_class=HTMLResponse)
 def advertiser_payments_v8(request: Request, msg: str | None = None, db: Session = Depends(get_db)):
-    return RedirectResponse(f"/oglasivac/budzet{('?msg=' + msg) if msg else ''}", 303)
+    u = require(request, db)
+    check_role(u, ["oglasivac", "admin"])
+    payment_intents = db.query(PaymentIntentV8).filter(PaymentIntentV8.advertiser_id == u.id).order_by(PaymentIntentV8.created_at.desc()).all()
+    txs = db.query(AdvertiserBudgetTransaction).filter(AdvertiserBudgetTransaction.advertiser_id == u.id).order_by(AdvertiserBudgetTransaction.created_at.desc()).all()
+    invoices = db.query(Invoice).filter(Invoice.advertiser_id == u.id).order_by(Invoice.created_at.desc()).limit(10).all()
+    return templates.TemplateResponse(
+        "advertiser_payments_v8.html",
+        {
+            "request": request,
+            "user": u,
+            "flash": flash(msg),
+            "finance_accounts": v11836_public_accounts(db),
+            "payment_intents": payment_intents,
+            "txs": txs,
+            "invoices": invoices,
+        },
+    )
 
 
 @app.post("/oglasivac/payments-v8/create")
-def advertiser_payment_create_v8(request: Request, amount_rsd: float = Form(...), method: str = Form("manual"), db: Session = Depends(get_db)):
+def advertiser_payment_create_v8(request: Request, amount_rsd: float = Form(...), method: str = Form("bank_transfer"), note: str = Form(""), db: Session = Depends(get_db)):
     u = require(request, db)
     check_role(u, ["oglasivac", "admin"])
     if amount_rsd <= 0:
         raise HTTPException(400)
     ref = "KZ-" + uuid.uuid4().hex[:10].upper()
-    db.add(PaymentIntentV8(advertiser_id=u.id, amount_rsd=amount_rsd, reference=ref, method=method, status="pending"))
-    db.add(JobItemV8(job_type="payment_intent_created", payload=f"ref={ref}; amount={amount_rsd}", status="queued"))
-    notify(db, None, "admin", "Nova dopuna budžeta", f"Oglašivač {u.full_name} je kreirao dopunu {amount_rsd:.0f} RSD. Ref: {ref}")
+    admin_note = f"Direktna uplata sa platforme. {note.strip()}" if note.strip() else "Direktna uplata sa platforme."
+    db.add(PaymentIntentV8(advertiser_id=u.id, amount_rsd=amount_rsd, reference=ref, method=(method or "bank_transfer").strip() or "bank_transfer", status="pending", admin_note=admin_note))
+    db.add(JobItemV8(job_type="payment_intent_created", payload=f"ref={ref}; amount={amount_rsd}; method={method}; note={note}", status="queued"))
+    notify(db, None, "admin", "Nova direktna uplata budžeta", f"Oglašivač {u.full_name} je pokrenuo direktnu uplatu {amount_rsd:.0f} RSD. Ref: {ref}")
     db.commit()
     return RedirectResponse("/oglasivac/payments-v8?msg=saved", 303)
 
