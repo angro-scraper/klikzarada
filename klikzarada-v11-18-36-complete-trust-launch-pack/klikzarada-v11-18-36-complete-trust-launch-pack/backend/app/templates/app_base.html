@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{{ title if title else "KlikZarada panel" }}</title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/static/css/style.css?v=11825">
+  <link rel="stylesheet" href="/static/css/style.css?v=11826">
 </head>
 <body class="premium-app-body {% if user and user.role == 'admin' %}premium-admin{% endif %}">
 {% set path = request.url.path if request else '/' %}
@@ -118,7 +118,9 @@
 {% if user and user.role == "admin" %}
 <main class="premium-app-main full admin-no-commandbar">
   {% if flash %}<div class="flash {{ flash[0] }}">{{ flash[1] }}</div>{% endif %}
-  {% block app_content %}{% endblock %}
+  <div class="kz117-page-shell premium-page-shell">
+    {% block app_content %}{% endblock %}
+  </div>
 </main>
 {% else %}
 <div class="premium-app-layout">
@@ -138,7 +140,9 @@
   </aside>
   <main class="premium-app-main">
     {% if flash %}<div class="flash {{ flash[0] }}">{{ flash[1] }}</div>{% endif %}
-    {{ self.app_content() }}
+    <div class="kz117-page-shell premium-page-shell">
+      {{ self.app_content() }}
+    </div>
   </main>
 </div>
 {% endif %}

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{{ title if title else "KlikZarada" }}</title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/static/css/style.css?v=11825">
+  <link rel="stylesheet" href="/static/css/style.css?v=11826">
 </head>
 <body class="kz117-public-body{% if extra_body_class %} {{ extra_body_class }}{% endif %}">
   {% set path = request.url.path if request else '/' %}
@@ -44,7 +44,9 @@
   {% endif %}
 
   <main class="kz117-public-main">
-    {% block content %}{% endblock %}
+    <div class="kz117-page-shell">
+      {% block content %}{% endblock %}
+    </div>
   </main>
 </body>
 </html>
