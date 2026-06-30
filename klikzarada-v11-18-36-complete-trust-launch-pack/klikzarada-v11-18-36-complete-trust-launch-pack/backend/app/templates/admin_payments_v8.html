@@ -16,14 +16,14 @@
 <section class="kz1111-stat-grid colored">
   <div class="kz1111-stat blue"><small>Zahtevi</small><strong>{{ intents|length }}</strong><span>ukupno</span></div>
   <div class="kz1111-stat orange"><small>Pending</small><strong>{{ intents|selectattr("status", "equalto", "pending")|list|length }}</strong><span>čeka obradu</span></div>
-  <div class="kz1111-stat green"><small>Confirmed</small><strong>{{ intents|selectattr("status", "equalto", "confirmed")|list|length }}</strong><span>odobreno</span></div>
-  <div class="kz1111-stat purple"><small>Rejected</small><strong>{{ intents|selectattr("status", "equalto", "rejected")|list|length }}</strong><span>odbijeno</span></div>
+  <div class="kz1111-stat green"><small>Paid</small><strong>{{ intents|selectattr("status", "equalto", "confirmed")|list|length }}</strong><span>odobreno</span></div>
+  <div class="kz1111-stat purple"><small>Failed</small><strong>{{ intents|selectattr("status", "equalto", "rejected")|list|length }}</strong><span>odbijeno</span></div>
 </section>
 
 <section class="kz1111-section">
   <div class="kz1111-section-head">
     <h2>Inbox dopuna</h2>
-    <span>pending / confirmed / rejected</span>
+    <span>pending / paid / failed</span>
   </div>
   <div class="premium-table-wrap">
     <table>
@@ -35,11 +35,12 @@
           <td><strong>{{ i.advertiser.company_name or i.advertiser.full_name }}</strong><br><small>{{ i.advertiser.email }}</small></td>
           <td>{{ "%.0f"|format(i.amount_rsd) }} RSD</td>
           <td>{{ i.method }}</td>
-          <td><span class="status status-{{ i.status }}">{{ i.status }}</span></td>
+          {% set display_status = 'paid' if i.status == 'confirmed' else 'failed' if i.status == 'rejected' else 'pending' %}
+          <td><span class="status status-{{ display_status }}">{{ display_status }}</span></td>
           <td class="actions">
             {% if i.status == "pending" %}
-            <form method="post" action="/admin/payments-v8/{{ i.id }}/confirm"><input class="mini-input" name="admin_note" placeholder="note"><button class="btn btn-mini btn-primary">Confirm</button></form>
-            <form method="post" action="/admin/payments-v8/{{ i.id }}/reject"><input class="mini-input" name="admin_note" placeholder="reason"><button class="btn btn-mini btn-danger">Reject</button></form>
+            <form method="post" action="/admin/payments-v8/{{ i.id }}/confirm"><input class="mini-input" name="admin_note" placeholder="note"><button class="btn btn-mini btn-primary">Mark paid</button></form>
+            <form method="post" action="/admin/payments-v8/{{ i.id }}/reject"><input class="mini-input" name="admin_note" placeholder="reason"><button class="btn btn-mini btn-danger">Mark failed</button></form>
             {% else %}
             <small>{{ i.admin_note or "-" }}</small>
             {% endif %}

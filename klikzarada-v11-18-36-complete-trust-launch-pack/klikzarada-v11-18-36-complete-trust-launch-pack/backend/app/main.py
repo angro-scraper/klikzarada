@@ -2343,6 +2343,7 @@ def advertiser_budget(request: Request, msg: str | None = None, db: Session = De
         "topup_requests": topup_requests,
         "budget_txs": budget_txs,
         "finance_accounts": v11836_public_accounts(db),
+        "payment_provider": v11847_payment_provider_config(db),
         **ctx,
     })
 
@@ -3327,6 +3328,11 @@ def seed_v6_enterprise():
                 SystemSetting(key="user_payout_holder", value="Dodaj naziv primaoca u adminu", description="Naziv primaoca za isplatu korisnicima"),
                 SystemSetting(key="payment_reference", value="KlikZarada budžet", description="Poziv na broj ili svrha uplate oglašivača"),
                 SystemSetting(key="payout_reference", value="KlikZarada isplata", description="Poziv na broj ili svrha isplate korisnicima"),
+                SystemSetting(key="payment_provider_name", value="KlikZarada Pay", description="Naziv procesora plaćanja"),
+                SystemSetting(key="payment_provider_checkout_base", value="", description="Checkout URL procesora plaćanja"),
+                SystemSetting(key="payment_provider_webhook_secret", value="", description="Webhook secret za potvrdu uplata"),
+                SystemSetting(key="payment_provider_success_url", value="/oglasivac/payments-v8?msg=paid", description="URL nakon uspešne uplate"),
+                SystemSetting(key="payment_provider_cancel_url", value="/oglasivac/payments-v8?msg=cancelled", description="URL nakon otkazane uplate"),
             ]
             db.add_all(settings)
 
@@ -3858,7 +3864,7 @@ def admin_system_settings(request: Request, msg: str | None = None, db: Session 
     settings = db.query(SystemSetting).order_by(SystemSetting.key).all()
     task_sources = db.query(TaskSourceV11).order_by(TaskSourceV11.created_at.desc()).all()
     support_email = next((s.value for s in settings if s.key == "support_email"), "kontakt@klik-zarada.rs")
-    return templates.TemplateResponse("admin_system_settings_v6.html", {"request": request, "user": u, "settings": settings, "task_sources": task_sources, "flash": flash(msg), "finance_accounts": v11836_public_accounts(db), "support_email": support_email, "ops_suite": v11838_ops_suite_context(db, "/admin/system-settings"), "go_no_go": v11839_go_no_go_summary(db)})
+    return templates.TemplateResponse("admin_system_settings_v6.html", {"request": request, "user": u, "settings": settings, "task_sources": task_sources, "flash": flash(msg), "finance_accounts": v11836_public_accounts(db), "payment_provider": v11847_payment_provider_config(db), "support_email": support_email, "ops_suite": v11838_ops_suite_context(db, "/admin/system-settings"), "go_no_go": v11839_go_no_go_summary(db)})
 
 
 @app.post("/admin/system-settings/save")
@@ -3881,6 +3887,11 @@ def admin_finance_accounts_save(
     payment_reference: str = Form(...),
     payout_reference: str = Form(...),
     bank_note: str = Form(""),
+    payment_provider_name: str = Form(""),
+    payment_provider_checkout_base: str = Form(""),
+    payment_provider_webhook_secret: str = Form(""),
+    payment_provider_success_url: str = Form(""),
+    payment_provider_cancel_url: str = Form(""),
     next_url: str = Form("/admin/system-settings"),
     db: Session = Depends(get_db),
 ):
@@ -3894,6 +3905,11 @@ def admin_finance_accounts_save(
         ("payment_reference", payment_reference, "Poziv na broj ili svrha uplate oglašivača"),
         ("payout_reference", payout_reference, "Poziv na broj ili svrha isplate korisnicima"),
         ("bank_note", bank_note, "Napomena za prikaz u finansijskim sekcijama"),
+        ("payment_provider_name", payment_provider_name, "Naziv procesora plaćanja"),
+        ("payment_provider_checkout_base", payment_provider_checkout_base, "Checkout URL procesora plaćanja"),
+        ("payment_provider_webhook_secret", payment_provider_webhook_secret, "Webhook secret za potvrdu uplata"),
+        ("payment_provider_success_url", payment_provider_success_url, "URL nakon uspešne uplate"),
+        ("payment_provider_cancel_url", payment_provider_cancel_url, "URL nakon otkazane uplate"),
     ]
     for key, value, description in payload:
         item = upsert_system_setting(db, key, value, description)
@@ -4880,6 +4896,7 @@ def advertiser_payments_v8(request: Request, msg: str | None = None, db: Session
             "user": u,
             "flash": flash(msg),
             "finance_accounts": v11836_public_accounts(db),
+            "payment_provider": v11847_payment_provider_config(db),
             "payment_intents": payment_intents,
             "txs": txs,
             "invoices": invoices,
@@ -4895,11 +4912,74 @@ def advertiser_payment_create_v8(request: Request, amount_rsd: float = Form(...)
         raise HTTPException(400)
     ref = "KZ-" + uuid.uuid4().hex[:10].upper()
     admin_note = f"Direktna uplata sa platforme. {note.strip()}" if note.strip() else "Direktna uplata sa platforme."
-    db.add(PaymentIntentV8(advertiser_id=u.id, amount_rsd=amount_rsd, reference=ref, method=(method or "bank_transfer").strip() or "bank_transfer", status="pending", admin_note=admin_note))
-    db.add(JobItemV8(job_type="payment_intent_created", payload=f"ref={ref}; amount={amount_rsd}; method={method}; note={note}", status="queued"))
+    method_value = (method or "bank_transfer").strip() or "bank_transfer"
+    intent = PaymentIntentV8(advertiser_id=u.id, amount_rsd=amount_rsd, reference=ref, method=method_value, status="pending", admin_note=admin_note)
+    db.add(intent)
+    db.add(JobItemV8(job_type="payment_intent_created", payload=f"ref={ref}; amount={amount_rsd}; method={method_value}; note={note}", status="queued"))
     notify(db, None, "admin", "Nova direktna uplata budžeta", f"Oglašivač {u.full_name} je pokrenuo direktnu uplatu {amount_rsd:.0f} RSD. Ref: {ref}")
     db.commit()
-    return RedirectResponse("/oglasivac/payments-v8?msg=saved", 303)
+    provider = v11847_payment_provider_config(db)
+    if method_value == "card":
+        checkout_url = v11847_build_checkout_url(provider, intent)
+        if checkout_url:
+            return RedirectResponse(checkout_url, 303)
+        return RedirectResponse("/oglasivac/payments-v8?msg=no_checkout_config", 303)
+    return RedirectResponse(f"/oglasivac/payments-v8?msg={method_value}_created", 303)
+
+
+@app.post("/api/v1/payments/webhook")
+async def payment_provider_webhook(request: Request, db: Session = Depends(get_db)):
+    raw_body = {}
+    content_type = (request.headers.get("content-type") or "").lower()
+    if "application/json" in content_type:
+        try:
+            raw_body = await request.json()
+        except Exception:
+            raw_body = {}
+    else:
+        try:
+            form_data = await request.form()
+            raw_body = dict(form_data)
+        except Exception:
+            raw_body = {}
+
+    provider = v11847_payment_provider_config(db)
+    configured_secret = (provider.get("webhook_secret") or "").strip()
+    incoming_secret = (request.headers.get("x-kz-webhook-secret") or raw_body.get("secret") or raw_body.get("webhook_secret") or "").strip()
+    if configured_secret and configured_secret not in {"", "Dodaj webhook secret u adminu"} and incoming_secret != configured_secret:
+        raise HTTPException(status_code=401, detail="invalid_webhook_secret")
+
+    reference = str(raw_body.get("reference") or raw_body.get("merchant_reference") or raw_body.get("order_reference") or raw_body.get("id") or "").strip()
+    if not reference:
+        raise HTTPException(status_code=400, detail="missing_reference")
+    intent = db.query(PaymentIntentV8).filter(PaymentIntentV8.reference == reference).first()
+    if not intent:
+        raise HTTPException(status_code=404, detail="payment_intent_not_found")
+
+    status_raw = str(raw_body.get("status") or raw_body.get("event") or raw_body.get("payment_status") or "").strip().lower()
+    amount_value = v11837_money(raw_body.get("amount") or raw_body.get("amount_rsd") or intent.amount_rsd)
+    paid_markers = {"paid", "success", "succeeded", "confirmed", "captured", "completed", "complete"}
+    failed_markers = {"failed", "fail", "rejected", "cancelled", "canceled", "declined", "expired"}
+
+    if status_raw in paid_markers:
+        if intent.status != "confirmed":
+            intent.status = "confirmed"
+            intent.confirmed_at = datetime.utcnow()
+            intent.admin_note = (intent.admin_note or "").strip() or f"Webhook potvrđena uplata {intent.reference}"
+            intent.advertiser.advertiser_budget_rsd = round(v11837_money(intent.advertiser.advertiser_budget_rsd) + amount_value, 2)
+            add_budget_tx(db, intent.advertiser, amount_value, "provider_topup_v11847", f"Webhook potvrđena uplata budžeta: {intent.reference}")
+            notify(db, intent.advertiser, None, "Budžet dopunjen", f"Vaš budžet je automatski dopunjen za {amount_value:.0f} RSD.")
+            notify(db, None, "admin", "Webhook uplata uspešna", f"Uplata {reference} je potvrđena i budžet je automatski knjižen.")
+        db.commit()
+        return {"ok": True, "reference": reference, "status": "paid"}
+
+    if status_raw in failed_markers:
+        intent.status = "rejected"
+        intent.admin_note = (intent.admin_note or "").strip() or f"Webhook odbijena uplata {intent.reference}"
+        db.commit()
+        return {"ok": True, "reference": reference, "status": "failed"}
+
+    return {"ok": True, "reference": reference, "status": intent.status}
 
 
 @app.get("/admin/v8", response_class=HTMLResponse)
@@ -6481,6 +6561,36 @@ def v11836_public_accounts(db: Session):
         "payout_reference": setting("payout_reference", "KlikZarada isplata"),
         "bank_note": setting("bank_note", "Podaci se mogu menjati iz admin system settings."),
     }
+
+
+def v11847_payment_provider_config(db: Session):
+    def setting(key: str, default: str = "") -> str:
+        row = db.query(SystemSetting).filter(SystemSetting.key == key).first()
+        value = (row.value if row and row.value is not None else default) or default
+        return str(value).strip()
+
+    return {
+        "name": setting("payment_provider_name", "KlikZarada Pay"),
+        "checkout_base": setting("payment_provider_checkout_base", ""),
+        "webhook_secret": setting("payment_provider_webhook_secret", ""),
+        "success_url": setting("payment_provider_success_url", "/oglasivac/payments-v8?msg=paid"),
+        "cancel_url": setting("payment_provider_cancel_url", "/oglasivac/payments-v8?msg=cancelled"),
+    }
+
+
+def v11847_build_checkout_url(provider: dict, intent: PaymentIntentV8):
+    base = (provider.get("checkout_base") or "").strip()
+    if not base:
+        return None
+    params = {
+        "reference": intent.reference,
+        "amount": f"{v11837_money(intent.amount_rsd):.2f}",
+        "currency": "RSD",
+        "success_url": provider.get("success_url") or "/oglasivac/payments-v8?msg=paid",
+        "cancel_url": provider.get("cancel_url") or "/oglasivac/payments-v8?msg=cancelled",
+    }
+    joiner = "&" if "?" in base else "?"
+    return f"{base}{joiner}{urlencode(params)}"
 
 
 def v11836_pricing_summary(db: Session):

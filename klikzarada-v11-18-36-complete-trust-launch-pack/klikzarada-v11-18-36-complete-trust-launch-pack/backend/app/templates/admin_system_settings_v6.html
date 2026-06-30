@@ -95,6 +95,14 @@
       <div><label>Namena za uplatu</label><input name="payment_reference" value="{{ finance_accounts.payment_reference }}" required></div>
       <div><label>Namena za isplatu</label><input name="payout_reference" value="{{ finance_accounts.payout_reference }}" required></div>
     </div>
+    <div class="form-grid" style="margin-top:16px;">
+      <div><label>Payment provider</label><input name="payment_provider_name" value="{{ payment_provider.name }}" placeholder="Stripe / Monri / PayPal / Checkout"></div>
+      <div><label>Checkout URL</label><input name="payment_provider_checkout_base" value="{{ payment_provider.checkout_base }}" placeholder="https://provider.example/checkout"></div>
+      <div><label>Webhook secret</label><input name="payment_provider_webhook_secret" value="{{ payment_provider.webhook_secret }}" placeholder="secret"></div>
+      <div><label>Success URL</label><input name="payment_provider_success_url" value="{{ payment_provider.success_url }}" placeholder="/oglasivac/payments-v8?msg=paid"></div>
+      <div><label>Cancel URL</label><input name="payment_provider_cancel_url" value="{{ payment_provider.cancel_url }}" placeholder="/oglasivac/payments-v8?msg=cancelled"></div>
+    </div>
+    <div class="hint">Webhook endpoint za payment provider je <code>/api/v1/payments/webhook</code>. Kad provider pošalje potvrdu sa istom referencom, budžet se automatski knjiži.</div>
     <label>Napomena</label>
     <textarea name="bank_note" rows="3">{{ finance_accounts.bank_note }}</textarea>
     <button class="btn btn-primary">Sačuvaj finansijske podatke</button>

@@ -40,6 +40,7 @@
         <h3>{{ finance_accounts.advertiser_payment_account }}</h3>
         <p><b>Namena:</b> {{ finance_accounts.payment_reference }}</p>
         <p>{{ finance_accounts.bank_note }}</p>
+        <p><b>Checkout:</b> {% if payment_provider.checkout_base %}{{ payment_provider.name }} je spreman za kartično plaćanje.{% else %}Checkout URL još nije unet u admin system settings.{% endif %}</p>
       </article>
       <article class="kz1111-proof-card variant-pending">
         <div class="kz1111-card-top">
@@ -54,13 +55,18 @@
       </article>
     </div>
     <form class="form-panel kz1111-tech-form" method="post" action="/oglasivac/payments-v8/create">
-      <input type="hidden" name="method" value="bank_transfer">
+      <label>Način plaćanja</label>
+      <select name="method">
+        <option value="card">Kartica / checkout</option>
+        <option value="bank_transfer">Bank transfer</option>
+      </select>
       <label>Iznos RSD</label>
       <input type="number" name="amount_rsd" value="5000" min="500" step="1" required>
       <label>Napomena / reference</label>
       <textarea name="note" placeholder="Npr. budžet za kampanju, agency top-up, direktna uplata sa platforme"></textarea>
-      <button class="btn btn-primary">Kreiraj uplatu i referencu</button>
+      <button class="btn btn-primary">Kreiraj uplatu i checkout</button>
     </form>
+    <div class="hint">Kartični checkout koristi payment provider podešen u admin system settings. Webhook <code>/api/v1/payments/webhook</code> zatim automatski označi intent kao <b>paid</b> i uveća budžet.</div>
   </section>
 
   <section class="kz1111-section">
@@ -118,7 +124,8 @@
             <td><strong>{{ intent.reference }}</strong></td>
             <td>{{ "%.0f"|format(intent.amount_rsd) }} RSD</td>
             <td>{{ intent.method }}</td>
-            <td><span class="status status-{{ intent.status }}">{{ intent.status }}</span></td>
+            {% set display_status = 'paid' if intent.status == 'confirmed' else 'failed' if intent.status == 'rejected' else 'pending' %}
+            <td><span class="status status-{{ display_status }}">{{ display_status }}</span></td>
             <td>{{ intent.created_at }}</td>
           </tr>
           {% else %}
