@@ -37,11 +37,23 @@
       <small>Računi</small>
       <strong>Podaci za uplatu / isplatu</strong>
       <p>Finansijski account settings su izvučeni direktno iz system settings, da admin vidi gde se šalju uplate i sa kog računa idu isplate.</p>
-      <div class="kz1111-proof-legend">
-        <span><strong>Uplata oglašivača</strong> {{ finance_accounts.advertiser_payment_account }}</span>
-        <span><strong>Primalac</strong> {{ finance_accounts.advertiser_payment_holder }}</span>
-        <span><strong>Isplata korisnika</strong> {{ finance_accounts.user_payout_account }}</span>
-        <span><strong>Primalac</strong> {{ finance_accounts.user_payout_holder }}</span>
+      <div class="kz1111-account-grid">
+        <article class="kz1111-account-item">
+          <span>Uplata oglašivača</span>
+          <strong>{{ finance_accounts.advertiser_payment_account }}</strong>
+        </article>
+        <article class="kz1111-account-item">
+          <span>Primalac uplate</span>
+          <strong>{{ finance_accounts.advertiser_payment_holder }}</strong>
+        </article>
+        <article class="kz1111-account-item">
+          <span>Isplata korisnika</span>
+          <strong>{{ finance_accounts.user_payout_account }}</strong>
+        </article>
+        <article class="kz1111-account-item">
+          <span>Primalac isplate</span>
+          <strong>{{ finance_accounts.user_payout_holder }}</strong>
+        </article>
       </div>
     </div>
   </div>
