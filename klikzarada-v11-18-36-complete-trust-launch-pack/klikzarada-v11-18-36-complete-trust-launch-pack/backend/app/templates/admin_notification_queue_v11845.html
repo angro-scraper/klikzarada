@@ -9,26 +9,68 @@
   .kz-comm-form,
   .kz-comm-table,
   .kz-comm-metrics > article{background:linear-gradient(180deg,rgba(17,27,45,.96),rgba(9,17,31,.96));border:1px solid var(--line);border-radius:24px;box-shadow:0 24px 70px rgba(0,0,0,.28)}
-  .kz-comm-hero .premium-panel-hero{padding:28px 30px;min-height:100%;display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
-  .kz-comm-hero .premium-panel-hero h1{margin:10px 0 10px;font-size:clamp(34px,4vw,56px);line-height:1;letter-spacing:-.05em}
-  .kz-comm-hero .premium-panel-hero p{max-width:760px;font-size:17px;margin:0}
+  .kz-comm-hero .premium-panel-hero,
+  .kz-comm-card,
+  .kz-comm-form,
+  .kz-comm-table,
+  .kz-comm-metrics > article{
+    background:#fff!important;
+    border:1px solid var(--117-line)!important;
+    box-shadow:0 12px 34px rgba(16,36,66,.06)!important;
+  }
+  .kz-comm-hero .premium-panel-hero{
+    padding:28px 30px;
+    min-height:100%;
+    display:flex;
+    justify-content:space-between;
+    gap:18px;
+    align-items:flex-start;
+    background:
+      radial-gradient(circle at 10% 0%,rgba(18,104,243,.10),transparent 30%),
+      radial-gradient(circle at 92% 18%,rgba(124,58,237,.08),transparent 28%),
+      linear-gradient(135deg,#fff,#f7fbff)!important;
+  }
+  .kz-comm-hero .premium-panel-hero h1{
+    margin:10px 0 10px;
+    font-size:clamp(34px,4vw,56px);
+    line-height:1;
+    letter-spacing:-.05em;
+    color:#0d1b31;
+  }
+  .kz-comm-hero .premium-panel-hero p{max-width:760px;font-size:17px;margin:0;color:#5c6f89}
   .kz-comm-hero .premium-panel-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;max-width:270px}
-  .kz-comm-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(37,99,235,.12);color:#93c5fd;font-weight:900;letter-spacing:.12em;text-transform:uppercase;font-size:11px}
+  .kz-comm-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#eef4ff;color:#1268f3;font-weight:900;letter-spacing:.12em;text-transform:uppercase;font-size:11px;border:1px solid #dbeafe}
   .kz-comm-aside{padding:22px;display:grid;gap:14px}
-  .kz-comm-aside h2{margin:0;font-size:22px;letter-spacing:-.03em}
-  .kz-comm-aside p{margin:0}
+  .kz-comm-aside h2{margin:0;font-size:22px;letter-spacing:-.03em;color:#0d1b31}
+  .kz-comm-aside p{margin:0;color:#5c6f89}
   .kz-comm-aside .kz-comm-mini{display:grid;gap:8px}
-  .kz-comm-aside .kz-comm-mini a{display:inline-flex;justify-content:center;align-items:center;min-height:48px;border-radius:14px;background:#fff;color:#0f172a;font-weight:900;padding:0 14px}
+  .kz-comm-aside .kz-comm-mini a{display:inline-flex;justify-content:center;align-items:center;min-height:48px;border-radius:14px;background:#fff;color:#0f172a;font-weight:900;padding:0 14px;border:1px solid #dbeafe;box-shadow:0 10px 22px rgba(16,36,66,.04)}
   .kz-comm-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-  .kz-comm-metrics > article{padding:18px 20px;display:grid;gap:8px;min-height:108px}
-  .kz-comm-metrics small{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#93c5fd;font-weight:900}
-  .kz-comm-metrics strong{font-size:30px;line-height:1;color:#fff}
-  .kz-comm-metrics span{font-size:14px}
+  .kz-comm-metrics > article{
+    padding:18px 20px;
+    display:grid;
+    gap:8px;
+    min-height:108px;
+    position:relative;
+    overflow:hidden;
+    background:#fff!important;
+  }
+  .kz-comm-metrics > article:before{
+    content:"";
+    position:absolute;
+    inset:0 auto auto 0;
+    width:100%;
+    height:4px;
+    background:linear-gradient(90deg,#1268f3,#7c3aed);
+  }
+  .kz-comm-metrics small{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#5c6f89;font-weight:900}
+  .kz-comm-metrics strong{font-size:30px;line-height:1;color:#0d1b31}
+  .kz-comm-metrics span{font-size:14px;color:#5c6f89}
   .kz-comm-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.88fr);gap:18px}
   .kz-comm-card{padding:24px}
   .kz-comm-card-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:16px}
-  .kz-comm-card-head h2{margin:0;font-size:28px;letter-spacing:-.04em}
-  .kz-comm-card-head span{font-weight:800;color:#93c5fd;text-transform:uppercase;letter-spacing:.08em;font-size:12px}
+  .kz-comm-card-head h2{margin:0;font-size:28px;letter-spacing:-.04em;color:#0d1b31}
+  .kz-comm-card-head span{font-weight:800;color:#1268f3;text-transform:uppercase;letter-spacing:.08em;font-size:12px}
   .kz-comm-form{padding:24px}
   .kz-comm-form .cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
   .kz-comm-form .form-row{display:grid;gap:6px}
@@ -41,17 +83,18 @@
   .kz-comm-table td{vertical-align:middle}
   .kz-comm-row{display:flex;flex-direction:column;gap:8px}
   .kz-comm-row .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-  .kz-comm-pill{display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(148,163,184,.18);font-size:12px;font-weight:900}
-  .kz-comm-pill.email{color:#bfdbfe}
-  .kz-comm-pill.sms{color:#fcd34d}
-  .kz-comm-pill.internal{color:#c4b5fd}
-  .kz-comm-pill.queued{color:#fde68a;background:rgba(245,158,11,.14)}
-  .kz-comm-pill.sent{color:#86efac;background:rgba(34,197,94,.14)}
-  .kz-comm-pill.failed{color:#fecaca;background:rgba(239,68,68,.14)}
+  .kz-comm-pill{display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;background:#eef4ff;border:1px solid #dbeafe;font-size:12px;font-weight:900;color:#1268f3}
+  .kz-comm-pill.email{color:#1268f3}
+  .kz-comm-pill.sms{color:#b45309;background:#fffbeb;border-color:#fde68a}
+  .kz-comm-pill.internal{color:#7c3aed;background:#f5f3ff;border-color:#e9d5ff}
+  .kz-comm-pill.queued{color:#b45309;background:#fffbeb}
+  .kz-comm-pill.sent{color:#166534;background:#f0fdf4}
+  .kz-comm-pill.failed{color:#b91c1c;background:#fef2f2}
   .kz-comm-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
   .kz-comm-actions form{display:flex;gap:8px;align-items:center}
   .kz-comm-actions .btn-mini{min-height:34px;padding:7px 10px}
-  .kz-comm-empty{padding:18px;border:1px dashed rgba(148,163,184,.25);border-radius:18px;background:rgba(255,255,255,.03)}
+  .kz-comm-empty{padding:18px;border:1px dashed #d3ddeb;border-radius:18px;background:#f8fbff}
+  .kz-comm-empty strong,.kz-comm-empty p{color:#0d1b31}
   @media (max-width: 1100px){
     .kz-comm-hero,
     .kz-comm-grid{grid-template-columns:1fr}
