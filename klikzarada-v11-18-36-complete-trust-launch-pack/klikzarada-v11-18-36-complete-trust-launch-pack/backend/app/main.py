@@ -2192,7 +2192,7 @@ def pravila(request:Request, db:Session=Depends(get_db)): return templates.Templ
 @app.get("/faq", response_class=HTMLResponse)
 def faq(request:Request, db:Session=Depends(get_db)): return templates.TemplateResponse("static_page.html", {"request":request,"user":current_user(request,db),"title":"FAQ","heading":"Česta pitanja","body":"Korisnik šalje dokaz, admin ga proverava, a oglašivač plaća samo validan rezultat. V3 koristi ručne isplate i ručnu dopunu budžeta."})
 # V11.7 disabled old route /kontakt
-def kontakt(request:Request, db:Session=Depends(get_db)): return templates.TemplateResponse("static_page.html", {"request":request,"user":current_user(request,db),"title":"Kontakt","heading":"Kontakt","body":"Kontaktirajte podršku kroz obrazac ili kroz panel poruke. Za produkciju se ovde povezuju email podrška, ticket sistem i obaveštenja."})
+def kontakt(request:Request, db:Session=Depends(get_db)): return templates.TemplateResponse("static_page.html", {"request":request,"user":current_user(request,db),"title":"Kontakt","heading":"Kontakt","body":"Za saradnju, oglašavanje i podršku pišite na kontakt@klik-zarada.rs ili koristite panel poruke. Za produkciju se ovde povezuju email podrška, ticket sistem i obaveštenja."})
 
 # USER
 @app.get("/korisnik/panel", response_class=HTMLResponse)
@@ -3317,7 +3317,7 @@ def seed_v6_enterprise():
         if db.query(SystemSetting).count() == 0:
             settings = [
                 SystemSetting(key="platform_name", value="KlikZarada", description="Naziv platforme"),
-                SystemSetting(key="support_email", value="podrska@klikzarada.rs", description="Email podrške"),
+                SystemSetting(key="support_email", value="kontakt@klik-zarada.rs", description="Email podrške"),
                 SystemSetting(key="moderation_sla_hours", value="24", description="Cilj za proveru dokaza"),
                 SystemSetting(key="withdrawal_sla_hours", value="72", description="Cilj za obradu isplata"),
                 SystemSetting(key="production_mode", value="false", description="Da li je sistem u produkciji"),
@@ -3329,6 +3329,13 @@ def seed_v6_enterprise():
                 SystemSetting(key="payout_reference", value="KlikZarada isplata", description="Poziv na broj ili svrha isplate korisnicima"),
             ]
             db.add_all(settings)
+
+        support_email = db.query(SystemSetting).filter(SystemSetting.key == "support_email").first()
+        if support_email and (support_email.value or "").strip() != "kontakt@klik-zarada.rs":
+            support_email.value = "kontakt@klik-zarada.rs"
+            support_email.description = "Email podrške"
+            support_email.updated_at = datetime.utcnow()
+            db.commit()
 
         admin = db.query(User).filter(User.role == "admin").first()
         adv = db.query(User).filter(User.role == "oglasivac").first()
