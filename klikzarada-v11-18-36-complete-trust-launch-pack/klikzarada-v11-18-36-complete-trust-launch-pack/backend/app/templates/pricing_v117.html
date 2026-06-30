@@ -46,18 +46,18 @@
 
 <section class="kz117-grid-3">
   <div class="kz117-feature">
-    <h3>Račun za uplatu oglašivača</h3>
-    <p>{{ finance_accounts.advertiser_payment_account if finance_accounts else "Dodaj broj računa u adminu" }}</p>
-    <span>{{ finance_accounts.advertiser_payment_holder if finance_accounts else "Dodaj naziv primaoca u adminu" }}</span>
+    <h3>Prijavljenim oglašivačima</h3>
+    <p>Podaci za uplatu budžeta i status obračuna dostupni su u oglašivačkom panelu nakon prijave.</p>
+    <span>Privatan finansijski tok</span>
   </div>
   <div class="kz117-feature">
-    <h3>Račun za isplatu korisnika</h3>
-    <p>{{ finance_accounts.user_payout_account if finance_accounts else "Dodaj račun za isplatu u adminu" }}</p>
-    <span>{{ finance_accounts.user_payout_holder if finance_accounts else "Dodaj naziv primaoca u adminu" }}</span>
+    <h3>Korisničke isplate</h3>
+    <p>Podaci o isplatama, novčaniku i obradi su vidljivi samo korisniku u njegovom panelu.</p>
+    <span>Samo lični račun</span>
   </div>
   <div class="kz117-feature">
     <h3>Admin finansije</h3>
-    <p>Bankovne podatke i reference možeš menjati iz admin sistemskih podešavanja.</p>
+    <p>Bankovni računi, reference i podešavanja ostaju unutar admin sistema i nisu javni.</p>
     <span><a href="/admin/system-settings">Otvori settings</a></span>
   </div>
 </section>
