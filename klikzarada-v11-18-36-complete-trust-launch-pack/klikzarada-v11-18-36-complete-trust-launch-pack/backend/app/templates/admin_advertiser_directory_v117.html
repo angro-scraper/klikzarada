@@ -12,6 +12,39 @@
     <a class="premium-btn white" href="/admin/analitika-v117">Analitika</a>
     <a class="premium-btn white" href="/admin/budget-v11">Budžeti</a>
     <a class="premium-btn white" href="/admin/reklame-v111">Reklame</a>
+    <a class="premium-btn white" href="/admin/cene-v111">Cene</a>
+    <a class="premium-btn white" href="/admin/payments-v8">Payments</a>
+  </div>
+</section>
+
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Komercijalne prečice i bankovni signal</h2>
+    <span>budžet / računi</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <div class="kz1111-ledger-card">
+      <small>Prodaja</small>
+      <strong>Putanja od lead-a do live bannera</strong>
+      <p>Oglašivači su sada spojeni sa budžetom, cenama, reklama modulom i naplatom, pa sales ne mora da skida poseban admin paket za svaki korak.</p>
+      <div class="kz1111-proof-legend">
+        <span><a href="/admin/crm">CRM</a></span>
+        <span><a href="/admin/reklame-v111">Reklame</a></span>
+        <span><a href="/admin/cene-v111">Cene</a></span>
+        <span><a href="/admin/approval-center-v11">Approval</a></span>
+      </div>
+    </div>
+    <div class="kz1111-ledger-card">
+      <small>Banking</small>
+      <strong>Računi za dopunu budžeta</strong>
+      <p>Ovo su podaci koje korisnik i oglašivač treba da vide kada rade uplatu, a admin da koristi pri proverenom top-up toku.</p>
+      <div class="kz1111-proof-legend">
+        <span><strong>Račun za uplatu</strong> {{ finance_accounts.advertiser_payment_account }}</span>
+        <span><strong>Primalac</strong> {{ finance_accounts.advertiser_payment_holder }}</span>
+        <span><strong>Poziv na broj</strong> {{ finance_accounts.payment_reference }}</span>
+        <span><strong>Status token</strong> {{ finance_accounts.bank_note }}</span>
+      </div>
+    </div>
   </div>
 </section>
 

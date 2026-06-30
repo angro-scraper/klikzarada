@@ -23,6 +23,57 @@
   <a href="/korisnik/referral"><strong>Preporuke</strong><span>Pozovi i zaradi bonus</span></a>
 </section>
 
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Dnevne nagrade i misije</h2>
+    <span>{% if reward_claimed_today %}preuzeto danas{% else %}spremno za akciju{% endif %}</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <div class="kz1111-ledger-card">
+      <small>Dnevna nagrada</small>
+      <strong>{% if reward_claimed_today %}Preuzeta danas{% else %}Preuzmi svoju dnevnu nagradu{% endif %}</strong>
+      <p>Održi streak, završi misije i koristi motivacioni panel da dobiješ više poena, bolji tier i dodatni signal za kvalitet.</p>
+      <div class="kz1111-proof-legend">
+        <span><a href="/korisnik/motivacija-v115">Otvori motivaciju</a></span>
+        <span><a href="/korisnik/bedzevi">Bedževi</a></span>
+        <span><a href="/korisnik/preporuke">Preporuke</a></span>
+      </div>
+    </div>
+    <div class="kz1111-ledger-card">
+      <small>Misije</small>
+      <strong>{{ missions|length }} aktivnih / istorija nagrada {{ daily_rewards|length }}</strong>
+      <p>Misije i dnevne nagrade su sada vidljive direktno na panelu, da korisnik odmah vidi sledeći korak bez kopanja po drugim ekranima.</p>
+      <div class="premium-list compact">
+        {% for mission in missions[:3] %}
+        <article>
+          <div>
+            <b>{{ mission.title }}</b>
+            <small>{{ mission.current_count }}/{{ mission.target_count }} · {{ mission.status }}</small>
+          </div>
+          <span class="status status-{{ 'approved' if mission.status == 'completed' else 'pending' }}">{{ mission.reward_rsd|default(0) }} RSD</span>
+        </article>
+        {% else %}
+        <div class="premium-empty"><h3>Nema aktivnih misija</h3><p>Kada korisnik dobije nove zadatke, ovde će se pojaviti dnevni ciljevi i bonusi.</p></div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Bedževi i reputacija</h2>
+    <span>{{ badges|length }} osvojenih</span>
+  </div>
+  <div class="kz118-quick-panel-links compact">
+    {% for badge in badges[:4] %}
+    <a href="/korisnik/bedzevi"><strong>{{ badge.icon }} {{ badge.title }}</strong><span>{{ badge.description or "Dostignuće korisnika" }}</span></a>
+    {% else %}
+    <a href="/korisnik/bedzevi"><strong>Još bez bedževa</strong><span>Preuzmi nagrade i završi više zadataka za prvi statusni znak.</span></a>
+    {% endfor %}
+  </div>
+</section>
+
 <div class="kz-user-dashboard-grid">
   <section class="kz-user-main-card">
     <div class="kz-user-main-inner">

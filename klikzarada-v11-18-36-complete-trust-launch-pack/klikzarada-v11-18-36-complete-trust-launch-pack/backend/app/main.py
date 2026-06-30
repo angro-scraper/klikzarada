@@ -39,6 +39,7 @@ ADMIN_FOCUS_ALLOWED_PATHS = (
     "/admin/v11",
     "/admin/dashboard",
     "/admin/mapa-platforme",
+    "/admin/analitika-v117",
     "/admin/kampanje",
     "/admin/dokazi",
     "/admin/finansije",
@@ -50,9 +51,11 @@ ADMIN_FOCUS_ALLOWED_PATHS = (
     "/admin/banneri-v111",
     "/admin/cene-v111",
     "/admin/payments-v8",
+    "/admin/korisnici",
     "/admin/oglasivaci",
     "/admin/crm",
     "/admin/oglasivaci-baza-v117",
+    "/admin/korisnici-baza-v117",
     "/admin/budget-v11",
     "/admin/affiliate-v9",
     "/admin/revenue-v9",
@@ -67,6 +70,7 @@ ADMIN_FOCUS_ALLOWED_PATHS = (
     "/admin/security-v11",
     "/admin/email-outbox-v8",
     "/admin/notification-queue-v11845",
+    "/admin/tracking-v10",
     "/admin/collections-v11",
     "/admin/renewals-v11",
     "/admin/finance-v11834",
@@ -2223,6 +2227,22 @@ def user_panel(request:Request, msg:str|None=None, db:Session=Depends(get_db)):
             score = kz115_recalculate_user_score(db, u)
         except Exception:
             score = kz115_get_score(db, u)
+    daily_rewards = []
+    missions = []
+    badges = []
+    if "DailyRewardV115" in globals():
+        daily_rewards = db.query(DailyRewardV115).filter(DailyRewardV115.user_id == u.id).order_by(DailyRewardV115.created_at.desc()).limit(5).all()
+    if "UserMissionV115" in globals():
+        try:
+            if "kz115_seed_missions" in globals():
+                kz115_seed_missions(db, u)
+        except Exception:
+            pass
+        missions = db.query(UserMissionV115).filter(UserMissionV115.user_id == u.id).order_by(UserMissionV115.created_at.desc()).limit(6).all()
+    if "UserBadgeV115" in globals():
+        badges = db.query(UserBadgeV115).filter(UserBadgeV115.user_id == u.id).order_by(UserBadgeV115.awarded_at.desc()).limit(8).all()
+    today_key = today.isoformat()
+    reward_claimed_today = any(getattr(r, "reward_date", "") == today_key for r in daily_rewards)
     data={
         "tasks": tasks,
         "best_tasks": best_tasks,
@@ -2239,6 +2259,10 @@ def user_panel(request:Request, msg:str|None=None, db:Session=Depends(get_db)):
         "tasks_today": tasks_today,
         "progress_bars": progress_bars,
         "score": score,
+        "daily_rewards": daily_rewards,
+        "missions": missions,
+        "badges": badges,
+        "reward_claimed_today": reward_claimed_today,
     }
     data.update(v11844_user_growth_context(db, u, subs, txs, withdrawals, refs, score))
     data["tier_ctx"] = v11845_user_tier_context(u, score, subs, refs)
@@ -9644,6 +9668,7 @@ async def kz117_visit_tracking_middleware(request: Request, call_next):
                         <ul>
                           <li><a href="/admin/v11">Dashboard</a></li>
                           <li><a href="/admin/mapa-platforme">Mapa platforme</a></li>
+                          <li><a href="/admin/analitika-v117">Analitika</a></li>
                           <li><a href="/admin/kampanje">Kampanje</a></li>
                           <li><a href="/admin/dokazi">Dokazi</a></li>
                           <li><a href="/admin/finansije">Finansije</a></li>
@@ -9652,7 +9677,9 @@ async def kz117_visit_tracking_middleware(request: Request, call_next):
                           <li><a href="/admin/payouts-v11">Payouts</a></li>
                           <li><a href="/admin/reklame-v111">Reklame</a></li>
                           <li><a href="/admin/cene-v111">Cene</a></li>
+                          <li><a href="/admin/korisnici">Korisnici</a></li>
                           <li><a href="/admin/oglasivaci">Oglasivaci</a></li>
+                          <li><a href="/admin/korisnici-baza-v117">Baza korisnika</a></li>
                           <li><a href="/admin/budget-v11">Budzeti</a></li>
                           <li><a href="/admin/affiliate-v9">Affiliate</a></li>
                           <li><a href="/admin/revenue-v9">Revenue</a></li>
@@ -9755,7 +9782,7 @@ def admin_user_directory_v117(request: Request, q: str = "", db: Session = Depen
         "pending": db.query(func.coalesce(func.sum(UserDirectoryV117.pending_rsd), 0)).scalar() or 0,
         "earned": db.query(func.coalesce(func.sum(UserDirectoryV117.lifetime_earned_rsd), 0)).scalar() or 0,
     }
-    return templates.TemplateResponse("admin_user_directory_v117.html", {"request": request, "user": u, "flash": None, "rows": rows, "q": q, "totals": totals})
+    return templates.TemplateResponse("admin_user_directory_v117.html", {"request": request, "user": u, "flash": None, "rows": rows, "q": q, "totals": totals, "finance_accounts": v11836_public_accounts(db)})
 
 @app.get("/admin/oglasivaci-baza-v117", response_class=HTMLResponse)
 def admin_advertiser_directory_v117(request: Request, q: str = "", db: Session = Depends(get_db)):
@@ -9772,7 +9799,7 @@ def admin_advertiser_directory_v117(request: Request, q: str = "", db: Session =
         "reserved": db.query(func.coalesce(func.sum(AdvertiserDirectoryV117.budget_reserved_rsd), 0)).scalar() or 0,
         "spent": db.query(func.coalesce(func.sum(AdvertiserDirectoryV117.budget_spent_rsd), 0)).scalar() or 0,
     }
-    return templates.TemplateResponse("admin_advertiser_directory_v117.html", {"request": request, "user": u, "flash": None, "rows": rows, "q": q, "totals": totals})
+    return templates.TemplateResponse("admin_advertiser_directory_v117.html", {"request": request, "user": u, "flash": None, "rows": rows, "q": q, "totals": totals, "finance_accounts": v11836_public_accounts(db)})
 
 def kz117_csv_response(filename, headers, rows):
     output = io.StringIO()

@@ -10,6 +10,40 @@
   <div class="premium-panel-actions">
     <a class="premium-btn green" href="/admin/korisnici-baza-v117.csv">Export CSV</a>
     <a class="premium-btn white" href="/admin/analitika-v117">Analitika</a>
+    <a class="premium-btn white" href="/admin/payouts-v11">Payouts</a>
+    <a class="premium-btn white" href="/admin/approval-center-v11">Approval</a>
+    <a class="premium-btn white" href="/admin/finance-v11834">Finansije</a>
+  </div>
+</section>
+
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Brze akcije i računi</h2>
+    <span>korisnici / isplate</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <div class="kz1111-ledger-card">
+      <small>Navigacija</small>
+      <strong>Otvori ključne ekrane</strong>
+      <p>Iz ove baze možeš odmah da skočiš na analitiku, korisničke isplate, finance snapshot i approval tok bez vraćanja na stari admin.</p>
+      <div class="kz1111-proof-legend">
+        <span><a href="/admin/analitika-v117">Posete i registracije</a></span>
+        <span><a href="/admin/korisnici">Korisnički admin</a></span>
+        <span><a href="/admin/isplate">Isplate</a></span>
+        <span><a href="/admin/finance-v11834">Finance snapshot</a></span>
+      </div>
+    </div>
+    <div class="kz1111-ledger-card">
+      <small>Računi</small>
+      <strong>Podaci za uplatu / isplatu</strong>
+      <p>Finansijski account settings su izvučeni direktno iz system settings, da admin vidi gde se šalju uplate i sa kog računa idu isplate.</p>
+      <div class="kz1111-proof-legend">
+        <span><strong>Uplata oglašivača</strong> {{ finance_accounts.advertiser_payment_account }}</span>
+        <span><strong>Primalac</strong> {{ finance_accounts.advertiser_payment_holder }}</span>
+        <span><strong>Isplata korisnika</strong> {{ finance_accounts.user_payout_account }}</span>
+        <span><strong>Primalac</strong> {{ finance_accounts.user_payout_holder }}</span>
+      </div>
+    </div>
   </div>
 </section>
 
