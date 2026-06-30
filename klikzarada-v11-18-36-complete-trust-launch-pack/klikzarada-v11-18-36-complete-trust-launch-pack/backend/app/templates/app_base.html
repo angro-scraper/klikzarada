@@ -46,6 +46,44 @@
       }
     }
   </style>
+    </style>
+
+  <style id="kz-global-admin-width-fix">
+  body{
+    overflow-x:hidden !important;
+  }
+
+  .premium-app-main,
+  .premium-app-main.full,
+  .premium-app-main.admin-no-commandbar{
+    width:calc(100vw - 24px) !important;
+    max-width:none !important;
+    margin-left:0 !important;
+    margin-right:auto !important;
+    padding-left:8px !important;
+    padding-right:8px !important;
+    box-sizing:border-box !important;
+    overflow-x:hidden !important;
+  }
+
+  .kz117-page-shell,
+  .premium-page-shell{
+    width:100% !important;
+    max-width:100% !important;
+    margin-left:0 !important;
+    margin-right:0 !important;
+    padding-left:0 !important;
+    padding-right:0 !important;
+    box-sizing:border-box !important;
+    overflow-x:hidden !important;
+  }
+
+  .premium-table-wrap{
+    max-width:100% !important;
+    overflow-x:auto !important;
+  }
+  </style>
+</head>
 </head>
 <body class="premium-app-body {% if user and user.role == 'admin' %}premium-admin{% endif %}">
 {% set path = request.url.path if request else '/' %}
