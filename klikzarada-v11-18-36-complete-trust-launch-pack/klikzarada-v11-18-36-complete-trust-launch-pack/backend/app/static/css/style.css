@@ -9375,6 +9375,200 @@ a{text-decoration:none!important}
   }
 }
 
+@media(max-width:760px){
+  .premium-app-topbar{
+    position:sticky;
+    top:0;
+  }
+
+  .premium-app-topbar-inner.admin-mode{
+    width:calc(100vw - 20px)!important;
+    padding:12px 0 14px!important;
+    gap:12px!important;
+  }
+
+  .premium-app-brand{
+    gap:10px!important;
+    align-items:flex-start!important;
+  }
+
+  .premium-app-brand strong{
+    font-size:22px!important;
+  }
+
+  .premium-app-brand em{
+    display:inline-flex!important;
+    width:max-content!important;
+    margin-top:4px!important;
+  }
+
+  .premium-admin-hub{
+    grid-template-columns:1fr!important;
+    gap:10px!important;
+  }
+
+  .premium-admin-nav-group{
+    padding:12px!important;
+    border-radius:18px!important;
+  }
+
+  .premium-admin-nav-label{
+    margin-bottom:8px!important;
+  }
+
+  .premium-admin-nav-row{
+    display:flex!important;
+    flex-wrap:nowrap!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    padding-bottom:6px!important;
+    -webkit-overflow-scrolling:touch!important;
+    scroll-snap-type:x proximity!important;
+  }
+
+  .premium-admin-nav-row a{
+    flex:0 0 auto!important;
+    white-space:nowrap!important;
+    scroll-snap-align:start!important;
+    min-height:40px!important;
+    padding:0 12px!important;
+  }
+
+  .premium-app-user{
+    width:100%!important;
+    justify-content:space-between!important;
+  }
+
+  .premium-app-user div{
+    min-width:0!important;
+  }
+
+  .premium-app-user a{
+    padding:11px 14px!important;
+  }
+
+  .premium-app-layout,
+  .premium-app-main.full{
+    width:calc(100vw - 20px)!important;
+    margin:14px auto!important;
+  }
+
+  .premium-sidebar{
+    top:auto!important;
+    max-height:none!important;
+    border-radius:18px!important;
+  }
+
+  .premium-panel-hero{
+    padding:20px!important;
+    border-radius:20px!important;
+  }
+
+  .premium-panel-hero h1{
+    font-size:32px!important;
+    line-height:1.02!important;
+  }
+
+  .premium-panel-hero p{
+    font-size:15px!important;
+  }
+
+  .premium-panel-actions,
+  .premium-command-links{
+    grid-template-columns:1fr!important;
+  }
+
+  .premium-panel-actions a,
+  .premium-command-links a{
+    width:100%!important;
+    min-height:44px!important;
+  }
+
+  .premium-stat-grid,
+  .premium-money-grid,
+  .premium-action-grid,
+  .admin-v1184-overview-grid,
+  .admin-v1184-overview-links,
+  .premium-group-grid{
+    grid-template-columns:1fr!important;
+  }
+
+  .premium-table-wrap{
+    border-radius:16px!important;
+  }
+
+  .premium-table-wrap table{
+    min-width:640px!important;
+  }
+
+  .premium-form input,
+  .premium-form textarea,
+  .premium-form select{
+    font-size:16px!important;
+  }
+
+  .premium-app-main .card,
+  .premium-app-main .premium-card,
+  .premium-app-main .premium-panel-hero,
+  .premium-app-main .premium-table-wrap{
+    margin-bottom:16px!important;
+  }
+}
+
+@media(max-width:520px){
+  .premium-app-topbar-inner.admin-mode{
+    width:calc(100vw - 16px)!important;
+  }
+
+  .premium-app-brand strong{
+    font-size:20px!important;
+  }
+
+  .premium-app-brand em{
+    font-size:10px!important;
+    padding:5px 8px!important;
+  }
+
+  .premium-admin-nav-row{
+    gap:6px!important;
+  }
+
+  .premium-admin-nav-row a{
+    min-height:38px!important;
+    padding:0 10px!important;
+    font-size:12px!important;
+  }
+
+  .premium-app-user{
+    padding:10px 12px!important;
+    border-radius:16px!important;
+  }
+
+  .premium-app-user strong{
+    font-size:14px!important;
+  }
+
+  .premium-app-user small{
+    font-size:11px!important;
+  }
+
+  .premium-panel-hero h1{
+    font-size:28px!important;
+  }
+
+  .premium-panel-hero p{
+    font-size:14px!important;
+  }
+
+  .premium-table-wrap table{
+    min-width:560px!important;
+  }
+
+  .premium-form label{
+    font-size:13px!important;
+  }
+}
+
 /* Admin nav: labels, groups and active state more professional */
 .premium-app-topbar-inner.admin-mode{
   width:min(1760px,calc(100vw - 48px))!important;
