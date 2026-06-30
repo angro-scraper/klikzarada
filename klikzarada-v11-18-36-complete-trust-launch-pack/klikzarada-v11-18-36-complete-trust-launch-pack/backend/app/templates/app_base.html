@@ -49,6 +49,13 @@
 </head>
 <body class="premium-app-body {% if user and user.role == 'admin' %}premium-admin{% endif %}">
 {% set path = request.url.path if request else '/' %}
+{% set admin_context =
+  'sales' if path.startswith('/admin/reklame-v111') or path.startswith('/admin/promocija-v111') or path.startswith('/admin/banneri-v111') or path.startswith('/admin/crm') or path.startswith('/admin/oglasivaci') or path.startswith('/admin/korisnici') or path.startswith('/admin/fakture') or path.startswith('/admin/budget-v11') or path.startswith('/admin/cene-v111')
+  else 'finance' if path.startswith('/admin/payments-v8') or path.startswith('/admin/payouts-v11') or path.startswith('/admin/collections-v11') or path.startswith('/admin/renewals-v11') or path.startswith('/admin/approval-center-v11') or path.startswith('/admin/alerts-v11') or path.startswith('/admin/reports-v11') or path.startswith('/admin/email-outbox-v8') or path.startswith('/admin/notification-queue-v11845') or path.startswith('/admin/finance-v11834')
+  else 'ops' if path.startswith('/admin/launch-v9') or path.startswith('/admin/golive-v9') or path.startswith('/admin/smoke-v11') or path.startswith('/admin/deploy-v11') or path.startswith('/admin/daily-desk-v11') or path.startswith('/admin/ops-v11835')
+  else 'system' if path.startswith('/admin/security-v11') or path.startswith('/admin/feature-flags') or path.startswith('/admin/system-settings')
+  else 'overview'
+%}
 <header class="premium-app-topbar">
   <div class="premium-app-topbar-inner {% if user and user.role == 'admin' %}admin-mode{% endif %}">
     <a class="premium-app-brand" href="/">
@@ -69,27 +76,26 @@
           <a class="tone-violet {% if path.startswith('/admin/v11') or path.startswith('/admin/dashboard') %}active{% endif %}" href="/admin/v11">Dashboard</a>
           <a class="tone-violet {% if path.startswith('/admin-centar') %}active{% endif %}" href="/admin-centar">Admin centar</a>
           <a class="tone-violet {% if path.startswith('/admin/mapa-platforme') %}active{% endif %}" href="/admin/mapa-platforme">Mapa platforme</a>
-          <a class="tone-violet {% if path.startswith('/admin/analitika-v117') %}active{% endif %}" href="/admin/analitika-v117">Analitika</a>
+        </div>
+      </div>
+      {% if admin_context == 'sales' %}
+      <div class="premium-admin-nav-group">
+        <span class="premium-admin-nav-label">Komercijala</span>
+        <div class="premium-admin-nav-row secondary">
           <a class="tone-blue {% if path.startswith('/admin/reklame-v111') or path.startswith('/admin/promocija-v111') or path.startswith('/admin/banneri-v111') %}active{% endif %}" href="/admin/reklame-v111">Reklame</a>
           <a class="tone-blue {% if path.startswith('/admin/crm') %}active{% endif %}" href="/admin/crm">CRM</a>
           <a class="tone-amber {% if path.startswith('/admin/cene-v111') %}active{% endif %}" href="/admin/cene-v111">Cene</a>
-        </div>
-      </div>
-      <div class="premium-admin-nav-group">
-        <span class="premium-admin-nav-label">Live tok</span>
-        <div class="premium-admin-nav-row secondary">
           <a class="tone-green {% if path.startswith('/admin/oglasivaci') %}active{% endif %}" href="/admin/oglasivaci">Oglašivači</a>
           <a class="tone-green {% if path.startswith('/admin/korisnici-baza-v117') %}active{% endif %}" href="/admin/korisnici-baza-v117">Korisnici baza</a>
-          <a class="tone-green {% if path.startswith('/admin/oglasivaci-baza-v117') %}active{% endif %}" href="/admin/oglasivaci-baza-v117">Oglašivači baza</a>
           <a class="tone-green {% if path.startswith('/admin/fakture') %}active{% endif %}" href="/admin/fakture">Fakture</a>
-          <a class="tone-green {% if path.startswith('/admin/isplate') %}active{% endif %}" href="/admin/isplate">Isplate</a>
         </div>
       </div>
+      {% elif admin_context == 'finance' %}
       <div class="premium-admin-nav-group">
         <span class="premium-admin-nav-label">Naplata i signal</span>
         <div class="premium-admin-nav-row secondary">
-          <a class="tone-amber {% if path.startswith('/admin/payouts-v11') %}active{% endif %}" href="/admin/payouts-v11">Payouts</a>
           <a class="tone-amber {% if path.startswith('/admin/payments-v8') %}active{% endif %}" href="/admin/payments-v8">Payments</a>
+          <a class="tone-amber {% if path.startswith('/admin/payouts-v11') %}active{% endif %}" href="/admin/payouts-v11">Payouts</a>
           <a class="tone-amber {% if path.startswith('/admin/collections-v11') %}active{% endif %}" href="/admin/collections-v11">Collections</a>
           <a class="tone-amber {% if path.startswith('/admin/renewals-v11') %}active{% endif %}" href="/admin/renewals-v11">Renewals</a>
           <a class="tone-amber {% if path.startswith('/admin/approval-center-v11') %}active{% endif %}" href="/admin/approval-center-v11">Approval</a>
@@ -100,6 +106,7 @@
           <a class="tone-blue {% if path.startswith('/admin/finance-v11834') %}active{% endif %}" href="/admin/finance-v11834">Finance snapshot</a>
         </div>
       </div>
+      {% elif admin_context == 'ops' %}
       <div class="premium-admin-nav-group">
         <span class="premium-admin-nav-label">Launch i live</span>
         <div class="premium-admin-nav-row secondary">
@@ -111,6 +118,7 @@
           <a class="tone-blue {% if path.startswith('/admin/ops-v11835') %}active{% endif %}" href="/admin/ops-v11835">Ops</a>
         </div>
       </div>
+      {% elif admin_context == 'system' %}
       <div class="premium-admin-nav-group">
         <span class="premium-admin-nav-label">Sistem</span>
         <div class="premium-admin-nav-row secondary">
@@ -119,6 +127,19 @@
           <a class="tone-red {% if path.startswith('/admin/system-settings') %}active{% endif %}" href="/admin/system-settings">System settings</a>
         </div>
       </div>
+      {% else %}
+      <div class="premium-admin-nav-group">
+        <span class="premium-admin-nav-label">Pregled</span>
+        <div class="premium-admin-nav-row secondary">
+          <a class="tone-blue {% if path.startswith('/admin/analitika-v117') %}active{% endif %}" href="/admin/analitika-v117">Analitika</a>
+          <a class="tone-blue {% if path.startswith('/admin/reklame-v111') %}active{% endif %}" href="/admin/reklame-v111">Reklame</a>
+          <a class="tone-blue {% if path.startswith('/admin/crm') %}active{% endif %}" href="/admin/crm">CRM</a>
+          <a class="tone-amber {% if path.startswith('/admin/cene-v111') %}active{% endif %}" href="/admin/cene-v111">Cene</a>
+          <a class="tone-green {% if path.startswith('/admin/oglasivaci') %}active{% endif %}" href="/admin/oglasivaci">Oglašivači</a>
+          <a class="tone-green {% if path.startswith('/admin/korisnici-baza-v117') %}active{% endif %}" href="/admin/korisnici-baza-v117">Korisnici baza</a>
+        </div>
+      </div>
+      {% endif %}
     </nav>
     {% else %}
     <nav class="premium-app-nav">
