@@ -11,7 +11,11 @@
       <a class="premium-btn blue" href="/admin/kampanje">Kampanje</a>
       <a class="premium-btn green" href="/admin/finansije">Finansije</a>
       <a class="premium-btn white" href="/admin/dokazi">Dokazi</a>
+      <a class="premium-btn white" href="/admin/analitika-v117">Analitika</a>
+      <a class="premium-btn white" href="/admin/korisnici-baza-v117">Korisnici baza</a>
+      <a class="premium-btn white" href="/admin/oglasivaci-baza-v117">Oglašivači baza</a>
       <a class="premium-btn white" href="/admin/mapa-platforme">Mapa platforme</a>
+      <a class="premium-btn white" href="/admin/reports-v11">Reports</a>
       <a class="premium-btn white" href="/admin/reklame-v111">Reklame</a>
       <a class="premium-btn white" href="/admin/collections-v11">Collections</a>
       <a class="premium-btn white" href="/admin/approval-center-v11">Approval</a>
@@ -77,6 +81,7 @@
       <a href="/admin/fakture"><b>Fakture oglašivačima</b><small>Naplata prema firmama i pregled statusa uplata.</small></a>
       <a href="/admin/approval-center-v11"><b>Approval center</b><small>Invoice, payout, refund i top-up odluke na jednom mestu.</small></a>
       <a href="/admin/renewals-v11"><b>Renewals</b><small>Istek bannera, boost-ova i sledeći prodajni ciklus.</small></a>
+      <a href="/admin/reports-v11"><b>Reports</b><small>Dnevni revenue snapshot, top oglašivači i iskorišćenost slotova.</small></a>
     </div>
   </article>
   <article class="premium-card admin-v1172-priority">
@@ -90,6 +95,7 @@
       <a href="/admin/finansije"><b>Budzet</b><small>{{ "%.0f"|format(stats.total_budget) }} RSD je trenutno u sistemu oglasivaca.</small></a>
       <a href="/admin/collections-v11"><b>Collections</b><small>Dospelo, kasni i prioriteti za follow-up naplatu.</small></a>
       <a href="/admin/alerts-v11"><b>Alerts</b><small>Finansije, slotovi, refund i pacing warning signali.</small></a>
+      <a href="/admin/analitika-v117"><b>Analitika</b><small>Posete, registracije i odnos korisnika i oglašivača.</small></a>
     </div>
   </article>
   <article class="premium-card admin-v1172-priority">
@@ -121,8 +127,11 @@
     </div>
     <div class="admin-v1172-priority-list">
       <a href="/admin/launch-v9"><b>Launch OS</b><small>Kampanje i taskovi za akviziciju, partnerstva i izlazak na trziste.</small></a>
+      <a href="/admin/launch-v11836"><b>Launch plan</b><small>Produkcijski checklist i finalna launch priprema.</small></a>
       <a href="/admin/golive-v9"><b>Go-live checklist</b><small>Kontrolna lista, blokeri i backup snapshoti pre svakog pustanja.</small></a>
       <a href="/admin/daily-desk-v11"><b>Daily desk</b><small>Dnevna koordinacija admin tima i ritam izvrsenja.</small></a>
+      <a href="/admin/notification-queue-v11845"><b>Comm queue</b><small>Email i sistemske poruke sa statusima slanja.</small></a>
+      <a href="/admin/email-outbox-v8"><b>Email outbox</b><small>Van-panelske poruke i kontrola izlaznih notifikacija.</small></a>
     </div>
   </article>
   <article class="premium-card admin-v1172-priority">
@@ -134,6 +143,8 @@
       <a href="/admin/smoke-v11"><b>Smoke test</b><small>Brza tehnicka provera pre i posle deploy-a.</small></a>
       <a href="/admin/deploy-v11"><b>Deploy centar</b><small>Targeti, readiness, backup i poslednji tehnicki signali.</small></a>
       <a href="/admin/ops-v11835"><b>Ops scan</b><small>Operativni presek i csv export za brzu kontrolu stanja.</small></a>
+      <a href="/admin/security-v11"><b>Security</b><small>Login attempti, uredjaji i zastita admin pristupa.</small></a>
+      <a href="/admin/feature-flags"><b>Feature flags</b><small>Ukljucivanje i gasenje novih modula bez novog deploy-a.</small></a>
     </div>
   </article>
   <article class="premium-card admin-v1172-priority">
@@ -142,10 +153,13 @@
       <span>partneri</span>
     </div>
     <div class="admin-v1172-priority-list">
+      <a href="/admin/korisnici-baza-v117"><b>Baza korisnika</b><small>Registrovani korisnici, balans i referral signal.</small></a>
       <a href="/admin/oglasivaci-baza-v117"><b>Baza oglašivača</b><small>Firma, kontakt, budžet, kampanje i potrošnja na jednom mestu.</small></a>
+      <a href="/admin/oglasivaci"><b>Operativni oglašivači</b><small>CRM, top-up, owner i next action tok.</small></a>
       <a href="/admin/budget-v11"><b>Budžeti oglašivača</b><small>Alerti, rezervacije i stanje sredstava po nalogu.</small></a>
       <a href="/admin/reports-v11"><b>Reports</b><small>Dnevni revenue snapshot, top oglašivači i iskorišćenost slotova.</small></a>
       <a href="/admin/affiliate-v9"><b>Affiliate i partneri</b><small>Akvizicija firmi preko partnera i obračun provizije.</small></a>
+      <a href="/admin/analitika-v117"><b>Analitika</b><small>Posete platforme, korisnici i oglašivači na jednom mestu.</small></a>
     </div>
   </article>
   <article class="premium-card admin-v1172-priority">
@@ -154,9 +168,10 @@
       <span>kontrola</span>
     </div>
     <div class="admin-v1172-priority-list">
+      <a href="/admin/system-settings"><b>System settings</b><small>Ključna pravila, finansijski parametri i task izvori.</small></a>
+      <a href="/admin/notification-queue-v11845"><b>Comm queue</b><small>Email i sistemska obaveštenja sa statusima slanja.</small></a>
       <a href="/admin/security-v11"><b>Security</b><small>Login attempti, uredjaji i zastita admin pristupa.</small></a>
       <a href="/admin/feature-flags"><b>Feature flags</b><small>Ukljucivanje i gasenje novih modula bez novog deploy-a.</small></a>
-      <a href="/admin/system-settings"><b>System settings</b><small>Ključna pravila, finansijski parametri i task izvori.</small></a>
     </div>
   </article>
 </section>
@@ -333,8 +348,12 @@
     <div class="premium-command-links" style="grid-template-columns:repeat(2,minmax(0,1fr));">
       <a href="/admin/v11">Dashboard</a>
       <a href="/admin/mapa-platforme">Mapa platforme</a>
+      <a href="/admin/analitika-v117">Analitika</a>
+      <a href="/admin/korisnici-baza-v117">Korisnici baza</a>
       <a href="/admin/dokazi">Queue dokaza</a>
+      <a href="/admin/oglasivaci-baza-v117">Oglašivači baza</a>
       <a href="/admin/finansije">Racuni i budzet</a>
+      <a href="/admin/notification-queue-v11845">Comm queue</a>
     </div>
   </section>
 </div>
