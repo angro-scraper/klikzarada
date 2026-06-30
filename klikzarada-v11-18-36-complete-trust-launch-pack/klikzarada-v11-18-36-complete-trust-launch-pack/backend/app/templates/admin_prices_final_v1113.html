@@ -37,6 +37,31 @@
   </article>
 </section>
 
+{% if visit_stats is defined %}
+<section class="premium-stat-grid">
+  <article class="blue">
+    <small>Posete sajtu</small>
+    <strong>{{ visit_stats.total_visits }}</strong>
+    <span>ukupno</span>
+  </article>
+  <article class="green">
+    <small>Unique danas</small>
+    <strong>{{ visit_stats.unique_today }}</strong>
+    <span>{{ visit_stats.today_visits }} poseta danas</span>
+  </article>
+  <article class="purple">
+    <small>Oglašivači</small>
+    <strong>{{ visit_stats.registered_advertisers }}</strong>
+    <span>registrovano</span>
+  </article>
+  <article class="orange">
+    <small>Korisnici</small>
+    <strong>{{ visit_stats.registered_users }}</strong>
+    <span>registrovano</span>
+  </article>
+</section>
+{% endif %}
+
 <section class="kz1111-section">
   <div class="kz1111-section-head">
     <h2>Monetization control</h2>
@@ -78,6 +103,27 @@
     </article>
   </div>
 </section>
+
+{% if visit_stats is defined %}
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Platform signal</h2>
+    <span>posete i baza</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <div class="kz1111-ledger-card">
+      <small>Live audience</small>
+      <strong>{{ visit_stats.unique_total }} unique posetilaca</strong>
+      <p>Danas je zabeleženo {{ visit_stats.today_visits }} poseta i {{ visit_stats.unique_today }} jedinstvenih posetilaca. Ovaj broj odmah govori koliki je realan supply za task i ad inventory pricing.</p>
+    </div>
+    <div class="kz1111-ledger-card">
+      <small>Registracije</small>
+      <strong>{{ visit_stats.registered_advertisers }} oglašivača · {{ visit_stats.registered_users }} korisnika</strong>
+      <p>Broj oglašivača i broj korisnika treba da utiču na minimalne cene po kategoriji, jer nisu svi taskovi isti kada je supply tanak ili tražnja jaka.</p>
+    </div>
+  </div>
+</section>
+{% endif %}
 
 {% if margin_snapshot is defined %}
 <section class="kz1111-section">
@@ -178,6 +224,38 @@
   </form>
 </section>
 
+{% if category_pricing_rows is defined %}
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Kategorije zadataka</h2>
+    <span>{{ category_pricing_rows|length }}</span>
+  </div>
+  <form method="post" action="/admin/cene-v111/task-mins">
+    <div class="premium-action-grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));">
+      {% for row in category_pricing_rows %}
+      <article class="premium-empty" style="display:grid;gap:10px">
+        <div>
+          <small style="color:#64748b;font-weight:900;letter-spacing:.06em;text-transform:uppercase">{{ row.task_type }}</small>
+          <h3 style="margin:6px 0 6px;color:#071a3f">{{ row.title }}</h3>
+          <p style="margin:0;color:#64748b;line-height:1.55">{{ row.desc }}</p>
+        </div>
+        <div class="premium-money-grid">
+          <article><small>Min cena</small><strong>{{ "%.0f"|format(row.min_reward_rsd) }}</strong></article>
+          <article><small>Aktivni</small><strong>{{ row.active_tasks }}</strong></article>
+          <article><small>Ukupno</small><strong>{{ row.total_tasks }}</strong></article>
+          <article><small>Prosek</small><strong>{{ "%.0f"|format(row.avg_reward_rsd) }}</strong></article>
+        </div>
+        <label>Minimalna cena po zadatku (RSD)</label>
+        <input type="number" step="1" min="0" name="task_min_{{ row.slug }}" value="{{ "%.0f"|format(row.min_reward_rsd) }}">
+        <small>Svaki novi zadatak u ovoj kategoriji mora biti najmanje ove vrednosti.</small>
+      </article>
+      {% endfor %}
+    </div>
+    <button class="btn btn-primary" style="margin-top:18px">Sačuvaj minimalne cene po kategoriji</button>
+  </form>
+</section>
+{% endif %}
+
 <section class="kz1111-section">
   <div class="kz1111-section-head">
     <h2>Šta još treba od funkcija</h2>
@@ -192,7 +270,7 @@
     <div class="kz1111-ledger-card">
       <small>Kontrola</small>
       <strong>Minimalna marža i upozorenje</strong>
-      <p>Vredi dodati guardrail koji obeležava rizičnu cenu kada platformi ostaje premalo nakon reward dela i ostalih troškova.</p>
+      <p>Guardrail sada ide i kroz minimalnu cenu po kategoriji, pa admin može da zaključava donju granicu za ankete, testiranje sajta, AI zadatke i ostale tipove posebno.</p>
     </div>
   </div>
 </section>
