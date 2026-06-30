@@ -18,7 +18,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Upload
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import case, func, or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from urllib.request import Request as UrlRequest, urlopen
@@ -8030,21 +8030,28 @@ def kz11846_effective_min_reward_with_template(db: Session, category: str, task_
 
 
 def kz11846_setting_get(db: Session, key: str, default: str = ""):
-    row = db.query(SystemSetting).filter(SystemSetting.key == key).first()
-    return row.value if row and row.value is not None else default
+    try:
+        row = db.query(SystemSetting).filter(SystemSetting.key == key).first()
+        return row.value if row and row.value is not None else default
+    except Exception:
+        return default
 
 
 def kz11846_setting_set(db: Session, key: str, value: str, description: str = ""):
-    row = db.query(SystemSetting).filter(SystemSetting.key == key).first()
-    if not row:
-        row = SystemSetting(key=key, value=value, description=description or None, updated_at=datetime.utcnow())
-        db.add(row)
-    else:
-        row.value = value
-        row.description = description or row.description
-        row.updated_at = datetime.utcnow()
-    db.commit()
-    return row
+    try:
+        row = db.query(SystemSetting).filter(SystemSetting.key == key).first()
+        if not row:
+            row = SystemSetting(key=key, value=value, description=description or None, updated_at=datetime.utcnow())
+            db.add(row)
+        else:
+            row.value = value
+            row.description = description or row.description
+            row.updated_at = datetime.utcnow()
+        db.commit()
+        return row
+    except Exception:
+        db.rollback()
+        return None
 
 
 def kz11846_category_catalog(db: Session):
@@ -8158,21 +8165,30 @@ def kz11846_task_type_pricing_rows(db: Session):
 
 def kz11846_template_pricing_rows(db: Session):
     rows = []
-    templates_ = db.query(CampaignTemplate).order_by(CampaignTemplate.is_active.desc(), CampaignTemplate.created_at.desc()).all()
+    try:
+        templates_ = db.query(CampaignTemplate).order_by(CampaignTemplate.is_active.desc(), CampaignTemplate.created_at.desc()).all()
+    except Exception:
+        return rows
     for tpl in templates_:
-        active_tasks = db.query(Task).filter(
-            Task.title == tpl.name,
-            Task.category == tpl.category,
-            Task.task_type == tpl.task_type,
-            Task.status == "active",
-        ).count()
-        total_tasks = db.query(Task).filter(
-            Task.title == tpl.name,
-            Task.category == tpl.category,
-            Task.task_type == tpl.task_type,
-        ).count()
-        template_floor = kz11846_template_min_reward(db, tpl.id, 0.0)
-        effective_floor = kz11846_effective_min_reward_with_template(db, tpl.category, tpl.task_type, tpl.id, 50.0)
+        try:
+            active_tasks = db.query(Task).filter(
+                Task.title == tpl.name,
+                Task.category == tpl.category,
+                Task.task_type == tpl.task_type,
+                Task.status == "active",
+            ).count()
+            total_tasks = db.query(Task).filter(
+                Task.title == tpl.name,
+                Task.category == tpl.category,
+                Task.task_type == tpl.task_type,
+            ).count()
+            template_floor = kz11846_template_min_reward(db, tpl.id, 0.0)
+            effective_floor = kz11846_effective_min_reward_with_template(db, tpl.category, tpl.task_type, tpl.id, 50.0)
+        except Exception:
+            active_tasks = 0
+            total_tasks = 0
+            template_floor = 0.0
+            effective_floor = float(getattr(tpl, "suggested_reward_rsd", 50) or 50)
         rows.append({
             "template": tpl,
             "slug": f"tpl_{tpl.id}",
@@ -8239,7 +8255,22 @@ def kz11846_sales_packages(db: Session):
 
 
 def kz11846_pricing_signal_context(db: Session):
-    visit_stats = kz117_visit_stats(db)
+    try:
+        visit_stats = kz117_visit_stats(db)
+    except Exception:
+        visit_stats = {
+            "total_visits": 0,
+            "today_visits": 0,
+            "unique_total": 0,
+            "unique_today": 0,
+            "registered_users": 0,
+            "registered_advertisers": 0,
+            "admins": 0,
+            "top_routes": [],
+            "role_visits": [],
+            "recent": [],
+        }
+
     route_rows = []
     for path, cnt in visit_stats.get("top_routes", []):
         route_rows.append({
@@ -8249,44 +8280,65 @@ def kz11846_pricing_signal_context(db: Session):
         })
 
     category_lookup = {row["title"]: row for row in kz11846_category_catalog(db)}
-    session_rows = []
+    category_bucket = {}
     if "TaskViewSessionV114" in globals():
-        session_rows = db.query(
-            Task.category,
-            Task.task_type,
-            func.count(TaskViewSessionV114.id).label("sessions"),
-            func.sum(case((TaskViewSessionV114.is_completed == True, 1), else_=0)).label("completed"),
-        ).join(Task, TaskViewSessionV114.task_id == Task.id).group_by(Task.category, Task.task_type).order_by(func.count(TaskViewSessionV114.id).desc()).limit(12).all()
+        try:
+            sessions = db.query(TaskViewSessionV114).order_by(TaskViewSessionV114.created_at.desc()).limit(500).all()
+            for session in sessions:
+                task = getattr(session, "task", None)
+                if not task:
+                    continue
+                title = (getattr(task, "category", "") or kz11846_default_category_from_task_type(getattr(task, "task_type", "") or "")).strip() or "Promo zadaci"
+                task_type = getattr(task, "task_type", "") or category_lookup.get(title, {}).get("task_type", "promo")
+                key = (title, task_type)
+                if key not in category_bucket:
+                    category_bucket[key] = {"sessions": 0, "completed": 0}
+                category_bucket[key]["sessions"] += 1
+                if getattr(session, "is_completed", False):
+                    category_bucket[key]["completed"] += 1
+        except Exception:
+            category_bucket = {}
 
     category_demand_rows = []
-    for category, task_type, sessions, completed in session_rows:
-        title = (category or kz11846_default_category_from_task_type(task_type or "")).strip() or "Promo zadaci"
+    for (title, task_type), bucket in sorted(category_bucket.items(), key=lambda item: item[1]["sessions"], reverse=True)[:12]:
         catalog_row = category_lookup.get(title, {"desc": "Signal iz live sesija.", "task_type": task_type or "promo"})
-        active_tasks = db.query(Task).filter(Task.category == title, Task.status == "active").count()
+        try:
+            active_tasks = db.query(Task).filter(Task.category == title, Task.status == "active").count()
+        except Exception:
+            active_tasks = 0
         effective_floor = kz11846_effective_min_reward(db, title, task_type or catalog_row.get("task_type", "promo"), 50.0)
-        completion_rate = round((float(completed or 0) / float(sessions or 1)) * 100, 1) if sessions else 0.0
+        sessions = int(bucket.get("sessions", 0) or 0)
+        completed = int(bucket.get("completed", 0) or 0)
+        completion_rate = round((float(completed) / float(sessions or 1)) * 100, 1) if sessions else 0.0
         category_demand_rows.append({
             "title": title,
             "task_type": task_type or catalog_row.get("task_type", "promo"),
             "desc": catalog_row.get("desc", ""),
-            "sessions": int(sessions or 0),
-            "completed": int(completed or 0),
+            "sessions": sessions,
+            "completed": completed,
             "completion_rate": completion_rate,
             "active_tasks": active_tasks,
             "effective_min_reward_rsd": effective_floor,
         })
 
     task_floor_rows = []
-    for task in db.query(Task).filter(Task.status.in_(["active", "pending"])).order_by(Task.created_at.desc()).limit(250).all():
-        effective_floor = kz11846_effective_min_reward(db, task.category or "Promo zadaci", task.task_type or "promo", 50.0)
-        reward = float(getattr(task, "reward_rsd", 0) or 0)
-        if reward >= effective_floor:
+    try:
+        tracked_tasks = db.query(Task).filter(Task.status.in_(["active", "pending"])).order_by(Task.created_at.desc()).limit(250).all()
+    except Exception:
+        tracked_tasks = []
+    for task in tracked_tasks:
+        try:
+            effective_floor = kz11846_effective_min_reward(db, task.category or "Promo zadaci", task.task_type or "promo", 50.0)
+            reward = float(getattr(task, "reward_rsd", 0) or 0)
+            if reward >= effective_floor:
+                continue
+            task_floor_rows.append({
+                "task": task,
+                "effective_min_reward_rsd": effective_floor,
+                "delta_rsd": round(effective_floor - reward, 2),
+            })
+        except Exception:
             continue
-        task_floor_rows.append({
-            "task": task,
-            "effective_min_reward_rsd": effective_floor,
-            "delta_rsd": round(effective_floor - reward, 2),
-        })
     task_floor_rows = sorted(task_floor_rows, key=lambda row: row["delta_rsd"], reverse=True)[:10]
 
     pricing_warnings = []
