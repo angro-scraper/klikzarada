@@ -1,23 +1,40 @@
 {% extends "app_base.html" %}
 {% set title = "Mapa platforme - KlikZarada" %}
 {% block app_content %}
-<section class="kz1110-hero">
-  <div>
+<section class="kz1110-hero kz1110-hero-premium">
+  <div class="kz1110-hero-copy">
     <span>MAPA PLATFORME</span>
     <h1>Sve funkcije na jednoj stranici</h1>
-    <p>Centralni pregled za admina. Svaka funkcija ima svoju stranicu i dugme za otvaranje.</p>
+    <p>Centralni pregled za admina. Svaka funkcija ima svoju stranicu, ali ovde je sve sabijeno u čist, premium komandni pregled.</p>
+    <div class="kz1110-hero-actions">
+      <a class="btn btn-primary" href="/admin/v11">Admin dashboard</a>
+      <a class="btn btn-secondary" href="/admin/analitika-v117">Analitika</a>
+      <a class="btn btn-secondary" href="/api/v1/v11/design-map">API mapa</a>
+    </div>
   </div>
-  <div class="kz1110-hero-actions">
-    <a class="btn btn-primary" href="/admin/v11">Admin dashboard</a>
-    <a class="btn btn-secondary" href="/api/v1/v11/design-map">API mapa</a>
+  <div class="kz1110-hero-rail">
+    <div class="kz1110-stat-grid compact">
+      <div class="kz1110-stat"><small>Funkcije</small><strong>{{ functions|length }}</strong><span>u mapi</span></div>
+      <div class="kz1110-stat"><small>Kategorije</small><strong>{{ categories|length }}</strong><span>zadataka</span></div>
+      <div class="kz1110-stat"><small>Dizajn</small><strong>V11.10</strong><span>unified</span></div>
+      <div class="kz1110-stat"><small>Status</small><strong>OK</strong><span>spremno</span></div>
+    </div>
   </div>
 </section>
 
-<section class="kz1110-stat-grid">
-  <div class="kz1110-stat"><small>Funkcije</small><strong>{{ functions|length }}</strong><span>u mapi</span></div>
-  <div class="kz1110-stat"><small>Kategorije</small><strong>{{ categories|length }}</strong><span>zadataka</span></div>
-  <div class="kz1110-stat"><small>Dizajn</small><strong>V11.10</strong><span>unified</span></div>
-  <div class="kz1110-stat"><small>Status</small><strong>OK</strong><span>spremno</span></div>
+<section class="kz1110-section kz1110-quick-hub">
+  <div class="kz1110-section-head">
+    <h2>Brzi ulazi</h2>
+    <span>najbitniji moduli</span>
+  </div>
+  <div class="kz1110-quick-grid">
+    <a href="/admin/v11"><strong>Dashboard</strong><small>Glavni signal i pregled.</small></a>
+    <a href="/admin/analitika-v117"><strong>Analitika</strong><small>Posete, registracije i trendovi.</small></a>
+    <a href="/admin/oglasivaci-baza-v117"><strong>Oglašivači baza</strong><small>CRM i komercijalni tok.</small></a>
+    <a href="/admin/korisnici-baza-v117"><strong>Korisnici baza</strong><small>Reputacija i balans.</small></a>
+    <a href="/admin/reklame-v111"><strong>Reklame</strong><small>Slotovi, banneri i prodaja.</small></a>
+    <a href="/admin/cene-v111"><strong>Cene</strong><small>Guardrail, marže i paketi.</small></a>
+  </div>
 </section>
 
 {% for group, items in grouped.items() %}
