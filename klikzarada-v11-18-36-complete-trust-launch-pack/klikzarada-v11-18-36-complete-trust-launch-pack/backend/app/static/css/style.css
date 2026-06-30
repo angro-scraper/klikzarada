@@ -6352,7 +6352,12 @@ input:focus, select:focus, textarea:focus{
 .kz1111-stack-column{
   display:grid!important;
   grid-template-columns:1fr!important;
+  grid-auto-flow:row!important;
   gap:18px!important;
+}
+.kz1111-stack-column > .kz1111-section{
+  width:100%!important;
+  max-width:none!important;
 }
 .kz1111-proof-legend{
   display:flex!important;
