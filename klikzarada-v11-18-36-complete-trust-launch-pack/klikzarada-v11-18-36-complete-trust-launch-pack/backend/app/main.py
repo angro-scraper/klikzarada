@@ -9365,7 +9365,47 @@ def admin_v11_premium_dashboard_v116(request: Request, db: Session = Depends(get
         "high_risk_campaigns": sum(1 for item in fraud_campaigns if item.get("risk_score", 0) >= 70),
         "medium_risk_campaigns": sum(1 for item in fraud_campaigns if 40 <= item.get("risk_score", 0) < 70),
     }
-    return templates.TemplateResponse("admin_v11_safe_v1171.html", {
+    groups = {
+        "Pregled": [
+            {"title":"Dashboard","url":"/admin/v11","desc":"Glavni komadni centar i prvi pregled."},
+            {"title":"Mapa platforme","url":"/admin/mapa-platforme","desc":"Brzi ulaz u celu mapu modula i tokova."},
+            {"title":"Analitika","url":"/admin/analitika-v117","desc":"Posete, registracije, oglasi i korisnici."},
+            {"title":"Reports","url":"/admin/reports-v11","desc":"Revenue snapshot i operativni pregled."},
+            {"title":"Dokazi","url":"/admin/dokazi","desc":"Moderacija i verifikacija korisničkih isporuka."},
+        ],
+        "Monetizacija i oglašivači": [
+            {"title":"Reklame","url":"/admin/reklame-v111","desc":"Slotovi, banneri i prodajni workflow."},
+            {"title":"Cene","url":"/admin/cene-v111","desc":"Minimalne cene, marže i pricing guardrail."},
+            {"title":"Oglašivači","url":"/admin/oglasivaci","desc":"CRM, owner, notes i next action."},
+            {"title":"Korisnici","url":"/admin/korisnici","desc":"Baza korisnika, reputacija i profil."},
+            {"title":"Baza oglašivača","url":"/admin/oglasivaci-baza-v117","desc":"Centralni registar svih oglašivača."},
+            {"title":"Baza korisnika","url":"/admin/korisnici-baza-v117","desc":"Centralni registar korisnika i statusa."},
+            {"title":"Fakture","url":"/admin/fakture","desc":"Ponude, invoice i naplata."},
+            {"title":"Isplate","url":"/admin/isplate","desc":"Payout tok i odobravanja."},
+            {"title":"Budžeti","url":"/admin/budget-v11","desc":"Stanje, rezervacije i alerti po nalogu."},
+            {"title":"Collections","url":"/admin/collections-v11","desc":"Dospelo, kasni i follow-up naplata."},
+            {"title":"Approval","url":"/admin/approval-center-v11","desc":"Odobrenja za finance i refund tokove."},
+            {"title":"Renewals","url":"/admin/renewals-v11","desc":"Istek bannera i sledeći ciklus prodaje."},
+        ],
+        "Launch i live": [
+            {"title":"Launch","url":"/admin/launch-v9","desc":"Launch checklist i priprema za start."},
+            {"title":"Go-live","url":"/admin/golive-v9","desc":"Final signal pre puštanja u produkciju."},
+            {"title":"Smoke","url":"/admin/smoke-v11","desc":"Brza provera posle deploy-a."},
+            {"title":"Deploy","url":"/admin/deploy-v11","desc":"Status, backup i release kontrola."},
+            {"title":"Daily desk","url":"/admin/daily-desk-v11","desc":"Dnevne admin obaveze i koordinacija."},
+            {"title":"Ops","url":"/admin/ops-v11835","desc":"Operativni presek i tehnički signali."},
+        ],
+        "Sistem i pravila": [
+            {"title":"Security","url":"/admin/security-v11","desc":"Pristup, uređaji i sigurnosni signali."},
+            {"title":"Alerts","url":"/admin/alerts-v11","desc":"Upozorenja i kritični statusi."},
+            {"title":"Comm queue","url":"/admin/notification-queue-v11845","desc":"Email, SMS i internu isporuku."},
+            {"title":"Email outbox","url":"/admin/email-outbox-v8","desc":"Spoljašnje poruke i delivery kontrola."},
+            {"title":"Feature flags","url":"/admin/feature-flags","desc":"Uključivanje funkcija bez novog deploy-a."},
+            {"title":"System settings","url":"/admin/system-settings","desc":"Globalna pravila i parametri sistema."},
+            {"title":"Ops","url":"/admin/ops-v11835","desc":"Operativni presek i tehnički signali."},
+        ],
+    }
+    return templates.TemplateResponse("admin_hub_v1112.html", {
         "request": request,
         "user": u,
         "flash": None,
@@ -9381,18 +9421,10 @@ def admin_v11_premium_dashboard_v116(request: Request, db: Session = Depends(get
             "reserved_budget": reserved_budget_total,
             "spent_budget": spent_budget_total,
         },
-        "pricing_summary": pricing_summary,
-        "latest_tasks": tasks[:8],
-        "latest_submissions": submissions_latest[:8],
-        "latest_withdrawals": pending_withdrawals[:8],
-        "banners": banners[:6],
-        "boosts": boosts[:6],
         "automation_summary": automation_summary,
-        "dashboard_mix": dashboard_mix,
         "proof_mix": proof_mix,
-        "fraud_users": fraud_users[:6],
-        "fraud_campaigns": fraud_campaigns[:6],
         "fraud_summary": fraud_summary,
+        "groups": groups,
     })
 
 

@@ -9375,6 +9375,44 @@ a{text-decoration:none!important}
   }
 }
 
+/* Final admin header lock: keep the topbar compact and readable */
+.premium-app-topbar-inner.admin-mode{
+  align-items:center!important;
+}
+
+.premium-admin-hub{
+  grid-template-columns:1fr!important;
+}
+
+.premium-admin-nav-group{
+  min-width:0!important;
+}
+
+.premium-admin-nav-row{
+  flex-wrap:wrap!important;
+  justify-content:flex-start!important;
+}
+
+.premium-admin-nav-row a{
+  white-space:nowrap!important;
+}
+
+@media(max-width:720px){
+  .premium-app-topbar-inner.admin-mode{
+    gap:12px!important;
+  }
+
+  .premium-admin-nav-row{
+    gap:6px!important;
+  }
+
+  .premium-admin-nav-row a{
+    min-height:36px!important;
+    padding:0 10px!important;
+    font-size:12px!important;
+  }
+}
+
 /* Final admin polish: neutral, premium, consistent */
 .premium-app-topbar-inner.admin-mode{
   grid-template-columns:minmax(250px,280px) minmax(0,1fr) auto!important;

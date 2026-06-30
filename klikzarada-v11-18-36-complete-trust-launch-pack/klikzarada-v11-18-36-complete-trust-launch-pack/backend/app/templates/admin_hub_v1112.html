@@ -1,22 +1,55 @@
-
 {% extends "app_base.html" %}
 {% set title = "Admin centar - KlikZarada" %}
 {% block app_content %}
-<section class="kz112-admin-hero">
+<section class="premium-panel-hero admin">
   <div>
     <span>ADMIN CENTAR</span>
-    <h1>Kontrola platforme bez levog menija</h1>
-    <p>Sve admin funkcije su raspoređene kao dugmad i kartice preko cele širine ekrana.</p>
+    <h1>Minimalan command center</h1>
+    <p>Ovo je glavno mesto za rad: kratke prečice gore, kompletna kontrola dole. Sve što ne mora da smeta je sklonjeno sa puta.</p>
+    <div class="premium-panel-actions">
+      <a class="premium-btn blue" href="/admin/mapa-platforme">Mapa platforme</a>
+      <a class="premium-btn white" href="/admin/reklame-v111">Reklame</a>
+      <a class="premium-btn white" href="/admin/crm">CRM</a>
+      <a class="premium-btn white" href="/admin/cene-v111">Cene</a>
+    </div>
   </div>
-  <div class="kz112-admin-hero-actions">
-    <a class="btn btn-primary" href="/admin/v11">Dashboard</a>
-    <a class="btn btn-secondary" href="/admin/mapa-platforme">Mapa platforme</a>
+  <div class="premium-card banner-launch-hero-card">
+    <div class="premium-card-head">
+      <h2>Brzi signal</h2>
+      <span>uživo</span>
+    </div>
+    <div class="premium-money-grid">
+      <article><small>Korisnici</small><strong>{{ stats.total_customers }}</strong></article>
+      <article><small>Oglašivači</small><strong>{{ stats.total_advertisers }}</strong></article>
+      <article><small>Aktivne kampanje</small><strong>{{ stats.active_tasks }}</strong></article>
+      <article><small>Budžet</small><strong>{{ "%.0f"|format(stats.total_budget) }} RSD</strong></article>
+    </div>
+  </div>
+</section>
+
+<section class="premium-stat-grid">
+  <article class="blue"><small>Ukupno naloga</small><strong>{{ stats.total_users }}</strong><span>platforma</span></article>
+  <article class="orange"><small>Kampanje na čekanju</small><strong>{{ stats.pending_tasks }}</strong><span>moderacija</span></article>
+  <article class="purple"><small>Dokazi na čekanju</small><strong>{{ stats.pending_submissions }}</strong><span>provera</span></article>
+  <article class="green"><small>Isplate na čekanju</small><strong>{{ stats.pending_withdrawals }}</strong><span>obrada</span></article>
+</section>
+
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Kratak pregled</h2>
+    <span>signali</span>
+  </div>
+  <div class="premium-money-grid">
+    <article><small>Reserved budget</small><strong>{{ "%.0f"|format(stats.reserved_budget) }} RSD</strong></article>
+    <article><small>Spent budget</small><strong>{{ "%.0f"|format(stats.spent_budget) }} RSD</strong></article>
+    <article><small>Pending proof</small><strong>{{ proof_mix.pending if proof_mix is defined else 0 }}</strong></article>
+    <article><small>High risk</small><strong>{{ fraud_summary.high_risk_campaigns if fraud_summary is defined else 0 }}</strong></article>
   </div>
 </section>
 
 {% for group, items in groups.items() %}
-<section class="kz112-admin-section">
-  <div class="kz112-admin-section-head">
+<section class="premium-card">
+  <div class="premium-card-head">
     <h2>{{ group }}</h2>
     <span>{{ items|length }} funkcija</span>
   </div>
