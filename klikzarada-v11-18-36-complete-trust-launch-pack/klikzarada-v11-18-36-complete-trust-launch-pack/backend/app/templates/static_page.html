@@ -1,1 +1,16 @@
-{% extends "base.html" %}{% block content %}<section class="page"><span class="eyebrow">{{ title }}</span><h1>{{ heading }}</h1><p>{{ body }}</p></section>{% endblock %}
+{% extends "base.html" %}
+{% block content %}
+<section class="page">
+  <span class="eyebrow">{{ title }}</span>
+  <h1>{{ heading }}</h1>
+  <p>{{ body }}</p>
+  {% if heading == "Kontakt" %}
+  <div class="hint" style="margin-top:22px;text-align:left;">
+    <b>Direktan kontakt</b>
+    <p style="margin:8px 0 0;">
+      Piši na <a href="mailto:kontakt@klik-zarada.rs">kontakt@klik-zarada.rs</a> za saradnju, oglašavanje i podršku.
+    </p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

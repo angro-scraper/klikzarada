@@ -3857,7 +3857,8 @@ def admin_system_settings(request: Request, msg: str | None = None, db: Session 
     check_role(u, ["admin"])
     settings = db.query(SystemSetting).order_by(SystemSetting.key).all()
     task_sources = db.query(TaskSourceV11).order_by(TaskSourceV11.created_at.desc()).all()
-    return templates.TemplateResponse("admin_system_settings_v6.html", {"request": request, "user": u, "settings": settings, "task_sources": task_sources, "flash": flash(msg), "finance_accounts": v11836_public_accounts(db), "ops_suite": v11838_ops_suite_context(db, "/admin/system-settings"), "go_no_go": v11839_go_no_go_summary(db)})
+    support_email = next((s.value for s in settings if s.key == "support_email"), "kontakt@klik-zarada.rs")
+    return templates.TemplateResponse("admin_system_settings_v6.html", {"request": request, "user": u, "settings": settings, "task_sources": task_sources, "flash": flash(msg), "finance_accounts": v11836_public_accounts(db), "support_email": support_email, "ops_suite": v11838_ops_suite_context(db, "/admin/system-settings"), "go_no_go": v11839_go_no_go_summary(db)})
 
 
 @app.post("/admin/system-settings/save")

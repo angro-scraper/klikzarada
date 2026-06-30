@@ -78,5 +78,26 @@
       {% block content %}{% endblock %}
     </div>
   </main>
+
+  {% if not hide_default_footer %}
+  <footer class="kz117-default-footer">
+    <div>
+      <strong>KlikZarada</strong>
+      <p>Mikro zadaci, kampanje i podrška na jednom mestu.</p>
+    </div>
+    <div>
+      <b>Kontakt</b>
+      <a href="mailto:kontakt@klik-zarada.rs">kontakt@klik-zarada.rs</a>
+      <a href="/kontakt">Kontakt stranica</a>
+    </div>
+    <div>
+      <b>Brzi linkovi</b>
+      <a href="/zadaci">Zadaci</a>
+      <a href="/za-oglasivace">Za oglašivače</a>
+      <a href="/za-korisnike">Za korisnike</a>
+      <a href="/cenovnik">Cenovnik</a>
+    </div>
+  </footer>
+  {% endif %}
 </body>
 </html>
