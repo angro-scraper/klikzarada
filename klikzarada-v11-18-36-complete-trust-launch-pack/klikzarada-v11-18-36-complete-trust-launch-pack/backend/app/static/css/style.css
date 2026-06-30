@@ -14822,6 +14822,66 @@ body.kz1189-tasks-premium .kz117-empty h2{
   }
 }
 
+/* Final full-width override: keep every page stretched across the viewport */
+html body .kz117-public-main,
+html body .kz117-page-shell,
+html body .premium-page-shell,
+html body .premium-app-main,
+html body .premium-app-main.full,
+html body .premium-app-main.full.admin-no-commandbar,
+html body .premium-app-layout,
+html body .premium-app-topbar-inner,
+html body .premium-app-topbar-inner.admin-mode,
+html body .kz117-nav,
+html body .kz117-header,
+html body .premium-app-topbar,
+html body .premium-app-body,
+html body .kz-hero-pro,
+html body .kz-pro-section,
+html body .kz-audience-row,
+html body .kz-metrics-strip,
+html body .kz-final-cta,
+html body .kz-pro-footer{
+  width:100vw!important;
+  max-width:none!important;
+  box-sizing:border-box!important;
+}
+
+html body .kz117-page-shell,
+html body .premium-page-shell,
+html body .premium-app-main,
+html body .premium-app-main.full,
+html body .premium-app-main.full.admin-no-commandbar,
+html body .premium-app-layout,
+html body .premium-app-topbar-inner,
+html body .premium-app-topbar-inner.admin-mode,
+html body .kz117-nav{
+  margin-left:0!important;
+  margin-right:0!important;
+}
+
+html body .kz117-page-shell,
+html body .premium-page-shell,
+html body .premium-app-main,
+html body .premium-app-main.full,
+html body .premium-app-main.full.admin-no-commandbar,
+html body .premium-app-layout{
+  padding-left:16px!important;
+  padding-right:16px!important;
+}
+
+html body .kz-hero-pro,
+html body .kz-pro-section,
+html body .kz-audience-row,
+html body .kz-metrics-strip,
+html body .kz-final-cta,
+html body .kz-pro-footer{
+  margin-left:0!important;
+  margin-right:0!important;
+  padding-left:16px!important;
+  padding-right:16px!important;
+}
+
 @media(max-width:980px){
   .premium-app-topbar-inner.admin-mode{
     grid-template-columns:1fr!important;
