@@ -9437,6 +9437,300 @@ a{text-decoration:none!important}
   }
 }
 
+/* End-of-file admin full-width override */
+html body .premium-app-layout,
+html body .premium-app-main.full,
+html body .premium-app-main.full.admin-no-commandbar,
+html body .premium-app-topbar-inner.admin-mode{
+  width:calc(100vw - 16px)!important;
+  max-width:none!important;
+}
+
+html body .premium-app-layout{
+  margin:12px auto!important;
+  grid-template-columns:minmax(280px,300px) minmax(0,1fr)!important;
+  gap:16px!important;
+}
+
+html body .premium-app-main{
+  min-width:0!important;
+}
+
+html body .premium-app-main.full,
+html body .premium-app-main.full.admin-no-commandbar{
+  margin:12px auto!important;
+}
+
+html body .premium-app-topbar-inner.admin-mode{
+  grid-template-columns:minmax(260px,280px) minmax(0,1fr) minmax(170px,190px)!important;
+  gap:14px!important;
+  padding:12px 0!important;
+  min-height:auto!important;
+}
+
+html body .premium-sidebar{
+  width:100%!important;
+  max-width:none!important;
+}
+
+html body .premium-panel-hero,
+html body .premium-card,
+html body .premium-dashboard-grid,
+html body .premium-admin-grid,
+html body .premium-stat-grid,
+html body .premium-group-grid,
+html body .premium-command-hub,
+html body .premium-command-grid,
+html body .import-doc-shell,
+html body .kz1110-hero,
+html body .admin-v1184-top-grid,
+html body .admin-v1184-overview-card{
+  width:100%!important;
+  max-width:none!important;
+}
+
+html body .import-doc-shell{
+  grid-template-columns:minmax(280px,320px) minmax(0,1fr)!important;
+}
+
+@media(max-width:1480px){
+  html body .premium-app-layout{
+    width:calc(100vw - 12px)!important;
+    grid-template-columns:minmax(250px,280px) minmax(0,1fr)!important;
+  }
+
+  html body .premium-app-topbar-inner.admin-mode{
+    width:calc(100vw - 12px)!important;
+    grid-template-columns:minmax(230px,260px) minmax(0,1fr) minmax(150px,180px)!important;
+  }
+}
+
+@media(max-width:980px){
+  html body .premium-app-layout,
+  html body .premium-app-main.full,
+  html body .premium-app-main.full.admin-no-commandbar,
+  html body .premium-app-topbar-inner.admin-mode{
+    width:calc(100vw - 10px)!important;
+  }
+
+  html body .premium-app-layout{
+    grid-template-columns:1fr!important;
+  }
+
+  html body .premium-app-topbar-inner.admin-mode{
+    grid-template-columns:1fr!important;
+  }
+
+  html body .premium-panel-hero,
+  html body .premium-card,
+  html body .premium-dashboard-grid,
+  html body .premium-admin-grid,
+  html body .premium-stat-grid,
+  html body .premium-group-grid,
+  html body .premium-command-hub,
+  html body .premium-command-grid,
+  html body .import-doc-shell{
+    width:100%!important;
+    grid-template-columns:1fr!important;
+  }
+}
+
+/* Absolute last admin layout override */
+.premium-app-layout,
+.premium-app-main.full,
+.premium-app-main.full.admin-no-commandbar,
+.premium-app-topbar-inner.admin-mode{
+  width:calc(100vw - 16px)!important;
+  max-width:none!important;
+}
+
+.premium-app-layout{
+  margin:12px auto!important;
+  grid-template-columns:minmax(280px,300px) minmax(0,1fr)!important;
+  gap:16px!important;
+}
+
+.premium-app-main{
+  min-width:0!important;
+}
+
+.premium-app-main.full,
+.premium-app-main.full.admin-no-commandbar{
+  margin:12px auto!important;
+}
+
+.premium-app-topbar-inner.admin-mode{
+  grid-template-columns:minmax(260px,280px) minmax(0,1fr) minmax(170px,190px)!important;
+  gap:14px!important;
+  padding:12px 0!important;
+  min-height:auto!important;
+}
+
+.premium-sidebar{
+  width:100%!important;
+  max-width:none!important;
+}
+
+.premium-panel-hero,
+.premium-card,
+.premium-dashboard-grid,
+.premium-admin-grid,
+.premium-stat-grid,
+.premium-group-grid,
+.premium-command-hub,
+.premium-command-grid,
+.import-doc-shell,
+.kz1110-hero,
+.admin-v1184-top-grid,
+.admin-v1184-overview-card{
+  width:100%!important;
+  max-width:none!important;
+}
+
+.import-doc-shell{
+  grid-template-columns:minmax(280px,320px) minmax(0,1fr)!important;
+}
+
+@media(max-width:1480px){
+  .premium-app-layout{
+    width:calc(100vw - 12px)!important;
+    grid-template-columns:minmax(250px,280px) minmax(0,1fr)!important;
+  }
+
+  .premium-app-topbar-inner.admin-mode{
+    width:calc(100vw - 12px)!important;
+    grid-template-columns:minmax(230px,260px) minmax(0,1fr) minmax(150px,180px)!important;
+  }
+}
+
+@media(max-width:980px){
+  .premium-app-layout,
+  .premium-app-main.full,
+  .premium-app-main.full.admin-no-commandbar,
+  .premium-app-topbar-inner.admin-mode{
+    width:calc(100vw - 10px)!important;
+  }
+
+  .premium-app-layout{
+    grid-template-columns:1fr!important;
+  }
+
+  .premium-app-topbar-inner.admin-mode{
+    grid-template-columns:1fr!important;
+  }
+
+  .premium-panel-hero,
+  .premium-card,
+  .premium-dashboard-grid,
+  .premium-admin-grid,
+  .premium-stat-grid,
+  .premium-group-grid,
+  .premium-command-hub,
+  .premium-command-grid,
+  .import-doc-shell{
+    width:100%!important;
+    grid-template-columns:1fr!important;
+  }
+}
+
+/* Final admin full-width override */
+.premium-app-layout,
+.premium-app-main.full,
+.premium-app-main.full.admin-no-commandbar,
+.premium-app-topbar-inner.admin-mode{
+  width:calc(100vw - 24px)!important;
+  max-width:none!important;
+}
+
+.premium-app-layout{
+  margin:16px auto!important;
+  grid-template-columns:minmax(280px,300px) minmax(0,1fr)!important;
+  gap:18px!important;
+}
+
+.premium-app-main{
+  min-width:0!important;
+}
+
+.premium-app-main.full,
+.premium-app-main.full.admin-no-commandbar{
+  margin:16px auto!important;
+}
+
+.premium-app-topbar-inner.admin-mode{
+  grid-template-columns:minmax(260px,280px) minmax(0,1fr) minmax(170px,190px)!important;
+  gap:16px!important;
+  padding:14px 0!important;
+  min-height:auto!important;
+}
+
+.premium-sidebar{
+  width:100%!important;
+  max-width:none!important;
+}
+
+.premium-panel-hero,
+.premium-card,
+.premium-dashboard-grid,
+.premium-admin-grid,
+.premium-stat-grid,
+.premium-group-grid,
+.premium-command-hub,
+.premium-command-grid,
+.import-doc-shell,
+.kz1110-hero,
+.admin-v1184-top-grid,
+.admin-v1184-overview-card{
+  width:100%!important;
+  max-width:none!important;
+}
+
+.import-doc-shell{
+  grid-template-columns:minmax(280px,320px) minmax(0,1fr)!important;
+}
+
+@media(max-width:1480px){
+  .premium-app-layout{
+    width:calc(100vw - 20px)!important;
+    grid-template-columns:minmax(260px,280px) minmax(0,1fr)!important;
+  }
+
+  .premium-app-topbar-inner.admin-mode{
+    width:calc(100vw - 20px)!important;
+    grid-template-columns:minmax(240px,260px) minmax(0,1fr) minmax(150px,180px)!important;
+  }
+}
+
+@media(max-width:980px){
+  .premium-app-layout,
+  .premium-app-main.full,
+  .premium-app-main.full.admin-no-commandbar,
+  .premium-app-topbar-inner.admin-mode{
+    width:calc(100vw - 16px)!important;
+  }
+
+  .premium-app-layout{
+    grid-template-columns:1fr!important;
+  }
+
+  .premium-app-topbar-inner.admin-mode{
+    grid-template-columns:1fr!important;
+  }
+
+  .premium-panel-hero,
+  .premium-card,
+  .premium-dashboard-grid,
+  .premium-admin-grid,
+  .premium-stat-grid,
+  .premium-group-grid,
+  .premium-command-hub,
+  .premium-command-grid,
+  .import-doc-shell{
+    width:100%!important;
+    grid-template-columns:1fr!important;
+  }
+}
+
 .premium-app-topbar-inner.admin-mode{
   display:flex!important;
   flex-wrap:wrap!important;
