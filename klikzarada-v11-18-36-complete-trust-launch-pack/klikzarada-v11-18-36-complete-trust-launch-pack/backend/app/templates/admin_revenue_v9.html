@@ -46,6 +46,36 @@
 </section>
 {% endif %}
 
+{% if pricing_signal is defined %}
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Pricing signal iz Cene</h2>
+    <span>route / demand / floor risk</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <div class="kz1111-ledger-card">
+      <small>Najjače rute</small>
+      <strong>{{ pricing_signal.top_route_rows|length }} izvora posete</strong>
+      {% for row in pricing_signal.top_route_rows[:5] %}
+      <p><b>{{ row.path }}</b> · {{ row.count }} poseta</p>
+      {% else %}
+      <p>Nema još dovoljno route podataka.</p>
+      {% endfor %}
+    </div>
+    <div class="kz1111-ledger-card">
+      <small>Floor risk</small>
+      <strong>{{ pricing_signal.task_floor_rows|length }} kampanja traži korekciju</strong>
+      {% for row in pricing_signal.task_floor_rows[:5] %}
+      <p><b>{{ row.task.title }}</b> · manjka {{ "%.0f"|format(row.delta_rsd) }} RSD do floor-a</p>
+      {% else %}
+      <p>Aktivne kampanje trenutno ne probijaju pricing floor.</p>
+      {% endfor %}
+      <p><a href="/admin/cene-v111">Otvori Cene i ispravi floor</a></p>
+    </div>
+  </div>
+</section>
+{% endif %}
+
 <section class="kz1111-section">
   <div class="kz1111-section-head">
     <h2>Novi forecast i line</h2>

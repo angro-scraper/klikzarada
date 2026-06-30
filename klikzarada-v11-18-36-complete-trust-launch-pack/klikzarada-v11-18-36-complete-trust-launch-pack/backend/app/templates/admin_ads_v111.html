@@ -211,6 +211,50 @@
 </div>
 {% endif %}
 
+{% if pricing_signal is defined %}
+<section class="premium-card">
+  <div class="premium-card-head">
+    <h2>Pricing signal iz admin Cene</h2>
+    <span>guardrail</span>
+  </div>
+  <div class="premium-money-grid">
+    <article><small>Top rute</small><strong>{{ pricing_signal.top_route_rows|length }}</strong></article>
+    <article><small>Demand kategorije</small><strong>{{ pricing_signal.category_demand_rows|length }}</strong></article>
+    <article><small>Risk kampanje</small><strong>{{ pricing_signal.task_floor_rows|length }}</strong></article>
+  </div>
+</section>
+
+<div class="kz1111-grid-two">
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Top demand kategorije</h2>
+      <span>task sesije</span>
+    </div>
+    <div class="kz1111-smoke-list">
+      {% for row in pricing_signal.category_demand_rows[:6] %}
+      <article><strong>{{ row.title }}</strong><p>{{ row.sessions }} sesija · {{ row.completion_rate }}% completion · floor {{ "%.0f"|format(row.effective_min_reward_rsd) }} RSD</p></article>
+      {% else %}
+      <div class="kz1111-empty"><h3>Nema demand signala</h3><p>Kada korisnici krenu kroz task sesije, ovde se vidi gde vredi gurati inventory i kampanje.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="kz1111-section">
+    <div class="kz1111-section-head">
+      <h2>Pricing risk za reklame</h2>
+      <span>ispod floor-a</span>
+    </div>
+    <div class="kz1111-smoke-list">
+      {% for row in pricing_signal.task_floor_rows[:6] %}
+      <article><strong>{{ row.task.title }}</strong><p>{{ row.task.category }} / {{ row.task.task_type }} · manjka {{ "%.0f"|format(row.delta_rsd) }} RSD do minimuma.</p></article>
+      {% else %}
+      <div class="kz1111-empty"><h3>Nema pricing rizika</h3><p>Kampanje koje hrane reklame trenutno ne ruše postavljene floor vrednosti.</p></div>
+      {% endfor %}
+      <article><strong>Brza akcija</strong><p><a href="/admin/cene-v111">Otvori Cene</a> · <a href="/admin/revenue-v9">Otvori Revenue</a></p></article>
+    </div>
+  </section>
+</div>
+{% endif %}
+
 <section class="kz1111-section">
   <div class="kz1111-section-head">
     <h2>Ad-sales komandni tok</h2>

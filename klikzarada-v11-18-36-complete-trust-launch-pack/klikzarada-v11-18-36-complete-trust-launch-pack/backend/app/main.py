@@ -2348,7 +2348,7 @@ def create_campaign(request:Request, title:str=Form(...), category:str=Form(...)
     u=require(request,db); check_role(u,["oglasivac","admin"])
     fee = v111_price_percent(db, "platform_commission_percent", PLATFORM_FEE_PERCENT) if "v111_price_percent" in globals() else PLATFORM_FEE_PERCENT
     effective_category = category.strip() or kz11846_default_category_from_task_type(task_type)
-    min_reward = kz11846_category_min_reward(db, effective_category, 50.0)
+    min_reward = kz11846_effective_min_reward(db, effective_category, task_type, 50.0)
     draft = {
         "title": title,
         "category": effective_category,
@@ -2371,7 +2371,7 @@ def create_campaign(request:Request, title:str=Form(...), category:str=Form(...)
         return templates.TemplateResponse("campaign_form.html", {
             "request":request,
             "user":u,
-            "error":f"Minimalna cena za kategoriju '{effective_category}' je {float(min_reward):.0f} RSD po zadatku.",
+            "error":f"Minimalna cena za kombinaciju kategorije '{effective_category}' i task type-a '{task_type}' je {float(min_reward):.0f} RSD po zadatku.",
             "fee":fee,
             "builder":builder,
             "draft":draft,
@@ -5357,6 +5357,7 @@ def admin_revenue_v9(request: Request, db: Session = Depends(get_db)):
     lines = db.query(RevenueForecastLineV9).all()
     pricing = db.query(PricingExperimentV9).order_by(PricingExperimentV9.created_at.desc()).all()
     margin_snapshot = v11837_margin_snapshot(db)
+    pricing_signal = kz11846_pricing_signal_context(db)
     forecast_alerts = []
     for line in lines:
         fee = v11837_money(getattr(line, "platform_fee_percent", 0))
@@ -5369,6 +5370,7 @@ def admin_revenue_v9(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("admin_revenue_v9.html", {
         "request": request, "user": u, "forecasts": forecasts, "lines": lines, "pricing": pricing,
         "margin_snapshot": margin_snapshot, "sales_packages": margin_snapshot["packages"], "forecast_alerts": forecast_alerts,
+        "pricing_signal": pricing_signal,
     })
 
 
@@ -7623,6 +7625,7 @@ def admin_ads_final_v1110(request: Request, db: Session = Depends(get_db)):
     views = db.query(PaidAdViewV111).order_by(PaidAdViewV111.created_at.desc()).limit(100).all() if "PaidAdViewV111" in globals() else []
     advertisers = db.query(User).filter(User.role == "oglasivac").order_by(User.id.asc()).all()
     pricing_summary = v11836_pricing_summary(db)
+    pricing_signal = kz11846_pricing_signal_context(db)
     slot_calendar = v11837_slot_booking_calendar(db, 14)
     inventory_month = v11840_inventory_month_context(db)
     ads_profit = v11841_ads_profit_context(db, slots, banners, boosts)
@@ -7666,6 +7669,7 @@ def admin_ads_final_v1110(request: Request, db: Session = Depends(get_db)):
         "request": request, "user": u, "slots": slots, "banners": banners, "boosts": boosts, "views": views,
         "advertisers": advertisers, "pricing_summary": pricing_summary, "slot_calendar": slot_calendar, "sales_packages": sales_packages,
         "booking_prefill": booking_prefill, "go_no_go": v11839_go_no_go_summary(db), "inventory_month": inventory_month, "ads_profit": ads_profit,
+        "pricing_signal": pricing_signal,
     })
 
 
@@ -8011,6 +8015,20 @@ def kz11846_category_min_reward(db: Session, category: str, default: float = 50.
     return kz113_get_price(db, kz11846_min_reward_key(category), default)
 
 
+def kz11846_task_type_min_reward_key(task_type: str):
+    return f"TASK_TYPE_MIN_REWARD__{kz11846_slug(task_type)}"
+
+
+def kz11846_task_type_min_reward(db: Session, task_type: str, default: float = 0.0):
+    return kz113_get_price(db, kz11846_task_type_min_reward_key(task_type), default)
+
+
+def kz11846_effective_min_reward(db: Session, category: str, task_type: str, default: float = 50.0):
+    category_floor = kz11846_category_min_reward(db, category, default)
+    task_type_floor = kz11846_task_type_min_reward(db, task_type, 0.0)
+    return max(float(category_floor or 0), float(task_type_floor or 0), float(default or 0))
+
+
 def kz11846_category_catalog(db: Session):
     rows = []
     seen = set()
@@ -8059,6 +8077,135 @@ def kz11846_category_pricing_rows(db: Session):
         })
     return rows
 
+
+def kz11846_task_type_catalog(db: Session):
+    rows = []
+    seen = set()
+    category_map = {item["task_type"]: item["title"] for item in KZ11846_TASK_CATEGORY_LIBRARY}
+    desc_map = {item["task_type"]: item["desc"] for item in KZ11846_TASK_CATEGORY_LIBRARY}
+
+    for item in KZ11846_TASK_CATEGORY_LIBRARY:
+        rows.append({
+            "task_type": item["task_type"],
+            "title": item["title"],
+            "desc": item["desc"],
+            "category_title": item["title"],
+            "slug": kz11846_slug(item["task_type"]),
+        })
+        seen.add(item["task_type"])
+
+    extra_task_types = [
+        (row[0] or "").strip()
+        for row in db.query(Task.task_type).filter(Task.task_type.isnot(None), Task.task_type != "").distinct().all()
+        if (row[0] or "").strip()
+    ]
+    for task_type in sorted(extra_task_types):
+        if task_type in seen:
+            continue
+        label = task_type.replace("_", " ").replace("-", " ").strip().title() or "Custom task"
+        rows.append({
+            "task_type": task_type,
+            "title": label,
+            "desc": desc_map.get(task_type, "Task type dodat iz live kampanja."),
+            "category_title": category_map.get(task_type, kz11846_default_category_from_task_type(task_type)),
+            "slug": kz11846_slug(task_type),
+        })
+    return rows
+
+
+def kz11846_task_type_pricing_rows(db: Session):
+    rows = []
+    for item in kz11846_task_type_catalog(db):
+        task_type = item["task_type"]
+        category_title = item["category_title"]
+        active_tasks = db.query(Task).filter(Task.task_type == task_type, Task.status == "active").count()
+        total_tasks = db.query(Task).filter(Task.task_type == task_type).count()
+        avg_reward = db.query(func.avg(Task.reward_rsd)).filter(Task.task_type == task_type).scalar() or 0
+        task_type_floor = kz11846_task_type_min_reward(db, task_type, 0.0)
+        category_floor = kz11846_category_min_reward(db, category_title, 50.0)
+        effective_floor = max(float(category_floor or 0), float(task_type_floor or 0))
+        floor_source = "task type" if float(task_type_floor or 0) >= float(category_floor or 0) and float(task_type_floor or 0) > 0 else "kategorija"
+        rows.append({
+            **item,
+            "min_reward_rsd": task_type_floor,
+            "category_min_reward_rsd": category_floor,
+            "effective_min_reward_rsd": effective_floor,
+            "floor_source": floor_source,
+            "active_tasks": active_tasks,
+            "total_tasks": total_tasks,
+            "avg_reward_rsd": float(avg_reward or 0),
+        })
+    return rows
+
+
+def kz11846_pricing_signal_context(db: Session):
+    visit_stats = kz117_visit_stats(db)
+    route_rows = []
+    for path, cnt in visit_stats.get("top_routes", []):
+        route_rows.append({
+            "path": path,
+            "count": int(cnt or 0),
+            "label": (path or "/").replace("/", " / ").strip() or "/",
+        })
+
+    category_lookup = {row["title"]: row for row in kz11846_category_catalog(db)}
+    session_rows = []
+    if "TaskViewSessionV114" in globals():
+        session_rows = db.query(
+            Task.category,
+            Task.task_type,
+            func.count(TaskViewSessionV114.id).label("sessions"),
+            func.sum(case((TaskViewSessionV114.is_completed == True, 1), else_=0)).label("completed"),
+        ).join(Task, TaskViewSessionV114.task_id == Task.id).group_by(Task.category, Task.task_type).order_by(func.count(TaskViewSessionV114.id).desc()).limit(12).all()
+
+    category_demand_rows = []
+    for category, task_type, sessions, completed in session_rows:
+        title = (category or kz11846_default_category_from_task_type(task_type or "")).strip() or "Promo zadaci"
+        catalog_row = category_lookup.get(title, {"desc": "Signal iz live sesija.", "task_type": task_type or "promo"})
+        active_tasks = db.query(Task).filter(Task.category == title, Task.status == "active").count()
+        effective_floor = kz11846_effective_min_reward(db, title, task_type or catalog_row.get("task_type", "promo"), 50.0)
+        completion_rate = round((float(completed or 0) / float(sessions or 1)) * 100, 1) if sessions else 0.0
+        category_demand_rows.append({
+            "title": title,
+            "task_type": task_type or catalog_row.get("task_type", "promo"),
+            "desc": catalog_row.get("desc", ""),
+            "sessions": int(sessions or 0),
+            "completed": int(completed or 0),
+            "completion_rate": completion_rate,
+            "active_tasks": active_tasks,
+            "effective_min_reward_rsd": effective_floor,
+        })
+
+    task_floor_rows = []
+    for task in db.query(Task).filter(Task.status.in_(["active", "pending"])).order_by(Task.created_at.desc()).limit(250).all():
+        effective_floor = kz11846_effective_min_reward(db, task.category or "Promo zadaci", task.task_type or "promo", 50.0)
+        reward = float(getattr(task, "reward_rsd", 0) or 0)
+        if reward >= effective_floor:
+            continue
+        task_floor_rows.append({
+            "task": task,
+            "effective_min_reward_rsd": effective_floor,
+            "delta_rsd": round(effective_floor - reward, 2),
+        })
+    task_floor_rows = sorted(task_floor_rows, key=lambda row: row["delta_rsd"], reverse=True)[:10]
+
+    pricing_warnings = []
+    if task_floor_rows:
+        pricing_warnings.append(f"{len(task_floor_rows)} aktivnih ili pending kampanja je ispod novog floor-a i traži korekciju.")
+    for row in category_demand_rows[:6]:
+        if row["active_tasks"] >= 4 and row["sessions"] <= 3:
+            pricing_warnings.append(f"Kategorija {row['title']} ima {row['active_tasks']} aktivnih taskova, ali samo {row['sessions']} task sesije.")
+        if row["completion_rate"] < 25 and row["sessions"] >= 4:
+            pricing_warnings.append(f"Kategorija {row['title']} ima nizak completion rate od {row['completion_rate']:.1f}%.")
+
+    return {
+        "visit_stats": visit_stats,
+        "top_route_rows": route_rows[:8],
+        "category_demand_rows": category_demand_rows[:8],
+        "task_floor_rows": task_floor_rows,
+        "pricing_warnings": pricing_warnings[:8],
+    }
+
 @app.get("/admin/cene-v111", response_class=HTMLResponse)
 def admin_prices_final_v1113(request: Request, db: Session = Depends(get_db)):
     u = require(request, db); check_role(u, ["admin"])
@@ -8078,8 +8225,10 @@ def admin_prices_final_v1113(request: Request, db: Session = Depends(get_db)):
         kz113_set_price(db, key, title, desc, amount, unit)
     prices = db.query(MonetizationPricingV111).order_by(MonetizationPricingV111.key).all() if "MonetizationPricingV111" in globals() else []
     margin_snapshot = v11837_margin_snapshot(db)
-    visit_stats = kz117_visit_stats(db)
+    pricing_signal = kz11846_pricing_signal_context(db)
+    visit_stats = pricing_signal["visit_stats"]
     category_pricing_rows = kz11846_category_pricing_rows(db)
+    task_type_pricing_rows = kz11846_task_type_pricing_rows(db)
     return templates.TemplateResponse("admin_prices_final_v1113.html", {
         "request": request, "user": u, "flash": None, "prices": prices,
         "ad_cost": kz113_get_price(db, "AD_VIEW_COST_RSD", 8),
@@ -8090,7 +8239,9 @@ def admin_prices_final_v1113(request: Request, db: Session = Depends(get_db)):
         "sales_packages": margin_snapshot["packages"],
         "pricing_summary": v11836_pricing_summary(db),
         "visit_stats": visit_stats,
+        "pricing_signal": pricing_signal,
         "category_pricing_rows": category_pricing_rows,
+        "task_type_pricing_rows": task_type_pricing_rows,
     })
 
 @app.post("/admin/cene-v111/split")
@@ -8154,6 +8305,33 @@ async def admin_prices_task_mins_v11846(request: Request, db: Session = Depends(
             kz11846_min_reward_key(row["title"]),
             f"Minimalna cena zadatka · {row['title']}",
             f"Minimalna reward cena po zadatku za kategoriju {row['title']}.",
+            amount,
+            "RSD",
+        )
+    return RedirectResponse("/admin/cene-v111?msg=saved", status_code=303)
+
+
+@app.post("/admin/cene-v111/task-type-mins")
+async def admin_prices_task_type_mins_v11846(request: Request, db: Session = Depends(get_db)):
+    u = require(request, db); check_role(u, ["admin"])
+    form = await request.form()
+    known = {row["slug"]: row for row in kz11846_task_type_catalog(db)}
+    for key, value in form.items():
+        if not key.startswith("task_type_min_"):
+            continue
+        slug = key.replace("task_type_min_", "", 1)
+        row = known.get(slug)
+        if not row:
+            continue
+        try:
+            amount = max(0.0, float(value or 0))
+        except Exception:
+            continue
+        kz113_set_price(
+            db,
+            kz11846_task_type_min_reward_key(row["task_type"]),
+            f"Minimalna cena task type-a · {row['title']}",
+            f"Minimalna reward cena za task type {row['task_type']}.",
             amount,
             "RSD",
         )
@@ -10452,7 +10630,7 @@ def advertiser_create_task_v11831(
 ):
     u = require(request, db); check_role(u, ["oglasivac", "admin"])
     category = kz11846_default_category_from_task_type(task_type)
-    min_reward = kz11846_category_min_reward(db, category, 50.0)
+    min_reward = kz11846_effective_min_reward(db, category, task_type, 50.0)
     if float(reward_rsd or 0) < float(min_reward):
         return RedirectResponse(f"/oglasivac/kampanje?msg=min_reward_{kz11846_slug(category)}", 303)
     task = Task(

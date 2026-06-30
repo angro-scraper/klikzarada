@@ -10,6 +10,7 @@
   <div class="premium-panel-actions">
     <a class="premium-btn blue" href="/admin/promocija-v111">Reklame</a>
     <a class="premium-btn green" href="/admin/finansije">Finansije</a>
+    <a class="premium-btn white" href="/admin/revenue-v9">Revenue</a>
     <a class="premium-btn white" href="/cenovnik">Javni cenovnik</a>
   </div>
 </section>
@@ -125,6 +126,35 @@
 </section>
 {% endif %}
 
+{% if pricing_signal is defined %}
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Traffic i demand signal</h2>
+    <span>rute / kategorije / floor risk</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <div class="kz1111-ledger-card">
+      <small>Top rute</small>
+      <strong>{{ pricing_signal.top_route_rows|length }} najjačih ulaza</strong>
+      {% for row in pricing_signal.top_route_rows %}
+      <p><b>{{ row.path }}</b> · {{ row.count }} poseta</p>
+      {% else %}
+      <p>Još nema dovoljno route podataka za top listu.</p>
+      {% endfor %}
+    </div>
+    <div class="kz1111-ledger-card">
+      <small>Task demand</small>
+      <strong>{{ pricing_signal.category_demand_rows|length }} kategorija sa sesijama</strong>
+      {% for row in pricing_signal.category_demand_rows[:5] %}
+      <p><b>{{ row.title }}</b> · {{ row.sessions }} sesija · {{ row.completion_rate }}% completion · floor {{ "%.0f"|format(row.effective_min_reward_rsd) }} RSD</p>
+      {% else %}
+      <p>Kada korisnici otvore i završe task sesije, ovde dobijaš signal tražnje po kategoriji.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
 {% if margin_snapshot is defined %}
 <section class="kz1111-section">
   <div class="kz1111-section-head">
@@ -224,6 +254,38 @@
   </form>
 </section>
 
+{% if task_type_pricing_rows is defined %}
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Task type floor</h2>
+    <span>{{ task_type_pricing_rows|length }} tipova</span>
+  </div>
+  <form method="post" action="/admin/cene-v111/task-type-mins">
+    <div class="premium-action-grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));">
+      {% for row in task_type_pricing_rows %}
+      <article class="premium-empty" style="display:grid;gap:10px">
+        <div>
+          <small style="color:#64748b;font-weight:900;letter-spacing:.06em;text-transform:uppercase">{{ row.task_type }}</small>
+          <h3 style="margin:6px 0 6px;color:#071a3f">{{ row.title }}</h3>
+          <p style="margin:0;color:#64748b;line-height:1.55">{{ row.desc }}</p>
+        </div>
+        <div class="premium-money-grid">
+          <article><small>Task floor</small><strong>{{ "%.0f"|format(row.min_reward_rsd) }}</strong></article>
+          <article><small>Kategorija</small><strong>{{ "%.0f"|format(row.category_min_reward_rsd) }}</strong></article>
+          <article><small>Efektivno</small><strong>{{ "%.0f"|format(row.effective_min_reward_rsd) }}</strong></article>
+          <article><small>Aktivni</small><strong>{{ row.active_tasks }}</strong></article>
+        </div>
+        <label>Minimalna cena za ovaj task type (RSD)</label>
+        <input type="number" step="1" min="0" name="task_type_min_{{ row.slug }}" value="{{ "%.0f"|format(row.min_reward_rsd) }}">
+        <small>Jači floor od kategorije preuzima kontrolu. Trenutni efektivni izvor: {{ row.floor_source }}.</small>
+      </article>
+      {% endfor %}
+    </div>
+    <button class="btn btn-primary" style="margin-top:18px">Sačuvaj minimalne cene po task type-u</button>
+  </form>
+</section>
+{% endif %}
+
 {% if category_pricing_rows is defined %}
 <section class="kz1111-section">
   <div class="kz1111-section-head">
@@ -253,6 +315,36 @@
     </div>
     <button class="btn btn-primary" style="margin-top:18px">Sačuvaj minimalne cene po kategoriji</button>
   </form>
+</section>
+{% endif %}
+
+{% if pricing_signal is defined %}
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Cross-check upozorenja</h2>
+    <span>cene / reklame / revenue</span>
+  </div>
+  <div class="kz1111-grid-two">
+    <div class="kz1111-ledger-card">
+      <small>Risky kampanje</small>
+      <strong>{{ pricing_signal.task_floor_rows|length }} kampanja ispod floor-a</strong>
+      {% for row in pricing_signal.task_floor_rows[:5] %}
+      <p><b>{{ row.task.title }}</b> · manjka {{ "%.0f"|format(row.delta_rsd) }} RSD do minimuma {{ "%.0f"|format(row.effective_min_reward_rsd) }}</p>
+      {% else %}
+      <p>Aktivne i pending kampanje trenutno ne padaju ispod novih floor pravila.</p>
+      {% endfor %}
+    </div>
+    <div class="kz1111-ledger-card">
+      <small>Admin akcije</small>
+      <strong>Povezano sa ostatkom admina</strong>
+      {% for warning in pricing_signal.pricing_warnings %}
+      <p>{{ warning }}</p>
+      {% else %}
+      <p>Nema hitnih upozorenja. Sledeći korak je fino štelovanje paketa i maržnih guardrail-a.</p>
+      {% endfor %}
+      <p><a href="/admin/reklame-v111">Otvori Reklame</a> · <a href="/admin/revenue-v9">Otvori Revenue</a></p>
+    </div>
+  </div>
 </section>
 {% endif %}
 
