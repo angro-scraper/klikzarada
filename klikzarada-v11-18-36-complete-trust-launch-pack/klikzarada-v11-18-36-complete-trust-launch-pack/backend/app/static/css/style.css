@@ -9375,6 +9375,106 @@ a{text-decoration:none!important}
   }
 }
 
+/* Final admin polish: neutral, premium, consistent */
+.premium-app-topbar-inner.admin-mode{
+  grid-template-columns:minmax(250px,280px) minmax(0,1fr) auto!important;
+  align-items:center!important;
+  gap:14px!important;
+}
+
+.premium-admin-hub{
+  grid-template-columns:1fr!important;
+  gap:10px!important;
+}
+
+.premium-admin-nav-group{
+  padding:12px 14px 14px!important;
+  border-radius:20px!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(248,250,252,.98))!important;
+}
+
+.premium-admin-nav-row{
+  gap:8px!important;
+}
+
+.premium-admin-nav-row a,
+.premium-admin-nav-row a.tone-blue,
+.premium-admin-nav-row a.tone-violet,
+.premium-admin-nav-row a.tone-green,
+.premium-admin-nav-row a.tone-amber,
+.premium-admin-nav-row a.tone-red{
+  min-height:38px!important;
+  padding:0 13px!important;
+  border-radius:12px!important;
+  border:1px solid rgba(15,23,42,.08)!important;
+  background:#fff!important;
+  color:#0f172a!important;
+  box-shadow:none!important;
+}
+
+.premium-admin-nav-row a:hover{
+  background:#f3f7ff!important;
+  color:#1769f5!important;
+  border-color:#d8e5ff!important;
+}
+
+.premium-admin-nav-row a.active,
+.premium-admin-nav-row a.back-link{
+  color:#fff!important;
+  border-color:transparent!important;
+  background:linear-gradient(135deg,#1769f5,#3b82f6)!important;
+  box-shadow:0 10px 24px rgba(23,105,245,.18)!important;
+}
+
+.premium-admin .premium-app-user{
+  display:flex!important;
+  align-items:center!important;
+  gap:10px!important;
+  justify-self:end!important;
+  align-self:center!important;
+  padding:10px 12px!important;
+  border:1px solid rgba(15,23,42,.08)!important;
+  border-radius:18px!important;
+  background:linear-gradient(180deg,#ffffff,#f8fbff)!important;
+  box-shadow:0 12px 28px rgba(15,23,42,.05)!important;
+}
+
+.premium-admin .premium-app-user div{
+  text-align:right!important;
+}
+
+.premium-admin .premium-app-user a.panel-link,
+.premium-admin .premium-app-user a:not(.panel-link){
+  min-height:40px!important;
+  padding:0 14px!important;
+  border-radius:12px!important;
+  border:1px solid rgba(15,23,42,.08)!important;
+  background:#fff!important;
+  color:#0f172a!important;
+  font-weight:900!important;
+  display:inline-flex!important;
+  align-items:center!important;
+}
+
+.premium-admin .premium-app-user a.panel-link{
+  background:#eef5ff!important;
+  color:#1769f5!important;
+}
+
+@media(max-width:980px){
+  .premium-app-topbar-inner.admin-mode{
+    grid-template-columns:1fr!important;
+  }
+  .premium-admin .premium-app-user{
+    justify-self:stretch!important;
+    width:100%!important;
+    justify-content:space-between!important;
+  }
+  .premium-admin .premium-app-user div{
+    text-align:left!important;
+  }
+}
+
 @media(max-width:760px){
   .premium-app-topbar{
     position:sticky;

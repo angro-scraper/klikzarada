@@ -25,6 +25,7 @@
       <div class="premium-admin-nav-group">
         <span class="premium-admin-nav-label">Kontrola platforme</span>
         <div class="premium-admin-nav-row primary">
+          <a class="tone-violet {% if path != '/admin/v11' %}back-link{% endif %}" href="{% if path != '/admin/v11' %}/admin/v11{% else %}/{% endif %}">Nazad</a>
           <a class="tone-violet {% if path.startswith('/admin/v11') or path.startswith('/admin/dashboard') %}active{% endif %}" href="/admin/v11">Dashboard</a>
           <a class="tone-violet {% if path.startswith('/admin/mapa-platforme') %}active{% endif %}" href="/admin/mapa-platforme">Mapa platforme</a>
           <a class="tone-violet {% if path.startswith('/admin/analitika-v117') %}active{% endif %}" href="/admin/analitika-v117">Analitika</a>
@@ -100,6 +101,11 @@
     <div class="premium-app-user">
       {% if user %}
       <div><strong>{{ user.full_name }}</strong><small>{% if user.role == "admin" %}Administrator{% elif user.role == "oglasivac" %}Oglašivač{% else %}Korisnik{% endif %}</small></div>
+      {% if user.role == "oglasivac" %}
+      <a class="panel-link" href="/oglasivac/panel">Moj panel</a>
+      {% elif user.role == "korisnik" %}
+      <a class="panel-link" href="/korisnik/panel">Moj panel</a>
+      {% endif %}
       <a href="/logout">Odjava</a>
       {% else %}
       <a href="/login">Prijava</a>
