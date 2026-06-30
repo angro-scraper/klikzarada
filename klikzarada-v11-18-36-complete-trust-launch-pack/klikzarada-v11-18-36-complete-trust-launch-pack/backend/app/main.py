@@ -7338,15 +7338,32 @@ KZ119_TASK_CATEGORIES = [
 
 KZ119_FUNCTIONS = [
     {"slug":"admin-dashboard", "group":"Admin", "title":"Admin dashboard", "url":"/admin/v11", "description":"Glavni pregled platforme, finansije, dokazi, reklame i brze komande."},
+    {"slug":"admin-centar", "group":"Admin", "title":"Admin centar", "url":"/admin-centar", "description":"Alternativni premium command center za isti admin signal."},
     {"slug":"mapa-platforme", "group":"Admin", "title":"Mapa platforme", "url":"/admin/mapa-platforme", "description":"Jedna stranica sa svim ključnim funkcijama i statusom dizajna."},
     {"slug":"kampanje", "group":"Admin", "title":"Kampanje", "url":"/admin/kampanje", "description":"Moderacija i pregled svih kampanja po statusima i kategorijama."},
     {"slug":"dokazi", "group":"Admin", "title":"Dokazi", "url":"/admin/dokazi", "description":"Pregled dokaza koje korisnici šalju za izvršene zadatke."},
+    {"slug":"analitika-v117", "group":"Admin", "title":"Analitika", "url":"/admin/analitika-v117", "description":"Posete, registracije, top rute i odnos korisnika i oglašivača."},
     {"slug":"isplate", "group":"Admin", "title":"Isplate", "url":"/admin/isplate", "description":"Zahtevi za isplatu korisnicima i statusi obrade."},
     {"slug":"finansije", "group":"Admin", "title":"Finansije", "url":"/admin/finansije", "description":"Budžeti, provizije, prihodi i finansijski pregled platforme."},
     {"slug":"reklame", "group":"Admin", "title":"Banneri i isticanja", "url":"/admin/reklame-v111", "description":"Upravljanje bannerima, top pozicijom i plaćenim promocijama."},
     {"slug":"cene", "group":"Admin", "title":"Cene i provizije", "url":"/admin/cene-v111", "description":"Admin podešava cene reklama, gledanja i proviziju platforme."},
+    {"slug":"fakture", "group":"Admin", "title":"Fakture", "url":"/admin/fakture", "description":"Ponude, invoice status i fakturisanje oglašivača."},
+    {"slug":"budget", "group":"Admin", "title":"Budžeti", "url":"/admin/budget-v11", "description":"Kontrola budžeta oglašivača i raspoloživih sredstava."},
+    {"slug":"payments", "group":"Admin", "title":"Payments", "url":"/admin/payments-v8", "description":"Uplate, top-up inbox i payment intent signal."},
+    {"slug":"payouts", "group":"Admin", "title":"Payouts", "url":"/admin/payouts-v11", "description":"Batch isplate, hold reason i payout kontrola."},
+    {"slug":"collections", "group":"Admin", "title":"Collections", "url":"/admin/collections-v11", "description":"Dospelo, kasni i follow-up naplata."},
+    {"slug":"renewals", "group":"Admin", "title":"Renewals", "url":"/admin/renewals-v11", "description":"Obnova bannera i produženje ugovora."},
+    {"slug":"approval-center", "group":"Admin", "title":"Approval center", "url":"/admin/approval-center-v11", "description":"Odobrenja za invoice, payout, refund i top-up tokove."},
+    {"slug":"alerts", "group":"Admin", "title":"Alerts", "url":"/admin/alerts-v11", "description":"Upozorenja za maržu, tok, sporove i rizik."},
+    {"slug":"reports", "group":"Admin", "title":"Reports", "url":"/admin/reports-v11", "description":"Daily revenue snapshot, top slot utilization i pregled performansi."},
     {"slug":"automatizacija", "group":"Admin", "title":"Automatizacija", "url":"/admin/workflows-v10", "description":"Tokovi rada, okidači i automatizacija operacija."},
     {"slug":"anti-fraud", "group":"Admin", "title":"Anti-fraud", "url":"/admin/fraud-v11", "description":"Kontrola sumnjivih aktivnosti, duplikata i loših dokaza."},
+    {"slug":"crm", "group":"Admin", "title":"CRM", "url":"/admin/crm", "description":"Sales pipeline, notes, owner, next action i risk flags."},
+    {"slug":"korisnici", "group":"Admin", "title":"Korisnici", "url":"/admin/korisnici", "description":"Baza korisnika, reputacija i zarada."},
+    {"slug":"oglasivaci", "group":"Admin", "title":"Oglašivači", "url":"/admin/oglasivaci", "description":"Baza oglašivača, top-up i komercijalni signal."},
+    {"slug":"korisnici-baza", "group":"Admin", "title":"Korisnici baza", "url":"/admin/korisnici-baza-v117", "description":"Pregled svih korisnika, računa i signala aktivnosti."},
+    {"slug":"oglasivaci-baza", "group":"Admin", "title":"Oglašivači baza", "url":"/admin/oglasivaci-baza-v117", "description":"Komercijalna baza, owner signal i health score."},
+    {"slug":"finance-snapshot", "group":"Admin", "title":"Finance snapshot", "url":"/admin/finance-v11834", "description":"Brzi finansijski presek i signali za administraciju."},
     {"slug":"zadaci-javno", "group":"Javno", "title":"Zadaci", "url":"/zadaci", "description":"Javna lista zadataka, kategorije, pretraga i filtriranje."},
     {"slug":"za-korisnike", "group":"Javno", "title":"Za korisnike", "url":"/za-korisnike", "description":"Stranica koja objašnjava zaradu i zadatke korisnicima."},
     {"slug":"za-oglasivace", "group":"Javno", "title":"Za oglašivače", "url":"/za-oglasivace", "description":"Stranica za oglašivače, kampanje, rezultate i promocije."},
@@ -7358,6 +7375,43 @@ KZ119_FUNCTIONS = [
     {"slug":"oglasivac-kampanje", "group":"Oglašivač", "title":"Moje kampanje", "url":"/oglasivac/kampanje", "description":"Lista kampanja oglašivača i njihov status."},
     {"slug":"oglasivac-reklame", "group":"Oglašivač", "title":"Banner reklame", "url":"/oglasivac/reklame-v111", "description":"Oglašivač šalje zahtev za banner reklamu."},
     {"slug":"oglasivac-top", "group":"Oglašivač", "title":"Top pozicija", "url":"/oglasivac/boost-v111", "description":"Oglašivač plaća podizanje kampanje na prvo mesto."},
+    {"slug":"legacy-v7", "group":"Legacy", "title":"V7", "url":"/admin/v7", "description":"Stara generacija admin centra."},
+    {"slug":"legacy-v8", "group":"Legacy", "title":"V8", "url":"/admin/v8", "description":"Stariji command center i job alati."},
+    {"slug":"legacy-v9", "group":"Legacy", "title":"V9", "url":"/admin/v9", "description":"Launch, outreach i revenue tok."},
+    {"slug":"legacy-v10", "group":"Legacy", "title":"V10", "url":"/admin/v10", "description":"Workflows, tracking i data studio."},
+    {"slug":"legacy-command", "group":"Legacy", "title":"Command center v8", "url":"/admin/command-center-v8", "description":"Stari operativni prikaz i stariji layout."},
+    {"slug":"legacy-jobs", "group":"Legacy", "title":"Jobs v8", "url":"/admin/jobs-v8", "description":"Job queue i workers alati."},
+    {"slug":"legacy-help", "group":"Legacy", "title":"Help v8", "url":"/admin/help-v8", "description":"Pomoć i interna dokumentacija."},
+    {"slug":"legacy-release", "group":"Legacy", "title":"Release v8", "url":"/admin/release-v8", "description":"Release i rollout alati."},
+    {"slug":"legacy-outreach", "group":"Legacy", "title":"Outreach v9", "url":"/admin/outreach-v9", "description":"Akvizicija i outreach tok."},
+    {"slug":"legacy-strategy", "group":"Legacy", "title":"Strategy v9", "url":"/admin/strategy-v9", "description":"Planiranje i prodajna strategija."},
+    {"slug":"legacy-client-portal", "group":"Legacy", "title":"Client portal v10", "url":"/admin/client-portal-v10", "description":"Klijentski portal i preview tok."},
+    {"slug":"legacy-contracts", "group":"Legacy", "title":"Contracts v10", "url":"/admin/contracts-v10", "description":"Ugovori, uslovi i dokumenti."},
+    {"slug":"legacy-data-studio", "group":"Legacy", "title":"Data studio v10", "url":"/admin/data-studio-v10", "description":"Metriке i izveštaji."},
+    {"slug":"legacy-moderation", "group":"Legacy", "title":"Moderation v10", "url":"/admin/moderation-v10", "description":"Stari moderation queue."},
+    {"slug":"legacy-revenue-goals", "group":"Legacy", "title":"Revenue goals v10", "url":"/admin/revenue-goals-v10", "description":"Ciljevi prihoda i plan."},
+    {"slug":"legacy-playbooks", "group":"Legacy", "title":"Playbooks v10", "url":"/admin/playbooks-v10", "description":"Operativni priručnici."},
+    {"slug":"legacy-analytics", "group":"Legacy", "title":"Analytics", "url":"/admin/analytics", "description":"Stari analytics i trend pregledi."},
+    {"slug":"legacy-marketplace", "group":"Legacy", "title":"Marketplace", "url":"/admin/marketplace", "description":"Ponude i partner ekosistem."},
+    {"slug":"legacy-enterprise", "group":"Legacy", "title":"Enterprise", "url":"/admin/enterprise", "description":"Enterprise tokovi i veći klijenti."},
+    {"slug":"legacy-marketing", "group":"Legacy", "title":"Marketing", "url":"/admin/marketing", "description":"Marketing kontrola i kampanje."},
+    {"slug":"legacy-marketing-v11", "group":"Legacy", "title":"Marketing v11", "url":"/admin/marketing-v11", "description":"Noviji marketing panel."},
+    {"slug":"legacy-api-keys", "group":"Legacy", "title":"API ključevi", "url":"/admin/api-kljucevi", "description":"Integracije i API pristup."},
+    {"slug":"legacy-scale", "group":"Legacy", "title":"Scale", "url":"/admin/scale", "description":"Skaliranje sistema i operacija."},
+    {"slug":"legacy-smart", "group":"Legacy", "title":"Smart auto", "url":"/admin/smart-v115", "description":"Pametna automatizacija i preporuke."},
+    {"slug":"legacy-auto-engine", "group":"Legacy", "title":"Auto engine", "url":"/admin/auto-engine-v114", "description":"Automatski engine i pravila."},
+    {"slug":"legacy-tracking", "group":"Legacy", "title":"Tracking", "url":"/admin/tracking-v10", "description":"Praćenje i atribucija."},
+    {"slug":"legacy-security", "group":"Legacy", "title":"Security", "url":"/admin/security", "description":"Stariji security centar."},
+    {"slug":"legacy-compliance", "group":"Legacy", "title":"Compliance", "url":"/admin/compliance", "description":"KYC, risk i policy signali."},
+    {"slug":"legacy-sla", "group":"Legacy", "title":"SLA", "url":"/admin/sla", "description":"SLA i operativni pragovi."},
+    {"slug":"legacy-webhooks", "group":"Legacy", "title":"Webhooks", "url":"/admin/webhooks", "description":"Integracije i eventovi."},
+    {"slug":"legacy-command-center", "group":"Legacy", "title":"Command center", "url":"/admin/command-center-v8", "description":"Stari centralni admin pregled."},
+    {"slug":"legacy-ops", "group":"Legacy", "title":"Ops", "url":"/admin/ops-v11835", "description":"Operativni presek i tehnički signali."},
+    {"slug":"legacy-finance", "group":"Legacy", "title":"Finance snapshot", "url":"/admin/finance-v11834", "description":"Brzi finansijski presek."},
+    {"slug":"legacy-trust", "group":"Legacy", "title":"Trust", "url":"/admin/trust-v11836", "description":"Trust signal i rizik korisnika."},
+    {"slug":"legacy-disputes", "group":"Legacy", "title":"Disputes", "url":"/admin/disputes-v11836", "description":"Sporovi i refund tokovi."},
+    {"slug":"legacy-daily", "group":"Legacy", "title":"Daily", "url":"/admin/daily-v11836", "description":"Dnevni signal i operacije."},
+    {"slug":"legacy-launch", "group":"Legacy", "title":"Launch", "url":"/admin/launch-v11836", "description":"Launch plan i finalna priprema."},
 ]
 
 def kz119_category_by_slug(slug: str):
@@ -7889,47 +7943,7 @@ def perfect_ui_audit_api_v1111():
 @app.get("/admin-centar", response_class=HTMLResponse)
 def admin_hub_v1112(request: Request, db: Session = Depends(get_db)):
     u = require(request, db); check_role(u, ["admin"])
-    groups = {
-        "Pregled": [
-            {"title":"Glavni dashboard","url":"/admin/v11","desc":"Najvažniji pregled platforme."},
-            {"title":"Mapa platforme","url":"/admin/mapa-platforme","desc":"Sve funkcije na jednoj strani."},
-            {"title":"Dnevni radni sto","url":"/admin/daily-desk-v11","desc":"Dnevne operacije i obaveze."},
-        ],
-        "Operacije": [
-            {"title":"Kampanje","url":"/admin/kampanje","desc":"Moderacija kampanja."},
-            {"title":"Dokazi","url":"/admin/dokazi","desc":"Pregled i odobravanje dokaza."},
-            {"title":"Isplate","url":"/admin/isplate","desc":"Obrada isplata korisnicima."},
-            {"title":"Launch","url":"/admin/launch-v9","desc":"Launch checklist i priprema za start."},
-        ],
-        "Novac i reklame": [
-            {"title":"Finansije","url":"/admin/finansije","desc":"Prihodi, budžeti i isplate."},
-            {"title":"Cene i provizije","url":"/admin/cene-v111","desc":"Podešavanje cena platforme."},
-            {"title":"Banneri i isticanja","url":"/admin/reklame-v111","desc":"Reklame, top pozicija i slotovi."},
-            {"title":"Budžeti oglašivača","url":"/admin/budget-v11","desc":"Kontrola sredstava oglašivača."},
-            {"title":"Payouts","url":"/admin/payouts-v11","desc":"Batch isplate i payout kontrola."},
-            {"title":"Payments","url":"/admin/payments-v8","desc":"Uplate i payment intents."},
-            {"title":"Collections","url":"/admin/collections-v11","desc":"Dospelo i kasni follow-up."},
-            {"title":"Renewals","url":"/admin/renewals-v11","desc":"Produženja i obnova bannera."},
-            {"title":"Approval","url":"/admin/approval-center-v11","desc":"Odobrenja za finance i refund tokove."},
-            {"title":"Reports","url":"/admin/reports-v11","desc":"Revenue snapshot i operativni pregled."},
-        ],
-        "Sistem": [
-            {"title":"Security","url":"/admin/security-v11","desc":"Pristup, uređaji i sigurnosni signali."},
-            {"title":"Alerts","url":"/admin/alerts-v11","desc":"Upozorenja i kritični statusi."},
-            {"title":"Comm queue","url":"/admin/notification-queue-v11845","desc":"Email, SMS i interna isporuka."},
-            {"title":"Email outbox","url":"/admin/email-outbox-v8","desc":"Spoljašnje poruke i delivery kontrola."},
-            {"title":"Feature flags","url":"/admin/feature-flags","desc":"Uključivanje funkcija bez novog deploy-a."},
-            {"title":"System settings","url":"/admin/system-settings","desc":"Globalna pravila i parametri sistema."},
-            {"title":"Deploy","url":"/admin/deploy-v11","desc":"Deploy, smoke test i status."},
-            {"title":"Ops","url":"/admin/ops-v11835","desc":"Operativni presek i tehnički signali."},
-        ],
-    }
-    return templates.TemplateResponse("admin_hub_v1112.html", {
-        "request": request,
-        "user": u,
-        "flash": None,
-        "groups": groups,
-    })
+    return admin_v11_premium_dashboard_v116(request, db)
 
 @app.get("/api/v1/v11/admin-clean-audit")
 def api_admin_clean_audit_v1112():
@@ -9438,7 +9452,7 @@ def admin_v11_premium_dashboard_v116(request: Request, db: Session = Depends(get
             {"title":"System settings","url":"/admin/system-settings","desc":"Globalna pravila i parametri sistema."},
         ],
     }
-    return templates.TemplateResponse("admin_hub_v1112.html", {
+    return templates.TemplateResponse("admin_v11_safe_v1171.html", {
         "request": request,
         "user": u,
         "flash": None,
@@ -9454,10 +9468,14 @@ def admin_v11_premium_dashboard_v116(request: Request, db: Session = Depends(get
             "reserved_budget": reserved_budget_total,
             "spent_budget": spent_budget_total,
         },
+        "latest_tasks": tasks,
+        "latest_submissions": submissions_latest,
+        "latest_withdrawals": pending_withdrawals,
         "automation_summary": automation_summary,
         "proof_mix": proof_mix,
         "fraud_summary": fraud_summary,
-        "groups": groups,
+        "dashboard_mix": dashboard_mix,
+        "score": v11839_go_no_go_summary(db)["score"],
     })
 
 

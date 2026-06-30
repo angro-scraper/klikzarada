@@ -27,6 +27,7 @@
         <div class="premium-admin-nav-row primary">
           <a class="tone-violet {% if path != '/admin/v11' %}back-link{% endif %}" href="{% if path != '/admin/v11' %}/admin/v11{% else %}/{% endif %}">Nazad</a>
           <a class="tone-violet {% if path.startswith('/admin/v11') or path.startswith('/admin/dashboard') %}active{% endif %}" href="/admin/v11">Dashboard</a>
+          <a class="tone-violet {% if path.startswith('/admin-centar') %}active{% endif %}" href="/admin-centar">Admin centar</a>
           <a class="tone-violet {% if path.startswith('/admin/mapa-platforme') %}active{% endif %}" href="/admin/mapa-platforme">Mapa platforme</a>
           <a class="tone-violet {% if path.startswith('/admin/analitika-v117') %}active{% endif %}" href="/admin/analitika-v117">Analitika</a>
           <a class="tone-blue {% if path.startswith('/admin/reklame-v111') or path.startswith('/admin/promocija-v111') or path.startswith('/admin/banneri-v111') %}active{% endif %}" href="/admin/reklame-v111">Reklame</a>
