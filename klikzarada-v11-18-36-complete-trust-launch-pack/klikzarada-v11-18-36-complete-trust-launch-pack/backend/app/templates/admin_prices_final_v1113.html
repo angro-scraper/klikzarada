@@ -286,6 +286,38 @@
 </section>
 {% endif %}
 
+{% if template_pricing_rows is defined %}
+<section class="kz1111-section">
+  <div class="kz1111-section-head">
+    <h2>Task template floor</h2>
+    <span>{{ template_pricing_rows|length }} šablona</span>
+  </div>
+  <form method="post" action="/admin/cene-v111/template-mins">
+    <div class="premium-action-grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));">
+      {% for row in template_pricing_rows %}
+      <article class="premium-empty" style="display:grid;gap:10px;border-left:6px solid {{ '#ef4444' if row.gap_rsd > 0 else '#22c55e' }};">
+        <div>
+          <small style="color:#64748b;font-weight:900;letter-spacing:.06em;text-transform:uppercase">{{ row.template.task_type }} · {{ row.template.category }}</small>
+          <h3 style="margin:6px 0 6px;color:#071a3f">{{ row.template.name }}</h3>
+          <p style="margin:0;color:#64748b;line-height:1.55">{{ row.template.description }}</p>
+        </div>
+        <div class="premium-money-grid">
+          <article><small>Template floor</small><strong>{{ "%.0f"|format(row.template_min_reward_rsd) }}</strong></article>
+          <article><small>Efektivno</small><strong>{{ "%.0f"|format(row.effective_min_reward_rsd) }}</strong></article>
+          <article><small>Predlog</small><strong>{{ "%.0f"|format(row.suggested_reward_rsd) }}</strong></article>
+          <article><small>Gap</small><strong>{{ "%.0f"|format(row.gap_rsd) }}</strong></article>
+        </div>
+        <label>Minimalna cena za konkretan šablon (RSD)</label>
+        <input type="number" step="1" min="0" name="template_min_{{ row.template.id }}" value="{{ "%.0f"|format(row.template_min_reward_rsd) }}">
+        <small>{{ row.active_tasks }} aktivnih · {{ row.total_tasks }} ukupno. Ako šablon ima jači floor od task type-a, on preuzima kontrolu.</small>
+      </article>
+      {% endfor %}
+    </div>
+    <button class="btn btn-primary" style="margin-top:18px">Sačuvaj minimalne cene po šablonu</button>
+  </form>
+</section>
+{% endif %}
+
 {% if category_pricing_rows is defined %}
 <section class="kz1111-section">
   <div class="kz1111-section-head">
@@ -373,21 +405,27 @@
     <h2>Sales paketi</h2>
     <span>small business / agency / enterprise</span>
   </div>
-  <div class="kz1111-proof-grid">
-    {% for pkg in sales_packages %}
-    <article class="kz1111-proof-card variant-approved">
-      <div class="kz1111-card-top">
-        <div class="kz1111-proof-badges">
-          <span class="status status-approved">{{ pkg.name }}</span>
-          <span class="kz1111-proof-tiny approved">{{ pkg.segment }}</span>
+  <form method="post" action="/admin/cene-v111/sales-packages">
+    <div class="premium-action-grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));">
+      {% for pkg in sales_packages %}
+      <article class="premium-empty" style="display:grid;gap:10px">
+        <div class="premium-card-head" style="padding:0;border:none;">
+          <h3 style="margin:0;color:#071a3f">{{ pkg.name }}</h3>
+          <span>{{ "%.0f"|format(pkg.price) }} RSD</span>
         </div>
-        <strong>{{ "%.0f"|format(pkg.price) }} RSD</strong>
-      </div>
-      <h3>{{ pkg.mix }}</h3>
-      <p>Predlog paketa koji sales tim može da koristi kao početnu komercijalnu ponudu.</p>
-    </article>
-    {% endfor %}
-  </div>
+        <label>Naziv paketa</label>
+        <input name="pkg_name_{{ pkg.slug }}" value="{{ pkg.name }}">
+        <label>Klijent segment</label>
+        <input name="pkg_segment_{{ pkg.slug }}" value="{{ pkg.segment }}">
+        <label>Mix ponude</label>
+        <textarea name="pkg_mix_{{ pkg.slug }}">{{ pkg.mix }}</textarea>
+        <label>Cena paketa (RSD)</label>
+        <input type="number" step="1" min="0" name="pkg_price_{{ pkg.slug }}" value="{{ "%.0f"|format(pkg.price) }}">
+      </article>
+      {% endfor %}
+    </div>
+    <button class="btn btn-primary" style="margin-top:18px">Sačuvaj sales pakete</button>
+  </form>
 </section>
 {% endif %}
 {% endblock %}

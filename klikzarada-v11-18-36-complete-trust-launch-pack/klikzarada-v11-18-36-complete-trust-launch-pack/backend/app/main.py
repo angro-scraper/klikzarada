@@ -18,7 +18,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Upload
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from urllib.request import Request as UrlRequest, urlopen
@@ -176,26 +176,7 @@ def v11837_margin_snapshot(db: Session):
     if platform_percent < 25:
         warnings.append(f"Platform fee je {platform_percent:.1f}% i ispod je preporučenog praga od 25%.")
 
-    packages = [
-        {
-            "name": "Small Business",
-            "price": round((get_price("BANNER_HOME_MID_7D", 3000.0) / 7) * 7, 0),
-            "segment": "lokalne firme i prvi test budžet",
-            "mix": "1 srednji banner + osnovni campaign push",
-        },
-        {
-            "name": "Agency",
-            "price": round((get_price("BANNER_HOME_TOP_7D", 5000.0) / 7) * 14 + get_price("BOOST_TOP_POSITION_3D", 1500.0), 0),
-            "segment": "agencije i višekanalne kampanje",
-            "mix": "2 nedelje premium slota + top pozicija",
-        },
-        {
-            "name": "Enterprise",
-            "price": round((get_price("BANNER_HOME_TOP_7D", 5000.0) / 7) * 30 + 15000, 0),
-            "segment": "veći budžeti i duži zakup",
-            "mix": "mesečni zakup + upravljanje promocijom + prioritetna podrška",
-        },
-    ]
+    packages = kz11846_sales_packages(db)
     return {
         "ad_cost": ad_cost,
         "ad_reward": ad_reward,
@@ -1053,6 +1034,7 @@ def v11845_split_terms(value: str | None):
 
 def v11845_campaign_draft_from_template(tpl=None):
     return {
+        "template_id": getattr(tpl, "id", 0) if tpl else 0,
         "title": getattr(tpl, "name", "") if tpl else "",
         "category": getattr(tpl, "category", "Ankete") if tpl else "Ankete",
         "task_type": getattr(tpl, "task_type", "Anketa") if tpl else "Anketa",
@@ -2344,12 +2326,15 @@ def new_campaign(request:Request, db:Session=Depends(get_db)):
     return templates.TemplateResponse("campaign_form.html", {"request":request,"user":u,"error":None,"fee":fee,"builder":builder,"draft":draft,"targeting":targeting})
 
 @app.post("/oglasivac/nova-kampanja")
-def create_campaign(request:Request, title:str=Form(...), category:str=Form(...), task_type:str=Form(...), target_url:str=Form(""), description:str=Form(...), instructions:str=Form(...), proof_required:str=Form(...), example_proof:str=Form(""), reward_rsd:float=Form(...), total_slots:int=Form(...), target_city:str=Form("Srbija"), target_age_group:str=Form("18+"), target_interests:str=Form(""), proof_file_required:Optional[str]=Form(None), db:Session=Depends(get_db)):
+def create_campaign(request:Request, title:str=Form(...), category:str=Form(...), task_type:str=Form(...), target_url:str=Form(""), description:str=Form(...), instructions:str=Form(...), proof_required:str=Form(...), example_proof:str=Form(""), reward_rsd:float=Form(...), total_slots:int=Form(...), target_city:str=Form("Srbija"), target_age_group:str=Form("18+"), target_interests:str=Form(""), template_id:int=Form(0), proof_file_required:Optional[str]=Form(None), db:Session=Depends(get_db)):
     u=require(request,db); check_role(u,["oglasivac","admin"])
     fee = v111_price_percent(db, "platform_commission_percent", PLATFORM_FEE_PERCENT) if "v111_price_percent" in globals() else PLATFORM_FEE_PERCENT
+    template_id = int(template_id or 0)
+    template = db.query(CampaignTemplate).filter(CampaignTemplate.id == template_id).first() if template_id else None
     effective_category = category.strip() or kz11846_default_category_from_task_type(task_type)
-    min_reward = kz11846_effective_min_reward(db, effective_category, task_type, 50.0)
+    min_reward = kz11846_effective_min_reward_with_template(db, effective_category, task_type, template_id, 50.0)
     draft = {
+        "template_id": template_id,
         "title": title,
         "category": effective_category,
         "task_type": task_type,
@@ -2371,17 +2356,18 @@ def create_campaign(request:Request, title:str=Form(...), category:str=Form(...)
         return templates.TemplateResponse("campaign_form.html", {
             "request":request,
             "user":u,
-            "error":f"Minimalna cena za kombinaciju kategorije '{effective_category}' i task type-a '{task_type}' je {float(min_reward):.0f} RSD po zadatku.",
+            "error":f"Minimalna cena za kombinaciju kategorije '{effective_category}', task type-a '{task_type}'{f' i šablona #{template_id}' if template else ''} je {float(min_reward):.0f} RSD po zadatku.",
             "fee":fee,
             "builder":builder,
             "draft":draft,
             "targeting":targeting,
+            "tpl": template,
         }, status_code=400)
     total=cost_for_task(reward_rsd,total_slots,fee)
     if u.advertiser_budget_rsd < total:
         builder = v11844_campaign_builder_context(db, u)
         targeting = v11845_advertiser_targeting_context(db, u, draft)
-        return templates.TemplateResponse("campaign_form.html", {"request":request,"user":u,"error":f"Nedovoljno budžeta. Potrebno {total:.0f} RSD, dostupno {u.advertiser_budget_rsd:.0f} RSD.","fee":fee,"builder":builder,"draft":draft,"targeting":targeting}, status_code=400)
+        return templates.TemplateResponse("campaign_form.html", {"request":request,"user":u,"error":f"Nedovoljno budžeta. Potrebno {total:.0f} RSD, dostupno {u.advertiser_budget_rsd:.0f} RSD.","fee":fee,"builder":builder,"draft":draft,"targeting":targeting,"tpl":template}, status_code=400)
     t=Task(advertiser_id=u.id,title=title,category=effective_category,task_type=task_type,target_url=target_url,description=description,instructions=instructions,proof_required=proof_required,example_proof=example_proof,reward_rsd=reward_rsd,platform_fee_percent=fee,total_slots=total_slots,target_city=target_city,target_age_group=target_age_group,target_interests=target_interests,proof_file_required=bool(proof_file_required),status="pending")
     u.advertiser_budget_rsd-=total; u.advertiser_reserved_rsd+=total
     db.add(t); db.flush(); add_budget_tx(db,u,-total,"reserve_campaign",f"Rezervisan budžet za kampanju: {title}")
@@ -8023,10 +8009,42 @@ def kz11846_task_type_min_reward(db: Session, task_type: str, default: float = 0
     return kz113_get_price(db, kz11846_task_type_min_reward_key(task_type), default)
 
 
+def kz11846_template_min_reward_key(template_id: int):
+    return f"TASK_TEMPLATE_MIN_REWARD__{int(template_id or 0)}"
+
+
+def kz11846_template_min_reward(db: Session, template_id: int, default: float = 0.0):
+    return kz113_get_price(db, kz11846_template_min_reward_key(template_id), default)
+
+
 def kz11846_effective_min_reward(db: Session, category: str, task_type: str, default: float = 50.0):
     category_floor = kz11846_category_min_reward(db, category, default)
     task_type_floor = kz11846_task_type_min_reward(db, task_type, 0.0)
     return max(float(category_floor or 0), float(task_type_floor or 0), float(default or 0))
+
+
+def kz11846_effective_min_reward_with_template(db: Session, category: str, task_type: str, template_id: int = 0, default: float = 50.0):
+    base_floor = kz11846_effective_min_reward(db, category, task_type, default)
+    template_floor = kz11846_template_min_reward(db, template_id, 0.0) if template_id else 0.0
+    return max(float(base_floor or 0), float(template_floor or 0), float(default or 0))
+
+
+def kz11846_setting_get(db: Session, key: str, default: str = ""):
+    row = db.query(SystemSetting).filter(SystemSetting.key == key).first()
+    return row.value if row and row.value is not None else default
+
+
+def kz11846_setting_set(db: Session, key: str, value: str, description: str = ""):
+    row = db.query(SystemSetting).filter(SystemSetting.key == key).first()
+    if not row:
+        row = SystemSetting(key=key, value=value, description=description or None, updated_at=datetime.utcnow())
+        db.add(row)
+    else:
+        row.value = value
+        row.description = description or row.description
+        row.updated_at = datetime.utcnow()
+    db.commit()
+    return row
 
 
 def kz11846_category_catalog(db: Session):
@@ -8138,6 +8156,88 @@ def kz11846_task_type_pricing_rows(db: Session):
     return rows
 
 
+def kz11846_template_pricing_rows(db: Session):
+    rows = []
+    templates_ = db.query(CampaignTemplate).order_by(CampaignTemplate.is_active.desc(), CampaignTemplate.created_at.desc()).all()
+    for tpl in templates_:
+        active_tasks = db.query(Task).filter(
+            Task.title == tpl.name,
+            Task.category == tpl.category,
+            Task.task_type == tpl.task_type,
+            Task.status == "active",
+        ).count()
+        total_tasks = db.query(Task).filter(
+            Task.title == tpl.name,
+            Task.category == tpl.category,
+            Task.task_type == tpl.task_type,
+        ).count()
+        template_floor = kz11846_template_min_reward(db, tpl.id, 0.0)
+        effective_floor = kz11846_effective_min_reward_with_template(db, tpl.category, tpl.task_type, tpl.id, 50.0)
+        rows.append({
+            "template": tpl,
+            "slug": f"tpl_{tpl.id}",
+            "template_min_reward_rsd": template_floor,
+            "effective_min_reward_rsd": effective_floor,
+            "active_tasks": active_tasks,
+            "total_tasks": total_tasks,
+            "suggested_reward_rsd": float(getattr(tpl, "suggested_reward_rsd", 0) or 0),
+            "gap_rsd": round(max(0.0, effective_floor - float(getattr(tpl, "suggested_reward_rsd", 0) or 0)), 2),
+        })
+    return rows
+
+
+KZ11846_SALES_PACKAGE_DEFAULTS = [
+    {
+        "slug": "small_business",
+        "name": "Small Business",
+        "segment": "lokalne firme i prvi test budžet",
+        "mix": "1 srednji banner + osnovni campaign push",
+    },
+    {
+        "slug": "agency",
+        "name": "Agency",
+        "segment": "agencije i višekanalne kampanje",
+        "mix": "2 nedelje premium slota + top pozicija",
+    },
+    {
+        "slug": "enterprise",
+        "name": "Enterprise",
+        "segment": "veći budžeti i duži zakup",
+        "mix": "mesečni zakup + upravljanje promocijom + prioritetna podrška",
+    },
+]
+
+
+def kz11846_default_sales_package_prices(db: Session):
+    return {
+        "small_business": round(kz113_get_price(db, "BANNER_HOME_MID_7D", 3000.0), 0),
+        "agency": round(kz113_get_price(db, "BANNER_HOME_TOP_7D", 5000.0) * 2 + kz113_get_price(db, "BOOST_TOP_POSITION_3D", 1500.0), 0),
+        "enterprise": round((kz113_get_price(db, "BANNER_HOME_TOP_7D", 5000.0) / 7.0) * 30 + 15000, 0),
+    }
+
+
+def kz11846_sales_packages(db: Session):
+    defaults = kz11846_default_sales_package_prices(db)
+    rows = []
+    for item in KZ11846_SALES_PACKAGE_DEFAULTS:
+        key = f"SALES_PACKAGE__{item['slug']}"
+        raw = kz11846_setting_get(db, key, "")
+        payload = {}
+        if raw:
+            try:
+                payload = json.loads(raw)
+            except Exception:
+                payload = {}
+        rows.append({
+            "slug": item["slug"],
+            "name": payload.get("name") or item["name"],
+            "segment": payload.get("segment") or item["segment"],
+            "mix": payload.get("mix") or item["mix"],
+            "price": float(payload.get("price") or defaults[item["slug"]] or 0),
+        })
+    return rows
+
+
 def kz11846_pricing_signal_context(db: Session):
     visit_stats = kz117_visit_stats(db)
     route_rows = []
@@ -8229,6 +8329,7 @@ def admin_prices_final_v1113(request: Request, db: Session = Depends(get_db)):
     visit_stats = pricing_signal["visit_stats"]
     category_pricing_rows = kz11846_category_pricing_rows(db)
     task_type_pricing_rows = kz11846_task_type_pricing_rows(db)
+    template_pricing_rows = kz11846_template_pricing_rows(db)
     return templates.TemplateResponse("admin_prices_final_v1113.html", {
         "request": request, "user": u, "flash": None, "prices": prices,
         "ad_cost": kz113_get_price(db, "AD_VIEW_COST_RSD", 8),
@@ -8242,6 +8343,7 @@ def admin_prices_final_v1113(request: Request, db: Session = Depends(get_db)):
         "pricing_signal": pricing_signal,
         "category_pricing_rows": category_pricing_rows,
         "task_type_pricing_rows": task_type_pricing_rows,
+        "template_pricing_rows": template_pricing_rows,
     })
 
 @app.post("/admin/cene-v111/split")
@@ -8334,6 +8436,64 @@ async def admin_prices_task_type_mins_v11846(request: Request, db: Session = Dep
             f"Minimalna reward cena za task type {row['task_type']}.",
             amount,
             "RSD",
+        )
+    return RedirectResponse("/admin/cene-v111?msg=saved", status_code=303)
+
+
+@app.post("/admin/cene-v111/template-mins")
+async def admin_prices_template_mins_v11846(request: Request, db: Session = Depends(get_db)):
+    u = require(request, db); check_role(u, ["admin"])
+    form = await request.form()
+    templates_map = {tpl.id: tpl for tpl in db.query(CampaignTemplate).all()}
+    for key, value in form.items():
+        if not key.startswith("template_min_"):
+            continue
+        try:
+            template_id = int(key.replace("template_min_", "", 1))
+        except Exception:
+            continue
+        tpl = templates_map.get(template_id)
+        if not tpl:
+            continue
+        try:
+            amount = max(0.0, float(value or 0))
+        except Exception:
+            continue
+        kz113_set_price(
+            db,
+            kz11846_template_min_reward_key(template_id),
+            f"Minimalna cena template-a · {tpl.name}",
+            f"Minimalna reward cena za campaign template {tpl.name}.",
+            amount,
+            "RSD",
+        )
+    return RedirectResponse("/admin/cene-v111?msg=saved", status_code=303)
+
+
+@app.post("/admin/cene-v111/sales-packages")
+async def admin_prices_sales_packages_v11846(request: Request, db: Session = Depends(get_db)):
+    u = require(request, db); check_role(u, ["admin"])
+    form = await request.form()
+    known = {row["slug"]: row for row in KZ11846_SALES_PACKAGE_DEFAULTS}
+    for slug, base in known.items():
+        price_key = f"pkg_price_{slug}"
+        if price_key not in form:
+            continue
+        try:
+            price = max(0.0, float(form.get(price_key) or 0))
+        except Exception:
+            price = 0.0
+        payload = {
+            "name": (form.get(f"pkg_name_{slug}") or base["name"]).strip() or base["name"],
+            "segment": (form.get(f"pkg_segment_{slug}") or base["segment"]).strip() or base["segment"],
+            "mix": (form.get(f"pkg_mix_{slug}") or base["mix"]).strip() or base["mix"],
+            "price": price,
+        }
+        kz11846_setting_set(
+            db,
+            f"SALES_PACKAGE__{slug}",
+            json.dumps(payload, ensure_ascii=False),
+            f"Admin sales paket konfiguracija za {payload['name']}.",
         )
     return RedirectResponse("/admin/cene-v111?msg=saved", status_code=303)
 

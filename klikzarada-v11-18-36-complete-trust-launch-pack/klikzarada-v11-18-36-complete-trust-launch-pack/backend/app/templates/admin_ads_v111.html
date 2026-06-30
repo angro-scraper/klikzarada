@@ -156,7 +156,7 @@
         </thead>
         <tbody>
           {% for row in ads_profit.filtered_slot_rows if ads_profit.filtered_slot_rows is defined else ads_profit.slot_rows %}
-          <tr>
+          <tr style="background:{{ '#fff1f2' if row.level == 'negative' else '#fff7ed' if row.level == 'low' else '#f0fdf4' if row.level == 'best' else '#f8fafc' }};">
             <td><strong>{{ row.slot.title }}</strong><br><small>{{ row.banners_count }} bannera · {{ row.level }}</small></td>
             <td>{{ "%.0f"|format(row.booking_revenue) }} RSD</td>
             <td>{{ "%.0f"|format(row.view_revenue) }} RSD</td>
@@ -194,7 +194,7 @@
         </thead>
         <tbody>
           {% for row in ads_profit.filtered_campaign_rows if ads_profit.filtered_campaign_rows is defined else ads_profit.campaign_rows %}
-          <tr>
+          <tr style="background:{{ '#fff1f2' if row.level == 'negative' else '#fff7ed' if row.level == 'low' else '#f0fdf4' if row.level == 'best' else '#f8fafc' }};">
             <td><strong>{{ row.task.title }}</strong><br><small>{{ row.submissions_count }} submissiona · {{ row.level }} · {{ "%.1f"|format(row.margin_percent) }}% margin</small></td>
             <td>{{ "%.0f"|format(row.approved_cost) }} RSD</td>
             <td>{{ "%.0f"|format(row.platform_fee) }} RSD</td>
