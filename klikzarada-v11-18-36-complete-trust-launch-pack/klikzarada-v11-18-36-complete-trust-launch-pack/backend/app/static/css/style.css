@@ -14147,6 +14147,16 @@ body.kz1189-home-premium .kz1189-page{
   color:#071a3f!important;
 }
 
+body.kz1189-home-premium .kz117-public-main,
+body.kz1189-home-premium .kz117-page-shell{
+  width:100%!important;
+  max-width:none!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  padding-left:0!important;
+  padding-right:0!important;
+}
+
 body.kz1189-home-premium .kz-premium-kicker{
   display:inline-flex!important;
   align-items:center!important;
@@ -14967,8 +14977,17 @@ body.kz1189-home-premium .kz1189-footer .social i img{
   }
 
   body.kz1189-home-premium .kz1189-page{
-    width:calc(100vw - 24px)!important;
-    margin:12px auto 28px!important;
+    width:100%!important;
+    margin:12px 0 28px!important;
+  }
+
+  body.kz1189-home-premium .kz117-public-main,
+  body.kz1189-home-premium .kz117-page-shell{
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding-left:0!important;
+    padding-right:0!important;
   }
 
   body.kz1189-home-premium .kz1189-top-ads,
@@ -15213,6 +15232,8 @@ body.kz1189-home-premium .kz1189-ad-slots,
 body.kz1189-home-premium .kz-promo-final-row,
 body.kz1189-home-premium .kz1189-tasks,
 body.kz1189-home-premium .kz1189-public-main,
+body.kz1189-home-premium .kz117-public-main,
+body.kz1189-home-premium .kz117-page-shell,
 body.kz1189-campaign-premium .kz117-page-shell,
 body.kz1189-campaign-premium .kz117-page-hero,
 body.kz1189-campaign-premium .kz117-grid-3,
@@ -15223,11 +15244,13 @@ body.kz1189-tasks-premium .kz117-page-hero,
 body.kz1189-tasks-premium .kz117-grid-3,
 body.kz1189-tasks-premium .kz117-filter-card,
 body.kz1189-tasks-premium .kz117-task-list{
-  width:calc(100vw - 24px)!important;
+  width:100%!important;
   max-width:none!important;
 }
 
 body.kz1189-home-premium .kz1189-page,
+body.kz1189-home-premium .kz117-public-main,
+body.kz1189-home-premium .kz117-page-shell,
 body.kz1189-campaign-premium .kz117-page-shell,
 body.kz1189-tasks-premium .kz117-page-shell{
   margin-left:auto!important;
