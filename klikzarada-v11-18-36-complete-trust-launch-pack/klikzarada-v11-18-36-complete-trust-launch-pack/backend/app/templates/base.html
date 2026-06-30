@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{{ title if title else "KlikZarada" }}</title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/static/css/style.css?v=11827">
+  <link rel="stylesheet" href="/static/css/style.css?v=11842">
   <style>
     @media (max-width: 980px) {
       .kz117-nav {
@@ -32,7 +32,8 @@
         gap: 10px !important;
       }
       .kz117-page-shell {
-        width: calc(100vw - 20px) !important;
+        width: 100% !important;
+        max-width: none !important;
       }
     }
   </style>
@@ -53,9 +54,6 @@
         <a class="{% if path.startswith('/zadaci') %}active{% endif %}" href="/zadaci">Zadaci</a>
         <a class="{% if path.startswith('/za-korisnike') %}active{% endif %}" href="/za-korisnike">Za korisnike</a>
         <a class="{% if path.startswith('/za-oglasivace') %}active{% endif %}" href="/za-oglasivace">Za oglašivače</a>
-        <a class="{% if path.startswith('/cenovnik') %}active{% endif %}" href="/cenovnik">Cenovnik</a>
-        <a class="{% if path.startswith('/blog') %}active{% endif %}" href="/blog">Blog</a>
-        <a class="{% if path.startswith('/kontakt') %}active{% endif %}" href="/kontakt">Kontakt</a>
       </nav>
       <div class="kz117-actions kz118-actions">
         {% if user %}

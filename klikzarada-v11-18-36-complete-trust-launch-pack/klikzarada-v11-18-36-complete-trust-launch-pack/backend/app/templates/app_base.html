@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{{ title if title else "KlikZarada panel" }}</title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/static/css/style.css?v=11835">
-  <style>
+  <link rel="stylesheet" href="/static/css/style.css?v=11842">
+    <style>
     @media (max-width: 980px) {
       .premium-app-topbar-inner {
-        width: calc(100vw - 20px) !important;
+        width: 100% !important;
+        max-width: none !important;
         flex-direction: column !important;
         align-items: stretch !important;
         gap: 12px !important;
@@ -38,10 +39,12 @@
         gap: 10px !important;
       }
       .premium-page-shell {
-        width: calc(100vw - 20px) !important;
+        width: 100% !important;
+        max-width: none !important;
       }
       .premium-app-layout {
-        width: calc(100vw - 20px) !important;
+        width: 100% !important;
+        max-width: none !important;
         grid-template-columns: 1fr !important;
       }
     }
@@ -113,7 +116,7 @@
           <a class="tone-violet {% if path != '/admin/v11' %}back-link{% endif %}" href="{% if path != '/admin/v11' %}/admin/v11{% else %}/{% endif %}">Nazad</a>
           <a class="tone-violet {% if path.startswith('/admin/v11') or path.startswith('/admin/dashboard') %}active{% endif %}" href="/admin/v11">Dashboard</a>
           <a class="tone-violet {% if path.startswith('/admin-centar') %}active{% endif %}" href="/admin-centar">Admin centar</a>
-          <a class="tone-violet {% if path.startswith('/admin/mapa-platforme') %}active{% endif %}" href="/admin/mapa-platforme">Mapa platforme</a>
+          <a class="tone-violet {% if path.startswith('/admin/mapa-platforme') or path.startswith('/admin/mapa-oglasivaca') or path.startswith('/admin/mapa-korisnika') %}active{% endif %}" href="/admin/mapa-platforme">Mapa platforme</a>
         </div>
       </div>
       {% if admin_context == 'sales' %}
@@ -134,13 +137,9 @@
         <div class="premium-admin-nav-row secondary">
           <a class="tone-amber {% if path.startswith('/admin/payments-v8') %}active{% endif %}" href="/admin/payments-v8">Payments</a>
           <a class="tone-amber {% if path.startswith('/admin/payouts-v11') %}active{% endif %}" href="/admin/payouts-v11">Payouts</a>
-          <a class="tone-amber {% if path.startswith('/admin/collections-v11') %}active{% endif %}" href="/admin/collections-v11">Collections</a>
-          <a class="tone-amber {% if path.startswith('/admin/renewals-v11') %}active{% endif %}" href="/admin/renewals-v11">Renewals</a>
           <a class="tone-amber {% if path.startswith('/admin/approval-center-v11') %}active{% endif %}" href="/admin/approval-center-v11">Approval</a>
           <a class="tone-red {% if path.startswith('/admin/alerts-v11') %}active{% endif %}" href="/admin/alerts-v11">Alerts</a>
           <a class="tone-blue {% if path.startswith('/admin/reports-v11') %}active{% endif %}" href="/admin/reports-v11">Reports</a>
-          <a class="tone-blue {% if path.startswith('/admin/email-outbox-v8') %}active{% endif %}" href="/admin/email-outbox-v8">Email outbox</a>
-          <a class="tone-blue {% if path.startswith('/admin/notification-queue-v11845') %}active{% endif %}" href="/admin/notification-queue-v11845">Comm queue</a>
           <a class="tone-blue {% if path.startswith('/admin/finance-v11834') %}active{% endif %}" href="/admin/finance-v11834">Finance snapshot</a>
         </div>
       </div>
@@ -153,7 +152,6 @@
           <a class="tone-red {% if path.startswith('/admin/smoke-v11') %}active{% endif %}" href="/admin/smoke-v11">Smoke</a>
           <a class="tone-red {% if path.startswith('/admin/deploy-v11') %}active{% endif %}" href="/admin/deploy-v11">Deploy</a>
           <a class="tone-blue {% if path.startswith('/admin/daily-desk-v11') %}active{% endif %}" href="/admin/daily-desk-v11">Daily desk</a>
-          <a class="tone-blue {% if path.startswith('/admin/ops-v11835') %}active{% endif %}" href="/admin/ops-v11835">Ops</a>
         </div>
       </div>
       {% elif admin_context == 'system' %}
@@ -171,7 +169,6 @@
         <div class="premium-admin-nav-row secondary">
           <a class="tone-blue {% if path.startswith('/admin/analitika-v117') %}active{% endif %}" href="/admin/analitika-v117">Analitika</a>
           <a class="tone-blue {% if path.startswith('/admin/reklame-v111') %}active{% endif %}" href="/admin/reklame-v111">Reklame</a>
-          <a class="tone-blue {% if path.startswith('/admin/crm') %}active{% endif %}" href="/admin/crm">CRM</a>
           <a class="tone-amber {% if path.startswith('/admin/cene-v111') %}active{% endif %}" href="/admin/cene-v111">Cene</a>
           <a class="tone-green {% if path.startswith('/admin/oglasivaci') %}active{% endif %}" href="/admin/oglasivaci">Oglašivači</a>
           <a class="tone-green {% if path.startswith('/admin/korisnici-baza-v117') %}active{% endif %}" href="/admin/korisnici-baza-v117">Korisnici baza</a>

@@ -1091,6 +1091,93 @@ body > footer:not(.kz114-footer){display:none!important;}
   place-items:center!important;
   overflow:hidden!important;
 }
+html,
+body{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+
+html body *{
+  min-width:0;
+}
+
+html body .kz117-header,
+html body .kz118-public-header,
+html body .kz117-nav,
+html body .kz117-public-main,
+html body .kz117-page-shell,
+html body .kz117-page-hero,
+html body .kz117-grid-3,
+html body .kz117-filter-card,
+html body .kz117-task-list,
+html body .kz118-home-shell,
+html body .kz118-hero-card,
+html body .kz118-hero-panel,
+html body .kz118-task-grid,
+html body .kz118-banner-grid,
+html body .kz118-banner-zone,
+html body .kz118-metrics-strip,
+html body .kz118-quick-panel-links,
+html body .kz118-panel-grid,
+html body .kz118-mini-stats,
+html body .kz118-approved-final,
+html body .kz118-footer,
+html body .kz1186-page,
+html body .kz1189-page,
+html body .kz119-page-hero,
+html body .kz119-filter,
+html body .kz119-category-grid,
+html body .kz119-content-grid,
+html body .kz119-task-grid,
+html body .kz113-task-hero,
+html body .kz113-task-layout,
+html body .kz113-proof-form,
+html body .kz114-hero,
+html body .kz114-card-section,
+html body .kz114-top-card,
+html body .kz114-audience,
+html body .kz114-metrics,
+html body .kz114-final,
+html body .kz114-footer,
+html body .kz115-hero,
+html body .kz115-grid,
+html body .kz115-footer,
+html body .kz116-topbar-inner,
+html body .kz116-layout,
+html body .kz116-main,
+html body .kz116-sidebar,
+html body .premium-app-topbar,
+html body .premium-app-topbar-inner,
+html body .premium-app-layout,
+html body .premium-app-main,
+html body .premium-app-main.full,
+html body .premium-app-main.full.admin-no-commandbar,
+html body .premium-page-shell,
+html body .premium-sidebar,
+html body .premium-home-hero,
+html body .premium-banner-section,
+html body .premium-top-position,
+html body .premium-tasks-section,
+html body .premium-two-cards,
+html body .premium-bottom-cta,
+html body .premium-dashboard-grid,
+html body .premium-admin-grid,
+html body .premium-stat-grid,
+html body .premium-task-grid,
+html body .premium-banner-grid,
+html body .premium-action-grid,
+html body .premium-panel-hero,
+html body .premium-mini-stats,
+html body .premium-hero-panel,
+html body .premium-hero-copy{
+  width:100%!important;
+  max-width:none!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  padding-left:clamp(12px,1.5vw,24px)!important;
+  padding-right:clamp(12px,1.5vw,24px)!important;
+}
 .kz114-avatars i:first-child{margin-left:0!important;}
 
 .kz114-avatars i img{
@@ -5182,10 +5269,10 @@ tbody tr{border-color:#e6edf6!important;}
 }
 .kz117-public-body *{box-sizing:border-box}
 .kz117-header{background:rgba(255,255,255,.96)!important;border-bottom:1px solid var(--117-line)!important;box-shadow:0 8px 26px rgba(16,36,66,.04)!important;position:sticky!important;top:0!important;z-index:50!important}
-.kz117-nav{width:min(var(--117-max),calc(100vw - 48px))!important;min-height:74px!important;margin:0 auto!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:22px!important}
+.kz117-nav{width:min(var(--117-max),calc(100vw - 48px))!important;min-height:74px!important;margin:0 auto!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:18px!important}
 .kz117-brand{display:flex!important;align-items:center!important;gap:12px!important;color:var(--117-navy)!important;text-decoration:none!important;min-width:220px!important}.kz117-brand-mark{width:42px!important;height:42px!important;border-radius:13px!important;display:block!important}.kz117-brand-copy{display:grid!important;gap:2px!important;min-width:0!important}.kz117-brand strong{font-size:24px!important;letter-spacing:-.035em!important}
-.kz117-nav nav{display:flex!important;gap:26px!important;align-items:center!important;justify-content:center!important;flex:1!important}.kz117-nav nav a{color:var(--117-navy)!important;text-decoration:none!important;font-weight:900!important;font-size:15px!important}.kz117-nav nav a:hover{color:var(--117-blue)!important}
-.kz117-actions{display:flex!important;gap:12px!important;align-items:center!important;justify-content:flex-end!important;min-width:220px!important}
+.kz117-nav nav{display:flex!important;gap:18px!important;align-items:center!important;justify-content:center!important;flex:1!important;flex-wrap:nowrap!important}.kz117-nav nav a{color:var(--117-navy)!important;text-decoration:none!important;font-weight:900!important;font-size:15px!important;white-space:nowrap!important}.kz117-nav nav a:hover{color:var(--117-blue)!important}
+.kz117-actions{display:flex!important;gap:10px!important;align-items:center!important;justify-content:flex-end!important;min-width:198px!important}
 .kz117-btn{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:46px!important;padding:0 20px!important;border-radius:11px!important;font-weight:950!important;text-decoration:none!important;border:0!important;cursor:pointer!important;transition:.16s ease!important;white-space:nowrap!important}.kz117-btn:hover{transform:translateY(-2px)!important;filter:saturate(1.05)!important}.kz117-btn.blue{background:var(--117-blue)!important;color:#fff!important;box-shadow:0 12px 24px rgba(18,104,243,.20)!important}.kz117-btn.green{background:var(--117-green)!important;color:#fff!important;box-shadow:0 12px 24px rgba(8,166,79,.20)!important}.kz117-btn.outline,.kz117-btn.ghost{background:#fff!important;color:var(--117-navy)!important;border:1px solid var(--117-line)!important}
 .kz117-public-main{width:100%!important}
 .kz117-default-footer{
@@ -5237,7 +5324,7 @@ tbody tr{border-color:#e6edf6!important;}
 .kz117-page-shell td,.premium-page-shell td{border-top:1px solid #eef3f9!important}
 .kz117-filter-card{width:min(var(--117-max),calc(100vw - 48px))!important;margin:20px auto!important;background:#fff!important;border:1px solid var(--117-line)!important;border-radius:22px!important;padding:20px!important;box-shadow:var(--117-shadow)!important}.kz117-filter-form{display:grid!important;grid-template-columns:1fr 280px auto!important;gap:14px!important;align-items:end!important}.kz117-filter-form label{display:block!important;color:#52647c!important;font-size:13px!important;font-weight:900!important;margin-bottom:7px!important}.kz117-filter-form input,.kz117-filter-form select{min-height:48px!important;border-radius:12px!important;border:1px solid #d3ddeb!important;background:#fff!important;color:var(--117-text)!important;padding:0 14px!important;width:100%!important}
 .kz117-task-list{width:min(var(--117-max),calc(100vw - 48px))!important;margin:20px auto 60px!important;display:grid!important;gap:18px!important}.kz117-task-item{display:grid!important;grid-template-columns:minmax(0,1fr) 190px!important;gap:24px!important;align-items:center!important;background:#fff!important;border:1px solid var(--117-line)!important;border-radius:22px!important;padding:28px!important;box-shadow:0 12px 34px rgba(16,36,66,.06)!important;transition:.18s ease!important}.kz117-task-item:hover{transform:translateY(-3px)!important;box-shadow:0 22px 50px rgba(16,36,66,.10)!important}.kz117-tag{display:inline-flex!important;align-items:center!important;min-height:28px!important;background:#eff6ff!important;color:var(--117-blue)!important;border:1px solid #dbeafe!important;border-radius:999px!important;padding:0 10px!important;font-weight:950!important;font-size:12px!important;letter-spacing:.04em!important}.kz117-task-main h2{margin:14px 0 10px!important;color:var(--117-navy)!important;font-size:25px!important}.kz117-task-main p{color:var(--117-muted)!important;line-height:1.6!important;margin:0 0 14px!important}.kz117-task-meta{display:flex!important;gap:12px!important;flex-wrap:wrap!important}.kz117-task-meta span{color:#52647c!important;background:#f8fafc!important;border:1px solid var(--117-line)!important;border-radius:999px!important;padding:8px 10px!important;font-size:13px!important}.kz117-task-side{text-align:right!important}.kz117-task-side strong{display:block!important;color:var(--117-green)!important;font-size:30px!important;margin-bottom:18px!important}.kz117-empty{background:#fff!important;border:1px solid var(--117-line)!important;border-radius:22px!important;padding:36px!important;box-shadow:var(--117-shadow)!important}
-@media(max-width:980px){.kz117-nav{width:calc(100vw - 28px)!important;flex-wrap:wrap!important;padding:12px 0!important}.kz117-nav nav{order:3;width:100%!important;justify-content:flex-start!important;overflow:auto!important;padding:8px 0!important}.kz117-page-hero,.kz117-grid-3,.kz117-filter-card,.kz117-task-list{width:calc(100vw - 28px)!important}.kz117-page-hero{grid-template-columns:1fr!important;padding:34px!important}.kz117-page-hero h1{font-size:40px!important}.kz117-grid-3{grid-template-columns:1fr!important}.kz117-filter-form{grid-template-columns:1fr!important}.kz117-task-item{grid-template-columns:1fr!important}.kz117-task-side{text-align:left!important}}
+@media(max-width:980px){.kz117-nav{width:calc(100vw - 28px)!important;flex-wrap:wrap!important;padding:12px 0!important}.kz117-nav nav{order:3;width:100%!important;justify-content:flex-start!important;overflow:auto!important;padding:4px 0!important;gap:12px!important}.kz117-page-hero,.kz117-grid-3,.kz117-filter-card,.kz117-task-list{width:calc(100vw - 28px)!important}.kz117-page-hero{grid-template-columns:1fr!important;padding:34px!important}.kz117-page-hero h1{font-size:40px!important}.kz117-grid-3{grid-template-columns:1fr!important}.kz117-filter-form{grid-template-columns:1fr!important}.kz117-task-item{grid-template-columns:1fr!important}.kz117-task-side{text-align:left!important}}
 @media(max-width:980px){.kz117-default-footer{width:calc(100vw - 28px)!important;grid-template-columns:1fr!important}}
 
 
@@ -5848,6 +5935,33 @@ input:focus, select:focus, textarea:focus{
   color:#08a64f!important;
   font-size:18px!important;
 }
+.kz1110-pill{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  min-height:24px!important;
+  padding:0 10px!important;
+  border-radius:999px!important;
+  font-size:11px!important;
+  font-weight:1000!important;
+  letter-spacing:.06em!important;
+  text-transform:uppercase!important;
+  white-space:nowrap!important;
+}
+.kz1110-pill.internal-only{
+  background:#fff1f2!important;
+  border:1px solid #fecdd3!important;
+  color:#be123c!important;
+}
+.kz1110-role-grid{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:16px!important;
+}
+.kz1110-function-card.internal-only{
+  border-color:#fecdd3!important;
+  background:linear-gradient(180deg,#fff, #fff7f8)!important;
+}
 .kz1110-campaign-card h3,
 .kz1110-ad-card h3,
 .kz1110-function-card h3,
@@ -6030,6 +6144,9 @@ input:focus, select:focus, textarea:focus{
   .kz1110-filter-card form,
   .kz1110-form-grid,
   .kz1110-card-meta{
+    grid-template-columns:1fr!important;
+  }
+  .kz1110-role-grid{
     grid-template-columns:1fr!important;
   }
 }
@@ -6739,6 +6856,7 @@ input:focus, select:focus, textarea:focus{
 .status-approved,.status-odobreno,.status-paid{background:#ecfdf5!important;color:#047857!important;border-color:#bbf7d0!important;}
 .status-pending,.status-načekanju{background:#fffbeb!important;color:#b45309!important;border-color:#fde68a!important;}
 .status-rejected,.status-odbijeno{background:#fef2f2!important;color:#b91c1c!important;border-color:#fecaca!important;}
+.status-failed,.status-neuspešno,.status-neuspesno{background:#fef2f2!important;color:#b91c1c!important;border-color:#fecaca!important;}
 .status-disputed,.status-sporno{background:#f5f3ff!important;color:#6d28d9!important;border-color:#ddd6fe!important;}
 
 @media(max-width:1180px){
@@ -8536,7 +8654,7 @@ a{text-decoration:none!important}
 .kz118-public-nav a.active:after,.premium-app-nav a.active:after{content:"";position:absolute;left:0;right:0;bottom:-16px;height:3px;border-radius:999px;background:#1769f5}
 .kz118-nav{gap:22px}
 .kz118-public-header .kz117-nav{width:min(1720px,calc(100vw - 48px))!important}
-.kz118-public-nav{display:flex;align-items:center;gap:34px;flex-wrap:wrap}
+.kz118-public-nav{display:flex;align-items:center;gap:18px;flex-wrap:nowrap}
 .kz118-actions{margin-left:auto}
 .kz118-home-shell{width:min(1720px,calc(100vw - 48px));margin:28px auto 36px;display:grid;gap:18px}
 .kz118-hero-card{display:grid;grid-template-columns:minmax(0,1.03fr) minmax(520px,.97fr);gap:26px;padding:36px;border:1px solid #dbe7f6;border-radius:34px;background:radial-gradient(circle at 0% 10%,rgba(23,105,245,.08),transparent 20%),radial-gradient(circle at 100% 0%,rgba(18,175,95,.06),transparent 18%),linear-gradient(135deg,#fafdff,#ffffff);box-shadow:0 16px 54px rgba(15,23,42,.06)}
@@ -9517,6 +9635,833 @@ a{text-decoration:none!important}
     grid-template-columns:1fr!important;
   }
 }
+html,
+body{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+
+html body *{
+  min-width:0;
+}
+
+html body .kz117-header,
+html body .kz118-public-header,
+html body .kz117-nav,
+html body .kz117-public-main,
+html body .kz117-page-shell,
+html body .kz117-page-hero,
+html body .kz117-grid-3,
+html body .kz117-filter-card,
+html body .kz117-task-list,
+html body .kz118-home-shell,
+html body .kz118-hero-card,
+html body .kz118-hero-panel,
+html body .kz118-task-grid,
+html body .kz118-banner-grid,
+html body .kz118-banner-zone,
+html body .kz118-metrics-strip,
+html body .kz118-quick-panel-links,
+html body .kz118-panel-grid,
+html body .kz118-mini-stats,
+html body .kz118-approved-final,
+html body .kz118-footer,
+html body .kz1186-page,
+html body .kz1189-page,
+html body .kz119-page-hero,
+html body .kz119-filter,
+html body .kz119-category-grid,
+html body .kz119-content-grid,
+html body .kz119-task-grid,
+html body .kz113-task-hero,
+html body .kz113-task-layout,
+html body .kz113-proof-form,
+html body .kz114-hero,
+html body .kz114-card-section,
+html body .kz114-top-card,
+html body .kz114-audience,
+html body .kz114-metrics,
+html body .kz114-final,
+html body .kz114-footer,
+html body .kz115-hero,
+html body .kz115-grid,
+html body .kz115-footer,
+html body .kz116-topbar-inner,
+html body .kz116-layout,
+html body .kz116-main,
+html body .kz116-sidebar,
+html body .premium-app-topbar,
+html body .premium-app-topbar-inner,
+html body .premium-app-layout,
+html body .premium-app-main,
+html body .premium-app-main.full,
+html body .premium-app-main.full.admin-no-commandbar,
+html body .premium-page-shell,
+html body .premium-sidebar,
+html body .premium-home-hero,
+html body .premium-banner-section,
+html body .premium-top-position,
+html body .premium-tasks-section,
+html body .premium-two-cards,
+html body .premium-bottom-cta,
+html body .premium-dashboard-grid,
+html body .premium-admin-grid,
+html body .premium-stat-grid,
+html body .premium-task-grid,
+html body .premium-banner-grid,
+html body .premium-action-grid,
+html body .premium-panel-hero,
+html body .premium-mini-stats,
+html body .premium-hero-panel,
+html body .premium-hero-copy{
+  width:100%!important;
+  max-width:none!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  padding-left:clamp(12px,1.5vw,24px)!important;
+  padding-right:clamp(12px,1.5vw,24px)!important;
+}
+html,
+body{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+
+html body *{
+  min-width:0;
+}
+
+html body .kz117-header,
+html body .kz118-public-header,
+html body .kz117-nav,
+html body .kz117-public-main,
+html body .kz117-page-shell,
+html body .kz117-page-hero,
+html body .kz117-grid-3,
+html body .kz117-filter-card,
+html body .kz117-task-list,
+html body .kz118-home-shell,
+html body .kz118-hero-card,
+html body .kz118-hero-panel,
+html body .kz118-task-grid,
+html body .kz118-banner-grid,
+html body .kz118-banner-zone,
+html body .kz118-metrics-strip,
+html body .kz118-quick-panel-links,
+html body .kz118-panel-grid,
+html body .kz118-mini-stats,
+html body .kz118-approved-final,
+html body .kz118-footer,
+html body .kz1186-page,
+html body .kz1189-page,
+html body .kz119-page-hero,
+html body .kz119-filter,
+html body .kz119-category-grid,
+html body .kz119-content-grid,
+html body .kz119-task-grid,
+html body .kz113-task-hero,
+html body .kz113-task-layout,
+html body .kz113-proof-form,
+html body .kz114-hero,
+html body .kz114-card-section,
+html body .kz114-top-card,
+html body .kz114-audience,
+html body .kz114-metrics,
+html body .kz114-final,
+html body .kz114-footer,
+html body .kz115-hero,
+html body .kz115-grid,
+html body .kz115-footer,
+html body .kz116-topbar-inner,
+html body .kz116-layout,
+html body .kz116-main,
+html body .kz116-sidebar,
+html body .premium-app-topbar,
+html body .premium-app-topbar-inner,
+html body .premium-app-layout,
+html body .premium-app-main,
+html body .premium-app-main.full,
+html body .premium-app-main.full.admin-no-commandbar,
+html body .premium-page-shell,
+html body .premium-sidebar,
+html body .premium-home-hero,
+html body .premium-banner-section,
+html body .premium-top-position,
+html body .premium-tasks-section,
+html body .premium-two-cards,
+html body .premium-bottom-cta,
+html body .premium-dashboard-grid,
+html body .premium-admin-grid,
+html body .premium-stat-grid,
+html body .premium-task-grid,
+html body .premium-banner-grid,
+html body .premium-action-grid,
+html body .premium-panel-hero,
+html body .premium-mini-stats,
+html body .premium-hero-panel,
+html body .premium-hero-copy{
+  width:100%!important;
+  max-width:none!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  padding-left:clamp(12px,1.5vw,24px)!important;
+  padding-right:clamp(12px,1.5vw,24px)!important;
+}
+html,
+body{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+
+html body *{
+  min-width:0;
+}
+
+html body .kz117-header,
+html body .kz118-public-header,
+html body .kz117-nav,
+html body .kz117-public-main,
+html body .kz117-page-shell,
+html body .kz117-page-hero,
+html body .kz117-grid-3,
+html body .kz117-filter-card,
+html body .kz117-task-list,
+html body .kz118-home-shell,
+html body .kz118-hero-card,
+html body .kz118-hero-panel,
+html body .kz118-task-grid,
+html body .kz118-banner-grid,
+html body .kz118-banner-zone,
+html body .kz118-metrics-strip,
+html body .kz118-quick-panel-links,
+html body .kz118-panel-grid,
+html body .kz118-mini-stats,
+html body .kz118-approved-final,
+html body .kz118-footer,
+html body .kz1186-page,
+html body .kz1189-page,
+html body .kz119-page-hero,
+html body .kz119-filter,
+html body .kz119-category-grid,
+html body .kz119-content-grid,
+html body .kz119-task-grid,
+html body .kz113-task-hero,
+html body .kz113-task-layout,
+html body .kz113-proof-form,
+html body .kz114-hero,
+html body .kz114-card-section,
+html body .kz114-top-card,
+html body .kz114-audience,
+html body .kz114-metrics,
+html body .kz114-final,
+html body .kz114-footer,
+html body .kz115-hero,
+html body .kz115-grid,
+html body .kz115-footer,
+html body .kz116-topbar-inner,
+html body .kz116-layout,
+html body .kz116-main,
+html body .kz116-sidebar,
+html body .premium-app-topbar,
+html body .premium-app-topbar-inner,
+html body .premium-app-layout,
+html body .premium-app-main,
+html body .premium-app-main.full,
+html body .premium-app-main.full.admin-no-commandbar,
+html body .premium-page-shell,
+html body .premium-sidebar,
+html body .premium-home-hero,
+html body .premium-banner-section,
+html body .premium-top-position,
+html body .premium-tasks-section,
+html body .premium-two-cards,
+html body .premium-bottom-cta,
+html body .premium-dashboard-grid,
+html body .premium-admin-grid,
+html body .premium-stat-grid,
+html body .premium-task-grid,
+html body .premium-banner-grid,
+html body .premium-action-grid,
+html body .premium-panel-hero,
+html body .premium-mini-stats,
+html body .premium-hero-panel,
+html body .premium-hero-copy{
+  width:100%!important;
+  max-width:none!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  padding-left:clamp(12px,1.5vw,24px)!important;
+  padding-right:clamp(12px,1.5vw,24px)!important;
+}
+
+/* FINAL viewport-fit override: this must stay last in the file */
+html,
+body{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+
+html body *{
+  min-width:0;
+}
+
+html body .kz117-header,
+html body .kz118-public-header,
+html body .kz117-nav,
+html body .kz117-public-main,
+html body .kz117-page-shell,
+html body .kz117-page-hero,
+html body .kz117-grid-3,
+html body .kz117-filter-card,
+html body .kz117-task-list,
+html body .kz118-home-shell,
+html body .kz118-hero-card,
+html body .kz118-hero-panel,
+html body .kz118-task-grid,
+html body .kz118-banner-grid,
+html body .kz118-banner-zone,
+html body .kz118-metrics-strip,
+html body .kz118-quick-panel-links,
+html body .kz118-panel-grid,
+html body .kz118-mini-stats,
+html body .kz118-approved-final,
+html body .kz118-footer,
+html body .kz1186-page,
+html body .kz1189-page,
+html body .kz119-page-hero,
+html body .kz119-filter,
+html body .kz119-category-grid,
+html body .kz119-content-grid,
+html body .kz119-task-grid,
+html body .kz113-task-hero,
+html body .kz113-task-layout,
+html body .kz113-proof-form,
+html body .kz114-hero,
+html body .kz114-card-section,
+html body .kz114-top-card,
+html body .kz114-audience,
+html body .kz114-metrics,
+html body .kz114-final,
+html body .kz114-footer,
+html body .kz115-hero,
+html body .kz115-grid,
+html body .kz115-footer,
+html body .kz116-topbar-inner,
+html body .kz116-layout,
+html body .kz116-main,
+html body .kz116-sidebar,
+html body .premium-app-topbar,
+html body .premium-app-topbar-inner,
+html body .premium-app-layout,
+html body .premium-app-main,
+html body .premium-app-main.full,
+html body .premium-app-main.full.admin-no-commandbar,
+html body .premium-page-shell,
+html body .premium-sidebar,
+html body .premium-home-hero,
+html body .premium-banner-section,
+html body .premium-top-position,
+html body .premium-tasks-section,
+html body .premium-two-cards,
+html body .premium-bottom-cta,
+html body .premium-dashboard-grid,
+html body .premium-admin-grid,
+html body .premium-stat-grid,
+html body .premium-task-grid,
+html body .premium-banner-grid,
+html body .premium-action-grid,
+html body .premium-panel-hero,
+html body .premium-mini-stats,
+html body .premium-hero-panel,
+html body .premium-hero-copy{
+  width:100%!important;
+  max-width:none!important;
+  margin-left:0!important;
+  margin-right:0!important;
+}
+
+html body .kz117-public-main,
+html body .kz117-page-shell,
+html body .kz117-page-hero,
+html body .kz117-grid-3,
+html body .kz117-filter-card,
+html body .kz117-task-list,
+html body .kz118-home-shell,
+html body .kz118-hero-card,
+html body .kz118-hero-panel,
+html body .kz118-task-grid,
+html body .kz118-banner-grid,
+html body .kz118-banner-zone,
+html body .kz118-metrics-strip,
+html body .kz118-quick-panel-links,
+html body .kz118-panel-grid,
+html body .kz118-mini-stats,
+html body .kz118-approved-final,
+html body .kz118-footer,
+html body .kz1186-page,
+html body .kz1189-page,
+html body .kz119-page-hero,
+html body .kz119-filter,
+html body .kz119-category-grid,
+html body .kz119-content-grid,
+html body .kz119-task-grid,
+html body .kz113-task-hero,
+html body .kz113-task-layout,
+html body .kz113-proof-form,
+html body .kz114-hero,
+html body .kz114-card-section,
+html body .kz114-top-card,
+html body .kz114-audience,
+html body .kz114-metrics,
+html body .kz114-final,
+html body .kz114-footer,
+html body .kz115-hero,
+html body .kz115-grid,
+html body .kz115-footer,
+html body .kz116-topbar-inner,
+html body .kz116-layout,
+html body .kz116-main,
+html body .kz116-sidebar,
+html body .premium-app-topbar,
+html body .premium-app-topbar-inner,
+html body .premium-app-layout,
+html body .premium-app-main,
+html body .premium-app-main.full,
+html body .premium-app-main.full.admin-no-commandbar,
+html body .premium-page-shell,
+html body .premium-sidebar,
+html body .premium-home-hero,
+html body .premium-banner-section,
+html body .premium-top-position,
+html body .premium-tasks-section,
+html body .premium-two-cards,
+html body .premium-bottom-cta,
+html body .premium-dashboard-grid,
+html body .premium-admin-grid,
+html body .premium-stat-grid,
+html body .premium-task-grid,
+html body .premium-banner-grid,
+html body .premium-action-grid,
+html body .premium-panel-hero,
+html body .premium-mini-stats,
+html body .premium-hero-panel,
+html body .premium-hero-copy{
+  padding-left:clamp(12px,1.5vw,24px)!important;
+  padding-right:clamp(12px,1.5vw,24px)!important;
+}
+
+/* Global viewport-fit override: keep every page full width and prevent sideways scroll */
+html,
+body{
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden!important;
+}
+
+body{
+  overscroll-behavior-x:none;
+}
+
+html body *,
+html body *::before,
+html body *::after{
+  min-width:0;
+  box-sizing:border-box;
+}
+
+html body img,
+html body video,
+html body canvas,
+html body svg{
+  max-width:100%;
+  height:auto;
+}
+
+html body .kz117-header,
+html body .kz118-public-header,
+html body .premium-app-topbar{
+  width:100%!important;
+  max-width:none!important;
+  overflow-x:clip!important;
+}
+
+html body .kz117-nav,
+html body .kz117-public-main,
+html body .kz117-page-shell,
+html body .premium-app-topbar-inner,
+html body .premium-app-layout,
+html body .premium-app-main,
+html body .premium-app-main.full,
+html body .premium-app-main.full.admin-no-commandbar,
+html body .premium-page-shell,
+html body [class$="-page"],
+html body [class$="-shell"]{
+  width:100%!important;
+  max-width:none!important;
+  margin-left:0!important;
+  margin-right:0!important;
+}
+
+html body .kz117-public-main,
+html body .kz117-page-shell,
+html body .premium-page-shell,
+html body .premium-app-main,
+html body .premium-app-main.full,
+html body .premium-app-main.full.admin-no-commandbar,
+html body .premium-app-layout,
+html body [class$="-page"],
+html body [class$="-shell"]{
+  padding-left:clamp(12px,1.5vw,24px)!important;
+  padding-right:clamp(12px,1.5vw,24px)!important;
+}
+
+html body .premium-app-topbar-inner,
+html body .kz117-nav{
+  padding-left:clamp(12px,1.5vw,24px)!important;
+  padding-right:clamp(12px,1.5vw,24px)!important;
+}
+
+html body table{
+  width:100%!important;
+  min-width:0!important;
+  table-layout:fixed!important;
+}
+
+html body th,
+html body td{
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+  word-break:break-word!important;
+}
+
+html body .kz118-public-nav,
+html body .premium-app-nav,
+html body .premium-admin-hub{
+  overflow:visible!important;
+}
+
+html body .premium-app-topbar-inner.admin-mode{
+  width:100%!important;
+  max-width:none!important;
+}
+
+html body :is(
+  .kz113-task-hero,
+  .kz113-task-layout,
+  .kz113-proof-form,
+  .kz114-hero,
+  .kz114-card-section,
+  .kz114-top-card,
+  .kz114-audience,
+  .kz114-metrics,
+  .kz114-final,
+  .kz114-footer,
+  .kz115-hero,
+  .kz115-grid,
+  .kz115-footer,
+  .kz116-topbar-inner,
+  .kz116-layout,
+  .kz116-main,
+  .kz116-sidebar,
+  .kz117-page-hero,
+  .kz117-grid-3,
+  .kz117-page-shell,
+  .kz117-filter-card,
+  .kz117-task-list,
+  .kz118-home-shell,
+  .kz118-hero-card,
+  .kz118-hero-panel,
+  .kz118-task-grid,
+  .kz118-banner-grid,
+  .kz118-banner-zone,
+  .kz118-metrics-strip,
+  .kz118-quick-panel-links,
+  .kz118-panel-grid,
+  .kz118-mini-stats,
+  .kz118-approved-final,
+  .kz118-footer,
+  .kz1186-page,
+  .kz1189-page,
+  .kz119-page-hero,
+  .kz119-filter,
+  .kz119-category-grid,
+  .kz119-content-grid,
+  .kz119-task-grid,
+  .premium-app-topbar-inner,
+  .premium-app-layout,
+  .premium-app-main,
+  .premium-app-main.full,
+  .premium-app-main.full.admin-no-commandbar,
+  .premium-page-shell,
+  .premium-sidebar,
+  .premium-home-hero,
+  .premium-banner-section,
+  .premium-top-position,
+  .premium-tasks-section,
+  .premium-two-cards,
+  .premium-bottom-cta,
+  .premium-dashboard-grid,
+  .premium-admin-grid,
+  .premium-stat-grid,
+  .premium-task-grid,
+  .premium-banner-grid,
+  .premium-action-grid,
+  .premium-panel-hero,
+  .premium-mini-stats,
+  .premium-hero-panel,
+  .premium-hero-copy
+){
+  width:100%!important;
+  max-width:none!important;
+  margin-left:0!important;
+  margin-right:0!important;
+}
+
+/* V123: Admin shell always wins over the global viewport stretch rules */
+html body.premium-admin .premium-app-topbar-inner.admin-mode,
+html body.premium-admin .premium-app-layout,
+html body.premium-admin .premium-app-main.full,
+html body.premium-admin .premium-app-main.full.admin-no-commandbar,
+html body.premium-admin .premium-page-shell,
+html body.premium-admin .kz117-page-shell,
+html body.premium-admin .import-doc-shell{
+  width:100%!important;
+  max-width:none!important;
+  box-sizing:border-box!important;
+}
+
+html body.premium-admin .premium-app-topbar-inner.admin-mode,
+html body.premium-admin .premium-app-main.full,
+html body.premium-admin .premium-app-main.full.admin-no-commandbar{
+  margin-left:0!important;
+  margin-right:0!important;
+}
+
+html body.premium-admin .premium-app-layout{
+  padding-left:16px!important;
+  padding-right:16px!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:16px!important;
+}
+
+html body.premium-admin .premium-app-main.full.admin-no-commandbar,
+html body.premium-admin .premium-page-shell,
+html body.premium-admin .kz117-page-shell{
+  padding-left:16px!important;
+  padding-right:16px!important;
+}
+
+html body.premium-admin .import-doc-shell{
+  grid-template-columns:minmax(300px,340px) minmax(0,1fr)!important;
+}
+
+@media(max-width:980px){
+  html body.premium-admin .premium-app-layout,
+  html body.premium-admin .premium-app-main.full,
+  html body.premium-admin .premium-app-main.full.admin-no-commandbar,
+  html body.premium-admin .premium-page-shell,
+  html body.premium-admin .kz117-page-shell,
+  html body.premium-admin .import-doc-shell{
+    width:100%!important;
+    padding-left:12px!important;
+    padding-right:12px!important;
+  }
+
+  html body.premium-admin .premium-app-topbar-inner.admin-mode,
+  html body.premium-admin .import-doc-shell{
+    grid-template-columns:1fr!important;
+  }
+}
+
+/* V124: unified public footer shell */
+html body .kz117-default-footer,
+html body .kz1189-footer,
+html body .kz114-footer,
+html body .kz-pro-footer{
+  width:min(var(--117-max),calc(100vw - 48px))!important;
+  margin:18px auto 42px!important;
+  padding:22px 24px!important;
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr))!important;
+  gap:18px!important;
+  align-items:start!important;
+  border:1px solid var(--117-line)!important;
+  border-radius:22px!important;
+  background:#fff!important;
+  box-shadow:0 12px 34px rgba(16,36,66,.06)!important;
+}
+
+html body .kz117-default-footer > div,
+html body .kz1189-footer > div,
+html body .kz114-footer > div,
+html body .kz-pro-footer > div{
+  display:grid!important;
+  gap:8px!important;
+  align-content:start!important;
+}
+
+html body .kz117-default-footer strong,
+html body .kz1189-footer strong,
+html body .kz114-footer strong,
+html body .kz-pro-footer strong,
+html body .kz117-default-footer b,
+html body .kz1189-footer b,
+html body .kz114-footer b,
+html body .kz-pro-footer b{
+  display:block!important;
+  color:var(--117-navy)!important;
+  font-size:13px!important;
+  font-weight:1000!important;
+  margin:0 0 8px!important;
+}
+
+html body .kz117-default-footer p,
+html body .kz1189-footer p,
+html body .kz114-footer p,
+html body .kz-pro-footer p{
+  margin:0!important;
+  color:var(--117-muted)!important;
+  line-height:1.6!important;
+}
+
+html body .kz117-default-footer a,
+html body .kz1189-footer a,
+html body .kz114-footer a,
+html body .kz-pro-footer a{
+  display:block!important;
+  color:var(--117-blue)!important;
+  font-weight:900!important;
+  text-decoration:none!important;
+  margin-top:6px!important;
+}
+
+html body .kz117-default-footer .social,
+html body .kz1189-footer .social,
+html body .kz114-footer .social,
+html body .kz-pro-footer .social,
+html body .kz117-default-footer .newsletter,
+html body .kz1189-footer .newsletter,
+html body .kz114-footer .newsletter,
+html body .kz-pro-footer .newsletter{
+  display:flex!important;
+  gap:8px!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+}
+
+html body .kz117-default-footer .newsletter,
+html body .kz1189-footer .newsletter,
+html body .kz114-footer .newsletter,
+html body .kz-pro-footer .newsletter{
+  max-width:280px!important;
+}
+
+html body .kz117-default-footer .newsletter input,
+html body .kz1189-footer .newsletter input,
+html body .kz114-footer .newsletter input,
+html body .kz-pro-footer .newsletter input{
+  height:42px!important;
+  border:1px solid #cfe0f7!important;
+  border-right:none!important;
+  border-radius:14px 0 0 14px!important;
+  padding:0 14px!important;
+  font-size:14px!important;
+  color:#071a3f!important;
+  background:#fff!important;
+  outline:none!important;
+}
+
+html body .kz117-default-footer .newsletter button,
+html body .kz1189-footer .newsletter button,
+html body .kz114-footer .newsletter button,
+html body .kz-pro-footer .newsletter button{
+  height:42px!important;
+  border:none!important;
+  background:#0b67f1!important;
+  color:#fff!important;
+  border-radius:0 14px 14px 0!important;
+  font-size:18px!important;
+  font-weight:900!important;
+  cursor:pointer!important;
+}
+
+@media(max-width:980px){
+  html body .kz117-default-footer,
+  html body .kz1189-footer,
+  html body .kz114-footer,
+  html body .kz-pro-footer{
+    width:calc(100vw - 28px)!important;
+    grid-template-columns:1fr!important;
+  }
+
+  html body .kz117-default-footer .newsletter,
+  html body .kz1189-footer .newsletter,
+  html body .kz114-footer .newsletter,
+  html body .kz-pro-footer .newsletter{
+    max-width:none!important;
+  }
+}
+
+/* V122: Admin-only edge-to-edge shell without viewport overflow */
+body.premium-admin .premium-app-topbar-inner.admin-mode,
+body.premium-admin .premium-app-main.full.admin-no-commandbar,
+body.premium-admin .premium-page-shell,
+body.premium-admin .kz117-page-shell,
+body.premium-admin .import-doc-shell{
+  width:100%!important;
+  max-width:none!important;
+  box-sizing:border-box!important;
+}
+
+body.premium-admin .premium-app-topbar-inner.admin-mode{
+  margin:0!important;
+  padding-left:16px!important;
+  padding-right:16px!important;
+}
+
+body.premium-admin .premium-app-main.full.admin-no-commandbar{
+  margin:12px 0 0!important;
+  padding-left:16px!important;
+  padding-right:16px!important;
+}
+
+body.premium-admin .premium-page-shell,
+body.premium-admin .kz117-page-shell{
+  margin:0!important;
+  padding-left:0!important;
+  padding-right:0!important;
+}
+
+body.premium-admin .premium-page-shell > *,
+body.premium-admin .kz117-page-shell > *{
+  max-width:none!important;
+}
+
+body.premium-admin .import-doc-shell{
+  grid-template-columns:minmax(300px,340px) minmax(0,1fr)!important;
+  gap:18px!important;
+}
+
+@media(max-width:980px){
+  body.premium-admin .premium-app-topbar-inner.admin-mode,
+  body.premium-admin .premium-app-main.full.admin-no-commandbar,
+  body.premium-admin .premium-page-shell,
+  body.premium-admin .kz117-page-shell{
+    width:100%!important;
+  }
+
+  body.premium-admin .premium-app-topbar-inner.admin-mode{
+    grid-template-columns:1fr!important;
+  }
+
+  body.premium-admin .import-doc-shell{
+    grid-template-columns:1fr!important;
+  }
+}
 
 @media(max-width:980px){
   .kz117-header,
@@ -9947,7 +10892,7 @@ html body .import-doc-shell{
 .premium-app-main.full,
 .premium-app-main.full.admin-no-commandbar,
 .premium-app-topbar-inner.admin-mode{
-  width:calc(100vw - 24px)!important;
+  width:100%!important;
   max-width:none!important;
 }
 
@@ -13100,8 +14045,9 @@ body.kz1189-home-premium{
 }
 
 body.kz1189-home-premium .kz117-header.kz118-public-header{
-  width:min(1760px,calc(100vw - 36px))!important;
-  margin:18px auto 0!important;
+  width:100%!important;
+  max-width:none!important;
+  margin:18px 0 0!important;
   padding:16px 18px!important;
   border-radius:28px!important;
   border:1px solid rgba(15,23,42,.08)!important;
@@ -13195,8 +14141,9 @@ body.kz1189-home-premium .kz114-dashboard{
 }
 
 body.kz1189-home-premium .kz1189-page{
-  width:min(1760px,calc(100vw - 36px))!important;
-  margin:18px auto 36px!important;
+  width:100%!important;
+  max-width:none!important;
+  margin:18px 0 36px!important;
   color:#071a3f!important;
 }
 
@@ -13988,6 +14935,28 @@ body.kz1189-home-premium .kz1189-footer .social i img{
   body.kz1189-home-premium .kz1189-hero h1{
     font-size:40px!important;
   }
+
+  body.kz1189-home-premium .kz1189-hero .hero-actions{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:10px!important;
+  }
+
+  body.kz1189-home-premium .kz1189-hero .hero-actions a{
+    width:100%!important;
+    min-width:0!important;
+    justify-content:center!important;
+  }
+
+  body.kz1189-home-premium .kz1189-hero .dashboard-card{
+    padding:20px!important;
+  }
+
+  body.kz1189-home-premium .kz114-inline-banner,
+  body.kz1189-home-premium .dashboard-banner{
+    min-height:unset!important;
+    padding:18px!important;
+  }
 }
 
 @media(max-width:760px){
@@ -14008,7 +14977,9 @@ body.kz1189-home-premium .kz1189-footer .social i img{
   body.kz1189-home-premium .kz1189-finance-strip,
   body.kz1189-home-premium .kz1189-stats,
   body.kz1189-home-premium .kz-promo-final-row{
+    display:grid!important;
     grid-template-columns:1fr!important;
+    gap:12px!important;
   }
 
   body.kz1189-home-premium .kz-clean-banner-top{
@@ -14034,6 +15005,18 @@ body.kz1189-home-premium .kz1189-footer .social i img{
   body.kz1189-home-premium .kz1189-hero .hero-actions a{
     width:100%!important;
     min-width:0!important;
+  }
+
+  body.kz1189-home-premium .kz1189-stats article,
+  body.kz1189-home-premium .kz1189-trust-strip article,
+  body.kz1189-home-premium .kz1189-finance-strip article{
+    border-radius:20px!important;
+    padding:18px!important;
+  }
+
+  body.kz1189-home-premium .kz-promo-final-card{
+    min-height:unset!important;
+    padding:18px!important;
   }
 }
 
@@ -14219,6 +15202,66 @@ body.kz1189-campaign-premium .kz117-grid-3 span{
   font-weight:1000!important;
 }
 
+/* V121: Full-width public home, advertiser and pricing shells */
+body.kz1189-home-premium .kz1189-page,
+body.kz1189-home-premium .kz1189-top-ads,
+body.kz1189-home-premium .kz1189-hero,
+body.kz1189-home-premium .kz1189-trust-strip,
+body.kz1189-home-premium .kz1189-stats,
+body.kz1189-home-premium .kz1189-cta,
+body.kz1189-home-premium .kz1189-ad-slots,
+body.kz1189-home-premium .kz-promo-final-row,
+body.kz1189-home-premium .kz1189-tasks,
+body.kz1189-home-premium .kz1189-public-main,
+body.kz1189-campaign-premium .kz117-page-shell,
+body.kz1189-campaign-premium .kz117-page-hero,
+body.kz1189-campaign-premium .kz117-grid-3,
+body.kz1189-campaign-premium .kz117-filter-card,
+body.kz1189-campaign-premium .kz117-task-list,
+body.kz1189-tasks-premium .kz117-page-shell,
+body.kz1189-tasks-premium .kz117-page-hero,
+body.kz1189-tasks-premium .kz117-grid-3,
+body.kz1189-tasks-premium .kz117-filter-card,
+body.kz1189-tasks-premium .kz117-task-list{
+  width:calc(100vw - 24px)!important;
+  max-width:none!important;
+}
+
+body.kz1189-home-premium .kz1189-page,
+body.kz1189-campaign-premium .kz117-page-shell,
+body.kz1189-tasks-premium .kz117-page-shell{
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+
+body.kz1189-home-premium .kz1189-page{
+  padding:0!important;
+}
+
+body.kz1189-home-premium .kz1189-top-ads,
+body.kz1189-home-premium .kz1189-hero,
+body.kz1189-home-premium .kz1189-trust-strip,
+body.kz1189-home-premium .kz1189-stats,
+body.kz1189-home-premium .kz1189-cta,
+body.kz1189-home-premium .kz-promo-final-row,
+body.kz1189-home-premium .kz1189-tasks,
+body.kz1189-home-premium .kz1189-ad-slots{
+  margin-left:0!important;
+  margin-right:0!important;
+}
+
+body.kz1189-campaign-premium .kz117-page-hero,
+body.kz1189-tasks-premium .kz117-page-hero,
+body.kz1189-campaign-premium .kz117-grid-3,
+body.kz1189-tasks-premium .kz117-grid-3,
+body.kz1189-campaign-premium .kz117-filter-card,
+body.kz1189-tasks-premium .kz117-filter-card,
+body.kz1189-campaign-premium .kz117-task-list,
+body.kz1189-tasks-premium .kz117-task-list{
+  margin-left:0!important;
+  margin-right:0!important;
+}
+
 body.kz1189-tasks-premium .kz117-page-hero.compact .kz117-hero-card{
   padding:28px!important;
   border-radius:28px!important;
@@ -14358,6 +15401,11 @@ body.kz1189-tasks-premium .kz117-empty h2{
     grid-template-columns:1fr!important;
   }
 
+  body.kz1189-campaign-premium .kz117-page-shell,
+  body.kz1189-tasks-premium .kz117-page-shell{
+    width:calc(100vw - 28px)!important;
+  }
+
   body.kz1189-tasks-premium .kz117-filter-form,
   body.kz1189-tasks-premium .kz117-task-item{
     grid-template-columns:1fr!important;
@@ -14373,14 +15421,16 @@ body.kz1189-tasks-premium .kz117-empty h2{
 
 @media(max-width:760px){
   body.kz1189-campaign-premium .kz117-header.kz118-public-header,
-  body.kz1189-tasks-premium .kz117-header.kz118-public-header{
+  body.kz1189-tasks-premium .kz117-header.kz118-public-header,
+  body.kz1189-home-premium .kz117-header.kz118-public-header{
     width:calc(100vw - 24px)!important;
     margin:12px auto 0!important;
     border-radius:22px!important;
   }
 
   body.kz1189-campaign-premium .kz117-public-main,
-  body.kz1189-tasks-premium .kz117-public-main{
+  body.kz1189-tasks-premium .kz117-public-main,
+  body.kz1189-home-premium .kz1189-page{
     width:calc(100vw - 24px)!important;
     margin:12px auto 28px!important;
   }
@@ -14392,18 +15442,30 @@ body.kz1189-tasks-premium .kz117-empty h2{
   body.kz1189-campaign-premium .kz117-grid-3 a,
   body.kz1189-tasks-premium .kz117-filter-card,
   body.kz1189-tasks-premium .kz117-task-item,
-  body.kz1189-tasks-premium .kz117-empty{
+  body.kz1189-tasks-premium .kz117-empty,
+  body.kz1189-home-premium .kz1189-hero .hero-copy,
+  body.kz1189-home-premium .kz1189-hero .dashboard-card,
+  body.kz1189-home-premium .kz1189-tasks,
+  body.kz1189-home-premium .kz1189-cta,
+  body.kz1189-home-premium .kz-promo-final-card,
+  body.kz1189-home-premium .kz1189-stats article,
+  body.kz1189-home-premium .kz1189-trust-strip article,
+  body.kz1189-home-premium .kz1189-finance-strip article{
     border-radius:22px!important;
   }
 
   body.kz1189-campaign-premium .kz117-page-hero h1,
-  body.kz1189-tasks-premium .kz117-page-hero h1{
+  body.kz1189-tasks-premium .kz117-page-hero h1,
+  body.kz1189-home-premium .kz1189-hero h1{
     font-size:38px!important;
   }
 
   body.kz1189-campaign-premium .kz117-hero-actions a,
-  body.kz1189-tasks-premium .kz117-hero-actions a{
+  body.kz1189-tasks-premium .kz117-hero-actions a,
+  body.kz1189-home-premium .kz1189-hero .hero-actions a{
     width:100%!important;
+    min-width:0!important;
+    justify-content:center!important;
   }
 }
 
@@ -14894,4 +15956,91 @@ html body .kz-pro-footer{
   .premium-group-grid{
     grid-template-columns:1fr!important;
   }
+}
+html,
+body{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+
+html body *{
+  min-width:0;
+}
+
+html body .kz117-header,
+html body .kz118-public-header,
+html body .kz117-nav,
+html body .kz117-public-main,
+html body .kz117-page-shell,
+html body .kz117-page-hero,
+html body .kz117-grid-3,
+html body .kz117-filter-card,
+html body .kz117-task-list,
+html body .kz118-home-shell,
+html body .kz118-hero-card,
+html body .kz118-hero-panel,
+html body .kz118-task-grid,
+html body .kz118-banner-grid,
+html body .kz118-banner-zone,
+html body .kz118-metrics-strip,
+html body .kz118-quick-panel-links,
+html body .kz118-panel-grid,
+html body .kz118-mini-stats,
+html body .kz118-approved-final,
+html body .kz118-footer,
+html body .kz1186-page,
+html body .kz1189-page,
+html body .kz119-page-hero,
+html body .kz119-filter,
+html body .kz119-category-grid,
+html body .kz119-content-grid,
+html body .kz119-task-grid,
+html body .kz113-task-hero,
+html body .kz113-task-layout,
+html body .kz113-proof-form,
+html body .kz114-hero,
+html body .kz114-card-section,
+html body .kz114-top-card,
+html body .kz114-audience,
+html body .kz114-metrics,
+html body .kz114-final,
+html body .kz114-footer,
+html body .kz115-hero,
+html body .kz115-grid,
+html body .kz115-footer,
+html body .kz116-topbar-inner,
+html body .kz116-layout,
+html body .kz116-main,
+html body .kz116-sidebar,
+html body .premium-app-topbar,
+html body .premium-app-topbar-inner,
+html body .premium-app-layout,
+html body .premium-app-main,
+html body .premium-app-main.full,
+html body .premium-app-main.full.admin-no-commandbar,
+html body .premium-page-shell,
+html body .premium-sidebar,
+html body .premium-home-hero,
+html body .premium-banner-section,
+html body .premium-top-position,
+html body .premium-tasks-section,
+html body .premium-two-cards,
+html body .premium-bottom-cta,
+html body .premium-dashboard-grid,
+html body .premium-admin-grid,
+html body .premium-stat-grid,
+html body .premium-task-grid,
+html body .premium-banner-grid,
+html body .premium-action-grid,
+html body .premium-panel-hero,
+html body .premium-mini-stats,
+html body .premium-hero-panel,
+html body .premium-hero-copy{
+  width:100%!important;
+  max-width:none!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  padding-left:clamp(12px,1.5vw,24px)!important;
+  padding-right:clamp(12px,1.5vw,24px)!important;
 }
