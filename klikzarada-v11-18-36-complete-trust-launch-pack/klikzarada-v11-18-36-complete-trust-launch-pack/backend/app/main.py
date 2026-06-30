@@ -9480,7 +9480,7 @@ def admin_v11_premium_dashboard_v116(request: Request, db: Session = Depends(get
             {"title":"System settings","url":"/admin/system-settings","desc":"Globalna pravila i parametri sistema."},
         ],
     }
-    return templates.TemplateResponse("admin_v11_safe_v1171.html", {
+    return templates.TemplateResponse("admin_v11_dashboard.html", {
         "request": request,
         "user": u,
         "flash": None,

@@ -10455,6 +10455,33 @@ html body .import-doc-shell{
 .premium-app-topbar-inner.admin-mode{
   width:min(1760px,calc(100vw - 48px))!important;
 }
+
+/* Final admin full-width override: keep admin shells stretched edge-to-edge */
+html body .premium-app-topbar-inner.admin-mode,
+html body .premium-app-layout,
+html body .premium-app-main.full,
+html body .premium-app-main.full.admin-no-commandbar,
+html body .kz117-page-shell,
+html body .premium-page-shell{
+  width:100%!important;
+  max-width:none!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  box-sizing:border-box!important;
+}
+
+html body .premium-app-topbar-inner.admin-mode{
+  padding-left:16px!important;
+  padding-right:16px!important;
+}
+
+html body .premium-app-main.full,
+html body .premium-app-main.full.admin-no-commandbar,
+html body .kz117-page-shell,
+html body .premium-page-shell{
+  padding-left:16px!important;
+  padding-right:16px!important;
+}
 .premium-admin-hub{
   padding:6px 0!important;
 }
