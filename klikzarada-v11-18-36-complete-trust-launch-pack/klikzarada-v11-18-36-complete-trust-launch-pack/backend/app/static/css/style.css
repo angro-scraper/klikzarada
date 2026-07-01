@@ -14085,8 +14085,8 @@ body.kz1189-home-premium .kz114-final{
 
 body.kz1189-home-premium .kz114-hero{
   display:grid!important;
-  grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr)!important;
-  gap:18px!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  gap:22px!important;
   align-items:stretch!important;
   padding:0!important;
   margin:18px auto 18px!important;
@@ -14098,6 +14098,9 @@ body.kz1189-home-premium .kz114-hero > .kz114-hero-copy{
   border:1px solid rgba(15,23,42,.07)!important;
   background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(244,249,255,.95))!important;
   box-shadow:0 18px 42px rgba(15,23,42,.06)!important;
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
 }
 
 body.kz1189-home-premium .kz114-hero h1{
@@ -14135,9 +14138,28 @@ body.kz1189-home-premium .kz114-btn.green{
 }
 
 body.kz1189-home-premium .kz114-dashboard{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:14px!important;
   border-radius:30px!important;
   border:1px solid rgba(15,23,42,.07)!important;
   box-shadow:0 18px 42px rgba(15,23,42,.06)!important;
+}
+
+body.kz1189-home-premium .kz114-dashboard-main,
+body.kz1189-home-premium .kz114-dashboard-side{
+  min-height:100%!important;
+}
+
+body.kz1189-home-premium .kz114-dashboard-main{
+  display:flex!important;
+  flex-direction:column!important;
+}
+
+body.kz1189-home-premium .kz114-dashboard-side{
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:space-between!important;
 }
 
 body.kz1189-home-premium .kz1189-page{
