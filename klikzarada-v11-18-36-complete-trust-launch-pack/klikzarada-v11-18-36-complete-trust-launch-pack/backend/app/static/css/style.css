@@ -15357,6 +15357,59 @@ body.kz1189-home-premium.kz1189-campaign-premium .kz1189-hero{
   align-items:stretch!important;
 }
 
+body.kz1189-home-premium .kz1189-hero > *,
+body.kz1189-home-premium.kz1189-campaign-premium .kz1189-hero > *,
+body.kz1189-tasks-premium .kz117-page-hero > *{
+  height:100%!important;
+}
+
+body.kz1189-home-premium .kz1189-hero .hero-copy,
+body.kz1189-home-premium .kz1189-hero .dashboard-card,
+body.kz1189-home-premium.kz1189-campaign-premium .kz1189-hero .hero-copy,
+body.kz1189-home-premium.kz1189-campaign-premium .kz1189-hero .dashboard-card,
+body.kz1189-tasks-premium .kz117-page-hero > div:first-child,
+body.kz1189-tasks-premium .kz117-page-hero > div:last-child{
+  display:flex!important;
+  flex-direction:column!important;
+}
+
+body.kz1189-home-premium .kz1189-hero .dashboard-card,
+body.kz1189-home-premium.kz1189-campaign-premium .kz1189-hero .dashboard-card{
+  justify-content:space-between!important;
+}
+
+body.kz1189-home-premium .kz1189-hero .dashboard-main,
+body.kz1189-home-premium.kz1189-campaign-premium .kz1189-hero .dashboard-main{
+  align-items:stretch!important;
+}
+
+body.kz1189-home-premium .kz1189-hero .chart-panel,
+body.kz1189-home-premium .kz1189-hero .recent-panel,
+body.kz1189-home-premium.kz1189-campaign-premium .kz1189-hero .chart-panel,
+body.kz1189-home-premium.kz1189-campaign-premium .kz1189-hero .recent-panel{
+  height:100%!important;
+}
+
+body.kz1189-home-premium .kz117-grid-3,
+body.kz1189-campaign-premium .kz117-grid-3,
+body.kz1189-tasks-premium .kz117-grid-3{
+  align-items:stretch!important;
+  grid-auto-rows:1fr!important;
+}
+
+body.kz1189-home-premium .kz117-grid-3 > *,
+body.kz1189-campaign-premium .kz117-grid-3 > *,
+body.kz1189-tasks-premium .kz117-grid-3 > *{
+  height:100%!important;
+  display:flex!important;
+  flex-direction:column!important;
+}
+
+body.kz1189-home-premium .kz1189-trust-strip article,
+body.kz1189-home-premium .kz1189-finance-strip article{
+  height:100%!important;
+}
+
 /* V121: Full-width public home, advertiser and pricing shells */
 body.kz1189-home-premium .kz1189-page,
 body.kz1189-home-premium .kz1189-top-ads,
