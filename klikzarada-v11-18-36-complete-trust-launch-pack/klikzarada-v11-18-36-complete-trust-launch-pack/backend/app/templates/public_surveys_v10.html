@@ -1,4 +1,6 @@
-{% extends "base.html" %}{% set title="Ankete - KlikZarada" %}{% block content %}
+{% extends "base.html" %}{% set title="Ankete - KlikZarada" %}{% set extra_body_class = "kz1189-home-premium" %}{% block content %}
+<div class="kz1189-page kz1189-home-premium">
 <section class="page-head"><span>V10 Surveys</span><h1>Dostupne ankete</h1><p>Popunite ankete i pošaljite odgovore.</p></section>
 <section class="section grid-3">{% for s in surveys %}<a class="info-card" href="/ankete-v10/{{ s.id }}"><span class="pill">{{ "%.0f"|format(s.reward_rsd) }} RSD</span><h3>{{ s.title }}</h3><p>{{ s.description or "" }}</p></a>{% else %}<div class="empty">Nema aktivnih anketa.</div>{% endfor %}</section>
+</div>
 {% endblock %}

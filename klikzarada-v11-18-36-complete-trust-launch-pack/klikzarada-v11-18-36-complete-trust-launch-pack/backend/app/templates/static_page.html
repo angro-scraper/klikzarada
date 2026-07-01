@@ -1,5 +1,7 @@
 {% extends "base.html" %}
+{% set extra_body_class = "kz1189-home-premium" %}
 {% block content %}
+<div class="kz1189-page kz1189-home-premium">
 <section class="page">
   <span class="eyebrow">{{ title }}</span>
   <h1>{{ heading }}</h1>
@@ -13,4 +15,5 @@
   </div>
   {% endif %}
 </section>
+</div>
 {% endblock %}
