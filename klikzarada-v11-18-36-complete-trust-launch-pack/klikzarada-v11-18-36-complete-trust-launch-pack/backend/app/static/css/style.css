@@ -15290,16 +15290,21 @@ body.kz1189-campaign-premium .kz117-grid-3{
   margin:14px 0 16px!important;
 }
 
-body.kz1189-campaign-premium .kz117-grid-3 a{
+body.kz1189-campaign-premium .kz117-grid-3 > *{
   display:grid!important;
   gap:8px!important;
-  min-height:164px!important;
+  min-height:172px!important;
   padding:20px!important;
   border-radius:22px!important;
   border:1px solid rgba(15,23,42,.08)!important;
   background:linear-gradient(180deg,#ffffff,#f8fbff)!important;
   box-shadow:0 12px 28px rgba(15,23,42,.05)!important;
   color:#071a3f!important;
+}
+
+body.kz1189-campaign-premium .kz117-grid-3 > *:hover{
+  transform:translateY(-2px)!important;
+  box-shadow:0 16px 30px rgba(15,23,42,.07)!important;
 }
 
 body.kz1189-campaign-premium .kz117-grid-3 h3{
@@ -15319,6 +15324,37 @@ body.kz1189-campaign-premium .kz117-grid-3 span{
   margin-top:auto!important;
   color:#0b67f1!important;
   font-weight:1000!important;
+}
+
+body.kz1189-home-premium.kz1189-campaign-premium .kz1189-hero,
+body.kz1189-home-premium.kz1189-campaign-premium .kz1189-trust-strip,
+body.kz1189-home-premium.kz1189-campaign-premium .kz1189-finance-strip,
+body.kz1189-home-premium.kz1189-campaign-premium .kz117-grid-3,
+body.kz1189-home-premium.kz1189-campaign-premium .kz1189-cta{
+  width:min(1800px,calc(100vw - 24px))!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+
+body.kz1189-home-premium.kz1189-campaign-premium .kz1189-trust-strip,
+body.kz1189-home-premium.kz1189-campaign-premium .kz1189-finance-strip{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:12px!important;
+  align-items:stretch!important;
+  margin:14px auto 14px!important;
+}
+
+body.kz1189-home-premium.kz1189-campaign-premium .kz1189-trust-strip article,
+body.kz1189-home-premium.kz1189-campaign-premium .kz1189-finance-strip article{
+  min-height:108px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:space-between!important;
+}
+
+body.kz1189-home-premium.kz1189-campaign-premium .kz1189-hero{
+  align-items:stretch!important;
 }
 
 /* V121: Full-width public home, advertiser and pricing shells */
