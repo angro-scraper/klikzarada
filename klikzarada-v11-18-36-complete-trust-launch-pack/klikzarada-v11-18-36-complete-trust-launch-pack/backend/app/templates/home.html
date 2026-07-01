@@ -140,6 +140,26 @@
     </article>
   </section>
 
+  <section class="kz1189-finance-strip">
+    <article>
+      <strong>Platformska provizija</strong>
+      <span>{{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}% za sistem, antifraud i automatizaciju</span>
+    </article>
+    <article>
+      <strong>Korisnički udeo</strong>
+      <span>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}% ide korisnicima na odobrene zadatke</span>
+    </article>
+    <article>
+      <strong>Minimalna isplata</strong>
+      <span>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD prag za isplatu</span>
+    </article>
+    <article>
+      <strong>Top banner</strong>
+      <span>od {{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }} RSD / 24 sata</span>
+      <a href="/cenovnik">Otvori cenovnik</a>
+    </article>
+  </section>
+
   <section class="kz-promo-final-row">
     {% set promo_items = [
       ('home_sponsor_1','/static/img/promo_final_shop.svg','OnlineShop','Kupujte pametno, uštedite više!','Poseti sajt'),
