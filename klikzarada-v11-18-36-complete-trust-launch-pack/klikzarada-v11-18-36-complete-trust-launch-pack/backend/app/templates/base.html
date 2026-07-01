@@ -10,7 +10,7 @@
     .kz117-header.kz118-public-header,
     .kz117-public-main,
     .kz117-default-footer {
-      width: min(1760px, calc(100vw - 36px)) !important;
+      width: calc(100vw - 20px) !important;
       max-width: none !important;
       margin-left: auto !important;
       margin-right: auto !important;
@@ -74,6 +74,8 @@
         <a class="{% if path.startswith('/zadaci') %}active{% endif %}" href="/zadaci">Zadaci</a>
         <a class="{% if path.startswith('/za-korisnike') %}active{% endif %}" href="/za-korisnike">Za korisnike</a>
         <a class="{% if path.startswith('/za-oglasivace') %}active{% endif %}" href="/za-oglasivace">Za oglašivače</a>
+        <a class="{% if path.startswith('/cenovnik') %}active{% endif %}" href="/cenovnik">Cenovnik</a>
+        <a class="{% if path.startswith('/kontakt') %}active{% endif %}" href="/kontakt">Kontakt</a>
       </nav>
       <div class="kz117-actions kz118-actions">
         {% if user %}
