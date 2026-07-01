@@ -100,22 +100,47 @@
   </main>
 
   {% if not hide_default_footer %}
-  <footer class="kz117-default-footer">
-    <div>
+  <footer class="kz117-default-footer kz1189-footer">
+    <div class="brand">
+      <img src="/static/favicon.svg" alt="" style="width:44px;height:44px;border-radius:12px;display:block;">
       <strong>KlikZarada</strong>
-      <p>Mikro zadaci, kampanje i podrška na jednom mestu.</p>
+      <p>Uređena platforma koja povezuje korisnike i brendove kroz merljive kampanje i jasnu isplatu.</p>
+      <div class="social">
+        <i><img src="/static/favicon.svg" alt="" aria-hidden="true" style="width:16px;height:16px;display:block;"></i>
+        <i>ig</i>
+        <i>yt</i>
+        <i>tk</i>
+      </div>
     </div>
     <div>
-      <b>Kontakt</b>
-      <a href="mailto:kontakt@klik-zarada.rs">kontakt@klik-zarada.rs</a>
-      <a href="/kontakt">Kontakt stranica</a>
-    </div>
-    <div>
-      <b>Brzi linkovi</b>
+      <b>PLATFORMA</b>
+      <a href="/">Početna</a>
       <a href="/zadaci">Zadaci</a>
-      <a href="/za-oglasivace">Za oglašivače</a>
       <a href="/za-korisnike">Za korisnike</a>
+      <a href="/za-oglasivace">Za oglašivače</a>
+    </div>
+    <div>
+      <b>INFORMACIJE</b>
       <a href="/cenovnik">Cenovnik</a>
+      <a href="/blog">Blog</a>
+      <a href="/pravila">Pravila korišćenja</a>
+      <a href="/pravila">Politika privatnosti</a>
+    </div>
+    <div>
+      <b>PODRŠKA</b>
+      <a href="/kontakt">Kontakt</a>
+      <a href="/faq">Česta pitanja</a>
+      <a href="/pravila">Uslovi isplate</a>
+      <a href="/kontakt">Prijavi problem</a>
+    </div>
+    <div>
+      <b>PRATITE NAS</b>
+      <p>Prijavite se za novosti, premium kampanje i posebne ponude.</p>
+      <form class="newsletter" action="/kontakt" method="get">
+        <input name="email" placeholder="Vaša email adresa">
+        <button type="submit">➤</button>
+      </form>
+      <a href="mailto:kontakt@klik-zarada.rs" style="display:inline-flex;margin-top:12px;font-weight:800;color:#fff;text-decoration:none;">kontakt@klik-zarada.rs</a>
     </div>
   </footer>
   {% endif %}
