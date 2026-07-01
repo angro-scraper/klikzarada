@@ -1,36 +1,132 @@
 {% extends "base.html" %}
 {% set title = "Za korisnike - KlikZarada" %}
-{% set extra_body_class = "kz1189-campaign-premium" %}
+{% set extra_body_class = "kz1189-home-premium kz1189-campaign-premium" %}
 {% block content %}
-<section class="kz117-page-hero compact">
-  <div>
-    <span class="kz117-eyebrow">ZA KORISNIKE</span>
+<section class="kz1189-hero">
+  <div class="hero-copy">
+    <span class="kz-premium-kicker">Za korisnike</span>
     <h1>Zaradi kroz jednostavne proverljive zadatke</h1>
     <p>Izaberi zadatak, uradi instrukcije i pošalji dokaz. Korisnici sa boljim kvalitetom dobijaju više auto-odobrenja i bržu isplatu.</p>
-    <div class="kz117-hero-actions">
-      <a class="kz117-btn green" href="/registracija">Želim da zarađujem</a>
-      <a class="kz117-btn outline" href="/zadaci">Pogledaj zadatke</a>
+
+    <div class="feature-pills">
+      <span>Brža isplata</span>
+      <span>Pošten sistem</span>
+      <span>Zaštita od prevara</span>
+      <span>Podrška 24/7</span>
+    </div>
+
+    <div class="hero-actions">
+      <a class="primary" href="/registracija">Želim da zarađujem</a>
+      <a class="secondary" href="/zadaci">Pogledaj zadatke</a>
+    </div>
+
+    <div class="social-proof">
+      <div class="avatars">
+        <i><img src="/static/favicon.svg" alt="" aria-hidden="true"></i>
+        <i><img src="/static/favicon.svg" alt="" aria-hidden="true"></i>
+        <i><img src="/static/favicon.svg" alt="" aria-hidden="true"></i>
+        <i><img src="/static/favicon.svg" alt="" aria-hidden="true"></i>
+        <i><img src="/static/favicon.svg" alt="" aria-hidden="true"></i>
+      </div>
+      <strong>20.000+</strong>
+      <span>Uključenih korisnika koji rade proverljive zadatke i prate zaradu u jednom panelu</span>
     </div>
   </div>
-  <div class="kz117-check-card">
-    <h3>Koliko se može zaraditi?</h3>
-    <ul>
-      <li>Kratki zadaci: 20-40 RSD</li>
-      <li>Standardni zadaci: 50-120 RSD</li>
-      <li>Viši zadaci: 120-250 RSD</li>
-      <li>Premium zadaci: 250+ RSD</li>
-    </ul>
-  </div>
+
+  <aside class="dashboard-card">
+    <div class="metric-row">
+      <article>
+        <div><small>Kratki zadaci</small><b>20-40 RSD</b></div>
+        <img src="/static/img/icon-clipboard.svg" alt="">
+      </article>
+      <article>
+        <div><small>Standardni</small><b class="green">50-120 RSD</b></div>
+        <img src="/static/img/icon-wallet.svg" alt="">
+      </article>
+      <article>
+        <div><small>Viši zadaci</small><b>120-250 RSD</b></div>
+        <img src="/static/img/icon-chart.svg" alt="">
+      </article>
+      <article>
+        <div><small>Premium</small><b>250+ RSD</b></div>
+        <img src="/static/img/icon-bank.svg" alt="">
+      </article>
+    </div>
+
+    <div class="dashboard-main">
+      <section class="chart-panel">
+        <h3>Kako raste tvoja zarada</h3>
+        <p>Viši kvalitet znači manje čekanja i više potvrđenih zadataka.</p>
+        <div class="chart">
+          <svg viewBox="0 0 520 190" preserveAspectRatio="none">
+            <line x1="0" y1="156" x2="520" y2="156"></line>
+            <line x1="0" y1="115" x2="520" y2="115"></line>
+            <line x1="0" y1="74" x2="520" y2="74"></line>
+            <polyline points="14,156 90,134 170,78 260,112 350,76 442,52 505,22"></polyline>
+            <circle cx="14" cy="156" r="6"></circle><circle cx="90" cy="134" r="6"></circle><circle cx="170" cy="78" r="6"></circle><circle cx="260" cy="112" r="6"></circle><circle cx="350" cy="76" r="6"></circle><circle cx="442" cy="52" r="6"></circle><circle cx="505" cy="22" r="6"></circle>
+          </svg>
+        </div>
+        <div class="days"><span>Pon</span><span>Uto</span><span>Sre</span><span>Čet</span><span>Pet</span><span>Sub</span><span>Ned</span></div>
+      </section>
+
+      <section class="recent-panel">
+        <div class="panel-head"><h3>Brzi koraci</h3><a href="/korisnik/panel">Moj panel</a></div>
+        <article><img src="/static/img/icon-clipboard.svg" alt="" style="width:28px;height:28px;"><div><b>Izaberi zadatak</b><span>Pronađi kategoriju koja ti odgovara.</span></div><strong>1.</strong></article>
+        <article><img src="/static/img/icon-wallet.svg" alt="" style="width:28px;height:28px;"><div><b>Pošalji dokaz</b><span>Prati instrukcije i potvrdi izvršenje.</span></div><strong>2.</strong></article>
+        <article><img src="/static/img/icon-bank.svg" alt="" style="width:28px;height:28px;"><div><b>Sačekaj odobrenje</b><span>Kvalitetniji nalozi prolaze brže.</span></div><strong>3.</strong></article>
+      </section>
+    </div>
+
+    <a class="withdraw" href="/login">Isplati sredstva →</a>
+  </aside>
+</section>
+
+<section class="kz1189-trust-strip">
+  <article>
+    <strong>Brža isplata</strong>
+    <span>Provereni nalozi dobijaju manje čekanja i više auto-odobrenja.</span>
+  </article>
+  <article>
+    <strong>Fera raspodela</strong>
+    <span>Platforma zadržava malu proviziju, a najveći deo ide korisnicima.</span>
+  </article>
+  <article>
+    <strong>Minimalni prag</strong>
+    <span>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD za isplatu.</span>
+  </article>
+  <article>
+    <strong>Kvalitetniji nalozi</strong>
+    <span>Bolji kvalitet donosi više odobrenja i sigurniji tempo zarade.</span>
+  </article>
+</section>
+
+<section class="kz1189-finance-strip">
+  <article>
+    <strong>Kratki zadaci</strong>
+    <span>20-40 RSD po proveri</span>
+  </article>
+  <article>
+    <strong>Standardni zadaci</strong>
+    <span>50-120 RSD po proveri</span>
+  </article>
+  <article>
+    <strong>Viši zadaci</strong>
+    <span>120-250 RSD po proveri</span>
+  </article>
+  <article>
+    <strong>Premium zadaci</strong>
+    <span>250+ RSD po proveri</span>
+  </article>
 </section>
 
 <section class="kz117-grid-3">
   <div class="kz117-feature">
-    <h3>Brža isplata</h3>
+    <h3>Brza isplata</h3>
     <p>Provereni nalozi sa dobrom istorijom dobijaju manje čekanja i više auto-odobrenja.</p>
     <span>Automatizacija + sigurnosna provera</span>
   </div>
   <div class="kz117-feature">
-    <h3>Fera raspodela</h3>
+    <h3>Pošten sistem</h3>
     <p>Platforma zadržava malu proviziju, a najveći deo ostaje korisnicima na odobrenim zadacima.</p>
     <span>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}% korisniku</span>
   </div>
@@ -39,5 +135,15 @@
     <p>Isplate nisu zaključane na visoke sume, ali ostaju dovoljno ozbiljne da sistem ostane zdrav.</p>
     <span>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD</span>
   </div>
+</section>
+
+<section class="kz1189-cta">
+  <img src="/static/img/premium-growth.svg" alt="" style="width:120px;height:auto;">
+  <div>
+    <h2>Spreman da kreneš sa prvom zaradom?</h2>
+    <p>Registruj se, izaberi zadatak i prati napredak kroz čist i jasan panel.</p>
+  </div>
+  <a class="primary" href="/registracija">Registruj se besplatno</a>
+  <a class="secondary" href="/zadaci">Pogledaj zadatke</a>
 </section>
 {% endblock %}

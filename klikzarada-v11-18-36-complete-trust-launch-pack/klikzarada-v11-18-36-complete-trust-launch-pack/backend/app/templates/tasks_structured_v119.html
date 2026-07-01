@@ -1,22 +1,91 @@
 {% extends "base.html" %}
 {% set title = "Zadaci - KlikZarada" %}
-{% set extra_body_class = "kz1189-tasks-premium" %}
+{% set extra_body_class = "kz1189-home-premium kz1189-tasks-premium" %}
 {% block content %}
-<section class="kz119-page-hero">
-  <div>
-    <span class="kz119-eyebrow">ZADACI</span>
+<section class="kz1189-hero">
+  <div class="hero-copy">
+    <span class="kz-premium-kicker">Zadaci</span>
     <h1>Zadaci razvrstani po kategorijama</h1>
     <p>Kada bude mnogo zadataka, korisnici neće listati beskonačno. Sve je podeljeno po kategorijama, sa pretragom i istaknutim zadacima.</p>
-    <div class="kz119-actions">
-      <a class="kz119-btn green" href="/registracija">Počni da zarađuješ</a>
-      <a class="kz119-btn outline" href="/za-korisnike">Kako funkcioniše</a>
+
+    <div class="feature-pills">
+      <span>Pretraga</span>
+      <span>Kategorije</span>
+      <span>Istaknuti zadaci</span>
+      <span>Brza isplata</span>
+    </div>
+
+    <div class="hero-actions">
+      <a class="primary" href="/registracija">Počni da zarađuješ</a>
+      <a class="secondary" href="/za-korisnike">Kako funkcioniše</a>
     </div>
   </div>
-  <div class="kz119-hero-panel">
-    <strong>{{ tasks|length }}</strong>
-    <span>prikazanih zadataka</span>
-    <small>{{ categories|length }} kategorija</small>
-  </div>
+
+  <aside class="dashboard-card">
+    <div class="metric-row">
+      <article>
+        <div><small>Prikazanih zadataka</small><b>{{ tasks|length }}</b></div>
+        <img src="/static/img/icon-clipboard.svg" alt="">
+      </article>
+      <article>
+        <div><small>Kategorija</small><b class="green">{{ categories|length }}</b></div>
+        <img src="/static/img/icon-bank.svg" alt="">
+      </article>
+      <article>
+        <div><small>Istaknuti</small><b>{{ featured|length }}</b></div>
+        <img src="/static/img/icon-chart.svg" alt="">
+      </article>
+      <article>
+        <div><small>Najviša nagrada</small><b>{% if tasks %}{{ "%.0f"|format(tasks[0].reward_rsd) }} RSD{% else %}0 RSD{% endif %}</b></div>
+        <img src="/static/img/icon-wallet.svg" alt="">
+      </article>
+    </div>
+
+    <div class="dashboard-main">
+      <section class="chart-panel">
+        <h3>Kako su zadaci raspoređeni</h3>
+        <p>Svaka kategorija ima svoj ritam i svoj tok.</p>
+        <div class="chart">
+          <svg viewBox="0 0 520 190" preserveAspectRatio="none">
+            <line x1="0" y1="156" x2="520" y2="156"></line>
+            <line x1="0" y1="115" x2="520" y2="115"></line>
+            <line x1="0" y1="74" x2="520" y2="74"></line>
+            <polyline points="14,152 92,138 182,96 266,112 344,82 432,54 505,34"></polyline>
+            <circle cx="14" cy="152" r="6"></circle><circle cx="92" cy="138" r="6"></circle><circle cx="182" cy="96" r="6"></circle><circle cx="266" cy="112" r="6"></circle><circle cx="344" cy="82" r="6"></circle><circle cx="432" cy="54" r="6"></circle><circle cx="505" cy="34" r="6"></circle>
+          </svg>
+        </div>
+        <div class="days"><span>Sort</span><span>Filter</span><span>Kvalitet</span><span>Rezultat</span><span>Approval</span><span>Live</span><span>Isplata</span></div>
+      </section>
+
+      <section class="recent-panel">
+        <div class="panel-head"><h3>Brzi put</h3><a href="/zadaci">Svi zadaci</a></div>
+        <article><img src="/static/img/icon-clipboard.svg" alt="" style="width:28px;height:28px;"><div><b>Izaberi kategoriju</b><span>Prvo filtriraj ono što ti odgovara.</span></div><strong>1.</strong></article>
+        <article><img src="/static/img/icon-wallet.svg" alt="" style="width:28px;height:28px;"><div><b>Uradi instrukcije</b><span>Pošalji dokaz i prati status.</span></div><strong>2.</strong></article>
+        <article><img src="/static/img/icon-bank.svg" alt="" style="width:28px;height:28px;"><div><b>Sačekaj odobrenje</b><span>Kvalitetniji nalozi prolaze brže.</span></div><strong>3.</strong></article>
+      </section>
+    </div>
+
+    <a class="withdraw" href="/registracija">Počni da zarađuješ →</a>
+  </aside>
+</section>
+
+<section class="kz1189-trust-strip">
+  <article>
+    <strong>Kategorije</strong>
+    <span>Sve je podeljeno da korisnik ne listа beskonačno.</span>
+  </article>
+  <article>
+    <strong>Pretraga</strong>
+    <span>Brzo pronađi zadatak po nazivu, opisu ili tipu.</span>
+  </article>
+  <article>
+    <strong>Istaknuti zadaci</strong>
+    <span>Najvažniji zadaci su u posebnom delu stranice.</span>
+  </article>
+  <article>
+    <strong>Merljiv tok</strong>
+    <span>Svaki zadatak prolazi kroz jasan tok i status.</span>
+  </article>
 </section>
 
 <section class="kz119-filter">
@@ -92,5 +161,15 @@
     </a>
     {% endfor %}
   </aside>
+</section>
+
+<section class="kz1189-cta">
+  <img src="/static/img/premium-growth.svg" alt="" style="width:120px;height:auto;">
+  <div>
+    <h2>Sve kategorije na jednom mestu</h2>
+    <p>Izaberi zadatak, filtriraj po kategoriji i otvori tok koji je uredan i brz.</p>
+  </div>
+  <a class="primary" href="/registracija">Registruj se</a>
+  <a class="secondary" href="/za-korisnike">Kako radi</a>
 </section>
 {% endblock %}

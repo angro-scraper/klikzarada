@@ -1,26 +1,120 @@
 {% extends "base.html" %}
 {% set title = "Cenovnik - KlikZarada" %}
-{% set extra_body_class = "kz1189-campaign-premium" %}
+{% set extra_body_class = "kz1189-home-premium kz1189-campaign-premium" %}
 {% block content %}
-<section class="kz117-page-hero compact">
-  <div>
-    <span class="kz117-eyebrow">CENOVNIK</span>
+<section class="kz1189-hero">
+  <div class="hero-copy">
+    <span class="kz-premium-kicker">Cenovnik</span>
     <h1>Jasan model naplate, zarade i rasta</h1>
-    <p>Oglašivači plaćaju samo ono što donosi rezultat. Korisnici dobijaju fer nagradu, a platforma uzima svoj deo za automatizaciju, kontrolu i antifraud tok. Svi banner paketi su obračunati po 24 sata.</p>
-    <div class="kz117-hero-actions">
-      <a class="kz117-btn blue" href="/registracija?role=oglasivac">Pokreni kampanju</a>
-      <a class="kz117-btn outline" href="/oglasivac/promocija-v111">Baner reklame</a>
+    <p>Oglašivači plaćaju samo ono što donosi rezultat. Korisnici dobijaju fer nagradu, a platforma uzima svoj deo za automatizaciju, kontrolu i antifraud tok.</p>
+
+    <div class="feature-pills">
+      <span>Transparentno</span>
+      <span>Bez skrivenih stavki</span>
+      <span>Za admin kontrolu</span>
+      <span>Banneri po danu</span>
+    </div>
+
+    <div class="hero-actions">
+      <a class="primary" href="/registracija?role=oglasivac">Pokreni kampanju</a>
+      <a class="secondary" href="/oglasivac/promocija-v111">Baner reklame</a>
+    </div>
+
+    <div class="social-proof">
+      <div class="avatars">
+        <i><img src="/static/favicon.svg" alt="" aria-hidden="true"></i>
+        <i><img src="/static/favicon.svg" alt="" aria-hidden="true"></i>
+        <i><img src="/static/favicon.svg" alt="" aria-hidden="true"></i>
+      </div>
+      <strong>Jasno</strong>
+      <span>Iznosi su raspoređeni po kategorijama tako da svima bude odmah čitljivo.</span>
     </div>
   </div>
-  <div class="kz117-check-card">
-    <h3>Brza ekonomija</h3>
-    <ul>
-      <li>{{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}% provizije platforme</li>
-      <li>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}% ide korisnicima</li>
-      <li>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD minimalna isplata</li>
-      <li>Baneri, top pozicije i zadaci imaju odvojene cene</li>
-    </ul>
-  </div>
+
+  <aside class="dashboard-card">
+    <div class="metric-row">
+      <article>
+        <div><small>Platforma</small><b>{{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}%</b></div>
+        <img src="/static/img/icon-chart.svg" alt="">
+      </article>
+      <article>
+        <div><small>Korisnici</small><b class="green">{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}%</b></div>
+        <img src="/static/img/icon-bank.svg" alt="">
+      </article>
+      <article>
+        <div><small>Minimalna isplata</small><b>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD</b></div>
+        <img src="/static/img/icon-wallet.svg" alt="">
+      </article>
+      <article>
+        <div><small>Top banner</small><b>24h</b></div>
+        <img src="/static/img/ad-megaphone.svg" alt="">
+      </article>
+    </div>
+
+    <div class="dashboard-main">
+      <section class="chart-panel">
+        <h3>Brza ekonomija</h3>
+        <p>Oglašivači, korisnici i admin imaju odvojene tokove.</p>
+        <div class="chart">
+          <svg viewBox="0 0 520 190" preserveAspectRatio="none">
+            <line x1="0" y1="156" x2="520" y2="156"></line>
+            <line x1="0" y1="115" x2="520" y2="115"></line>
+            <line x1="0" y1="74" x2="520" y2="74"></line>
+            <polyline points="14,150 104,136 192,108 268,82 346,68 434,42 506,22"></polyline>
+            <circle cx="14" cy="150" r="6"></circle><circle cx="104" cy="136" r="6"></circle><circle cx="192" cy="108" r="6"></circle><circle cx="268" cy="82" r="6"></circle><circle cx="346" cy="68" r="6"></circle><circle cx="434" cy="42" r="6"></circle><circle cx="506" cy="22" r="6"></circle>
+          </svg>
+        </div>
+        <div class="days"><span>Fee</span><span>Share</span><span>Withdraw</span><span>Banner</span><span>Boost</span><span>View</span><span>ROI</span></div>
+      </section>
+
+      <section class="recent-panel">
+        <div class="panel-head"><h3>Brzi pregled</h3><a href="/admin/cene-v111">Uredi cene</a></div>
+        <article><img src="/static/img/icon-clipboard.svg" alt="" style="width:28px;height:28px;"><div><b>Platformska provizija</b><span>Uvek vidljiva i menjiva iz admina.</span></div><strong>{{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}%</strong></article>
+        <article><img src="/static/img/icon-bank.svg" alt="" style="width:28px;height:28px;"><div><b>Udeo korisniku</b><span>Glavni deo budžeta ostaje na proverljivom radu.</span></div><strong>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}%</strong></article>
+        <article><img src="/static/img/icon-wallet.svg" alt="" style="width:28px;height:28px;"><div><b>Minimalna isplata</b><span>Prag koji čuva zdrav tok sistema.</span></div><strong>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD</strong></article>
+      </section>
+    </div>
+
+    <a class="withdraw" href="/registracija?role=oglasivac">Pogledaj cenovnik →</a>
+  </aside>
+</section>
+
+<section class="kz1189-trust-strip">
+  <article>
+    <strong>Transparentne cene</strong>
+    <span>Javni deo, banner prodaja i admin koriste isti cenovnik.</span>
+  </article>
+  <article>
+    <strong>Fer raspodela</strong>
+    <span>Oglašivač plaća rezultate, korisnik dobija svoj deo, platforma svoj deo.</span>
+  </article>
+  <article>
+    <strong>Jasne granice</strong>
+    <span>Minimalni prag i procenti su lako promenljivi iz admin panela.</span>
+  </article>
+  <article>
+    <strong>Odvojeni tokovi</strong>
+    <span>Računi i finansije ostaju u admin delu, a javno ostaju samo cene.</span>
+  </article>
+</section>
+
+<section class="kz1189-finance-strip">
+  <article>
+    <strong>Provizija platforme</strong>
+    <span>{{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}% na validne kampanje</span>
+  </article>
+  <article>
+    <strong>Korisnički udeo</strong>
+    <span>{{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}% na odobrene zadatke</span>
+  </article>
+  <article>
+    <strong>Minimalna isplata</strong>
+    <span>{{ "%.0f"|format(pricing_summary.min_withdrawal if pricing_summary is defined else 1000) }} RSD prag</span>
+  </article>
+  <article>
+    <strong>Top banner</strong>
+    <span>od {{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }} RSD / 24 sata</span>
+  </article>
 </section>
 
 <section class="kz117-grid-3">
@@ -45,59 +139,6 @@
 </section>
 
 <section class="kz117-grid-3">
-  <div class="kz117-feature">
-    <h3>Prijavljenim oglašivačima</h3>
-    <p>Podaci za uplatu budžeta i status obračuna dostupni su u oglašivačkom panelu nakon prijave.</p>
-    <span>Privatan finansijski tok</span>
-  </div>
-  <div class="kz117-feature">
-    <h3>Korisničke isplate</h3>
-    <p>Podaci o isplatama, novčaniku i obradi su vidljivi samo korisniku u njegovom panelu.</p>
-    <span>Samo lični račun</span>
-  </div>
-  <div class="kz117-feature">
-    <h3>Admin finansije</h3>
-    <p>Bankovni računi, reference i podešavanja ostaju unutar admin sistema i nisu javni.</p>
-    <span><a href="/admin/system-settings">Otvori settings</a></span>
-  </div>
-</section>
-
-<section class="kz117-page-hero compact" style="margin-top:18px">
-  <div>
-    <span class="kz117-eyebrow">BANNER PAKETI</span>
-    <h1>Koliko košta prava vidljivost</h1>
-    <p>Najvidljiviji format je veliki banner na početnoj, zatim srednji slot i top pozicija za kampanje koje žele dodatni domet i bolji CTR.</p>
-  </div>
-  <div class="kz117-check-card">
-    <h3>Najtraženije opcije</h3>
-    <ul>
-      <li>Veliki banner: od {{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }} RSD / 24 sata</li>
-      <li>Srednji banner: od {{ "%.0f"|format(pricing_summary.banner_mid_day if pricing_summary is defined else 785) }} RSD / 24 sata</li>
-      <li>Top pozicija: od {{ "%.0f"|format(pricing_summary.boost_top_3d if pricing_summary is defined else 2500) }} RSD / 3 dana</li>
-      <li>Validno gledanje: {{ "%.0f"|format(pricing_summary.ad_view_cost if pricing_summary is defined else 8) }} RSD po prikazu</li>
-    </ul>
-  </div>
-</section>
-
-<section class="kz117-grid-3">
-  <div class="kz117-feature">
-    <h3>Šta plaćaš</h3>
-    <p>Plaćaš prikaz, isticanje ili top poziciju samo onda kada to donosi merljiv rezultat.</p>
-    <span>Bez skrivenih stavki</span>
-  </div>
-  <div class="kz117-feature">
-    <h3>Šta dobija korisnik</h3>
-    <p>Korisnik vidi jasnu nagradu po zadatku, a platforma lako vodi automatsku obradu i proveru.</p>
-    <span>Fer raspodela</span>
-  </div>
-  <div class="kz117-feature">
-    <h3>Šta dobija admin</h3>
-    <p>Manje ručnog rada jer su cene, provizije i banner tokovi centralizovani u jednom panelu.</p>
-    <span>Brža kontrola</span>
-  </div>
-</section>
-
-<section class="kz117-grid-3">
   {% for pkg in banner_packages %}
   <div class="kz117-feature">
     <h3>{{ pkg.title }}</h3>
@@ -117,31 +158,13 @@
   {% endfor %}
 </section>
 
-<section class="kz117-page-hero compact" style="margin-top:18px">
+<section class="kz1189-cta">
+  <img src="/static/img/premium-growth.svg" alt="" style="width:120px;height:auto;">
   <div>
-    <span class="kz117-eyebrow">ADMIN KONTROLA</span>
-    <h1>Sve cene na jednom mestu</h1>
-    <p>Platforma koristi isti cenovnik kroz javni deo, banner prodaju i administraciju. Tako nema ručnog prepisivanja, a prikaz ostaje isti svuda.</p>
+    <h2>Cene koje možeš da kontrolišeš iz admina</h2>
+    <p>Sve cene ostaju u jednom sistemu, bez ručnog prepisivanja i bez skrivenih koraka.</p>
   </div>
-  <div class="kz117-check-card">
-    <h3>Brza akcija</h3>
-    <ul>
-      <li><a href="/registracija?role=oglasivac">Pokreni kampanju</a></li>
-      <li><a href="/oglasivac/promocija-v111">Postavi banner</a></li>
-      <li><a href="/admin/cene-v111">Uredi cene kao admin</a></li>
-      <li><a href="/admin/promocija-v111">Pogledaj reklame u adminu</a></li>
-    </ul>
-  </div>
-</section>
-
-<section class="kz117-grid-3">
-  {% for p in prices %}
-  <div class="kz117-price-card">
-    <h3>{{ p.title }}</h3>
-    <strong>{% if p.value_percent %}{{ p.value_percent }}%{% else %}{{ "%.0f"|format(p.value_rsd) }} RSD{% endif %}</strong>
-    <p>{{ p.description or "" }}</p>
-    <span>{{ p.key }}</span>
-  </div>
-  {% endfor %}
+  <a class="primary" href="/admin/cene-v111">Uredi cene</a>
+  <a class="secondary" href="/admin/promocija-v111">Pogledaj reklame</a>
 </section>
 {% endblock %}

@@ -1,19 +1,114 @@
-
 {% extends "base.html" %}
 {% set title = "Kontakt - KlikZarada" %}
+{% set extra_body_class = "kz1189-home-premium kz1189-campaign-premium" %}
 {% block content %}
-<section class="kz117-page-hero compact">
-  <div><span class="kz117-eyebrow">KONTAKT</span><h1>Kontakt i podrška</h1><p>Za saradnju, oglašavanje i podršku koristite panel ili nam pošaljite poruku.</p></div>
-  <a class="kz117-hero-card" href="mailto:kontakt@klik-zarada.rs" style="display:block;text-decoration:none;color:inherit;">
-    <strong>24/7</strong>
-    <span>podrška kroz tikete i email</span>
-    <b style="display:block;font-size:18px;color:#1268f3;margin:0 0 14px;">kontakt@klik-zarada.rs</b>
-    <span class="kz117-btn blue" style="display:inline-flex;">Pošalji poruku</span>
+<section class="kz1189-hero">
+  <div class="hero-copy">
+    <span class="kz-premium-kicker">Kontakt</span>
+    <h1>Kontakt i podrška</h1>
+    <p>Za saradnju, oglašavanje i podršku koristite panel ili nam pošaljite poruku. Na jednom mestu su i tiketi i direktan kontakt.</p>
+
+    <div class="feature-pills">
+      <span>Podrška 24/7</span>
+      <span>Oglašivači</span>
+      <span>Korisnici</span>
+      <span>Brza pomoć</span>
+    </div>
+
+    <div class="hero-actions">
+      <a class="primary" href="mailto:kontakt@klik-zarada.rs">Pošalji poruku</a>
+      <a class="secondary" href="/registracija">Registracija</a>
+    </div>
+  </div>
+
+  <aside class="dashboard-card">
+    <div class="metric-row">
+      <article>
+        <div><small>Email</small><b>24/7</b></div>
+        <img src="/static/img/icon-clipboard.svg" alt="">
+      </article>
+      <article>
+        <div><small>Oglašivači</small><b class="green">Tiketi</b></div>
+        <img src="/static/img/icon-bank.svg" alt="">
+      </article>
+      <article>
+        <div><small>Korisnici</small><b>Podrška</b></div>
+        <img src="/static/img/icon-wallet.svg" alt="">
+      </article>
+      <article>
+        <div><small>Kontakt</small><b>Brzo</b></div>
+        <img src="/static/img/icon-chart.svg" alt="">
+      </article>
+    </div>
+
+    <div class="dashboard-main">
+      <section class="chart-panel">
+        <h3>Direktan kontakt</h3>
+        <p>Najbrži put do tima je kroz email ili kroz odgovarajući panel.</p>
+        <div class="chart" style="display:grid;place-items:center;">
+          <div style="padding:20px;text-align:center;">
+            <strong style="display:block;font-size:36px;color:#0b67f1;">24/7</strong>
+            <span style="display:block;color:#64748b;font-size:14px;">podrška kroz tikete i email</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="recent-panel">
+        <div class="panel-head"><h3>Brzi linkovi</h3><a href="/zadaci">Otvorene stranice</a></div>
+        <article><img src="/static/img/icon-clipboard.svg" alt="" style="width:28px;height:28px;"><div><b>Korisnička podrška</b><span>Za zadatke, dokaze i isplate.</span></div><strong>→</strong></article>
+        <article><img src="/static/img/icon-bank.svg" alt="" style="width:28px;height:28px;"><div><b>Podrška za oglašivače</b><span>Za kampanje, budžete i reklame.</span></div><strong>→</strong></article>
+        <article><img src="/static/img/icon-wallet.svg" alt="" style="width:28px;height:28px;"><div><b>Nova saradnja</b><span>Registracija i pokretanje sistema.</span></div><strong>→</strong></article>
+      </section>
+    </div>
+
+    <a class="withdraw" href="mailto:kontakt@klik-zarada.rs">kontakt@klik-zarada.rs</a>
+  </aside>
+</section>
+
+<section class="kz1189-trust-strip">
+  <article>
+    <strong>Korisnička podrška</strong>
+    <span>Pošaljite tiket za zadatke, dokaze ili isplate.</span>
+  </article>
+  <article>
+    <strong>Podrška za oglašivače</strong>
+    <span>Pitanja za kampanje, budžete i reklame.</span>
+  </article>
+  <article>
+    <strong>Nova saradnja</strong>
+    <span>Registrujte se i pokrenite kampanju ili zaradu.</span>
+  </article>
+  <article>
+    <strong>Direktan email</strong>
+    <span><a href="mailto:kontakt@klik-zarada.rs" style="color:inherit;text-decoration:none;">kontakt@klik-zarada.rs</a></span>
+  </article>
+</section>
+
+<section class="kz117-grid-3">
+  <a class="kz117-feature" href="/korisnik/tiketi">
+    <h3>Korisnička podrška</h3>
+    <p>Pošaljite tiket za zadatke, dokaze ili isplate.</p>
+    <span>Pošalji tiket →</span>
+  </a>
+  <a class="kz117-feature" href="/oglasivac/tiketi">
+    <h3>Podrška za oglašivače</h3>
+    <p>Pitanja za kampanje, budžete i reklame.</p>
+    <span>Kontakt oglašivači →</span>
+  </a>
+  <a class="kz117-feature" href="/registracija">
+    <h3>Nova saradnja</h3>
+    <p>Registrujte se i pokrenite kampanju ili zaradu.</p>
+    <span>Registracija →</span>
   </a>
 </section>
-<section class="kz117-grid-3">
-  <a class="kz117-feature" href="/korisnik/tiketi"><h3>Korisnička podrška</h3><p>Pošaljite tiket za zadatke, dokaze ili isplate.</p><span>Pošalji tiket →</span></a>
-  <a class="kz117-feature" href="/oglasivac/tiketi"><h3>Podrška za oglašivače</h3><p>Pitanja za kampanje, budžete i reklame.</p><span>Kontakt oglašivači →</span></a>
-  <a class="kz117-feature" href="/registracija"><h3>Nova saradnja</h3><p>Registrujte se i pokrenite kampanju ili zaradu.</p><span>Registracija →</span></a>
+
+<section class="kz1189-cta">
+  <img src="/static/img/premium-growth.svg" alt="" style="width:120px;height:auto;">
+  <div>
+    <h2>Treba ti brži odgovor?</h2>
+    <p>Pošalji email ili otvori odgovarajući panel i dobićeš jasan tok bez lutanja kroz stranice.</p>
+  </div>
+  <a class="primary" href="mailto:kontakt@klik-zarada.rs">kontakt@klik-zarada.rs</a>
+  <a class="secondary" href="/faq">Česta pitanja</a>
 </section>
 {% endblock %}

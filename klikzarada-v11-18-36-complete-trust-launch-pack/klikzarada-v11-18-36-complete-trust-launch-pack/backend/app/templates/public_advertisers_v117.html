@@ -1,26 +1,121 @@
 {% extends "base.html" %}
 {% set title = "Za oglašivače - KlikZarada" %}
-{% set extra_body_class = "kz1189-campaign-premium" %}
+{% set extra_body_class = "kz1189-home-premium kz1189-campaign-premium" %}
 {% block content %}
-<section class="kz117-page-hero compact">
-  <div>
-    <span class="kz117-eyebrow">ZA OGLAŠIVAČE</span>
+<section class="kz1189-hero">
+  <div class="hero-copy">
+    <span class="kz-premium-kicker">Za oglašivače</span>
     <h1>Dobijte stvarne rezultate uz jasnu kontrolu budžeta</h1>
-    <p>Pokrećite kampanje za ankete, testiranje sajta, registracije i feedback. Plaćate validne rezultate, a automatizacija smanjuje ručni rad admina i ubrzava pregled. Banner slotovi se obračunavaju po 24 sata.</p>
-    <div class="kz117-hero-actions">
-      <a class="kz117-btn blue" href="/registracija?role=oglasivac">Pokreni kampanju</a>
-      <a class="kz117-btn outline" href="/cenovnik">Pogledaj cenovnik</a>
+    <p>Pokrećite kampanje za ankete, testiranje sajta, registracije i feedback. Plaćate validne rezultate, a automatizacija smanjuje ručni rad admina i ubrzava pregled.</p>
+
+    <div class="feature-pills">
+      <span>Privatan pristup</span>
+      <span>Jasne cene</span>
+      <span>Merljivi rezultati</span>
+      <span>Brza objava</span>
+    </div>
+
+    <div class="hero-actions">
+      <a class="primary" href="/registracija?role=oglasivac">Pokreni kampanju</a>
+      <a class="secondary" href="/cenovnik">Pogledaj cenovnik</a>
+    </div>
+
+    <div class="social-proof">
+      <div class="avatars">
+        <i><img src="/static/favicon.svg" alt="" aria-hidden="true"></i>
+        <i><img src="/static/favicon.svg" alt="" aria-hidden="true"></i>
+        <i><img src="/static/favicon.svg" alt="" aria-hidden="true"></i>
+        <i><img src="/static/favicon.svg" alt="" aria-hidden="true"></i>
+      </div>
+      <strong>Transparentno</strong>
+      <span>Uplata, prikaz i odobrenje vode se kroz jasan tok bez skrivenih koraka.</span>
     </div>
   </div>
-  <div class="kz117-check-card">
-    <h3>Ekonomija platforme</h3>
-    <ul>
-      <li>Provizija platforme: {{ pricing_summary.platform_fee_percent if pricing_summary is defined else 20 }}%</li>
-      <li>Korisnicima ide: {{ pricing_summary.user_reward_share if pricing_summary is defined else 80 }}%</li>
-      <li>Validni zadaci donose merljiv rezultat</li>
-      <li>Banneri i top pozicije se prodaju odvojeno po danu</li>
-    </ul>
-  </div>
+
+  <aside class="dashboard-card">
+    <div class="metric-row">
+      <article>
+        <div><small>Provizija platforme</small><b>20%</b></div>
+        <img src="/static/img/icon-chart.svg" alt="">
+      </article>
+      <article>
+        <div><small>Korisnicima ide</small><b class="green">80%</b></div>
+        <img src="/static/img/icon-bank.svg" alt="">
+      </article>
+      <article>
+        <div><small>Banner slotovi</small><b>24h</b></div>
+        <img src="/static/img/ad-megaphone.svg" alt="">
+      </article>
+      <article>
+        <div><small>Admin approval</small><b>Brzo</b></div>
+        <img src="/static/img/icon-clipboard.svg" alt="">
+      </article>
+    </div>
+
+    <div class="dashboard-main">
+      <section class="chart-panel">
+        <h3>Ekonomija platforme</h3>
+        <p>Jasna raspodela budžeta i validnih rezultata.</p>
+        <div class="chart">
+          <svg viewBox="0 0 520 190" preserveAspectRatio="none">
+            <line x1="0" y1="156" x2="520" y2="156"></line>
+            <line x1="0" y1="115" x2="520" y2="115"></line>
+            <line x1="0" y1="74" x2="520" y2="74"></line>
+            <polyline points="14,150 100,136 176,104 264,92 352,70 438,54 506,28"></polyline>
+            <circle cx="14" cy="150" r="6"></circle><circle cx="100" cy="136" r="6"></circle><circle cx="176" cy="104" r="6"></circle><circle cx="264" cy="92" r="6"></circle><circle cx="352" cy="70" r="6"></circle><circle cx="438" cy="54" r="6"></circle><circle cx="506" cy="28" r="6"></circle>
+          </svg>
+        </div>
+        <div class="days"><span>Budžet</span><span>Rezultat</span><span>Odgovor</span><span>Approval</span><span>Live</span><span>CTR</span><span>ROI</span></div>
+      </section>
+
+      <section class="recent-panel">
+        <div class="panel-head"><h3>Brzi tok</h3><a href="/admin/cene-v111">Admin cene</a></div>
+        <article><img src="/static/img/icon-wallet.svg" alt="" style="width:28px;height:28px;"><div><b>Dodaj budžet</b><span>Oglašivač unosi iznos i bira format.</span></div><strong>1.</strong></article>
+        <article><img src="/static/img/icon-bank.svg" alt="" style="width:28px;height:28px;"><div><b>Potvrdi uplatu</b><span>Procesor vraća status i webhook potvrdu.</span></div><strong>2.</strong></article>
+        <article><img src="/static/img/icon-clipboard.svg" alt="" style="width:28px;height:28px;"><div><b>Banner ide live</b><span>Nakon odobrenja slot se aktivira.</span></div><strong>3.</strong></article>
+      </section>
+    </div>
+
+    <a class="withdraw" href="/registracija?role=oglasivac">Pokreni kampanju →</a>
+  </aside>
+</section>
+
+<section class="kz1189-trust-strip">
+  <article>
+    <strong>Privatan pristup</strong>
+    <span>Budžet, uplata i status obračuna vide samo prijavljeni oglašivači.</span>
+  </article>
+  <article>
+    <strong>Merljivi rezultati</strong>
+    <span>Validni zadaci donose stvaran signal i bolji pregled kampanje.</span>
+  </article>
+  <article>
+    <strong>Jasna prodaja bannera</strong>
+    <span>Banneri i top pozicije se prodaju odvojeno i po danu.</span>
+  </article>
+  <article>
+    <strong>Brza objava</strong>
+    <span>Manje ručnog rada, više vremena za kampanje koje stvarno rade.</span>
+  </article>
+</section>
+
+<section class="kz1189-finance-strip">
+  <article>
+    <strong>Uplata budžeta</strong>
+    <span>Checkout i webhook tok za karticu ili transfer</span>
+  </article>
+  <article>
+    <strong>Validni rezultati</strong>
+    <span>Naplaćuje se samo ono što prođe proveru</span>
+  </article>
+  <article>
+    <strong>Banner 24h</strong>
+    <span>Slotovi se obračunavaju po danu</span>
+  </article>
+  <article>
+    <strong>Approval tok</strong>
+    <span>Admin potvrđuje samo kada je potrebno</span>
+  </article>
 </section>
 
 <section class="kz117-grid-3">
@@ -30,32 +125,14 @@
     <span>Privatan pristup</span>
   </div>
   <div class="kz117-feature">
-    <h3>Korisnički panel</h3>
-    <p>Isplate, novčanik i lični podaci ostaju odvojeni i vidljivi samo prijavljenim korisnicima.</p>
-    <span>Odvojeni tokovi</span>
-  </div>
-  <div class="kz117-feature">
-    <h3>Admin kontrola</h3>
-    <p>Računi, reference i finansijski workflow ostaju unutar admin sistema i nisu javno prikazani.</p>
-    <span><a href="/admin/system-settings">Otvori settings</a></span>
-  </div>
-</section>
-
-<section class="kz117-grid-3">
-  <div class="kz117-feature">
     <h3>Brza objava bannera</h3>
     <p>Postavi vizuelni identitet, izaberi slot i pošalji reklamu u pregled.</p>
     <span>od {{ "%.0f"|format(pricing_summary.banner_top_day if pricing_summary is defined else 1360) }} RSD / 24 sata</span>
   </div>
   <div class="kz117-feature">
-    <h3>Isticanje kampanje</h3>
-    <p>Podigni kampanju na prvo mesto i dobij dodatnu vidljivost.</p>
-    <span>od {{ "%.0f"|format(pricing_summary.boost_top_3d if pricing_summary is defined else 2500) }} RSD / 3 dana</span>
-  </div>
-  <div class="kz117-feature">
-    <h3>Transparentne cene</h3>
-    <p>Admin ima potpunu kontrolu nad cenama i raspodelom zarade.</p>
-    <span><a href="/admin/cene-v111">Otvori cenovnik</a></span>
+    <h3>Fleksibilne cene</h3>
+    <p>Admin može menjati cene reklama, gledanja i provizije iz panela.</p>
+    <span>Potpuna kontrola cenovnika</span>
   </div>
 </section>
 
@@ -71,61 +148,19 @@
     <span>od {{ "%.0f"|format(pricing_summary.boost_top_3d if pricing_summary is defined else 2500) }} RSD / 3 dana</span>
   </a>
   <a class="kz117-feature" href="/admin/cene-v111">
-    <h3>Fleksibilne cene</h3>
-    <p>Admin može menjati cene reklama, gledanja i provizije iz panela.</p>
-    <span>Potpuna kontrola cenovnika</span>
+    <h3>Transparentne cene</h3>
+    <p>Admin ima potpunu kontrolu nad cenama i raspodelom zarade.</p>
+    <span><a href="/admin/cene-v111">Otvori cenovnik</a></span>
   </a>
 </section>
 
-<section class="kz117-page-hero compact" style="margin-top:18px">
+<section class="kz1189-cta">
+  <img src="/static/img/premium-growth.svg" alt="" style="width:120px;height:auto;">
   <div>
-    <span class="kz117-eyebrow">KAKO RADI</span>
-    <h1>Tri koraka do kampanje</h1>
-    <p>Izaberi format, definiši budžet i pošalji na pregled. Sistem vodi računa o prikazu, a admin samo potvrdi ili vrati na doradu kada treba.</p>
+    <h2>Spreman za ozbiljniju kampanju?</h2>
+    <p>Izaberi format, definiši budžet i pošalji oglas kroz čist i uredan tok.</p>
   </div>
-  <div class="kz117-check-card">
-    <h3>Šta dobijaš</h3>
-    <ul>
-      <li>Jasno targetiranje publike</li>
-      <li>Vidljive cene i merljive rezultate</li>
-      <li>Manje ručnog rada za admina</li>
-      <li>Pregled statusa i budžeta u jednom mestu</li>
-    </ul>
-  </div>
-</section>
-
-<section class="kz117-grid-3">
-  <div class="kz117-feature">
-    <h3>Kontrola budžeta</h3>
-    <p>Prati troškove po kampanji, banneru i poziciji bez ručnog računanja.</p>
-    <span>Jasan pregled</span>
-  </div>
-  <div class="kz117-feature">
-    <h3>Merljivi rezultati</h3>
-    <p>Svaki validan prikaz i svaki zadatak ostaju upisani za proveru i statistiku.</p>
-    <span>Bez nagađanja</span>
-  </div>
-  <div class="kz117-feature">
-    <h3>Brža objava</h3>
-    <p>Banner ide kroz isti tok za admina i oglašivača, što ubrzava odobravanje.</p>
-    <span>Manje čekanja</span>
-  </div>
-</section>
-
-<section class="kz117-page-hero compact" style="margin-top:18px">
-  <div>
-    <span class="kz117-eyebrow">SLEDEĆI KORAK</span>
-    <h1>Spremni za pokretanje?</h1>
-    <p>Izaberi banner, postavi budžet i pošalji kampanju. Ako treba još finija kontrola, cenovnik i admin ekran su već spremni za dalje podešavanje.</p>
-  </div>
-  <div class="kz117-check-card">
-    <h3>Brzi linkovi</h3>
-    <ul>
-      <li><a href="/oglasivac/promocija-v111">Postavi banner</a></li>
-      <li><a href="/oglasivac/boost-v111">Top pozicija</a></li>
-      <li><a href="/cenovnik">Cenovnik</a></li>
-      <li><a href="/registracija?role=oglasivac">Registracija</a></li>
-    </ul>
-  </div>
+  <a class="primary" href="/registracija?role=oglasivac">Registruj oglasivača</a>
+  <a class="secondary" href="/cenovnik">Cenovnik</a>
 </section>
 {% endblock %}
