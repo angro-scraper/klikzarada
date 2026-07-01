@@ -37,6 +37,7 @@ REFERRAL_BONUS_RSD = 15.0
 MIN_WITHDRAWAL_RSD = 1000.0
 ADMIN_FOCUS_ALLOWED_PATHS = (
     "/admin/v11",
+    "/admin-centar",
     "/admin/dashboard",
     "/admin/mapa-platforme",
     "/admin/analitika-v117",
@@ -6366,7 +6367,7 @@ def admin_budget_v11(request: Request, db: Session = Depends(get_db)):
     alerts = db.query(AdvertiserBudgetAlertV11).order_by(AdvertiserBudgetAlertV11.created_at.desc()).all()
     logs = db.query(CampaignStatusLogV11).order_by(CampaignStatusLogV11.created_at.desc()).limit(100).all()
     advertisers = db.query(User).filter(User.role == "oglasivac").order_by(User.full_name).all()
-    return templates.TemplateResponse("admin_budget_v11.html", {"request": request, "user": u, "alerts": alerts, "logs": logs, "advertisers": advertisers})
+    return templates.TemplateResponse("admin_budget_final_v1113.html", {"request": request, "user": u, "alerts": alerts, "logs": logs, "advertisers": advertisers})
 
 
 @app.post("/admin/budget-v11/alert")
