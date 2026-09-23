@@ -100,6 +100,11 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
   const [paymentMethod, setPaymentMethod] = useState('PayPal')
   const [paymentDetails, setPaymentDetails] = useState('')
   const [profileName, setProfileName] = useState('')
+  const [profilePhone, setProfilePhone] = useState('')
+  const [profileCity, setProfileCity] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [repeatPassword, setRepeatPassword] = useState('')
   const [saving, setSaving] = useState(false)
   const [tickets, setTickets] = useState<SupportTicket[]>([])
   const [ticketSubject, setTicketSubject] = useState('')
@@ -116,6 +121,8 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
       setPaymentMethod('PayPal')
       setPaymentDetails(data.user.payment_details || '')
       setProfileName(data.user.full_name)
+      setProfilePhone(data.user.phone || '')
+      setProfileCity(data.user.city || '')
       setDashboardError('')
     } catch (error) {
       setDashboardError(error instanceof Error ? error.message : 'Podaci trenutno nisu dostupni.')
@@ -739,14 +746,22 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                       <span className="text-xs text-blue-600 font-semibold mt-0.5 block">🧭 {user?.level || 'Bronza'} nivo</span>
                     </div>
                   </div>
-                  <Btn variant="secondary" size="sm">Izmeni profil</Btn>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Ime i prezime</label><input value={profileName} onChange={event => setProfileName(event.target.value)} className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" /></div>
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Telefon</label><input value={profilePhone} onChange={event => setProfilePhone(event.target.value)} placeholder="+381..." className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" /></div>
+                    <div className="flex flex-col gap-1.5 sm:col-span-2"><label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Grad</label><input value={profileCity} onChange={event => setProfileCity(event.target.value)} placeholder="npr. Beograd" className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" /></div>
+                  </div>
+                  <Btn variant="success" size="sm" className="mt-4" disabled={saving || profileName.trim().length < 2} onClick={async () => { setSaving(true); try { await api.saveProfile({ full_name: profileName.trim(), phone: profilePhone.trim() || undefined, city: profileCity.trim() || undefined }); await refreshDashboard(); showToast('Profil je sačuvan.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Profil nije sačuvan.', 'error') } finally { setSaving(false) } }}>{saving ? 'Čuvanje...' : 'Sačuvaj profil'}</Btn>
                 </Card>
                 <Card className="p-5">
                   <h3 className="font-bold text-ink mb-3">Bezbednost</h3>
-                  <div className="flex flex-col gap-2">
-                    <Btn variant="ghost" size="sm" className="justify-start">🔑 Promeni lozinku</Btn>
-                    <Btn variant="ghost" size="sm" className="justify-start">🔐 Dvofaktorska autentifikacija</Btn>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input type="password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} placeholder="Trenutna lozinka" className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                    <input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="Nova lozinka, najmanje 8 znakova" className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                    <input type="password" value={repeatPassword} onChange={event => setRepeatPassword(event.target.value)} placeholder="Ponovi novu lozinku" className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
                   </div>
+                  <Btn variant="secondary" size="sm" className="mt-3" disabled={saving || newPassword.length < 8 || newPassword !== repeatPassword} onClick={async () => { setSaving(true); try { await api.changePassword({ current_password: currentPassword, new_password: newPassword }); setCurrentPassword(''); setNewPassword(''); setRepeatPassword(''); showToast('Lozinka je promenjena.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Lozinka nije promenjena.', 'error') } finally { setSaving(false) } }}>Promeni lozinku</Btn>
+                  <p className="mt-3 text-xs text-ink-3">Dvofaktorska autentifikacija se uključuje tek kada postavimo SMS ili authenticator provajdera.</p>
                 </Card>
                 <Btn variant="danger" size="sm" onClick={() => setLogoutConfirm(true)}>Odjavi se</Btn>
               </div>
@@ -774,7 +789,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                   <textarea value={ticketBody} onChange={event => setTicketBody(event.target.value)} rows={4} placeholder="Opiši problem i dodaj bitne detalje." className="w-full bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-y" />
                   <Btn disabled={saving || !ticketSubject.trim() || !ticketBody.trim()} onClick={async () => { setSaving(true); try { await api.createTicket({ subject: ticketSubject, body: ticketBody }); await refreshDashboard(); setTicketSubject(''); setTicketBody(''); showToast('Tiket je poslat podršci.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Tiket nije poslat.', 'error') } finally { setSaving(false) } }}>{saving ? 'Slanje...' : 'Pošalji tiket'}</Btn>
                 </Card></div>
-                {tickets.length === 0 ? <EmptyState icon="🎫" title="Nema otvorenih tiketa" description="Sva tvoja pitanja su rešena." /> : <Card><Table headers={['Naslov', 'Kategorija', 'Status', 'Ažurirano']} rows={tickets.map(ticket => [<span className="font-medium text-ink">{ticket.subject}</span>, <span className="text-sm text-ink-2">{ticket.category}</span>, <StatusBadge status={ticket.status === 'open' ? 'na_cekanju' : ticket.status === 'closed' ? 'odobreno' : 'na_proveri'} />, <span className="font-mono text-xs text-ink-2">{formatDate(ticket.updated_at)}</span>])} /></Card>}
+                {tickets.length === 0 ? <EmptyState icon="🎫" title="Nema otvorenih tiketa" description="Sva tvoja pitanja su rešena." /> : tickets.map(ticket => <Card key={ticket.id} className="p-5"><div className="flex items-start justify-between gap-3"><div><p className="font-bold text-ink">#{ticket.id} · {ticket.subject}</p><p className="text-xs text-ink-3 mt-1">{ticket.category}</p></div><StatusBadge status={ticket.status === 'closed' ? 'odobreno' : ticket.status === 'waiting' ? 'na_proveri' : 'na_cekanju'} /></div><div className="mt-4 space-y-2">{ticket.messages.map(message => <div key={message.id} className={`rounded-lg p-3 text-sm ${message.from_support ? 'bg-blue-50 text-blue-900' : 'bg-mint-50 text-ink'}`}><p className="text-xs font-semibold">{message.from_support ? 'Podrška' : 'Ti'} · {message.created_at ? new Date(message.created_at).toLocaleString('sr-RS') : ''}</p><p className="mt-1 whitespace-pre-wrap">{message.body}</p></div>)}</div><Btn size="sm" variant="secondary" className="mt-4" onClick={() => { const body = window.prompt('Odgovor podršci:'); if (!body?.trim()) return; void (async () => { try { await api.replyToTicket(ticket.id, body.trim()); await refreshDashboard(); showToast('Odgovor je poslat.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Odgovor nije poslat.', 'error') } })() }}>Odgovori</Btn></Card>)}
               </div>
             )}
           </div>

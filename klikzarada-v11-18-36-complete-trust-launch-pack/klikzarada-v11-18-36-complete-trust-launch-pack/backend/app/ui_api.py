@@ -123,6 +123,19 @@ class ProfilePayload(BaseModel):
     city: str | None = Field(default=None, max_length=100)
     payment_method: str | None = Field(default=None, max_length=80)
     payment_details: str | None = Field(default=None, max_length=2000)
+    company_name: str | None = Field(default=None, max_length=180)
+    company_pib: str | None = Field(default=None, max_length=80)
+    company_website: str | None = Field(default=None, max_length=300)
+    company_activity: str | None = Field(default=None, max_length=160)
+
+
+class PasswordChangePayload(BaseModel):
+    current_password: str = Field(min_length=8, max_length=200)
+    new_password: str = Field(min_length=8, max_length=200)
+
+
+class CampaignLifecyclePayload(BaseModel):
+    action: Literal["pause", "resume"]
 
 
 class CampaignPayload(BaseModel):
@@ -369,6 +382,9 @@ def _user_data(user: User) -> dict:
         "payment_method": user.payment_method,
         "payment_details": user.payment_details,
         "company_name": user.company_name,
+        "company_pib": user.company_pib,
+        "company_website": user.company_website,
+        "company_activity": user.company_activity,
         "advertiser_budget_rsd": _money(user.advertiser_budget_rsd),
         "advertiser_reserved_rsd": _money(user.advertiser_reserved_rsd),
         "advertiser_spent_rsd": _money(user.advertiser_spent_rsd),
@@ -852,11 +868,32 @@ def save_user_profile(payload: ProfilePayload, request: Request, db: Session = D
     user.full_name = payload.full_name.strip()
     user.phone = phone or None
     user.city = (payload.city or "").strip() or None
+    if user.role == "oglasivac":
+        website = (payload.company_website or "").strip()
+        if website and not website.startswith(("https://", "http://")):
+            raise HTTPException(400, "Sajt firme mora početi sa https:// ili http://.")
+        pib = "".join(character for character in (payload.company_pib or "") if character.isalnum() or character in "-/")
+        user.company_name = (payload.company_name or "").strip() or None
+        user.company_pib = pib or None
+        user.company_website = website or None
+        user.company_activity = (payload.company_activity or "").strip() or None
     if payload.payment_details:
         user.payment_method = "PayPal"
         user.payment_details = _paypal_email(payload.payment_details)
     db.commit()
     return {"user": _user_data(user)}
+
+
+@router.put("/account/password")
+def change_account_password(payload: PasswordChangePayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db, {"korisnik", "oglasivac", "admin"})
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(400, "Trenutna lozinka nije ispravna.")
+    if payload.current_password == payload.new_password:
+        raise HTTPException(400, "Nova lozinka mora biti različita od trenutne.")
+    user.password_hash = hash_password(payload.new_password)
+    db.commit()
+    return {"ok": True}
 
 
 @router.get("/tickets")
@@ -1150,9 +1187,18 @@ def advertiser_dashboard(request: Request, db: Session = Depends(get_db)) -> dic
     tasks = db.query(Task).filter(Task.advertiser_id == user.id).order_by(Task.created_at.desc()).limit(100).all()
     submissions = db.query(TaskSubmission).join(Task).filter(Task.advertiser_id == user.id).order_by(TaskSubmission.created_at.desc()).limit(100).all()
     transactions = db.query(AdvertiserBudgetTransaction).filter(AdvertiserBudgetTransaction.advertiser_id == user.id).order_by(AdvertiserBudgetTransaction.created_at.desc()).limit(100).all()
+    task_payload = []
+    for task in tasks:
+        task_submissions = [submission for submission in submissions if submission.task_id == task.id]
+        task_data = _task_data(task)
+        task_data["submission_total"] = len(task_submissions)
+        task_data["submission_approved"] = sum(1 for submission in task_submissions if _status(submission.status) == "approved")
+        task_data["submission_rejected"] = sum(1 for submission in task_submissions if _status(submission.status) == "rejected")
+        task_data["submission_pending"] = sum(1 for submission in task_submissions if _status(submission.status) in {"pending", "submitted"})
+        task_payload.append(task_data)
     return {
         "user": _user_data(user),
-        "tasks": [_task_data(task) for task in tasks],
+        "tasks": task_payload,
         "submissions": [_submission_data(submission) | {"user_name": submission.user.full_name if submission.user else "Korisnik"} for submission in submissions],
         "transactions": [{"id": tx.id, "amount_rsd": _money(tx.amount_rsd), "tx_type": tx.tx_type, "description": tx.description, "created_at": _iso(tx.created_at)} for tx in transactions],
         "pricing": _pricing_data(),
@@ -1751,6 +1797,30 @@ def revise_campaign(task_id: int, payload: CampaignPayload, request: Request, db
     db.commit()
     db.refresh(task)
     return {"campaign": _task_data(task), "reserved_rsd": new_total}
+
+
+@router.patch("/advertiser/campaigns/{task_id}/lifecycle")
+def update_campaign_lifecycle(task_id: int, payload: CampaignLifecyclePayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    """Let an advertiser pause or continue an already approved campaign."""
+    user = _require_user(request, db, {"oglasivac", "admin"})
+    task = db.query(Task).filter(Task.id == task_id, Task.advertiser_id == user.id).with_for_update().first()
+    if not task:
+        raise HTTPException(404, "Kampanja nije pronađena.")
+    current_status = _status(task.status)
+    if payload.action == "pause":
+        if current_status != "active":
+            raise HTTPException(409, "Možeš pauzirati samo aktivnu kampanju.")
+        task.status = "paused"
+    else:
+        if current_status != "paused":
+            raise HTTPException(409, "Možeš nastaviti samo pauziranu kampanju.")
+        if int(task.used_slots or 0) >= int(task.total_slots or 0):
+            raise HTTPException(409, "Kampanja je već ispunila sve raspoložive pozicije.")
+        task.status = "active"
+    db.add(AuditLog(admin_id=user.id, action=f"advertiser_campaign_{payload.action}", entity_type="task", entity_id=task.id, reason=task.title))
+    db.commit()
+    db.refresh(task)
+    return {"campaign": _task_data(task)}
 
 
 def _admin_dashboard_data(db: Session) -> dict:

@@ -21,6 +21,8 @@ class UiContractTests(unittest.TestCase):
             "/api/ui/advertiser/promotions",
             "/api/ui/admin/promotions",
             "/api/ui/tickets/{ticket_id}/messages",
+            "/api/ui/account/password",
+            "/api/ui/advertiser/campaigns/{task_id}/lifecycle",
         }
         self.assertTrue(expected.issubset(paths))
 

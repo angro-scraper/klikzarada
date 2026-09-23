@@ -15,6 +15,9 @@ export type SessionUser = {
   payment_method: string | null
   payment_details: string | null
   company_name: string | null
+  company_pib: string | null
+  company_website: string | null
+  company_activity: string | null
   advertiser_budget_rsd: number
   advertiser_reserved_rsd: number
   advertiser_spent_rsd: number
@@ -43,6 +46,10 @@ export type Task = {
   target_interests: string | null
   sponsored?: boolean
   promotion_type?: 'featured' | 'priority' | null
+  submission_total?: number
+  submission_approved?: number
+  submission_rejected?: number
+  submission_pending?: number
   created_at: string | null
 }
 
@@ -289,7 +296,10 @@ export const api = {
   requestWithdrawal: (payload: { amount_rsd: number; payment_method: string; payment_details: string }) => request<{ withdrawal: Withdrawal }>('/user/withdrawals', {
     method: 'POST', body: JSON.stringify(payload),
   }),
-  saveProfile: (payload: { full_name: string; phone?: string; city?: string; payment_method?: string; payment_details?: string }) => request<{ user: SessionUser }>('/user/profile', {
+  saveProfile: (payload: { full_name: string; phone?: string; city?: string; payment_method?: string; payment_details?: string; company_name?: string; company_pib?: string; company_website?: string; company_activity?: string }) => request<{ user: SessionUser }>('/user/profile', {
+    method: 'PUT', body: JSON.stringify(payload),
+  }),
+  changePassword: (payload: { current_password: string; new_password: string }) => request<{ ok: true }>('/account/password', {
     method: 'PUT', body: JSON.stringify(payload),
   }),
   tickets: () => request<{ tickets: SupportTicket[] }>('/tickets'),
@@ -318,6 +328,9 @@ export const api = {
   }),
   reviseCampaign: (id: number, payload: CampaignPayload) => request<{ campaign: Task; reserved_rsd: number }>(`/advertiser/campaigns/${id}`, {
     method: 'PUT', body: JSON.stringify(payload),
+  }),
+  updateCampaignLifecycle: (id: number, action: 'pause' | 'resume') => request<{ campaign: Task }>(`/advertiser/campaigns/${id}/lifecycle`, {
+    method: 'PATCH', body: JSON.stringify({ action }),
   }),
   reviewAdvertiserSubmission: (id: number, status: 'approved' | 'rejected', note?: string) => request<{ submission: Submission }>(`/advertiser/submissions/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),

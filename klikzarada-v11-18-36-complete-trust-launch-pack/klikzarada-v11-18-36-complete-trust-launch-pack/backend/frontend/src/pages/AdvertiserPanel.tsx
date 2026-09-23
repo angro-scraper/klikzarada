@@ -381,6 +381,13 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [profileName, setProfileName] = useState('')
   const [profilePhone, setProfilePhone] = useState('')
   const [profileCity, setProfileCity] = useState('')
+  const [companyName, setCompanyName] = useState('')
+  const [companyPib, setCompanyPib] = useState('')
+  const [companyWebsite, setCompanyWebsite] = useState('')
+  const [companyActivity, setCompanyActivity] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [repeatPassword, setRepeatPassword] = useState('')
   const [profileSaving, setProfileSaving] = useState(false)
   const [tickets, setTickets] = useState<SupportTicket[]>([])
   const [ticketSubject, setTicketSubject] = useState('')
@@ -400,6 +407,11 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
       setPromotionTaskId(current => current || String(dashboardData.tasks.find(task => task.status === 'aktivno' || task.status === 'active')?.id ?? ''))
       setProfileName(current => current || dashboardData.user.full_name)
       setProfilePhone(current => current || dashboardData.user.phone || '')
+      setProfileCity(current => current || dashboardData.user.city || '')
+      setCompanyName(current => current || dashboardData.user.company_name || '')
+      setCompanyPib(current => current || dashboardData.user.company_pib || '')
+      setCompanyWebsite(current => current || dashboardData.user.company_website || '')
+      setCompanyActivity(current => current || dashboardData.user.company_activity || '')
       setDashboardError('')
     } catch (error) {
       setDashboardError(error instanceof Error ? error.message : 'Podaci trenutno nisu dostupni.')
@@ -530,7 +542,9 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
     naziv: task.title,
     budžet: `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.total_slots * feeMultiplier)} RSD`,
     potrošeno: `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.used_slots * feeMultiplier)} RSD`,
-    dokazi: task.used_slots,
+    dokazi: task.submission_total ?? 0,
+    odobreno: task.submission_approved ?? 0,
+    naProveri: task.submission_pending ?? 0,
     status: task.status === 'active' ? 'aktivno' : task.status === 'pending' ? 'na_cekanju' : task.status === 'paused' ? 'obustavljeno' : task.status === 'rejected' ? 'odbijeno' : task.status === 'needs_revision' ? 'dorada' : task.status,
   }))
   const proofs = (dashboard?.submissions ?? []).map(submission => ({
@@ -671,9 +685,13 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                       <span className="font-mono text-amber-700">{c.potrošeno}</span>,
                       <span className="font-mono">{c.dokazi}</span>,
                       <StatusBadge status={c.status} />,
-                      c.task.status === 'needs_revision'
-                        ? <Btn size="sm" variant="secondary" onClick={() => { setCampaignToRevise(c.task); goTo('nova') }}>Doradi</Btn>
-                        : <span className="text-xs text-ink-3">{c.task.moderation_note || '—'}</span>,
+                       c.task.status === 'needs_revision'
+                         ? <Btn size="sm" variant="secondary" onClick={() => { setCampaignToRevise(c.task); goTo('nova') }}>Doradi</Btn>
+                         : c.task.status === 'active'
+                           ? <Btn size="sm" variant="secondary" onClick={() => void (async () => { try { await api.updateCampaignLifecycle(c.task.id, 'pause'); await refreshDashboard(); showToast('Kampanja je pauzirana. Budžet ostaje rezervisan.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Kampanja nije pauzirana.', 'error') } })()}>Pauziraj</Btn>
+                           : c.task.status === 'paused'
+                             ? <Btn size="sm" variant="success" onClick={() => void (async () => { try { await api.updateCampaignLifecycle(c.task.id, 'resume'); await refreshDashboard(); showToast('Kampanja je ponovo aktivna.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Kampanja nije nastavljena.', 'error') } })()}>Nastavi</Btn>
+                             : <span className="text-xs text-ink-3">{c.task.moderation_note || 'Čeka proveru'}</span>,
                     ])}
                   />
                 </Card>
@@ -776,13 +794,15 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                 </div>
                 <Card>
                   <Table
-                    headers={['Kampanja', 'Dokazi', 'Rezervisano', 'Status']}
+                    headers={['Kampanja', 'Dokazi', 'Odobreno', 'Na proveri', 'Rezervisano', 'Status']}
                     rows={campaigns.length > 0 ? campaigns.map(campaign => [
                       <span className="font-semibold text-ink">{campaign.naziv}</span>,
                       <span className="font-mono">{campaign.dokazi}</span>,
+                      <span className="font-mono text-emerald-700">{campaign.odobreno}</span>,
+                      <span className="font-mono text-amber-700">{campaign.naProveri}</span>,
                       <span className="font-mono text-xs">{campaign.budžet}</span>,
                       <StatusBadge status={campaign.status} />,
-                    ]) : [[<span className="text-sm text-ink-3">Još nema kampanja.</span>, '—', '—', '—']]}
+                    ]) : [[<span className="text-sm text-ink-3">Još nema kampanja.</span>, '—', '—', '—', '—', '—']]}
                   />
                 </Card>
                 <Card>
@@ -915,10 +935,22 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                   <Input label={advertiser?.company_name ? 'Kontakt osoba' : 'Ime i prezime'} placeholder="Ime i prezime" value={profileName} onChange={setProfileName} />
                   <Input label="Telefon" placeholder="+381 11 ..." value={profilePhone} onChange={setProfilePhone} />
                   <Input label="Grad" placeholder="npr. Beograd" value={profileCity} onChange={setProfileCity} />
+                  <div className="border-t border-frame pt-4"><p className="text-sm font-bold text-ink">Podaci o oglašivaču</p><p className="mt-1 text-xs text-ink-3">Popuni samo podatke koje stvarno želiš da koristiš za račune i kontakt. Firma se ne smatra verifikovanom samo unosom ovih podataka.</p></div>
+                  <Input label="Naziv firme ili preduzetnika" placeholder="npr. KlikZarada d.o.o." value={companyName} onChange={setCompanyName} />
+                  <Input label="PIB / poreski identifikator" placeholder="Opciono" value={companyPib} onChange={setCompanyPib} />
+                  <Input label="Sajt firme" placeholder="https://primer.rs" value={companyWebsite} onChange={setCompanyWebsite} />
+                  <Input label="Delatnost" placeholder="npr. internet oglašavanje" value={companyActivity} onChange={setCompanyActivity} />
                   <div className="flex gap-2">
-                    <Btn variant="success" disabled={profileSaving || profileName.trim().length < 2} onClick={() => void (async () => { try { setProfileSaving(true); await api.saveProfile({ full_name: profileName.trim(), phone: profilePhone.trim() || undefined, city: profileCity.trim() || undefined }); await refreshDashboard(); showToast('Profil oglašivača je sačuvan.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Profil nije sačuvan.', 'error') } finally { setProfileSaving(false) } })()}>{profileSaving ? 'Čuvanje...' : 'Sačuvaj izmene'}</Btn>
-                    <Btn variant="secondary" onClick={() => { setProfileName(advertiser?.full_name || ''); setProfilePhone(advertiser?.phone || ''); setProfileCity('') }}>Otkaži</Btn>
+                    <Btn variant="success" disabled={profileSaving || profileName.trim().length < 2} onClick={() => void (async () => { try { setProfileSaving(true); await api.saveProfile({ full_name: profileName.trim(), phone: profilePhone.trim() || undefined, city: profileCity.trim() || undefined, company_name: companyName.trim() || undefined, company_pib: companyPib.trim() || undefined, company_website: companyWebsite.trim() || undefined, company_activity: companyActivity.trim() || undefined }); await refreshDashboard(); showToast('Profil oglašivača je sačuvan.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Profil nije sačuvan.', 'error') } finally { setProfileSaving(false) } })()}>{profileSaving ? 'Čuvanje...' : 'Sačuvaj izmene'}</Btn>
+                    <Btn variant="secondary" onClick={() => { setProfileName(advertiser?.full_name || ''); setProfilePhone(advertiser?.phone || ''); setProfileCity(advertiser?.city || ''); setCompanyName(advertiser?.company_name || ''); setCompanyPib(advertiser?.company_pib || ''); setCompanyWebsite(advertiser?.company_website || ''); setCompanyActivity(advertiser?.company_activity || '') }}>Otkaži</Btn>
                   </div>
+                </Card>
+                <Card className="p-5 space-y-3">
+                  <h3 className="font-bold text-ink">Bezbednost naloga</h3>
+                  <input type="password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} placeholder="Trenutna lozinka" className="w-full bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                  <input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="Nova lozinka, najmanje 8 znakova" className="w-full bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                  <input type="password" value={repeatPassword} onChange={event => setRepeatPassword(event.target.value)} placeholder="Ponovi novu lozinku" className="w-full bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                  <Btn variant="secondary" size="sm" disabled={profileSaving || newPassword.length < 8 || newPassword !== repeatPassword} onClick={() => void (async () => { try { setProfileSaving(true); await api.changePassword({ current_password: currentPassword, new_password: newPassword }); setCurrentPassword(''); setNewPassword(''); setRepeatPassword(''); showToast('Lozinka je promenjena.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Lozinka nije promenjena.', 'error') } finally { setProfileSaving(false) } })()}>Promeni lozinku</Btn>
                 </Card>
               </div>
             )}
@@ -931,7 +963,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                   <div className="flex flex-col gap-1.5"><label className="text-xs font-semibold uppercase tracking-wide text-ink-2">Poruka</label><textarea className="min-h-28 rounded-lg border border-frame bg-white px-3 py-2 text-sm text-ink focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none" value={ticketBody} onChange={event => setTicketBody(event.target.value)} placeholder="Opiši pitanje ili problem što preciznije." /></div>
                   <Btn disabled={ticketLoading} onClick={() => void createTicket()}>{ticketLoading ? 'Slanje...' : 'Pošalji tiket'}</Btn>
                 </Card>
-                {tickets.length === 0 ? <EmptyState icon="🎫" title="Nema tiketa" description="Kada pošalješ zahtev, ovde ćeš videti celu prepisku." /> : tickets.map(ticket => <Card key={ticket.id} className="p-5"><div className="flex items-start justify-between gap-3"><div><p className="font-bold text-ink">#{ticket.id} · {ticket.subject}</p><p className="text-xs text-ink-3 mt-1">{ticket.category}</p></div><StatusBadge status={ticket.status === 'closed' ? 'obustavljeno' : ticket.status === 'waiting' ? 'na_cekanju' : 'aktivno'} /></div><div className="mt-4 space-y-2">{ticket.messages.map(message => <div key={message.id} className={`rounded-lg p-3 text-sm ${message.from_support ? 'bg-blue-50 text-blue-900' : 'bg-mint-50 text-ink'}`}><p className="text-xs font-semibold">{message.from_support ? 'Podrška' : 'Ti'} · {message.created_at ? new Date(message.created_at).toLocaleString('sr-RS') : ''}</p><p className="mt-1 whitespace-pre-wrap">{message.body}</p></div>)}</div></Card>)}
+                {tickets.length === 0 ? <EmptyState icon="🎫" title="Nema tiketa" description="Kada pošalješ zahtev, ovde ćeš videti celu prepisku." /> : tickets.map(ticket => <Card key={ticket.id} className="p-5"><div className="flex items-start justify-between gap-3"><div><p className="font-bold text-ink">#{ticket.id} · {ticket.subject}</p><p className="text-xs text-ink-3 mt-1">{ticket.category}</p></div><StatusBadge status={ticket.status === 'closed' ? 'obustavljeno' : ticket.status === 'waiting' ? 'na_cekanju' : 'aktivno'} /></div><div className="mt-4 space-y-2">{ticket.messages.map(message => <div key={message.id} className={`rounded-lg p-3 text-sm ${message.from_support ? 'bg-blue-50 text-blue-900' : 'bg-mint-50 text-ink'}`}><p className="text-xs font-semibold">{message.from_support ? 'Podrška' : 'Ti'} · {message.created_at ? new Date(message.created_at).toLocaleString('sr-RS') : ''}</p><p className="mt-1 whitespace-pre-wrap">{message.body}</p></div>)}</div><Btn size="sm" variant="secondary" className="mt-4" onClick={() => { const body = window.prompt('Odgovor podršci:'); if (!body?.trim()) return; void (async () => { try { await api.replyToTicket(ticket.id, body.trim()); await refreshDashboard(); showToast('Odgovor je poslat.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Odgovor nije poslat.', 'error') } })() }}>Odgovori</Btn></Card>)}
               </div>
             )}
           </div>
