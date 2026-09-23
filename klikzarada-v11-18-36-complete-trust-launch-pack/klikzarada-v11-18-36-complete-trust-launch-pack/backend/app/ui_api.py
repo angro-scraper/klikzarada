@@ -400,6 +400,14 @@ def _ticket_data(ticket: SupportTicket) -> dict:
     }
 
 
+def _paypal_email(value: str | None) -> str:
+    """Normalize the only payout destination the platform accepts."""
+    recipient = (value or "").strip().lower()
+    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", recipient):
+        raise HTTPException(400, "Unesi važeću PayPal email adresu za isplatu.")
+    return recipient
+
+
 _BANNER_SLOT_DEFAULTS = (
     ("home_top_left", "Početna — gornji levi premium banner", "home_top", "half", 5000),
     ("home_top_right", "Početna — gornji desni premium banner", "home_top", "half", 5000),
@@ -692,8 +700,8 @@ def save_user_profile(payload: ProfilePayload, request: Request, db: Session = D
     user.full_name = payload.full_name.strip()
     user.phone = phone or None
     user.city = (payload.city or "").strip() or None
-    user.payment_method = (payload.payment_method or "").strip() or None
-    user.payment_details = (payload.payment_details or "").strip() or None
+    user.payment_method = "PayPal"
+    user.payment_details = _paypal_email(payload.payment_details)
     db.commit()
     return {"user": _user_data(user)}
 
@@ -955,9 +963,12 @@ def request_withdrawal(payload: WithdrawalPayload, request: Request, db: Session
         raise HTTPException(400, f"Minimalna isplata je {MIN_WITHDRAWAL_RSD:.0f} RSD.")
     if payload.amount_rsd > user.balance_rsd:
         raise HTTPException(400, "Nema dovoljno raspoloživog salda.")
+    if payload.payment_method.strip().lower() != "paypal":
+        raise HTTPException(400, "KlikZarada trenutno podržava isplate samo na PayPal email adresu.")
+    recipient = _paypal_email(payload.payment_details)
     user.balance_rsd = _money(user.balance_rsd - payload.amount_rsd)
-    user.payment_method = payload.payment_method.strip()
-    user.payment_details = payload.payment_details.strip()
+    user.payment_method = "PayPal"
+    user.payment_details = recipient
     item = Withdrawal(user_id=user.id, amount_rsd=payload.amount_rsd, payment_method=user.payment_method, payment_details=user.payment_details, status="pending")
     db.add(item)
     db.add(WalletTransaction(user_id=user.id, amount_rsd=-payload.amount_rsd, tx_type="withdrawal_hold", description=f"Rezervisan zahtev za isplatu: {payload.amount_rsd:.0f} RSD"))
@@ -1093,10 +1104,7 @@ def _paypal_payout_config() -> tuple[tuple[str, str, str, Decimal], str, Decimal
 def _paypal_payout_recipient(withdrawal: Withdrawal) -> str:
     if "paypal" not in (withdrawal.payment_method or "").lower():
         raise HTTPException(400, "Za PayPal isplatu korisnik mora izabrati PayPal kao metod isplate.")
-    recipient = (withdrawal.payment_details or "").strip().lower()
-    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", recipient):
-        raise HTTPException(400, "Podaci za isplatu moraju sadržati važeću PayPal email adresu.")
-    return recipient
+    return _paypal_email(withdrawal.payment_details)
 
 
 def _paypal_payout_data(attempt: PayPalPayoutAttempt) -> dict:

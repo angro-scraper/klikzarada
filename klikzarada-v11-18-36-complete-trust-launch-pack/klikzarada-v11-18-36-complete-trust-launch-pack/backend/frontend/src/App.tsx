@@ -55,6 +55,22 @@ function AdminRoute({ onNavigate }: { onNavigate: (id: string) => void }) {
   return <AdminHub onNavigate={onNavigate} />
 }
 
+function AdvertiserRoute({ onNavigate }: { onNavigate: (id: string) => void }) {
+  const [checked, setChecked] = useState(false)
+
+  useEffect(() => {
+    void api.session()
+      .then(({ user }) => {
+        if (user?.role !== 'oglasivac' && user?.role !== 'admin') onNavigate('advertiser-login')
+        else setChecked(true)
+      })
+      .catch(() => onNavigate('advertiser-login'))
+  }, [onNavigate])
+
+  if (!checked) return <div className="min-h-screen bg-mint-50" />
+  return <AdvertiserPanel onNavigate={onNavigate} />
+}
+
 export default function App() {
   const [route, setRoute] = useState<Route>(() => routeFromPath(window.location.pathname))
 
@@ -80,7 +96,7 @@ export default function App() {
   if (route === 'advertiser-register')return <Auth initialMode="advertiser-register" onNavigate={go} />
   if (route === 'admin-login')         return <Auth initialMode="admin-login" onNavigate={go} />
   if (route === 'dashboard')          return <UserDashboard onNavigate={go} />
-  if (route === 'advertiser')         return <AdvertiserPanel onNavigate={go} />
+  if (route === 'advertiser')         return <AdvertiserRoute onNavigate={go} />
   if (route === 'admin')              return <AdminRoute onNavigate={go} />
 
   return <Landing onNavigate={go} />

@@ -97,7 +97,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
   const [proofText, setProofText] = useState('')
   const [verification, setVerification] = useState<TaskVerification | null>(null)
   const [payoutAmount, setPayoutAmount] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('bankovni račun')
+  const [paymentMethod, setPaymentMethod] = useState('PayPal')
   const [paymentDetails, setPaymentDetails] = useState('')
   const [profileName, setProfileName] = useState('')
   const [saving, setSaving] = useState(false)
@@ -113,7 +113,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
       const [data, ticketData] = await Promise.all([api.userDashboard(), api.tickets()])
       setDashboard(data)
       setTickets(ticketData.tickets)
-      setPaymentMethod(data.user.payment_method || 'bankovni račun')
+      setPaymentMethod('PayPal')
       setPaymentDetails(data.user.payment_details || '')
       setProfileName(data.user.full_name)
       setDashboardError('')
@@ -239,14 +239,14 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
       <ConfirmModal
         open={confirmPayout}
         title="Zatražiti isplatu?"
-        description={`Iznos od ${formatRsd(Number(payoutAmount) || balance)} biće prosleđen na navedene podatke. Zahtev prvo prolazi administrativnu proveru.`}
+        description={`Iznos od ${formatRsd(Number(payoutAmount) || balance)} biće prosleđen na tvoj PayPal e-mail. Zahtev prvo prolazi administrativnu proveru.`}
         confirmLabel="Zatraži isplatu"
         cancelLabel="Otkaži"
         variant="success"
         onConfirm={async () => {
           const amount = Number(payoutAmount) || balance
           if (!paymentDetails.trim()) {
-            showToast('Unesi podatke za isplatu pre slanja zahteva.', 'error')
+            showToast('Unesi PayPal e-mail adresu pre slanja zahteva.', 'error')
             return
           }
           setSaving(true)
@@ -590,7 +590,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                 <Card className="p-5">
                   <h3 className="font-bold text-ink mb-4">Podaci za isplatu</h3>
                   <div className="divide-y divide-frame">
-                    {[["Metoda", user?.payment_method || 'Nije podešeno'], ['Podaci računa', user?.payment_details ? 'Sačuvano' : '—'], ['Primalac', user?.full_name || '—']].map(([k, v]) => (
+                    {[["Metoda", 'PayPal'], ['PayPal e-mail', user?.payment_details ? 'Sačuvan' : '—'], ['Primalac', user?.full_name || '—']].map(([k, v]) => (
                       <div key={k} className="flex justify-between py-3">
                         <span className="text-sm text-ink-2">{k}</span>
                         <span className="text-sm text-ink font-medium">{v}</span>
@@ -610,7 +610,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
             {/* ── PODACI ZA ISPLATU ── */}
             {page === 'podaci-isplata' && (
               <div className="space-y-4">
-                <SectionHeader title="Podaci za isplatu" description="Unesi podatke računa na koji primaš isplate." />
+                <SectionHeader title="Podaci za PayPal isplatu" description="Unesi PayPal e-mail adresu na koju primaš isplate." />
                 <Card className="p-5 space-y-4">
                   <Alert type="info">Podaci su zaštićeni i koriste se isključivo za isplatu zarade.</Alert>
                   <div className="flex flex-col gap-1.5">
@@ -619,14 +619,14 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Metoda isplate</label>
-                    <input value={paymentMethod} onChange={event => setPaymentMethod(event.target.value)} placeholder="npr. bankovni račun" className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                    <div className="bg-blue-50 border border-blue-200 text-blue-900 rounded-lg px-3 py-2 text-sm font-semibold">PayPal</div>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Broj računa / podaci za isplatu</label>
-                    <input value={paymentDetails} onChange={event => setPaymentDetails(event.target.value)} placeholder="160-000000000000-00" className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                    <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">PayPal e-mail adresa</label>
+                    <input type="email" value={paymentDetails} onChange={event => setPaymentDetails(event.target.value)} placeholder="ime@primer.com" className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
                   </div>
                   <div className="flex gap-2">
-                    <Btn variant="success" disabled={saving || !profileName.trim() || !paymentDetails.trim()} onClick={async () => { setSaving(true); try { await api.saveProfile({ full_name: profileName, payment_method: paymentMethod, payment_details: paymentDetails }); await refreshDashboard(); showToast('Podaci za isplatu su sačuvani.', 'success'); goTo('isplate') } catch (error) { showToast(error instanceof Error ? error.message : 'Podaci nisu sačuvani.', 'error') } finally { setSaving(false) } }}>{saving ? 'Čuvanje...' : 'Sačuvaj podatke'}</Btn>
+                    <Btn variant="success" disabled={saving || !profileName.trim() || !paymentDetails.trim()} onClick={async () => { setSaving(true); try { await api.saveProfile({ full_name: profileName, payment_method: 'PayPal', payment_details: paymentDetails }); await refreshDashboard(); showToast('PayPal podaci za isplatu su sačuvani.', 'success'); goTo('isplate') } catch (error) { showToast(error instanceof Error ? error.message : 'Podaci nisu sačuvani.', 'error') } finally { setSaving(false) } }}>{saving ? 'Čuvanje...' : 'Sačuvaj podatke'}</Btn>
                     <Btn variant="secondary" onClick={() => goTo('isplate')}>Otkaži</Btn>
                   </div>
                 </Card>
