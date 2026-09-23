@@ -371,6 +371,10 @@ def _task_data(task: Task) -> dict:
         "min_user_level": task.min_user_level or "Bronza",
         "featured": bool(task.featured),
         "status": _status(task.status),
+        "moderation_note": task.moderation_note,
+        "target_city": task.target_city,
+        "target_age_group": task.target_age_group,
+        "target_interests": task.target_interests,
         "created_at": _iso(task.created_at),
     }
 
@@ -1493,6 +1497,55 @@ def create_campaign(payload: CampaignPayload, request: Request, db: Session = De
     return {"campaign": _task_data(task), "reserved_rsd": total}
 
 
+@router.put("/advertiser/campaigns/{task_id}")
+def revise_campaign(task_id: int, payload: CampaignPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    """Resubmit an admin-requested revision and reconcile its held budget."""
+    user = _require_user(request, db, {"oglasivac", "admin"})
+    task = db.query(Task).filter(Task.id == task_id, Task.advertiser_id == user.id).with_for_update().first()
+    if not task:
+        raise HTTPException(404, "Kampanja nije pronađena.")
+    if task.status != "needs_revision":
+        raise HTTPException(409, "Samo kampanja vraćena na doradu može ponovo da se pošalje.")
+    category = payload.category.strip()
+    if category not in _SAFE_CAMPAIGN_CATEGORIES:
+        raise HTTPException(400, "Izaberi jednu od dozvoljenih kategorija zadatka.")
+    if payload.total_slots < int(task.used_slots or 0):
+        raise HTTPException(400, "Broj mesta ne može biti manji od već odobrenih izvršenja.")
+
+    fee_percent = float(task.platform_fee_percent or PLATFORM_FEE_PERCENT)
+    old_total = _money(task.reward_rsd * task.total_slots * (1 + fee_percent / 100))
+    new_total = _money(payload.reward_rsd * payload.total_slots * (1 + fee_percent / 100))
+    difference = _money(new_total - old_total)
+    if difference > 0 and user.advertiser_budget_rsd < difference:
+        raise HTTPException(400, f"Nedovoljno budžeta za izmenu. Potrebno je još {difference:.0f} RSD.")
+    user.advertiser_budget_rsd = _money(user.advertiser_budget_rsd - difference)
+    user.advertiser_reserved_rsd = _money(max(0, user.advertiser_reserved_rsd + difference))
+    task.title = payload.title.strip()
+    task.category = category
+    task.task_type = payload.task_type.strip()
+    task.target_url = (payload.target_url or "").strip() or None
+    task.description = payload.description.strip()
+    task.instructions = payload.instructions.strip()
+    task.proof_required = payload.proof_required.strip()
+    task.reward_rsd = payload.reward_rsd
+    task.total_slots = payload.total_slots
+    task.target_city = payload.target_city
+    task.target_age_group = payload.target_age_group
+    task.target_interests = payload.target_interests
+    task.status = "pending"
+    task.moderation_note = "Izmenjena kampanja ponovo čeka administrativnu proveru."
+    if difference:
+        db.add(AdvertiserBudgetTransaction(
+            advertiser_id=user.id,
+            amount_rsd=-difference,
+            tx_type="revise_campaign_reservation",
+            description=f"Izmenjen rezervisani budžet za kampanju: {task.title}",
+        ))
+    db.commit()
+    db.refresh(task)
+    return {"campaign": _task_data(task), "reserved_rsd": new_total}
+
+
 def _admin_dashboard_data(db: Session) -> dict:
     pending_submissions = db.query(TaskSubmission).filter(TaskSubmission.status == "pending").count()
     pending_withdrawals = db.query(Withdrawal).filter(Withdrawal.status == "pending").count()
@@ -1611,13 +1664,27 @@ def admin_campaigns(request: Request, db: Session = Depends(get_db)) -> dict:
 @router.patch("/admin/campaigns/{task_id}")
 def update_campaign_status(task_id: int, payload: AdminStatusPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     admin = _require_user(request, db, {"admin"})
-    task = db.query(Task).filter(Task.id == task_id).first()
+    task = db.query(Task).filter(Task.id == task_id).with_for_update().first()
     if not task:
         raise HTTPException(404, "Kampanja nije pronađena.")
-    if payload.status not in {"active", "rejected", "paused"}:
+    if payload.status not in {"active", "rejected", "paused", "needs_revision"}:
         raise HTTPException(400, "Nevažeći status kampanje.")
+    if payload.status == "rejected" and task.status in {"pending", "needs_revision"} and task.advertiser_id:
+        advertiser = db.query(User).filter(User.id == task.advertiser_id).with_for_update().first()
+        if advertiser:
+            held_amount = _money(task.reward_rsd * task.total_slots * (1 + (task.platform_fee_percent or PLATFORM_FEE_PERCENT) / 100))
+            advertiser.advertiser_reserved_rsd = _money(max(0, advertiser.advertiser_reserved_rsd - held_amount))
+            advertiser.advertiser_budget_rsd = _money(advertiser.advertiser_budget_rsd + held_amount)
+            db.add(AdvertiserBudgetTransaction(
+                advertiser_id=advertiser.id,
+                amount_rsd=held_amount,
+                tx_type="release_campaign_reservation",
+                description=f"Vraćen budžet za odbijenu kampanju: {task.title}",
+            ))
     task.status = payload.status
-    task.moderation_note = payload.note
+    task.moderation_note = (payload.note or "").strip() or (
+        "Administrator traži izmenu kampanje pre odobrenja." if payload.status == "needs_revision" else None
+    )
     _audit(db, admin, "campaign_status_update", "Task", task.id, payload.status)
     db.commit()
     return {"campaign": _task_data(task)}
@@ -1649,8 +1716,22 @@ def review_submission(submission_id: int, payload: AdminStatusPayload, request: 
         user.balance_rsd = _money(user.balance_rsd + submission.reward_rsd)
         user.lifetime_earned_rsd = _money(user.lifetime_earned_rsd + submission.reward_rsd)
         db.add(WalletTransaction(user_id=user.id, amount_rsd=submission.reward_rsd, tx_type="task_reward", description=f"Odobren zadatak: {submission.task.title}"))
+        task = submission.task
+        advertiser = task.advertiser if task else None
+        if advertiser:
+            advertiser_cost = _money(submission.advertiser_cost_rsd)
+            advertiser.advertiser_reserved_rsd = _money(max(0, advertiser.advertiser_reserved_rsd - advertiser_cost))
+            advertiser.advertiser_spent_rsd = _money(advertiser.advertiser_spent_rsd + advertiser_cost)
+            db.add(AdvertiserBudgetTransaction(
+                advertiser_id=advertiser.id,
+                amount_rsd=0,
+                tx_type="spend_campaign_result",
+                description=f"Odobren rezultat kampanje: {task.title}",
+            ))
     else:
         user.pending_rsd = _money(user.pending_rsd - submission.reward_rsd)
+        if submission.task:
+            submission.task.used_slots = max(0, int(submission.task.used_slots or 0) - 1)
     _audit(db, admin, "submission_review", "TaskSubmission", submission.id, payload.status)
     db.commit()
     return {"submission": _submission_data(submission)}

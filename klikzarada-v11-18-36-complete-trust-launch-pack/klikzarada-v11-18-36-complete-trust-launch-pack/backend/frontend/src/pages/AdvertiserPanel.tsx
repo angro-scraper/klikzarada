@@ -153,18 +153,18 @@ const CRUMBS: Partial<Record<Page, { label: string }[]>> = {
   podrska:   [{ label: 'Oglašivač' }, { label: 'Podrška' }],
 }
 
-function NovaCampanja({ onCancel, onSuccess, onCreate, feePercent, categories }: { onCancel: () => void; onSuccess: () => void; onCreate: (payload: Parameters<typeof api.createCampaign>[0]) => Promise<void>; feePercent: number; categories: string[] }) {
+function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, categories, campaign }: { onCancel: () => void; onSuccess: () => void; onCreate: (payload: Parameters<typeof api.createCampaign>[0]) => Promise<void>; onRevise: (id: number, payload: Parameters<typeof api.createCampaign>[0]) => Promise<void>; feePercent: number; categories: string[]; campaign?: import('../lib/api').Task }) {
   const [step, setStep] = useState(1)
-  const [naziv, setNaziv] = useState('')
-  const [reward, setReward] = useState('')
-  const [budget, setBudget] = useState('')
-  const [description, setDescription] = useState('')
-  const [taskUrl, setTaskUrl] = useState('')
-  const [category, setCategory] = useState('')
-  const [proofRequired, setProofRequired] = useState('screenshot')
-  const [targetCity, setTargetCity] = useState('Srbija')
-  const [targetAgeGroup, setTargetAgeGroup] = useState('18+')
-  const [targetInterests, setTargetInterests] = useState('')
+  const [naziv, setNaziv] = useState(campaign?.title ?? '')
+  const [reward, setReward] = useState(campaign ? String(campaign.reward_rsd) : '')
+  const [budget, setBudget] = useState(campaign ? String(Math.ceil(campaign.reward_rsd * campaign.total_slots * (1 + feePercent / 100))) : '')
+  const [description, setDescription] = useState(campaign?.description ?? '')
+  const [taskUrl, setTaskUrl] = useState(campaign?.target_url ?? '')
+  const [category, setCategory] = useState(campaign?.category ?? '')
+  const [proofRequired, setProofRequired] = useState(campaign?.proof_required ?? 'screenshot')
+  const [targetCity, setTargetCity] = useState(campaign?.target_city ?? 'Srbija')
+  const [targetAgeGroup, setTargetAgeGroup] = useState(campaign?.target_age_group ?? '18+')
+  const [targetInterests, setTargetInterests] = useState(campaign?.target_interests ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
@@ -174,7 +174,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, feePercent, categories }:
     return (
       <div className="flex flex-col items-center text-center py-12">
         <span className="text-5xl mb-4">🎉</span>
-        <h2 className="text-xl font-extrabold text-ink mb-2">Kampanja je poslata na moderaciju!</h2>
+        <h2 className="text-xl font-extrabold text-ink mb-2">{campaign ? 'Izmena je poslata na moderaciju!' : 'Kampanja je poslata na moderaciju!'}</h2>
         <p className="text-sm text-ink-2 max-w-xs mb-6">Dobićeš obaveštenje kada kampanja bude odobrena. Status možeš pratiti u sekciji Kampanje.</p>
         <Btn onClick={onSuccess}>Idi na kampanje</Btn>
       </div>
@@ -183,7 +183,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, feePercent, categories }:
 
   return (
     <div>
-      <SectionHeader title="Nova kampanja" description="Kreiraj merljiv, bezbedan zadatak koji može da se proveri dokazom." />
+      <SectionHeader title={campaign ? 'Doradi kampanju' : 'Nova kampanja'} description={campaign?.moderation_note || 'Kreiraj merljiv, bezbedan zadatak koji može da se proveri dokazom.'} />
       <div className="flex items-center gap-2 mb-6 flex-wrap">
         {steps.map((s, i) => (
           <div key={s} className="flex items-center gap-2">
@@ -283,14 +283,16 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, feePercent, categories }:
                 setSubmitting(true)
                 setError('')
                 try {
-                  await onCreate({ title: naziv, category, task_type: category, target_url: taskUrl || undefined, description, instructions: description, proof_required: proofRequired, reward_rsd: rewardRsd, total_slots: totalSlots, target_city: targetCity || undefined, target_age_group: targetAgeGroup, target_interests: targetInterests || undefined })
+                  const payload = { title: naziv, category, task_type: category, target_url: taskUrl || undefined, description, instructions: description, proof_required: proofRequired, reward_rsd: rewardRsd, total_slots: totalSlots, target_city: targetCity || undefined, target_age_group: targetAgeGroup, target_interests: targetInterests || undefined }
+                  if (campaign) await onRevise(campaign.id, payload)
+                  else await onCreate(payload)
                   setSubmitted(true)
                 } catch (requestError) {
                   setError(requestError instanceof Error ? requestError.message : 'Kampanja nije poslata.')
                 } finally {
                   setSubmitting(false)
                 }
-              }} variant="success" className="flex-1 justify-center">{submitting ? 'Slanje...' : '✓ Pošalji na moderaciju'}</Btn>
+              }} variant="success" className="flex-1 justify-center">{submitting ? 'Slanje...' : campaign ? '✓ Pošalji izmenu na moderaciju' : '✓ Pošalji na moderaciju'}</Btn>
             </div>
           </div>
         )}
@@ -305,6 +307,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [proofsTab, setProofsTab] = useState('svi')
   const [logoutConfirm, setLogoutConfirm] = useState(false)
   const [dashboard, setDashboard] = useState<AdvertiserDashboardData | null>(null)
+  const [campaignToRevise, setCampaignToRevise] = useState<import('../lib/api').Task | null>(null)
   const [dashboardError, setDashboardError] = useState('')
   const [topupAmount, setTopupAmount] = useState('')
   const [topupError, setTopupError] = useState('')
@@ -407,11 +410,12 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
     ? selectedBannerSlot.price_rsd * normalizedBannerDays / (pricing?.banner_price_basis_days ?? 7)
     : 0
   const campaigns = (dashboard?.tasks ?? []).map(task => ({
+    task,
     naziv: task.title,
     budžet: `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.total_slots * feeMultiplier)} RSD`,
     potrošeno: `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.used_slots * feeMultiplier)} RSD`,
     dokazi: task.used_slots,
-    status: task.status === 'active' ? 'aktivno' : task.status === 'pending' ? 'na_cekanju' : task.status === 'paused' ? 'obustavljeno' : task.status === 'rejected' ? 'odbijeno' : task.status,
+    status: task.status === 'active' ? 'aktivno' : task.status === 'pending' ? 'na_cekanju' : task.status === 'paused' ? 'obustavljeno' : task.status === 'rejected' ? 'odbijeno' : task.status === 'needs_revision' ? 'dorada' : task.status,
   }))
   const proofs = (dashboard?.submissions ?? []).map(submission => ({
     id: submission.id,
@@ -527,17 +531,20 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
             {page === 'nova' && (
               <NovaCampanja
-                onCancel={() => goTo('pregled')}
-                onSuccess={() => goTo('kampanje')}
+                key={campaignToRevise?.id ?? 'new'}
+                onCancel={() => { setCampaignToRevise(null); goTo('pregled') }}
+                onSuccess={() => { setCampaignToRevise(null); goTo('kampanje') }}
                 onCreate={async payload => { await api.createCampaign(payload); await refreshDashboard(); showToast('Kampanja je poslata na moderaciju.', 'success') }}
+                onRevise={async (id, payload) => { await api.reviseCampaign(id, payload); await refreshDashboard(); showToast('Izmena kampanje je poslata na novu moderaciju.', 'success') }}
                 feePercent={feePercent}
                 categories={pricing?.task_categories ?? []}
+                campaign={campaignToRevise ?? undefined}
               />
             )}
 
             {page === 'kampanje' && (
               <div>
-                <SectionHeader title="Moje kampanje" action={<Btn onClick={() => goTo('nova')} size="sm">+ Nova kampanja</Btn>} />
+                <SectionHeader title="Moje kampanje" action={<Btn onClick={() => { setCampaignToRevise(null); goTo('nova') }} size="sm">+ Nova kampanja</Btn>} />
                 <Card>
                   <Table
                     headers={['Naziv', 'Budžet', 'Potrošeno', 'Dokazi', 'Status', 'Akcija']}
@@ -547,7 +554,9 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                       <span className="font-mono text-amber-700">{c.potrošeno}</span>,
                       <span className="font-mono">{c.dokazi}</span>,
                       <StatusBadge status={c.status} />,
-                      <Btn size="sm" variant="ghost">Detalji</Btn>,
+                      c.task.status === 'needs_revision'
+                        ? <Btn size="sm" variant="secondary" onClick={() => { setCampaignToRevise(c.task); goTo('nova') }}>Doradi</Btn>
+                        : <span className="text-xs text-ink-3">{c.task.moderation_note || '—'}</span>,
                     ])}
                   />
                 </Card>

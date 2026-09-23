@@ -127,7 +127,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [blockUser, setBlockUser] = useState<{ id: number; ime: string; action: 'block' | 'unblock' } | null>(null)
   const [payoutAction, setPayoutAction] = useState<{ id: number; korisnik: string; iznos: string; type: 'approve' | 'reject' } | null>(null)
   const [paypalPayoutAction, setPaypalPayoutAction] = useState<{ id: number; korisnik: string; iznos: string } | null>(null)
-  const [campAction, setCampAction] = useState<{ id: number; naziv: string; type: 'approve' | 'reject' } | null>(null)
+  const [campAction, setCampAction] = useState<{ id: number; naziv: string; type: 'approve' | 'reject' | 'revision' } | null>(null)
   const [submissionAction, setSubmissionAction] = useState<{ id: number; naslov: string; type: 'approve' | 'reject' } | null>(null)
   const [bannerAction, setBannerAction] = useState<{ id: number; naslov: string; iznos: number; type: 'approve' | 'reject' } | null>(null)
   const [userStatuses, setUserStatuses] = useState<Record<number, string>>({})
@@ -192,7 +192,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   }
   function campStatus(id: number, orig: string) {
     const status = campStatuses[id] ?? orig
-    return status === 'pending' ? 'na_cekanju' : status === 'active' ? 'aktivno' : status === 'rejected' ? 'odbijeno' : status === 'paused' ? 'obustavljeno' : status
+    return status === 'pending' ? 'na_cekanju' : status === 'active' ? 'aktivno' : status === 'rejected' ? 'odbijeno' : status === 'paused' ? 'obustavljeno' : status === 'needs_revision' ? 'dorada' : status
   }
   function sourceStatus(status: string) { return status === 'active' ? 'aktivno' : status === 'paused' ? 'obustavljeno' : status === 'error' ? 'greska' : status }
   function ticketStatus(status: string) { return status === 'open' ? 'otvoren' : status === 'waiting' ? 'na_cekanju' : status === 'closed' ? 'zatvoreno' : status }
@@ -313,20 +313,22 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
       <ConfirmModal
         open={campAction !== null}
-        title={campAction?.type === 'approve' ? 'Odobri kampanju?' : 'Odbij kampanju?'}
+        title={campAction?.type === 'approve' ? 'Odobri kampanju?' : campAction?.type === 'revision' ? 'Vratiti kampanju na doradu?' : 'Odbij kampanju?'}
         description={campAction?.type === 'approve'
           ? `Kampanja "${campAction?.naziv}" postaje aktivna i vidljiva korisnicima.`
-          : `Kampanja "${campAction?.naziv}" je odbijena. Oglašivač će biti obavešten.`}
-        confirmLabel={campAction?.type === 'approve' ? 'Aktiviraj kampanju' : 'Odbij kampanju'}
+          : campAction?.type === 'revision'
+            ? `Oglašivač će dobiti zahtev da izmeni kampanju, bez gubitka trenutno rezervisanog budžeta.`
+            : `Kampanja "${campAction?.naziv}" je odbijena, a rezervisani budžet će se vratiti oglašivaču.`}
+        confirmLabel={campAction?.type === 'approve' ? 'Aktiviraj kampanju' : campAction?.type === 'revision' ? 'Vrati na doradu' : 'Odbij kampanju'}
         cancelLabel="Otkaži"
         variant={campAction?.type === 'approve' ? 'success' : 'danger'}
         onConfirm={async () => {
           if (!campAction) return
           setSavingAction(true)
           try {
-            await api.updateAdminCampaign(campAction.id, campAction.type === 'approve' ? 'active' : 'rejected')
+            await api.updateAdminCampaign(campAction.id, campAction.type === 'approve' ? 'active' : campAction.type === 'revision' ? 'needs_revision' : 'rejected')
             await refreshAdmin()
-            showToast(campAction.type === 'approve' ? 'Kampanja je aktivirana.' : 'Kampanja je odbijena.', campAction.type === 'approve' ? 'success' : 'error')
+            showToast(campAction.type === 'approve' ? 'Kampanja je aktivirana.' : campAction.type === 'revision' ? 'Kampanja je vraćena oglašivaču na doradu.' : 'Kampanja je odbijena, a budžet vraćen.', campAction.type === 'approve' ? 'success' : campAction.type === 'revision' ? 'warning' : 'error')
             setCampAction(null)
           } catch (error) {
             showToast(error instanceof Error ? error.message : 'Kampanja nije promenjena.', 'error')
@@ -524,8 +526,9 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                         <span className="font-mono">{new Intl.NumberFormat('sr-RS').format(c.reward_rsd * c.total_slots * 1.2)} RSD</span>,
                         <StatusBadge status={st} />,
                         st === 'na_cekanju'
-                          ? <div className="flex gap-1.5">
+                          ? <div className="flex flex-wrap gap-1.5">
                               <Btn size="sm" variant="success" disabled={savingAction} onClick={() => setCampAction({ id: c.id, naziv: c.title, type: 'approve' })}>Odobri</Btn>
+                              <Btn size="sm" variant="secondary" disabled={savingAction} onClick={() => setCampAction({ id: c.id, naziv: c.title, type: 'revision' })}>Doradi</Btn>
                               <Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setCampAction({ id: c.id, naziv: c.title, type: 'reject' })}>Odbij</Btn>
                             </div>
                           : <Btn size="sm" variant="ghost">Detalji</Btn>,

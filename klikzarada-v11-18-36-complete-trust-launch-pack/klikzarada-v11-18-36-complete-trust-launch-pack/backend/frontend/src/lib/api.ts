@@ -35,6 +35,10 @@ export type Task = {
   min_user_level: string
   featured: boolean
   status: string
+  moderation_note: string | null
+  target_city: string | null
+  target_age_group: string | null
+  target_interests: string | null
   created_at: string | null
 }
 
@@ -278,6 +282,9 @@ export const api = {
   createCampaign: (payload: CampaignPayload) => request<{ campaign: Task; reserved_rsd: number }>('/advertiser/campaigns', {
     method: 'POST', body: JSON.stringify(payload),
   }),
+  reviseCampaign: (id: number, payload: CampaignPayload) => request<{ campaign: Task; reserved_rsd: number }>(`/advertiser/campaigns/${id}`, {
+    method: 'PUT', body: JSON.stringify(payload),
+  }),
   createPayPalOrder: (amount_rsd: number, checkout_flow: 'redirect' | 'smart_button' = 'redirect') => request<PayPalOrder>('/advertiser/paypal/orders', {
     method: 'POST', body: JSON.stringify({ amount_rsd, checkout_flow }),
   }),
@@ -295,7 +302,7 @@ export const api = {
     method: 'PATCH', body: JSON.stringify({ status, note }),
   }),
   adminCampaigns: () => request<{ campaigns: AdminCampaign[] }>('/admin/campaigns'),
-  updateAdminCampaign: (id: number, status: 'active' | 'rejected' | 'paused', note?: string) => request<{ campaign: Task }>(`/admin/campaigns/${id}`, {
+  updateAdminCampaign: (id: number, status: 'active' | 'rejected' | 'paused' | 'needs_revision', note?: string) => request<{ campaign: Task }>(`/admin/campaigns/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),
   }),
   adminSubmissions: () => request<{ submissions: AdminSubmission[] }>('/admin/submissions'),
