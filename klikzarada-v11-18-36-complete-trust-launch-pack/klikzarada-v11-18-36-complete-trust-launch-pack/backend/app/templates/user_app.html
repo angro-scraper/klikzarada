@@ -23,6 +23,69 @@
   <a href="/korisnik/referral"><strong>Preporuke</strong><span>Pozovi i zaradi bonus</span></a>
 </section>
 
+<section class="earn-command-deck" aria-labelledby="earn-command-title">
+  <div class="earn-command-intro">
+    <span class="earn-command-kicker">ZARADA CENTAR</span>
+    <h2 id="earn-command-title">Sledeći najbolji potez je uvek na dohvat ruke.</h2>
+    <p>Radi proverene zadatke, održavaj kvalitet i prati šta ti tačno otključava bolju zaradu.</p>
+  </div>
+  <div class="earn-command-actions">
+    <article class="earn-command-card reward">
+      <span class="earn-command-icon">&#9733;</span>
+      <div>
+        <small>Dnevna nagrada</small>
+        <strong>{% if reward_claimed_today %}Preuzeta za danas{% else %}Spremna za preuzimanje{% endif %}</strong>
+        <p>{% if reward_claimed_today %}Vrati se sutra i sačuvaj kontinuitet.{% else %}Preuzmi poene za aktivnost i nastavi streak.{% endif %}</p>
+      </div>
+      {% if reward_claimed_today %}
+      <a class="earn-command-link" href="/korisnik/motivacija-v115">Detalji</a>
+      {% else %}
+      <form method="post" action="/korisnik/dnevna-nagrada-v115"><button class="earn-command-link" type="submit">Preuzmi</button></form>
+      {% endif %}
+    </article>
+    <article class="earn-command-card tier">
+      <span class="earn-command-icon">&#9830;</span>
+      <div>
+        <small>Tvoj status</small>
+        <strong>{{ tier_ctx.tier.name }}</strong>
+        <p>{% if tier_ctx.next_tier %}{{ tier_ctx.progress }}% do {{ tier_ctx.next_tier.name }} tier-a.{% else %}Dostignut je najviši reputacioni tier.{% endif %}</p>
+      </div>
+      <a class="earn-command-link" href="/korisnik/motivacija-v115">Napredak</a>
+    </article>
+    <article class="earn-command-card referral">
+      <span class="earn-command-icon">&#8599;</span>
+      <div>
+        <small>Referral program</small>
+        <strong>{{ refs|length }} pozvanih korisnika</strong>
+        <p>Bonus stiže kada pozvani korisnik dobije prvi odobren zadatak.</p>
+      </div>
+      <a class="earn-command-link" href="/korisnik/referral">Podeli link</a>
+    </article>
+  </div>
+</section>
+
+<section class="priority-task-deck" aria-labelledby="priority-task-title">
+  <div class="priority-task-head">
+    <div>
+      <span>PRIORITETNI ZADACI</span>
+      <h2 id="priority-task-title">Istaknute prilike za tvoj nalog</h2>
+    </div>
+    <a class="mini-btn" href="/korisnik/zadaci">Svi zadaci</a>
+  </div>
+  <div class="priority-task-grid">
+    {% for task in priority_tasks %}
+    <article>
+      <div class="priority-task-meta"><span>{{ task.category }}</span><small>{{ task.estimated_minutes }} min</small></div>
+      <h3>{{ task.title }}</h3>
+      <p>{{ task.description }}</p>
+      <footer><strong>+{{ "%.0f"|format(task.reward_rsd) }} RSD</strong><a href="/zadaci/{{ task.id }}">Pogledaj zadatak</a></footer>
+    </article>
+    {% else %}
+    <div class="priority-task-empty"><strong>Nema prioritetnih zadataka</strong><p>Kada oglašivač aktivira kampanju, ovde će biti prikazane najbolje prilike za tvoj nalog.</p></div>
+    {% endfor %}
+  </div>
+</section>
+
 <section class="premium-card">
   <div class="premium-card-head">
     <h2>Dnevne nagrade i misije</h2>
@@ -215,7 +278,7 @@
     <section class="kz115-section">
       <div class="kz115-head"><h2>Link za preporuke</h2><span>bonus</span></div>
       <p class="muted">Pozovi korisnike i dobijaš bonus kada im prvi dokaz bude odobren.</p>
-      <div class="copy">http://127.0.0.1:8000/registracija?ref={{ user.referral_code }}</div>
+      <div class="copy">{{ referral_url }}</div>
     </section>
 
     <section class="kz115-section">

@@ -2221,6 +2221,9 @@ def user_panel(request:Request, msg:str|None=None, db:Session=Depends(get_db)):
     tasks_today = len([s for s in subs if getattr(s.created_at, 'date', lambda: today)() == today])
     recent_tasks = tasks[:5]
     best_tasks = tasks[:6]
+    priority_tasks = [task for task in tasks if bool(task.featured)][:3]
+    if not priority_tasks:
+        priority_tasks = best_tasks[:3]
     progress_bars = [18, 28, 16, 40, 24, 47, 33, 44, 52]
     score = None
     if 'kz115_get_score' in globals():
@@ -2248,6 +2251,7 @@ def user_panel(request:Request, msg:str|None=None, db:Session=Depends(get_db)):
         "tasks": tasks,
         "best_tasks": best_tasks,
         "recent_tasks": recent_tasks,
+        "priority_tasks": priority_tasks,
         "subs": subs,
         "txs": txs,
         "withdrawals": withdrawals,
@@ -2268,6 +2272,7 @@ def user_panel(request:Request, msg:str|None=None, db:Session=Depends(get_db)):
     data.update(v11844_user_growth_context(db, u, subs, txs, withdrawals, refs, score))
     data["tier_ctx"] = v11845_user_tier_context(u, score, subs, refs)
     data["recommendation_rows"] = v11845_recommendation_rows(db, u, score)[:4]
+    data["referral_url"] = f"{str(request.base_url).rstrip('/')}/registracija?ref={u.referral_code}"
     return templates.TemplateResponse("user_app.html", {"request":request,"user":u,"flash":flash(msg),**data})
 
 @app.get("/korisnik/profil", response_class=HTMLResponse)
@@ -9685,6 +9690,7 @@ def user_referral_v1161(request: Request, db: Session = Depends(get_db)):
     refs = db.query(User).filter(User.referred_by_id == u.id).order_by(User.created_at.desc()).all()
     return templates.TemplateResponse("user_referral_v1161.html", {
         "request": request, "user": u, "flash": None, "refs": refs,
+        "referral_url": f"{str(request.base_url).rstrip('/')}/registracija?ref={u.referral_code}",
     })
 
 @app.get("/api/v1/v11/user-pages-fix-audit")

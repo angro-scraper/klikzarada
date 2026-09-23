@@ -13,7 +13,7 @@
 <div class="premium-dashboard-grid">
   <section class="premium-card gradient">
     <div class="premium-card-head"><h2>Tvoj referral link</h2><span>{{ refs|length }} pozvanih</span></div>
-    <div class="premium-copy-box">http://127.0.0.1:8000/registracija?ref={{ user.referral_code }}</div>
+    <div class="premium-copy-box">{{ referral_url }}</div>
   </section>
   <section class="premium-card">
     <div class="premium-card-head"><h2>Pozvani korisnici</h2><span>{{ refs|length }}</span></div>
