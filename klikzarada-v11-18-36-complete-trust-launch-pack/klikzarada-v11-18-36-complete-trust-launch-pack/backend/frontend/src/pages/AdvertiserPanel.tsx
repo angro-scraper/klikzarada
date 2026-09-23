@@ -153,6 +153,42 @@ const CRUMBS: Partial<Record<Page, { label: string }[]>> = {
   podrska:   [{ label: 'Oglašivač' }, { label: 'Podrška' }],
 }
 
+type TaskDetailField = { key: string; label: string; placeholder: string }
+
+// Each approved work type has its own mandatory brief, rather than one vague description.
+const TASK_FORM_FIELDS: Record<string, { title: string; intro: string; fields: TaskDetailField[] }> = {
+  'Ankete i testiranja': { title: 'Brief za anketu', intro: 'Definiši koga pitaš, pitanja i prihvatljiv odgovor.', fields: [
+    { key: 'audience', label: 'Ko treba da odgovara', placeholder: 'npr. osobe koje kupuju online najmanje jednom mesečno' },
+    { key: 'questions', label: 'Pitanja i odgovori', placeholder: 'Navedi pitanja redom i minimalnu dužinu otvorenog odgovora.' },
+    { key: 'completion', label: 'Kriterijum završetka', placeholder: 'npr. odgovoriti na svih 8 pitanja bez ličnih podataka' },
+  ] },
+  'Testiranje sajta ili aplikacije': { title: 'Brief za UX test', intro: 'Traži konkretne scenarije, ne samo posetu stranici.', fields: [
+    { key: 'device', label: 'Uređaj i pregledač', placeholder: 'npr. Android telefon, Chrome; ili desktop, Firefox' },
+    { key: 'scenarios', label: 'Scenariji testiranja', placeholder: '1. Pronađi proizvod. 2. Dodaj u korpu. 3. Opiši gde je nastao problem.' },
+    { key: 'report', label: 'Format izveštaja', placeholder: 'Očekivano/stvarno ponašanje, koraci i screenshot ako postoji greška.' },
+  ] },
+  'Provera podataka': { title: 'Brief za proveru podataka', intro: 'Odredi izvor, polja koja se proveravaju i format predaje.', fields: [
+    { key: 'source', label: 'Izvor podataka', placeholder: 'Link, tabela ili opis izvora koji korisnik proverava.' },
+    { key: 'fields', label: 'Polja za proveru', placeholder: 'npr. naziv, adresa, telefon, radno vreme i pravilo za svako polje' },
+    { key: 'output', label: 'Format rezultata', placeholder: 'npr. Naziv | proverena vrednost | izvor | napomena' },
+  ] },
+  'Kratak feedback': { title: 'Brief za feedback', intro: 'Traži iskreno mišljenje o materijalu, nikada lažnu javnu recenziju ili ocenu.', fields: [
+    { key: 'material', label: 'Materijal za pregled', placeholder: 'Link ka stranici, prototipu, tekstu ili slici.' },
+    { key: 'angles', label: 'Pitanja za feedback', placeholder: 'npr. šta je jasno, šta zbunjuje i šta bi promenio/la' },
+    { key: 'minimum', label: 'Minimalni sadržaj odgovora', placeholder: 'npr. najmanje 3 odgovora od po 2 rečenice' },
+  ] },
+  'Lokalna provera': { title: 'Brief za lokalnu proveru', intro: 'Dozvoljene su samo bezbedne provere javno dostupnih informacija i mesta.', fields: [
+    { key: 'place', label: 'Javno mesto ili područje', placeholder: 'npr. centar Novog Sada ili javno dostupna poslovnica' },
+    { key: 'observations', label: 'Šta se proverava', placeholder: 'npr. radno vreme, dostupnost usluge i vidljivost izloga' },
+    { key: 'safety', label: 'Ograničenja i dokaz', placeholder: 'Bez snimanja ljudi i privatnih prostora; navedi prihvatljiv dokaz.' },
+  ] },
+  'Označavanje podataka': { title: 'Brief za označavanje podataka', intro: 'Objasni skup podataka, oznake i granične slučajeve kroz primer.', fields: [
+    { key: 'dataset', label: 'Skup podataka', placeholder: 'Šta korisnik označava i koliko stavki obrađuje.' },
+    { key: 'labels', label: 'Oznake i pravila', placeholder: 'npr. relevantno / nije relevantno, sa jasnim kriterijumima.' },
+    { key: 'examples', label: 'Primeri i kontrola kvaliteta', placeholder: 'Navedi makar jedan dobar i jedan loš primer odgovora.' },
+  ] },
+}
+
 function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, categories, campaign }: { onCancel: () => void; onSuccess: () => void; onCreate: (payload: Parameters<typeof api.createCampaign>[0]) => Promise<void>; onRevise: (id: number, payload: Parameters<typeof api.createCampaign>[0]) => Promise<void>; feePercent: number; categories: string[]; campaign?: import('../lib/api').Task }) {
   const [step, setStep] = useState(1)
   const [naziv, setNaziv] = useState(campaign?.title ?? '')
@@ -165,10 +201,14 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, cat
   const [targetCity, setTargetCity] = useState(campaign?.target_city ?? 'Srbija')
   const [targetAgeGroup, setTargetAgeGroup] = useState(campaign?.target_age_group ?? '18+')
   const [targetInterests, setTargetInterests] = useState(campaign?.target_interests ?? '')
+  const [taskDetails, setTaskDetails] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const steps = ['Definicija', 'Nagrada i budžet', 'Publika i dokaz', 'Pregled']
+  const taskForm = TASK_FORM_FIELDS[category]
+  const hasCompleteBrief = Boolean(taskForm) && taskForm.fields.every(field => taskDetails[field.key]?.trim())
+  const detailLines = taskForm?.fields.filter(field => taskDetails[field.key]?.trim()).map(field => `${field.label}: ${taskDetails[field.key].trim()}`) ?? []
 
   if (submitted) {
     return (
@@ -206,18 +246,25 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, cat
           <div className="space-y-4">
             <h3 className="font-bold text-ink">Definicija zadatka</h3>
             <Input label="Naziv kampanje" placeholder="npr. Test poručivanja na sajtu — oktobar" value={naziv} onChange={setNaziv} />
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Opis zadatka</label>
-              <textarea value={description} onChange={event => setDescription(event.target.value)} rows={3} placeholder="Šta korisnik treba da uradi? Budi precizan." className="bg-white border border-frame text-ink placeholder-ink-4 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none" />
-            </div>
-            <Select label="Kategorija" options={[
-              { value: '', label: 'Odaberi kategoriju' },
+            <Select label="Vrsta zadatka" options={[
+              { value: '', label: 'Odaberi vrstu zadatka' },
               ...categories.map(value => ({ value, label: value })),
-            ]} value={category} onChange={setCategory} />
+            ]} value={category} onChange={value => { setCategory(value); setTaskDetails({}) }} />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Cilj zadatka</label>
+              <textarea value={description} onChange={event => setDescription(event.target.value)} rows={3} placeholder="Koju poslovnu odluku ili problem ovaj zadatak pomaže da se proveri?" className="bg-white border border-frame text-ink placeholder-ink-4 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none" />
+            </div>
             <Input label="Link za zadatak (opciono)" placeholder="https://vas-sajt.rs/test" value={taskUrl} onChange={setTaskUrl} />
+            {taskForm && <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4 space-y-3">
+              <div><h4 className="font-bold text-ink">{taskForm.title}</h4><p className="mt-1 text-xs leading-5 text-ink-2">{taskForm.intro}</p></div>
+              {taskForm.fields.map(field => <div key={field.key} className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">{field.label}</label>
+                <textarea value={taskDetails[field.key] ?? ''} onChange={event => setTaskDetails(current => ({ ...current, [field.key]: event.target.value }))} rows={2} placeholder={field.placeholder} className="bg-white border border-frame text-ink placeholder-ink-4 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none" />
+              </div>)}
+            </div>}
             <div className="flex gap-2">
               <Btn variant="ghost" onClick={onCancel} size="sm">Otkaži</Btn>
-              <Btn onClick={() => setStep(2)} disabled={!naziv || !description || !category} className="flex-1 justify-center">Dalje →</Btn>
+              <Btn onClick={() => setStep(2)} disabled={!naziv || !description || !category || !hasCompleteBrief} className="flex-1 justify-center">Dalje →</Btn>
             </div>
           </div>
         )}
@@ -266,6 +313,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, cat
               <div className="bg-mint-50 border border-frame rounded-xl p-4 space-y-2 text-sm">
                 <div className="flex justify-between"><span className="text-ink-2">Naziv</span><span className="font-semibold text-ink">{naziv}</span></div>
                 <div className="flex justify-between gap-4"><span className="text-ink-2">Kategorija</span><span className="font-semibold text-ink text-right">{category}</span></div>
+                <div><span className="text-ink-2">Precizni detalji</span><ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-ink">{detailLines.map(line => <li key={line}>{line}</li>)}</ul></div>
                 <div className="flex justify-between"><span className="text-ink-2">Nagrada</span><span className="font-mono font-bold text-emerald-600">{reward} RSD</span></div>
                 <div className="flex justify-between"><span className="text-ink-2">Budžet</span><span className="font-mono font-bold text-blue-600">{budget} RSD</span></div>
             </div>
@@ -283,7 +331,8 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, cat
                 setSubmitting(true)
                 setError('')
                 try {
-                  const payload = { title: naziv, category, task_type: category, target_url: taskUrl || undefined, description, instructions: description, proof_required: proofRequired, reward_rsd: rewardRsd, total_slots: totalSlots, target_city: targetCity || undefined, target_age_group: targetAgeGroup, target_interests: targetInterests || undefined }
+                  const fullDescription = `${description.trim()}\n\nSpecifikacija zadatka:\n${detailLines.map(line => `- ${line}`).join('\n')}`
+                  const payload = { title: naziv, category, task_type: category, target_url: taskUrl || undefined, description: fullDescription, instructions: `Korisnik treba da prati specifikaciju zadatka i dostavi samo traženi dokaz.\n${detailLines.map(line => `- ${line}`).join('\n')}`, proof_required: proofRequired, reward_rsd: rewardRsd, total_slots: totalSlots, target_city: targetCity || undefined, target_age_group: targetAgeGroup, target_interests: targetInterests || undefined }
                   if (campaign) await onRevise(campaign.id, payload)
                   else await onCreate(payload)
                   setSubmitted(true)
