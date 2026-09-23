@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Sidebar, TopBar } from '../components/Sidebar'
 import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tabs, Alert, Input, Select } from '../components/ui'
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
+import { api, type AdvertiserDashboardData } from '../lib/api'
 
 const navGroups = [
   { items: [
@@ -28,20 +29,6 @@ const navGroups = [
     { id: 'profil', label: 'Profil firme', icon: '🏢' },
     { id: 'podrska', label: 'Podrška', icon: '💬' },
   ]},
-]
-
-const campaignsData = [
-  { naziv: 'Instagram kampanja — Dec 2024', budžet: '5.000 RSD', potrošeno: '2.340 RSD', dokazi: 12, status: 'aktivno' },
-  { naziv: 'Anketa — kupovne navike Q4', budžet: '3.000 RSD', potrošeno: '3.000 RSD', dokazi: 37, status: 'obustavljeno' },
-  { naziv: 'Google Play recenzije', budžet: '8.000 RSD', potrošeno: '1.200 RSD', dokazi: 6, status: 'na_cekanju' },
-]
-
-const proofsData = [
-  { id: 1, korisnik: 'marko_m', zadatak: 'Instagram lajk', poslato: '23.12.2024', status: 'na_proveri' },
-  { id: 2, korisnik: 'jelena_j', zadatak: 'Instagram lajk', poslato: '23.12.2024', status: 'na_proveri' },
-  { id: 3, korisnik: 'nikola_p', zadatak: 'Anketa kupovine', poslato: '22.12.2024', status: 'odobreno' },
-  { id: 4, korisnik: 'ana_s', zadatak: 'Instagram lajk', poslato: '22.12.2024', status: 'odbijeno' },
-  { id: 5, korisnik: 'stefan_k', zadatak: 'Play recenzija', poslato: '21.12.2024', status: 'na_proveri' },
 ]
 
 type Page = 'pregled'|'nova'|'kampanje'|'dokazi'|'analitika'|'budzet'|'fakture'|'izvestaji'|'banneri'|'premium'|'profil'|'podrska'
@@ -74,11 +61,16 @@ const CRUMBS: Partial<Record<Page, { label: string }[]>> = {
   podrska:   [{ label: 'Oglašivač' }, { label: 'Podrška' }],
 }
 
-function NovaCampanja({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: () => void }) {
+function NovaCampanja({ onCancel, onSuccess, onCreate }: { onCancel: () => void; onSuccess: () => void; onCreate: (payload: Parameters<typeof api.createCampaign>[0]) => Promise<void> }) {
   const [step, setStep] = useState(1)
   const [naziv, setNaziv] = useState('')
   const [reward, setReward] = useState('')
   const [budget, setBudget] = useState('')
+  const [description, setDescription] = useState('')
+  const [category, setCategory] = useState('social')
+  const [proofRequired, setProofRequired] = useState('screenshot')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const steps = ['Definicija', 'Nagrada i budžet', 'Publika i dokaz', 'Pregled']
 
@@ -120,7 +112,7 @@ function NovaCampanja({ onCancel, onSuccess }: { onCancel: () => void; onSuccess
             <Input label="Naziv kampanje" placeholder="npr. Instagram kampanja — jan 2025" value={naziv} onChange={setNaziv} />
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Opis zadatka</label>
-              <textarea rows={3} placeholder="Šta korisnik treba da uradi? Budi precizan." className="bg-white border border-frame text-ink placeholder-ink-4 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none" />
+              <textarea value={description} onChange={event => setDescription(event.target.value)} rows={3} placeholder="Šta korisnik treba da uradi? Budi precizan." className="bg-white border border-frame text-ink placeholder-ink-4 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none" />
             </div>
             <Select label="Kategorija" options={[
               { value: '', label: 'Odaberi kategoriju' },
@@ -129,10 +121,10 @@ function NovaCampanja({ onCancel, onSuccess }: { onCancel: () => void; onSuccess
               { value: 'recenzija', label: 'Recenzije' },
               { value: 'video', label: 'Video' },
               { value: 'web', label: 'Web zadaci' },
-            ]} />
+            ]} value={category} onChange={setCategory} />
             <div className="flex gap-2">
               <Btn variant="ghost" onClick={onCancel} size="sm">Otkaži</Btn>
-              <Btn onClick={() => setStep(2)} disabled={!naziv} className="flex-1 justify-center">Dalje →</Btn>
+              <Btn onClick={() => setStep(2)} disabled={!naziv || !description} className="flex-1 justify-center">Dalje →</Btn>
             </div>
           </div>
         )}
@@ -158,7 +150,7 @@ function NovaCampanja({ onCancel, onSuccess }: { onCancel: () => void; onSuccess
               { value: 'sve', label: 'Svi korisnici' },
               { value: 'trusted', label: 'Trusted i više' },
               { value: 'pro', label: 'Pro i više' },
-            ]} />
+            ]} value={proofRequired} onChange={setProofRequired} />
             <Select label="Potreban dokaz" options={[
               { value: '', label: 'Odaberi tip dokaza' },
               { value: 'screenshot', label: 'Screenshot' },
@@ -180,10 +172,28 @@ function NovaCampanja({ onCancel, onSuccess }: { onCancel: () => void; onSuccess
               <div className="flex justify-between"><span className="text-ink-2">Nagrada</span><span className="font-mono font-bold text-emerald-600">{reward} RSD</span></div>
               <div className="flex justify-between"><span className="text-ink-2">Budžet</span><span className="font-mono font-bold text-blue-600">{budget} RSD</span></div>
             </div>
-            <Alert type="warning">Kampanja ide na moderaciju pre aktivacije. Status možeš pratiti u sekciji Kampanje.</Alert>
+            {error && <Alert type="error">{error}</Alert>}
+            <Alert type="warning">Kampanja ide na moderaciju pre aktivacije. Budžet se rezerviše tek kada zahtev prođe proveru dostupnih sredstava.</Alert>
             <div className="flex gap-2">
               <Btn onClick={() => setStep(3)} variant="secondary">← Izmeni prethodni korak</Btn>
-              <Btn onClick={() => setSubmitted(true)} variant="success" className="flex-1 justify-center">✓ Pošalji na moderaciju</Btn>
+              <Btn disabled={submitting} onClick={async () => {
+                const rewardRsd = Number(reward)
+                const totalSlots = Math.floor(Number(budget) / (rewardRsd * 1.2))
+                if (!Number.isFinite(rewardRsd) || rewardRsd <= 0 || totalSlots < 1) {
+                  setError('Unesi validnu nagradu i budžet dovoljan za najmanje jedan zadatak.')
+                  return
+                }
+                setSubmitting(true)
+                setError('')
+                try {
+                  await onCreate({ title: naziv, category, task_type: category, description, instructions: description, proof_required: proofRequired, reward_rsd: rewardRsd, total_slots: totalSlots })
+                  setSubmitted(true)
+                } catch (requestError) {
+                  setError(requestError instanceof Error ? requestError.message : 'Kampanja nije poslata.')
+                } finally {
+                  setSubmitting(false)
+                }
+              }} variant="success" className="flex-1 justify-center">{submitting ? 'Slanje...' : '✓ Pošalji na moderaciju'}</Btn>
             </div>
           </div>
         )}
@@ -196,10 +206,37 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [page, setPage] = useState<Page>('pregled')
   const [mobileOpen, setMobileOpen] = useState(false)
   const [proofsTab, setProofsTab] = useState('svi')
-  const [proofAction, setProofAction] = useState<{ id: number; type: 'approve' | 'reject' } | null>(null)
-  const [proofStatuses, setProofStatuses] = useState<Record<number, string>>({})
   const [logoutConfirm, setLogoutConfirm] = useState(false)
+  const [dashboard, setDashboard] = useState<AdvertiserDashboardData | null>(null)
+  const [dashboardError, setDashboardError] = useState('')
   const { show: showToast, node: toastNode } = useToast()
+
+  const refreshDashboard = async () => {
+    try {
+      setDashboard(await api.advertiserDashboard())
+      setDashboardError('')
+    } catch (error) {
+      setDashboardError(error instanceof Error ? error.message : 'Podaci trenutno nisu dostupni.')
+    }
+  }
+
+  useEffect(() => { void refreshDashboard() }, [])
+
+  const advertiser = dashboard?.user
+  const campaigns = (dashboard?.tasks ?? []).map(task => ({
+    naziv: task.title,
+    budžet: `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.total_slots * 1.2)} RSD`,
+    potrošeno: `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.used_slots * 1.2)} RSD`,
+    dokazi: task.used_slots,
+    status: task.status === 'active' ? 'aktivno' : task.status === 'pending' ? 'na_cekanju' : task.status === 'paused' ? 'obustavljeno' : task.status === 'rejected' ? 'odbijeno' : task.status,
+  }))
+  const proofs = (dashboard?.submissions ?? []).map(submission => ({
+    id: submission.id,
+    korisnik: submission.user_name || 'Korisnik',
+    zadatak: submission.task_title,
+    poslato: submission.created_at ? new Intl.DateTimeFormat('sr-RS').format(new Date(submission.created_at)) : '—',
+    status: submission.status === 'pending' ? 'na_proveri' : submission.status === 'approved' ? 'odobreno' : submission.status === 'rejected' ? 'odbijeno' : submission.status,
+  }))
 
   function goTo(p: Page) { setPage(p) }
   const back = BACK[page]
@@ -207,9 +244,9 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
   const sidebarFooter = (
     <div className="flex items-center gap-2.5">
-      <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-white text-sm font-bold">A</div>
+      <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-white text-sm font-bold">{advertiser?.full_name?.slice(0, 1).toUpperCase() || 'O'}</div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white truncate">Acme d.o.o.</p>
+        <p className="text-sm font-semibold text-white truncate">{advertiser?.company_name || advertiser?.full_name || 'Učitavanje...'}</p>
         <p className="text-xs" style={{ color: '#4a6a8a' }}>Oglašivač</p>
       </div>
       <button
@@ -222,9 +259,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
     </div>
   )
 
-  function proofStatus(id: number, original: string) {
-    return proofStatuses[id] ?? original
-  }
+  function proofStatus(_id: number, original: string) { return original }
 
   return (
     <div className="flex h-screen bg-mint-50 text-ink overflow-hidden">
@@ -237,26 +272,8 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
         confirmLabel="Da, odjavi me"
         cancelLabel="Otkaži"
         variant="danger"
-        onConfirm={() => onNavigate('home')}
+        onConfirm={async () => { try { await api.logout() } finally { onNavigate('home') } }}
         onCancel={() => setLogoutConfirm(false)}
-      />
-
-      <ConfirmModal
-        open={proofAction !== null}
-        title={proofAction?.type === 'approve' ? 'Odobri dokaz?' : 'Odbij dokaz?'}
-        description={proofAction?.type === 'approve'
-          ? 'Korisniku će biti odobrena nagrada i sredstva će biti povučena iz budžeta kampanje.'
-          : 'Korisnik neće dobiti nagradu. Možeš uneti razlog odbijanja.'}
-        confirmLabel={proofAction?.type === 'approve' ? '✓ Odobri' : '✗ Odbij'}
-        cancelLabel="Otkaži"
-        variant={proofAction?.type === 'approve' ? 'success' : 'danger'}
-        onConfirm={() => {
-          if (!proofAction) return
-          setProofStatuses(s => ({ ...s, [proofAction.id]: proofAction.type === 'approve' ? 'odobreno' : 'odbijeno' }))
-          showToast(proofAction.type === 'approve' ? 'Dokaz je odobren.' : 'Dokaz je odbijen.', proofAction.type === 'approve' ? 'success' : 'error')
-          setProofAction(null)
-        }}
-        onCancel={() => setProofAction(null)}
       />
 
       {mobileOpen && <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />}
@@ -278,6 +295,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
         />
         <main className="flex-1 overflow-y-auto bg-mint-50">
           <div className="max-w-4xl mx-auto px-4 py-6">
+            {dashboardError && <div className="mb-4"><Alert type="error">{dashboardError}</Alert></div>}
             {page !== 'pregled' && (back || crumbs) && (
               <PageHeader
                 breadcrumbs={crumbs}
@@ -290,16 +308,16 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
               <div className="space-y-5">
                 <h1 className="text-xl font-extrabold text-ink">Pregled</h1>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <StatCard label="Raspoloživi budžet" value="9.460 RSD" accent="green" icon="💰" />
-                  <StatCard label="Rezervisan budžet" value="6.540 RSD" accent="orange" icon="🔒" />
-                  <StatCard label="Aktivnih kampanja" value="1" accent="blue" icon="🎯" />
-                  <StatCard label="Odobrenih dokaza" value="55" accent="teal" icon="✅" />
+                  <StatCard label="Raspoloživi budžet" value={`${new Intl.NumberFormat('sr-RS').format(advertiser?.advertiser_budget_rsd ?? 0)} RSD`} accent="green" icon="💰" />
+                  <StatCard label="Rezervisan budžet" value={`${new Intl.NumberFormat('sr-RS').format(advertiser?.advertiser_reserved_rsd ?? 0)} RSD`} accent="orange" icon="🔒" />
+                  <StatCard label="Aktivnih kampanja" value={String((dashboard?.tasks ?? []).filter(task => task.status === 'active').length)} accent="blue" icon="🎯" />
+                  <StatCard label="Odobrenih dokaza" value={String((dashboard?.submissions ?? []).filter(submission => submission.status === 'approved').length)} accent="teal" icon="✅" />
                 </div>
                 <SectionHeader title="Kampanje" action={<Btn onClick={() => goTo('kampanje')} variant="ghost" size="sm">Sve →</Btn>} />
                 <Card>
                   <Table
                     headers={['Naziv', 'Budžet', 'Potrošeno', 'Dokazi', 'Status']}
-                    rows={campaignsData.map(c => [
+                    rows={campaigns.map(c => [
                       <span className="font-semibold text-ink">{c.naziv}</span>,
                       <span className="font-mono">{c.budžet}</span>,
                       <span className="font-mono text-amber-700">{c.potrošeno}</span>,
@@ -312,15 +330,12 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                 <Card>
                   <Table
                     headers={['Korisnik', 'Zadatak', 'Poslato', 'Status', 'Akcija']}
-                    rows={proofsData.filter(p => proofStatus(p.id, p.status) === 'na_proveri').map(p => [
+                    rows={proofs.filter(p => proofStatus(p.id, p.status) === 'na_proveri').map(p => [
                       <span className="font-mono text-xs">{p.korisnik}</span>,
                       <span>{p.zadatak}</span>,
                       <span className="font-mono text-xs">{p.poslato}</span>,
                       <StatusBadge status={proofStatus(p.id, p.status)} />,
-                      <div className="flex gap-1.5">
-                        <Btn size="sm" variant="success" onClick={() => setProofAction({ id: p.id, type: 'approve' })}>✓ Odobri</Btn>
-                        <Btn size="sm" variant="danger" onClick={() => setProofAction({ id: p.id, type: 'reject' })}>✗ Odbij</Btn>
-                      </div>,
+                      <span className="text-xs text-ink-3">Admin pregled</span>,
                     ])}
                   />
                 </Card>
@@ -331,6 +346,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
               <NovaCampanja
                 onCancel={() => goTo('pregled')}
                 onSuccess={() => goTo('kampanje')}
+                onCreate={async payload => { await api.createCampaign(payload); await refreshDashboard(); showToast('Kampanja je poslata na moderaciju.', 'success') }}
               />
             )}
 
@@ -340,7 +356,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                 <Card>
                   <Table
                     headers={['Naziv', 'Budžet', 'Potrošeno', 'Dokazi', 'Status', 'Akcija']}
-                    rows={campaignsData.map(c => [
+                    rows={campaigns.map(c => [
                       <span className="font-semibold text-ink">{c.naziv}</span>,
                       <span className="font-mono">{c.budžet}</span>,
                       <span className="font-mono text-amber-700">{c.potrošeno}</span>,
@@ -364,19 +380,14 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                 <Card>
                   <Table
                     headers={['Korisnik', 'Zadatak', 'Poslato', 'Status', 'Akcija']}
-                    rows={proofsData.filter(p => proofsTab === 'svi' || proofStatus(p.id, p.status) === proofsTab).map(p => {
+                    rows={proofs.filter(p => proofsTab === 'svi' || proofStatus(p.id, p.status) === proofsTab).map(p => {
                       const st = proofStatus(p.id, p.status)
                       return [
                         <span className="font-mono text-xs">{p.korisnik}</span>,
                         <span>{p.zadatak}</span>,
                         <span className="font-mono text-xs">{p.poslato}</span>,
                         <StatusBadge status={st} />,
-                        st === 'na_proveri'
-                          ? <div className="flex gap-1.5">
-                              <Btn size="sm" variant="success" onClick={() => setProofAction({ id: p.id, type: 'approve' })}>✓ Odobri</Btn>
-                              <Btn size="sm" variant="danger" onClick={() => setProofAction({ id: p.id, type: 'reject' })}>✗ Odbij</Btn>
-                            </div>
-                          : <span className="text-xs text-ink-3">—</span>,
+                        <span className="text-xs text-ink-3">Admin pregled</span>,
                       ]
                     })}
                   />
@@ -400,8 +411,8 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
               <div className="space-y-4">
                 <SectionHeader title="Budžet i uplate" />
                 <div className="grid grid-cols-2 gap-3">
-                  <StatCard label="Raspoloživi budžet" value="9.460 RSD" accent="green" />
-                  <StatCard label="Rezervisan" value="6.540 RSD" accent="orange" />
+                  <StatCard label="Raspoloživi budžet" value={`${new Intl.NumberFormat('sr-RS').format(advertiser?.advertiser_budget_rsd ?? 0)} RSD`} accent="green" />
+                  <StatCard label="Rezervisan" value={`${new Intl.NumberFormat('sr-RS').format(advertiser?.advertiser_reserved_rsd ?? 0)} RSD`} accent="orange" />
                 </div>
                 <Card className="p-5">
                   <h3 className="font-bold text-ink mb-4">Uplati sredstva</h3>

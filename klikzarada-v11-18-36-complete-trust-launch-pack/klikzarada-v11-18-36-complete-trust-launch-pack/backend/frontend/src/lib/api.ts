@@ -47,6 +47,7 @@ export type Submission = {
   reward_rsd: number
   review_note: string | null
   created_at: string | null
+  user_name?: string
 }
 
 export type WalletTransaction = {
@@ -73,6 +74,28 @@ export type UserDashboardData = {
   submissions: Submission[]
   withdrawals: Withdrawal[]
   transactions: WalletTransaction[]
+}
+
+export type AdvertiserDashboardData = {
+  user: SessionUser
+  tasks: Task[]
+  submissions: Submission[]
+  transactions: WalletTransaction[]
+}
+
+export type CampaignPayload = {
+  title: string
+  category: string
+  task_type: string
+  target_url?: string
+  description: string
+  instructions: string
+  proof_required: string
+  reward_rsd: number
+  total_slots: number
+  target_city?: string
+  target_age_group?: string
+  target_interests?: string
 }
 
 type ApiErrorBody = { detail?: string }
@@ -109,5 +132,9 @@ export const api = {
   }),
   saveProfile: (payload: { full_name: string; phone?: string; city?: string; payment_method?: string; payment_details?: string }) => request<{ user: SessionUser }>('/user/profile', {
     method: 'PUT', body: JSON.stringify(payload),
+  }),
+  advertiserDashboard: () => request<AdvertiserDashboardData>('/advertiser/dashboard'),
+  createCampaign: (payload: CampaignPayload) => request<{ campaign: Task; reserved_rsd: number }>('/advertiser/campaigns', {
+    method: 'POST', body: JSON.stringify(payload),
   }),
 }

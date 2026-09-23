@@ -179,7 +179,7 @@ def _require_user(request: Request, db: Session, roles: set[str] | None = None) 
 
 
 def _audit(db: Session, admin: User, action: str, entity_type: str, entity_id: int | None, details: str = "") -> None:
-    db.add(AuditLog(admin_id=admin.id, action=action, entity_type=entity_type, entity_id=entity_id, details=details))
+    db.add(AuditLog(admin_id=admin.id, action=action, entity_type=entity_type, entity_id=entity_id, reason=details))
 
 
 @router.get("/health")
@@ -317,7 +317,7 @@ def advertiser_dashboard(request: Request, db: Session = Depends(get_db)) -> dic
     return {
         "user": _user_data(user),
         "tasks": [_task_data(task) for task in tasks],
-        "submissions": [_submission_data(submission) for submission in submissions],
+        "submissions": [_submission_data(submission) | {"user_name": submission.user.full_name if submission.user else "Korisnik"} for submission in submissions],
         "transactions": [{"id": tx.id, "amount_rsd": _money(tx.amount_rsd), "tx_type": tx.tx_type, "description": tx.description, "created_at": _iso(tx.created_at)} for tx in transactions],
     }
 
