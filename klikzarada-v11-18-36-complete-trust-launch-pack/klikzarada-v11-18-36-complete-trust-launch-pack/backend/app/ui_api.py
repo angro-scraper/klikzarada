@@ -7,6 +7,9 @@ for the new UI, so business data still lives in the existing database.
 
 from __future__ import annotations
 
+import ipaddress
+import os
+import socket
 from datetime import datetime
 from typing import Literal
 from urllib.parse import urlparse
@@ -38,6 +41,20 @@ router = APIRouter(prefix="/api/ui", tags=["KlikZarada UI"])
 
 PLATFORM_FEE_PERCENT = 20.0
 MIN_WITHDRAWAL_RSD = 1000.0
+
+REQUIRED_SYSTEM_SETTINGS = {
+    "advertiser_payment_account": "Poslovni račun na koji oglašivači uplaćuju budžet.",
+    "advertiser_payment_holder": "Naziv primaoca za uplate oglašivača.",
+    "payment_reference": "Svrha uplate ili poziv na broj za budžet oglašivača.",
+    "user_payout_account": "Poslovni račun sa kog se korisnicima isplaćuju sredstva.",
+    "user_payout_holder": "Naziv pošiljaoca za korisničke isplate.",
+    "payout_reference": "Svrha isplate ili poziv na broj za korisnike.",
+    "payment_provider_name": "Naziv ugovorenog provajdera za online naplatu.",
+    "payment_provider_checkout_base": "Checkout URL provajdera za online naplatu.",
+    "payment_provider_webhook_secret": "Tajni ključ za proveru webhook potvrda provajdera.",
+    "payment_provider_success_url": "URL nakon uspešne online uplate.",
+    "payment_provider_cancel_url": "URL nakon otkazane online uplate.",
+}
 
 
 class Credentials(BaseModel):
@@ -100,6 +117,10 @@ class SupportTicketPayload(BaseModel):
     subject: str = Field(min_length=3, max_length=220)
     body: str = Field(min_length=5, max_length=5000)
     category: str = Field(default="Opšte", max_length=80)
+
+
+class SettingPayload(BaseModel):
+    value: str = Field(default="", max_length=5000)
 
 
 def _money(value: float | None) -> float:
@@ -182,6 +203,38 @@ def _ticket_data(ticket: SupportTicket) -> dict:
     }
 
 
+def _cookie_is_secure(request: Request) -> bool:
+    forced = os.getenv("KLIKZARADA_COOKIE_SECURE", "").strip().lower()
+    if forced in {"1", "true", "yes"}:
+        return True
+    return request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https"
+
+
+def _validate_public_https_endpoint(endpoint_url: str) -> None:
+    parsed = urlparse(endpoint_url)
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise HTTPException(400, "Endpoint mora biti javno dostupan HTTPS URL.")
+    try:
+        addresses = socket.getaddrinfo(parsed.hostname, None, type=socket.SOCK_STREAM)
+        resolved_ips = {entry[4][0] for entry in addresses}
+    except socket.gaierror as exc:
+        raise HTTPException(400, "Endpoint domen ne može da se razreši.") from exc
+    if not resolved_ips or any(not ipaddress.ip_address(ip).is_global for ip in resolved_ips):
+        raise HTTPException(400, "Endpoint mora voditi na javnu IP adresu.")
+
+
+def _ensure_required_settings(db: Session) -> None:
+    existing = {item.key for item in db.query(SystemSetting.key).all()}
+    missing = [
+        SystemSetting(key=key, value="", description=description)
+        for key, description in REQUIRED_SYSTEM_SETTINGS.items()
+        if key not in existing
+    ]
+    if missing:
+        db.add_all(missing)
+        db.commit()
+
+
 def _current_user(request: Request, db: Session) -> User | None:
     user_id = read_session_token(request.cookies.get("kz_session"))
     if not user_id:
@@ -215,16 +268,16 @@ def session(request: Request, db: Session = Depends(get_db)) -> dict:
 
 
 @router.post("/auth/login")
-def login(payload: Credentials, response: Response, db: Session = Depends(get_db)) -> dict:
+def login(payload: Credentials, request: Request, response: Response, db: Session = Depends(get_db)) -> dict:
     user = db.query(User).filter(User.email == payload.email.strip().lower()).first()
     if not user or user.status != "active" or not verify_password(payload.password, user.password_hash):
         raise HTTPException(401, "Pogrešan email, lozinka ili blokiran nalog.")
-    response.set_cookie("kz_session", create_session_token(user.id), httponly=True, samesite="lax", secure=False)
+    response.set_cookie("kz_session", create_session_token(user.id), httponly=True, samesite="lax", secure=_cookie_is_secure(request))
     return {"user": _user_data(user)}
 
 
 @router.post("/auth/register", status_code=201)
-def register(payload: Registration, response: Response, db: Session = Depends(get_db)) -> dict:
+def register(payload: Registration, request: Request, response: Response, db: Session = Depends(get_db)) -> dict:
     email = payload.email.strip().lower()
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(409, "Email adresa je već registrovana.")
@@ -246,7 +299,7 @@ def register(payload: Registration, response: Response, db: Session = Depends(ge
     db.add(user)
     db.commit()
     db.refresh(user)
-    response.set_cookie("kz_session", create_session_token(user.id), httponly=True, samesite="lax", secure=False)
+    response.set_cookie("kz_session", create_session_token(user.id), httponly=True, samesite="lax", secure=_cookie_is_secure(request))
     return {"user": _user_data(user)}
 
 
@@ -492,6 +545,24 @@ def admin_tickets(request: Request, db: Session = Depends(get_db)) -> dict:
     return {"tickets": [_ticket_data(ticket) for ticket in tickets]}
 
 
+@router.patch("/admin/tickets/{ticket_id}")
+def update_admin_ticket(ticket_id: int, payload: AdminStatusPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    admin = _require_user(request, db, {"admin"})
+    ticket = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(404, "Tiket nije pronađen.")
+    if payload.status not in {"open", "waiting", "closed"}:
+        raise HTTPException(400, "Status tiketa mora biti open, waiting ili closed.")
+    ticket.status = payload.status
+    ticket.updated_at = datetime.utcnow()
+    if payload.note:
+        db.add(SupportMessage(ticket_id=ticket.id, sender_id=admin.id, body=payload.note.strip()))
+    _audit(db, admin, "support_ticket_update", "SupportTicket", ticket.id, payload.status)
+    db.commit()
+    db.refresh(ticket)
+    return {"ticket": _ticket_data(ticket)}
+
+
 @router.patch("/admin/withdrawals/{withdrawal_id}")
 def update_withdrawal(withdrawal_id: int, payload: AdminStatusPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     admin = _require_user(request, db, {"admin"})
@@ -523,9 +594,7 @@ def admin_task_sources(request: Request, db: Session = Depends(get_db)) -> dict:
 @router.post("/admin/task-sources", status_code=201)
 def create_task_source(payload: SourcePayload, request: Request, db: Session = Depends(get_db)) -> dict:
     admin = _require_user(request, db, {"admin"})
-    parsed = urlparse(payload.endpoint_url)
-    if parsed.scheme != "https" or not parsed.hostname or parsed.hostname in {"localhost", "127.0.0.1", "::1"}:
-        raise HTTPException(400, "Endpoint mora biti javno dostupan HTTPS URL.")
+    _validate_public_https_endpoint(payload.endpoint_url)
     source = TaskSourceV11(name=payload.name.strip(), endpoint_url=payload.endpoint_url.strip(), api_key=(payload.api_key or "").strip() or None, source_type="partner_api", import_mode=payload.import_mode, status="active")
     db.add(source)
     db.flush()
@@ -612,5 +681,30 @@ def sync_task_source(source_id: int, request: Request, db: Session = Depends(get
 @router.get("/admin/settings")
 def admin_settings(request: Request, db: Session = Depends(get_db)) -> dict:
     _require_user(request, db, {"admin"})
+    _ensure_required_settings(db)
     settings = db.query(SystemSetting).order_by(SystemSetting.key).all()
-    return {"settings": [{"key": item.key, "value": item.value, "description": item.description} for item in settings]}
+    sensitive_keys = {"payment_provider_webhook_secret", "smtp_password", "partner_api_key"}
+    return {"settings": [{
+        "key": item.key,
+        "value": "" if item.key in sensitive_keys else item.value,
+        "has_value": bool(item.value) if item.key in sensitive_keys else None,
+        "description": item.description,
+        "sensitive": item.key in sensitive_keys,
+    } for item in settings]}
+
+
+@router.put("/admin/settings/{key}")
+def update_admin_setting(key: str, payload: SettingPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    admin = _require_user(request, db, {"admin"})
+    item = db.query(SystemSetting).filter(SystemSetting.key == key.strip()).first()
+    if not item:
+        raise HTTPException(404, "Podešavanje nije pronađeno.")
+    sensitive_keys = {"payment_provider_webhook_secret", "smtp_password", "partner_api_key"}
+    value = payload.value.strip()
+    if item.key in sensitive_keys and not value:
+        return {"setting": {"key": item.key, "has_value": bool(item.value), "sensitive": True}}
+    item.value = value
+    item.updated_at = datetime.utcnow()
+    _audit(db, admin, "system_setting_update", "SystemSetting", item.id, item.key)
+    db.commit()
+    return {"setting": {"key": item.key, "value": "" if item.key in sensitive_keys else item.value, "has_value": bool(item.value) if item.key in sensitive_keys else None, "sensitive": item.key in sensitive_keys}}

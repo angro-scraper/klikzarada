@@ -114,6 +114,7 @@ export type AdminSubmission = Submission & { user_name: string }
 export type AdminWithdrawal = Withdrawal & { user_name: string; payment_details: string }
 export type TaskSource = { id: number; name: string; endpoint_url: string; source_type: string; import_mode: string; status: string; has_api_key: boolean; last_sync_at: string | null; created_at: string | null }
 export type SupportTicket = { id: number; subject: string; category: string; priority: string; status: string; created_at: string | null; updated_at: string | null; user_name: string }
+export type AdminSetting = { key: string; value: string; has_value: boolean | null; description: string | null; sensitive: boolean }
 
 type ApiErrorBody = { detail?: string }
 
@@ -174,6 +175,14 @@ export const api = {
   adminWithdrawals: () => request<{ withdrawals: AdminWithdrawal[] }>('/admin/withdrawals'),
   updateAdminWithdrawal: (id: number, status: 'paid' | 'rejected', note?: string) => request<{ withdrawal: Withdrawal }>(`/admin/withdrawals/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),
+  }),
+  adminTickets: () => request<{ tickets: SupportTicket[] }>('/admin/tickets'),
+  updateAdminTicket: (id: number, status: 'open' | 'waiting' | 'closed', note?: string) => request<{ ticket: SupportTicket }>(`/admin/tickets/${id}`, {
+    method: 'PATCH', body: JSON.stringify({ status, note }),
+  }),
+  adminSettings: () => request<{ settings: AdminSetting[] }>('/admin/settings'),
+  updateAdminSetting: (key: string, value: string) => request<{ setting: AdminSetting }>(`/admin/settings/${encodeURIComponent(key)}`, {
+    method: 'PUT', body: JSON.stringify({ value }),
   }),
   adminTaskSources: () => request<{ sources: TaskSource[] }>('/admin/task-sources'),
   createTaskSource: (payload: { name: string; endpoint_url: string; api_key?: string; import_mode: 'review' | 'sync' | 'manual' }) => request<{ source: { id: number; name: string; status: string } }>('/admin/task-sources', {

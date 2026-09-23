@@ -45,8 +45,18 @@ async def serve_react_application(request: Request, call_next):
     index = SPA_DIR / "index.html"
     wants_html = "text/html" in request.headers.get("accept", "")
     if request.method == "GET" and wants_html and index.exists() and not path.startswith(excluded):
-        return FileResponse(index, media_type="text/html")
-    return await call_next(request)
+        response = FileResponse(index, media_type="text/html")
+    else:
+        response = await call_next(request)
+
+    # Baseline browser hardening that does not require a third-party service.
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    if request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return response
 
 PLATFORM_FEE_PERCENT = 20.0
 REFERRAL_BONUS_RSD = 15.0

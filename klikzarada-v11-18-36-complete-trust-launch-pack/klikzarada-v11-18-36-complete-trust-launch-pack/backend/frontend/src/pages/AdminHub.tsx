@@ -4,7 +4,7 @@ import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tab
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminWithdrawal, type TaskSource } from '../lib/api'
+import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminWithdrawal, type AdminSetting, type SupportTicket, type TaskSource } from '../lib/api'
 
 const navGroups = [
   { group: 'Dashboard', items: [{ id: 'dashboard', label: 'Pregled', icon: '📊' }] },
@@ -129,6 +129,9 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [submissions, setSubmissions] = useState<AdminSubmission[]>([])
   const [withdrawals, setWithdrawals] = useState<AdminWithdrawal[]>([])
   const [sources, setSources] = useState<TaskSource[]>([])
+  const [tickets, setTickets] = useState<SupportTicket[]>([])
+  const [settings, setSettings] = useState<AdminSetting[]>([])
+  const [settingDrafts, setSettingDrafts] = useState<Record<string, string>>({})
   const [dataError, setDataError] = useState('')
   const [savingAction, setSavingAction] = useState(false)
   const [sourceFormOpen, setSourceFormOpen] = useState(false)
@@ -139,8 +142,8 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
   const refreshAdmin = async () => {
     try {
-      const [dashboard, userData, campaignData, submissionData, withdrawalData, sourceData] = await Promise.all([
-        api.adminDashboard(), api.adminUsers(), api.adminCampaigns(), api.adminSubmissions(), api.adminWithdrawals(), api.adminTaskSources(),
+      const [dashboard, userData, campaignData, submissionData, withdrawalData, sourceData, ticketData, settingData] = await Promise.all([
+        api.adminDashboard(), api.adminUsers(), api.adminCampaigns(), api.adminSubmissions(), api.adminWithdrawals(), api.adminTaskSources(), api.adminTickets(), api.adminSettings(),
       ])
       setMetrics(dashboard.metrics)
       setUsers(userData.users)
@@ -148,6 +151,9 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
       setSubmissions(submissionData.submissions)
       setWithdrawals(withdrawalData.withdrawals)
       setSources(sourceData.sources)
+      setTickets(ticketData.tickets)
+      setSettings(settingData.settings)
+      setSettingDrafts(Object.fromEntries(settingData.settings.map(setting => [setting.key, setting.value])))
       setDataError('')
     } catch (error) {
       setDataError(error instanceof Error ? error.message : 'Admin podaci nisu dostupni.')
@@ -173,6 +179,18 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
     return status === 'pending' ? 'na_cekanju' : status === 'active' ? 'aktivno' : status === 'rejected' ? 'odbijeno' : status === 'paused' ? 'obustavljeno' : status
   }
   function sourceStatus(status: string) { return status === 'active' ? 'aktivno' : status === 'paused' ? 'obustavljeno' : status === 'error' ? 'greska' : status }
+  function ticketStatus(status: string) { return status === 'open' ? 'otvoren' : status === 'waiting' ? 'na_cekanju' : status === 'closed' ? 'zatvoreno' : status }
+
+  async function saveSetting(setting: AdminSetting) {
+    setSavingAction(true)
+    try {
+      await api.updateAdminSetting(setting.key, settingDrafts[setting.key] ?? '')
+      await refreshAdmin()
+      showToast('Podešavanje je sačuvano.', 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Podešavanje nije sačuvano.', 'error')
+    } finally { setSavingAction(false) }
+  }
 
   const sidebarFooter = (
     <div className="flex items-center gap-2.5">
@@ -594,20 +612,25 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
             )}
 
             {page === 'lj-podrska' && (
-              <div>
-                <SectionHeader title="Tiketi i podrška" />
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-3">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="font-bold text-ink">#001 — Problem sa isplatom</p>
-                      <p className="text-xs text-ink-2 mt-0.5">Korisnik: jelena_j · Otvoreno: 23.12.2024</p>
-                    </div>
-                    <StatusBadge status="na_cekanju" />
-                  </div>
-                  <p className="text-sm text-ink-2">„Nisam primila isplatu za prošli mesec, sve je odobreno ali iznos nije na računu."</p>
-                  <Btn size="sm" className="mt-3">Odgovori</Btn>
-                </div>
-                <EmptyState icon="✅" title="Nema više otvorenih tiketa" />
+              <div className="space-y-4">
+                <SectionHeader title="Tiketi i podrška" description="Stvarni zahtevi korisnika, bez demo poruka." />
+                {tickets.length === 0 ? <EmptyState icon="✅" title="Nema otvorenih tiketa" description="Novi zahtevi korisnika pojaviće se ovde." /> : (
+                  <Card>
+                    <Table
+                      headers={['Tiket', 'Korisnik', 'Kategorija', 'Ažuriran', 'Status', 'Akcija']}
+                      rows={tickets.map(ticket => [
+                        <div><p className="font-semibold text-ink">#{ticket.id} · {ticket.subject}</p><p className="text-xs text-ink-3">Prioritet: {ticket.priority}</p></div>,
+                        <span className="text-sm text-ink-2">{ticket.user_name}</span>,
+                        <span className="text-sm text-ink-2">{ticket.category}</span>,
+                        <span className="text-xs text-ink-3">{ticket.updated_at ? new Date(ticket.updated_at).toLocaleString('sr-RS') : '—'}</span>,
+                        <StatusBadge status={ticketStatus(ticket.status)} />,
+                        ticket.status === 'closed'
+                          ? <Btn size="sm" variant="secondary" disabled={savingAction} onClick={async () => { try { await api.updateAdminTicket(ticket.id, 'open'); await refreshAdmin(); showToast('Tiket je ponovo otvoren.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Tiket nije promenjen.', 'error') } }}>Otvori</Btn>
+                          : <Btn size="sm" variant="success" disabled={savingAction} onClick={async () => { try { await api.updateAdminTicket(ticket.id, 'closed'); await refreshAdmin(); showToast('Tiket je zatvoren.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Tiket nije promenjen.', 'error') } }}>Zatvori</Btn>,
+                      ])}
+                    />
+                  </Card>
+                )}
               </div>
             )}
 
@@ -701,23 +724,28 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
             {page === 'sys-settings' && (
               <div className="space-y-4">
-                <SectionHeader title="Sistemska podešavanja" />
-                <Alert type="error">Osetljivi podaci (bankovni račun, API ključevi) su zaštićeni i loguju se pri svakom pristupu.</Alert>
+                <SectionHeader title="Sistemska podešavanja" description="Računi, isplate i provajder plaćanja se čuvaju direktno u konfiguraciji platforme." />
+                <Alert type="warning">Osetljive vrednosti se nikada ne vraćaju u preglednik. Prazno polje za tajnu zadržava postojeću vrednost.</Alert>
                 <Card className="p-5">
-                  <div className="divide-y divide-frame">
-                    {[
-                      { label: 'Minimum za isplatu (RSD)', val: '1.500' },
-                      { label: 'Max zadataka po korisniku / dan', val: '10' },
-                      { label: 'Platforma komisija (%)', val: '—' },
-                      { label: 'Anti-fraud auto-blokada', val: 'Uključeno' },
-                    ].map(s => (
-                      <div key={s.label} className="flex items-center justify-between py-3">
-                        <span className="text-sm text-ink-2">{s.label}</span>
-                        <span className="font-mono text-sm font-semibold text-ink">{s.val}</span>
+                  <div className="space-y-4">
+                    {settings.map(setting => (
+                      <div key={setting.key} className="grid gap-2 border-b border-frame pb-4 last:border-0 last:pb-0 md:grid-cols-[minmax(0,1fr)_minmax(240px,1.2fr)_auto] md:items-end">
+                        <div>
+                          <p className="font-semibold text-sm text-ink">{setting.description || setting.key}</p>
+                          <p className="font-mono text-[11px] text-ink-3 mt-1">{setting.key}</p>
+                        </div>
+                        <input
+                          type={setting.sensitive ? 'password' : 'text'}
+                          value={settingDrafts[setting.key] ?? ''}
+                          placeholder={setting.sensitive && setting.has_value ? 'Sačuvano · unesi novu vrednost za izmenu' : 'Unesi vrednost'}
+                          onChange={event => setSettingDrafts(current => ({ ...current, [setting.key]: event.target.value }))}
+                          className="w-full rounded-lg border border-frame bg-white px-3 py-2 text-sm font-medium text-ink outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        />
+                        <Btn size="sm" variant="secondary" disabled={savingAction} onClick={() => void saveSetting(setting)}>Sačuvaj</Btn>
                       </div>
                     ))}
+                    {settings.length === 0 && <EmptyState icon="⚙️" title="Nema sistemskih podešavanja" description="Podešavanja će biti dostupna kada se baza inicijalizuje." />}
                   </div>
-                  <Btn variant="secondary" size="sm" className="mt-4">Uredi podešavanja</Btn>
                 </Card>
               </div>
             )}

@@ -1,6 +1,14 @@
 import base64, hashlib, hmac, os, secrets
 from typing import Optional
-SECRET_KEY = os.getenv("KLIKZARADA_SECRET_KEY", "CHANGE_ME_BEFORE_LIVE_KLIKZARADA_V3")
+
+APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
+_configured_secret = os.getenv("KLIKZARADA_SECRET_KEY", "").strip()
+if APP_ENV in {"production", "prod"} and not _configured_secret:
+    raise RuntimeError("KLIKZARADA_SECRET_KEY mora biti postavljen u produkciji.")
+
+# A local-only fallback keeps onboarding simple, but production never starts
+# with a predictable signing key.
+SECRET_KEY = _configured_secret or "CHANGE_ME_BEFORE_LIVE_KLIKZARADA_V3"
 def hash_password(password: str) -> str:
     salt = secrets.token_hex(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 180_000).hex()
