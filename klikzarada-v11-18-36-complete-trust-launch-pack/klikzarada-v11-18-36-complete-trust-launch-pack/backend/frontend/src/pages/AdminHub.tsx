@@ -131,6 +131,10 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [sources, setSources] = useState<TaskSource[]>([])
   const [dataError, setDataError] = useState('')
   const [savingAction, setSavingAction] = useState(false)
+  const [sourceFormOpen, setSourceFormOpen] = useState(false)
+  const [sourceName, setSourceName] = useState('')
+  const [sourceUrl, setSourceUrl] = useState('')
+  const [sourceKey, setSourceKey] = useState('')
   const { show: showToast, node: toastNode } = useToast()
 
   const refreshAdmin = async () => {
@@ -498,7 +502,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                   ))}
                 </div>
                 <div className="mt-4">
-                  <Btn variant="secondary" size="sm">+ Dodaj novi izvor</Btn>
+                  <Btn variant="secondary" size="sm" onClick={() => goTo('sys-api')}>+ Dodaj novi izvor</Btn>
                 </div>
               </div>
             )}
@@ -660,6 +664,24 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
             {page === 'sys-api' && (
               <div>
                 <SectionHeader title="API izvori zadataka" description="Konfiguracija partner integacija." />
+                <Card className="p-5 mb-4">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div>
+                      <h3 className="font-bold text-ink">Dodaj partner izvor</h3>
+                      <p className="text-xs text-ink-3 mt-0.5">Prihvatamo samo javno dostupan HTTPS JSON feed. Ključ se ne prikazuje nakon čuvanja.</p>
+                    </div>
+                    <Btn size="sm" variant="secondary" onClick={() => setSourceFormOpen(open => !open)}>{sourceFormOpen ? 'Zatvori' : '+ Dodaj izvor'}</Btn>
+                  </div>
+                  {sourceFormOpen && <div className="grid gap-3">
+                    <input value={sourceName} onChange={event => setSourceName(event.target.value)} placeholder="Naziv partnera" className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                    <input value={sourceUrl} onChange={event => setSourceUrl(event.target.value)} placeholder="https://partner.example/api/tasks" type="url" className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                    <input value={sourceKey} onChange={event => setSourceKey(event.target.value)} placeholder="API ključ (opciono)" type="password" autoComplete="new-password" className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                    <div className="flex gap-2">
+                      <Btn disabled={savingAction || !sourceName.trim() || !sourceUrl.trim()} onClick={async () => { setSavingAction(true); try { await api.createTaskSource({ name: sourceName, endpoint_url: sourceUrl, api_key: sourceKey || undefined, import_mode: 'review' }); await refreshAdmin(); setSourceName(''); setSourceUrl(''); setSourceKey(''); setSourceFormOpen(false); showToast('Partner izvor je sačuvan. Prvi uvoz moraš ručno pokrenuti.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Izvor nije sačuvan.', 'error') } finally { setSavingAction(false) } }}>Sačuvaj izvor</Btn>
+                      <Btn variant="ghost" onClick={() => setSourceFormOpen(false)}>Otkaži</Btn>
+                    </div>
+                  </div>}
+                </Card>
                 <div className="space-y-3">
                   {sources.map(src => (
                     <Card key={src.id} className="p-4 flex items-center justify-between gap-4">
@@ -673,7 +695,6 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                       </div>
                     </Card>
                   ))}
-                  <Btn variant="secondary" size="sm">+ Dodaj izvor</Btn>
                 </div>
               </div>
             )}

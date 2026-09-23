@@ -171,5 +171,8 @@ export const api = {
     method: 'PATCH', body: JSON.stringify({ status, note }),
   }),
   adminTaskSources: () => request<{ sources: TaskSource[] }>('/admin/task-sources'),
+  createTaskSource: (payload: { name: string; endpoint_url: string; api_key?: string; import_mode: 'review' | 'sync' | 'manual' }) => request<{ source: { id: number; name: string; status: string } }>('/admin/task-sources', {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
   syncTaskSource: (id: number) => request<{ created: number; skipped: number; message: string }>(`/admin/task-sources/${id}/sync`, { method: 'POST' }),
 }
