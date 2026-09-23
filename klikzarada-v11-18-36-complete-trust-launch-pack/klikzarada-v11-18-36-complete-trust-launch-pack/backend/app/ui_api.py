@@ -442,6 +442,10 @@ def _banner_status(value: str | None) -> str:
     }.get(_status(value), _status(value))
 
 
+def _is_legacy_demo_banner(banner: PaidAdBannerV111) -> bool:
+    return banner.title == "Demo plaćeni banner" and banner.target_url == "/registracija"
+
+
 def _banner_data(banner: PaidAdBannerV111) -> dict:
     return {
         "id": banner.id,
@@ -498,6 +502,8 @@ def _banner_slot_conflict(
         PaidAdBannerV111.status.in_(("pending", "active")),
     ).all()
     for banner in candidates:
+        if _is_legacy_demo_banner(banner):
+            continue
         existing_start = banner.starts_at or banner.created_at or datetime.utcnow()
         existing_end = banner.ends_at or existing_start + timedelta(days=max(1, banner.days_count or 7))
         if starts_at < existing_end and existing_start < ends_at:
@@ -655,7 +661,7 @@ def public_banners(db: Session = Depends(get_db)) -> dict:
         (PaidAdBannerV111.starts_at.is_(None)) | (PaidAdBannerV111.starts_at <= now),
         (PaidAdBannerV111.ends_at.is_(None)) | (PaidAdBannerV111.ends_at > now),
     ).order_by(PaidAdBannerV111.created_at.desc()).limit(20).all()
-    return {"banners": [_banner_data(banner) for banner in banners]}
+    return {"banners": [_banner_data(banner) for banner in banners if not _is_legacy_demo_banner(banner)]}
 
 
 @router.get("/user/dashboard")
@@ -984,9 +990,11 @@ def advertiser_banners(request: Request, db: Session = Depends(get_db)) -> dict:
     all_active_and_pending = db.query(PaidAdBannerV111).filter(
         PaidAdBannerV111.status.in_(("active", "pending")),
     ).all()
+    visible_banners = [banner for banner in banners if not _is_legacy_demo_banner(banner)]
+    visible_active_and_pending = [banner for banner in all_active_and_pending if not _is_legacy_demo_banner(banner)]
     return {
-        "slots": [_banner_slot_data(slot, all_active_and_pending) for slot in slots],
-        "banners": [_banner_data(banner) for banner in banners],
+        "slots": [_banner_slot_data(slot, visible_active_and_pending) for slot in slots],
+        "banners": [_banner_data(banner) for banner in visible_banners],
     }
 
 
@@ -1453,9 +1461,10 @@ def admin_banners(request: Request, db: Session = Depends(get_db)) -> dict:
     _ensure_banner_slots(db)
     slots = db.query(HomeBannerSlotV111).order_by(HomeBannerSlotV111.price_rsd.desc()).all()
     banners = db.query(PaidAdBannerV111).order_by(PaidAdBannerV111.created_at.desc()).limit(300).all()
+    visible_banners = [banner for banner in banners if not _is_legacy_demo_banner(banner)]
     return {
-        "slots": [_banner_slot_data(slot, banners) for slot in slots],
-        "banners": [_banner_data(banner) for banner in banners],
+        "slots": [_banner_slot_data(slot, visible_banners) for slot in slots],
+        "banners": [_banner_data(banner) for banner in visible_banners],
     }
 
 

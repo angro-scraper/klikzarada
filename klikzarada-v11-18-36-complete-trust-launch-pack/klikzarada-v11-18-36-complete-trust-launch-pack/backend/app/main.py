@@ -6727,7 +6727,8 @@ def seed_v111_ui_ads_pricing():
 
         adv = db.query(User).filter(User.role == "oglasivac").first()
         slot = db.query(HomeBannerSlotV111).filter(HomeBannerSlotV111.code == "home_top_wide").first()
-        if adv and slot and db.query(PaidAdBannerV111).count() == 0:
+        seed_demo = os.getenv("KLIKZARADA_SEED_DEMO", "false").strip().lower() in {"1", "true", "yes"}
+        if seed_demo and adv and slot and db.query(PaidAdBannerV111).count() == 0:
             db.add(PaidAdBannerV111(
                 advertiser_id=adv.id, slot_id=slot.id, title="Demo plaćeni banner",
                 body="Ovaj prostor može kupiti oglašivač kao dodatnu reklamu.",
