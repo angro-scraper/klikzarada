@@ -1868,6 +1868,10 @@ def check_role(user, roles):
     if user.role not in roles: raise HTTPException(403, "Nemate pristup.")
 
 def admin_focus_route_allowed(path: str) -> bool:
+    # The React administration console is served at the root `/admin` route.
+    # Keep the focused legacy-route guard in place while allowing that entrypoint.
+    if path in {"/admin", "/admin/"}:
+        return True
     return any(path.startswith(prefix) for prefix in ADMIN_FOCUS_ALLOWED_PATHS)
 
 def flash(msg):
