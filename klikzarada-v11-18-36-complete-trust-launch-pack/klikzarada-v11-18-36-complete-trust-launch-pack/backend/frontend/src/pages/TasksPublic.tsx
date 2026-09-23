@@ -1,20 +1,38 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Btn, Card, StatusBadge, EmptyState, Select } from '../components/ui'
+import { api, type Task } from '../lib/api'
 
-const tasks = [
-  { id: 1, title: 'Lajkuj i komentiraj objavu na Instagram-u', cat: 'Društvene mreže', catColor: 'bg-blue-100 text-blue-700', reward: '35 RSD', time: '5 min', proof: 'Screenshot', level: 'Explorer', status: 'aktivno' },
-  { id: 2, title: 'Popuni anketu o navikama u kupovini', cat: 'Ankete', catColor: 'bg-violet-100 text-violet-700', reward: '80 RSD', time: '10 min', proof: 'Kod potvrde', level: 'Explorer', status: 'aktivno' },
-  { id: 3, title: 'Ostavi recenziju aplikacije na Google Play-u', cat: 'Recenzije', catColor: 'bg-teal-100 text-teal-700', reward: '120 RSD', time: '8 min', proof: 'Screenshot + link', level: 'Trusted', status: 'aktivno' },
-  { id: 4, title: 'Pogledaj video reklamu i odgovori na pitanja', cat: 'Video', catColor: 'bg-emerald-100 text-emerald-700', reward: '50 RSD', time: '6 min', proof: 'Screenshot', level: 'Explorer', status: 'aktivno' },
-  { id: 5, title: 'Registruj se na sajtu partnera i potvrdi email', cat: 'Web zadaci', catColor: 'bg-amber-100 text-amber-700', reward: '200 RSD', time: '15 min', proof: 'Screenshot emaila', level: 'Trusted', status: 'aktivno' },
-  { id: 6, title: 'Podeli objavu na Facebook-u', cat: 'Društvene mreže', catColor: 'bg-blue-100 text-blue-700', reward: '40 RSD', time: '4 min', proof: 'Screenshot', level: 'Explorer', status: 'aktivno' },
-]
+const categoryColors = ['bg-blue-100 text-blue-700', 'bg-violet-100 text-violet-700', 'bg-teal-100 text-teal-700', 'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-700']
+
+function taskView(task: Task) {
+  return {
+    ...task,
+    cat: task.category,
+    catColor: categoryColors[task.id % categoryColors.length],
+    reward: `${task.reward_rsd.toLocaleString('sr-RS')} RSD`,
+    time: `${task.estimated_minutes} min`,
+    proof: task.proof_required,
+    level: task.min_user_level,
+  }
+}
 
 export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) => void }) {
   const [cat, setCat] = useState('')
   const [level, setLevel] = useState('')
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const filtered = tasks.filter(t => {
+  useEffect(() => {
+    let active = true
+    api.publicTasks()
+      .then(result => { if (active) setTasks(result.tasks) })
+      .catch(caught => { if (active) setError(caught instanceof Error ? caught.message : 'Zadaci nisu učitani.') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [])
+
+  const filtered = tasks.map(taskView).filter(t => {
     if (cat && t.cat !== cat) return false
     if (level && t.level !== level) return false
     return true
@@ -74,8 +92,12 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
           <Btn onClick={() => onNavigate('register')} size="sm">Registruj se besplatno</Btn>
         </div>
 
+        {error && <div className="mb-5 rounded-xl border border-coral-200 bg-coral-50 p-4 text-sm text-coral-700">{error}</div>}
+
         {/* Task list */}
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="py-14 text-center text-sm text-ink-2">Učitavanje zadataka...</div>
+        ) : filtered.length === 0 ? (
           <EmptyState
             icon="📭"
             title="Nema zadataka za odabrane filtere"

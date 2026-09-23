@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Btn, Input, Alert } from '../components/ui'
+import { api } from '../lib/api'
 
 type Mode = 'login' | 'register' | 'advertiser-login' | 'advertiser-register'
 
@@ -16,18 +17,32 @@ export default function Auth({
   const [name, setName] = useState('')
   const [referral, setReferral] = useState('')
   const [submitted, setSubmitted] = useState(false)
-  const [error] = useState('')
+  const [error, setError] = useState('')
 
   const isAdvertiser = mode === 'advertiser-login' || mode === 'advertiser-register'
   const isRegister = mode === 'register' || mode === 'advertiser-register'
 
-  function handleSubmit() {
-    if (!email || !password) return
+  async function handleSubmit() {
+    if (!email || !password || (isRegister && !name)) return
     setSubmitted(true)
-    setTimeout(() => {
-      if (isAdvertiser) onNavigate('advertiser')
-      else onNavigate('dashboard')
-    }, 800)
+    setError('')
+    try {
+      const result = isRegister
+        ? await api.register({
+            full_name: name,
+            email,
+            password,
+            role: isAdvertiser ? 'oglasivac' : 'korisnik',
+            referral_code: referral || undefined,
+          })
+        : await api.login(email, password)
+      if (result.user.role === 'admin') onNavigate('admin')
+      else onNavigate(result.user.role === 'oglasivac' ? 'advertiser' : 'dashboard')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Prijava nije uspela.')
+    } finally {
+      setSubmitted(false)
+    }
   }
 
   return (
