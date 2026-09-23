@@ -68,7 +68,7 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-4 py-20 md:py-28">
         <div className="max-w-2xl">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium bg-blue-900/50 text-blue-300 border border-blue-500/20 mb-5">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200 mb-5">
             🇷🇸 Srpska platforma za mikro-zadatke
           </span>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-50 leading-tight mb-5">
