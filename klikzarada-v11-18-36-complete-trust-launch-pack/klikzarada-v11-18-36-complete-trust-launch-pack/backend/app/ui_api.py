@@ -109,6 +109,7 @@ class CampaignPayload(BaseModel):
 
 class PayPalTopupPayload(BaseModel):
     amount_rsd: float = Field(ge=200, le=1_000_000)
+    checkout_flow: Literal["redirect", "smart_button"] = "redirect"
 
 
 class AdminStatusPayload(BaseModel):
@@ -444,6 +445,11 @@ def _paypal_config() -> tuple[str, str, str, Decimal]:
     return "https://api-m.paypal.com", client_id, client_secret, rate
 
 
+def _paypal_card_checkout_enabled() -> bool:
+    """Allow a controlled rollback while PayPal determines card eligibility."""
+    return os.getenv("PAYPAL_CARD_PAYMENTS_ENABLED", "true").strip().lower() not in {"0", "false", "no", "off"}
+
+
 def _public_app_url(request: Request) -> str:
     configured = (os.getenv("PUBLIC_APP_URL") or os.getenv("RENDER_EXTERNAL_URL") or "").strip().rstrip("/")
     if configured.startswith("https://"):
@@ -583,7 +589,6 @@ def create_paypal_order(payload: PayPalTopupPayload, request: Request, db: Sessi
     )
     db.add(checkout)
     db.flush()
-    public_url = _public_app_url(request)
     order_payload = {
         "intent": "CAPTURE",
         "purchase_units": [{
@@ -592,15 +597,17 @@ def create_paypal_order(payload: PayPalTopupPayload, request: Request, db: Sessi
             "description": "KlikZarada oglašivački budžet",
             "amount": {"currency_code": "EUR", "value": f"{amount_eur:.2f}"},
         }],
-        "payment_source": {"paypal": {"experience_context": {
+    }
+    if payload.checkout_flow == "redirect":
+        public_url = _public_app_url(request)
+        order_payload["payment_source"] = {"paypal": {"experience_context": {
             "brand_name": "KlikZarada",
             "landing_page": "LOGIN",
             "user_action": "PAY_NOW",
             "shipping_preference": "NO_SHIPPING",
             "return_url": f"{public_url}/api/ui/advertiser/paypal/return",
             "cancel_url": f"{public_url}/api/ui/advertiser/paypal/cancel",
-        }}},
-    }
+        }}}
     try:
         response = httpx.post(
             f"{config[0]}/v2/checkout/orders",
@@ -620,18 +627,54 @@ def create_paypal_order(payload: PayPalTopupPayload, request: Request, db: Sessi
         db.rollback()
         raise HTTPException(502, "PayPal nije uspeo da kreira nalog za uplatu.")
     order = response.json()
-    approval_url = next((link.get("href") for link in order.get("links", []) if link.get("rel") == "payer-action"), None)
-    if not order.get("id") or not approval_url:
+    approval_url = next((link.get("href") for link in order.get("links", []) if link.get("rel") in {"payer-action", "approve"}), None)
+    if not order.get("id") or (payload.checkout_flow == "redirect" and not approval_url):
         db.rollback()
-        raise HTTPException(502, "PayPal nije vratio link za plaćanje.")
+        raise HTTPException(502, "PayPal nije vratio podatke potrebne za plaćanje.")
     checkout.paypal_order_id = str(order["id"])
     checkout.status = "approved"
     db.commit()
     return {
+        "order_id": checkout.paypal_order_id,
         "approval_url": approval_url,
         "amount_rsd": _money(float(amount_rsd)),
         "amount_eur": _money(float(amount_eur)),
         "exchange_rate": _money(float(config[3])),
+    }
+
+
+@router.get("/advertiser/paypal/checkout-config")
+def paypal_checkout_config(request: Request, db: Session = Depends(get_db)) -> dict:
+    """Expose only the browser-safe client ID used by PayPal's checkout SDK."""
+    _require_user(request, db, {"oglasivac", "admin"})
+    _, client_id, _, _ = _paypal_config()
+    return {
+        "client_id": client_id,
+        "currency": "EUR",
+        "card_checkout_enabled": _paypal_card_checkout_enabled(),
+    }
+
+
+@router.post("/advertiser/paypal/orders/{order_id}/capture")
+def capture_paypal_order(order_id: str, request: Request, db: Session = Depends(get_db)) -> dict:
+    """Complete an SDK-approved order after validating its advertiser ownership."""
+    advertiser = _require_user(request, db, {"oglasivac", "admin"})
+    checkout = db.query(PayPalCheckout).filter(
+        PayPalCheckout.paypal_order_id == order_id,
+        PayPalCheckout.advertiser_id == advertiser.id,
+    ).first()
+    if not checkout:
+        raise HTTPException(404, "PayPal nalog za ovu uplatu nije pronađen.")
+    try:
+        credited = _capture_paypal_checkout(db, checkout)
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    db.refresh(advertiser)
+    return {
+        "credited": credited,
+        "advertiser_budget_rsd": _money(advertiser.advertiser_budget_rsd),
     }
 
 

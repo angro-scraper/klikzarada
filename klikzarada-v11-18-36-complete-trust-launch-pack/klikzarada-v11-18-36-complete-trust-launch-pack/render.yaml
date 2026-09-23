@@ -22,6 +22,8 @@ services:
         sync: false
       - key: PAYPAL_WEBHOOK_ID
         sync: false
+      - key: PAYPAL_CARD_PAYMENTS_ENABLED
+        value: true
       - key: PAYPAL_RSD_PER_EUR
         sync: false
       - key: PUBLIC_APP_URL

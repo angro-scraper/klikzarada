@@ -1,10 +1,102 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Sidebar, TopBar } from '../components/Sidebar'
 import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tabs, Alert, Input, Select } from '../components/ui'
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { api, type AdvertiserDashboardData } from '../lib/api'
+
+type PayPalSdk = {
+  FUNDING: { CARD: unknown }
+  Buttons: (options: {
+    fundingSource: unknown
+    createOrder: () => Promise<string>
+    onApprove: (data: { orderID: string }) => Promise<void>
+    onError: () => void
+  }) => { isEligible: () => boolean; render: (target: HTMLElement) => Promise<void> }
+}
+
+declare global {
+  interface Window { paypal?: PayPalSdk }
+}
+
+function loadPayPalSdk(clientId: string): Promise<PayPalSdk> {
+  if (window.paypal) return Promise.resolve(window.paypal)
+  const scriptId = 'paypal-standard-checkout-sdk'
+  const existing = document.getElementById(scriptId) as HTMLScriptElement | null
+  if (existing) {
+    if (existing.dataset.loaded === 'true') return window.paypal ? Promise.resolve(window.paypal) : Promise.reject(new Error('PayPal Checkout nije učitan.'))
+    return new Promise((resolve, reject) => {
+      existing.addEventListener('load', () => window.paypal ? resolve(window.paypal) : reject(new Error('PayPal Checkout nije učitan.')), { once: true })
+      existing.addEventListener('error', () => reject(new Error('PayPal Checkout nije dostupan.')), { once: true })
+    })
+  }
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script')
+    script.id = scriptId
+    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=EUR&intent=capture&components=buttons,funding-eligibility&enable-funding=card&disable-funding=venmo,paylater`
+    script.async = true
+    script.onload = () => {
+      script.dataset.loaded = 'true'
+      window.paypal ? resolve(window.paypal) : reject(new Error('PayPal Checkout nije učitan.'))
+    }
+    script.onerror = () => reject(new Error('PayPal Checkout nije dostupan.'))
+    document.head.appendChild(script)
+  })
+}
+
+function PayPalCardCheckout({ amountRsd, onCaptured, onError }: { amountRsd: number; onCaptured: () => void; onError: (message: string) => void }) {
+  const hostRef = useRef<HTMLDivElement>(null)
+  const [status, setStatus] = useState<'loading' | 'available' | 'unavailable' | 'error'>('loading')
+
+  useEffect(() => {
+    let cancelled = false
+    const host = hostRef.current
+    if (!host || !Number.isFinite(amountRsd) || amountRsd < 200) return
+    host.replaceChildren()
+    setStatus('loading')
+    void (async () => {
+      try {
+        const config = await api.paypalCheckoutConfig()
+        if (!config.card_checkout_enabled) {
+          if (!cancelled) setStatus('unavailable')
+          return
+        }
+        const paypal = await loadPayPalSdk(config.client_id)
+        if (cancelled) return
+        const buttons = paypal.Buttons({
+          fundingSource: paypal.FUNDING.CARD,
+          createOrder: async () => (await api.createPayPalOrder(amountRsd, 'smart_button')).order_id,
+          onApprove: async ({ orderID }) => {
+            await api.capturePayPalOrder(orderID)
+            onCaptured()
+          },
+          onError: () => onError('Plaćanje karticom nije završeno. Budžet nije promenjen.'),
+        })
+        if (!buttons.isEligible()) {
+          if (!cancelled) setStatus('unavailable')
+          return
+        }
+        await buttons.render(host)
+        if (!cancelled) setStatus('available')
+      } catch (error) {
+        if (!cancelled) {
+          setStatus('error')
+          onError(error instanceof Error ? error.message : 'Kartično plaćanje trenutno nije dostupno.')
+        }
+      }
+    })()
+    return () => { cancelled = true }
+  }, [amountRsd])
+
+  return (
+    <div className="mt-3">
+      <div ref={hostRef} />
+      {status === 'loading' && <p className="text-xs text-ink-3">Proveravamo da li je kartično plaćanje dostupno...</p>}
+      {status === 'unavailable' && <p className="text-xs text-ink-3">PayPal trenutno ne nudi kartično plaćanje za ovaj nalog ili kupca. Možeš nastaviti standardnim PayPal plaćanjem.</p>}
+    </div>
+  )
+}
 
 const navGroups = [
   { items: [
@@ -451,14 +543,30 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                   <div className="flex items-start justify-between gap-4 mb-4">
                     <div>
                       <h3 className="font-bold text-ink">Uplati sredstva</h3>
-                      <p className="text-xs text-ink-3 mt-1">Sigurna online uplata preko PayPal-a.</p>
+                      <p className="text-xs text-ink-3 mt-1">Plati PayPal nalogom ili kreditnom/debitnom karticom preko PayPal Checkout-a.</p>
                     </div>
-                    <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-2.5 py-1">PayPal Live</span>
+                    <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-2.5 py-1">PayPal + kartice</span>
                   </div>
                   <Input label="Iznos uplate (RSD)" placeholder="npr. 5000" type="number" value={topupAmount} onChange={setTopupAmount} />
                   {topupError && <div className="mt-3"><Alert type="error">{topupError}</Alert></div>}
-                  <p className="text-xs text-ink-3 mt-3 mb-4">Na PayPal-u će iznos biti prikazan u EUR prema kursu koji je postavio administrator. Budžet se knjiži samo nakon PayPal potvrde.</p>
-                  <Btn disabled={topupLoading} onClick={() => void startPayPalTopup()}>{topupLoading ? 'Otvaranje PayPal-a...' : 'Nastavi na PayPal →'}</Btn>
+                  <p className="text-xs text-ink-3 mt-3">Na PayPal-u će iznos biti prikazan u EUR prema kursu koji je postavio administrator. Budžet se knjiži samo nakon PayPal potvrde.</p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 sm:items-end">
+                    <div>
+                      <p className="text-xs font-bold text-ink mb-2">PayPal nalog</p>
+                      <Btn disabled={topupLoading} onClick={() => void startPayPalTopup()}>{topupLoading ? 'Otvaranje PayPal-a...' : 'Nastavi na PayPal →'}</Btn>
+                    </div>
+                    <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-3 py-2">
+                      <p className="text-xs font-bold text-ink mb-1">Kreditna ili debitna kartica</p>
+                      {Number(topupAmount.replace(',', '.')) >= 200
+                        ? <PayPalCardCheckout
+                            amountRsd={Number(topupAmount.replace(',', '.'))}
+                            onCaptured={() => { showToast('Uplata karticom je potvrđena i budžet je dopunjen.', 'success'); void refreshDashboard() }}
+                            onError={setTopupError}
+                          />
+                        : <p className="text-xs text-ink-3">Prvo unesi iznos od najmanje 200 RSD.</p>}
+                    </div>
+                  </div>
+                  <p className="text-xs text-ink-3 mt-3">Karticu obrađuje PayPal. Prikaz kartične opcije zavisi od PayPal odobrenja, zemlje i provere kupca; KlikZarada ne prima niti čuva podatke kartice.</p>
                 </Card>
               </div>
             )}

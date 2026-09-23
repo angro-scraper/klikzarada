@@ -99,10 +99,17 @@ export type CampaignPayload = {
 }
 
 export type PayPalOrder = {
-  approval_url: string
+  order_id: string
+  approval_url: string | null
   amount_rsd: number
   amount_eur: number
   exchange_rate: number
+}
+
+export type PayPalCheckoutConfig = {
+  client_id: string
+  currency: 'EUR'
+  card_checkout_enabled: boolean
 }
 
 export type AdminMetrics = {
@@ -166,8 +173,12 @@ export const api = {
   createCampaign: (payload: CampaignPayload) => request<{ campaign: Task; reserved_rsd: number }>('/advertiser/campaigns', {
     method: 'POST', body: JSON.stringify(payload),
   }),
-  createPayPalOrder: (amount_rsd: number) => request<PayPalOrder>('/advertiser/paypal/orders', {
-    method: 'POST', body: JSON.stringify({ amount_rsd }),
+  createPayPalOrder: (amount_rsd: number, checkout_flow: 'redirect' | 'smart_button' = 'redirect') => request<PayPalOrder>('/advertiser/paypal/orders', {
+    method: 'POST', body: JSON.stringify({ amount_rsd, checkout_flow }),
+  }),
+  paypalCheckoutConfig: () => request<PayPalCheckoutConfig>('/advertiser/paypal/checkout-config'),
+  capturePayPalOrder: (orderId: string) => request<{ credited: boolean; advertiser_budget_rsd: number }>(`/advertiser/paypal/orders/${encodeURIComponent(orderId)}/capture`, {
+    method: 'POST',
   }),
   adminDashboard: () => request<{ metrics: AdminMetrics }>('/admin/dashboard'),
   adminUsers: () => request<{ users: AdminUser[] }>('/admin/users'),

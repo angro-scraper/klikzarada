@@ -160,6 +160,10 @@ V11 još uvek koristi ručne/demo tokove za email, payment i legal proveru. Pre 
 ### PayPal Live Checkout
 
 Oglašivač može dopuniti budžet preko PayPal-a samo kada su sledeće Render varijable podešene: `PAYPAL_MODE=live`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_RSD_PER_EUR` i `PUBLIC_APP_URL`. Tajne nikada ne unositi u Git, admin panel ili chat. PayPal naplaćuje EUR, dok se budžet platforme vodi u RSD; `PAYPAL_RSD_PER_EUR` mora biti kurs koji je vlasnik platforme odobrio pre puštanja u rad.
+
+### Kartice preko PayPal-a
+
+Pored PayPal naloga, oglašivač može platiti kreditnom ili debitnom karticom kroz PayPal Checkout. `PAYPAL_CARD_PAYMENTS_ENABLED=true` je podrazumevana vrednost; postavi `false` u Renderu samo ako želiš privremeno da sakriješ kartičnu opciju. PayPal određuje dostupnost kartica prema Live nalogu, zemlji, kupcu i sopstvenoj proceni, pa se kartični taster prikazuje samo kad je PayPal Checkout prihvati. KlikZarada nikada ne prima niti čuva broj kartice ili CVV.
 - prebaciti bazu na PostgreSQL
 - podesiti HTTPS i domen
 - povezati pravi email provider
