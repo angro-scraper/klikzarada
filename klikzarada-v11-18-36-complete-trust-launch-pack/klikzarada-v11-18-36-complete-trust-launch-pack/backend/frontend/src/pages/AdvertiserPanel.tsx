@@ -371,6 +371,10 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [bannerDays, setBannerDays] = useState('7')
   const [bannerError, setBannerError] = useState('')
   const [bannerLoading, setBannerLoading] = useState(false)
+  const [profileName, setProfileName] = useState('')
+  const [profilePhone, setProfilePhone] = useState('')
+  const [profileCity, setProfileCity] = useState('')
+  const [profileSaving, setProfileSaving] = useState(false)
   const { show: showToast, node: toastNode } = useToast()
 
   const refreshDashboard = async () => {
@@ -380,6 +384,8 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
       setBannerSlots(bannerData.slots)
       setOwnBanners(bannerData.banners)
       setBannerSlotId(current => current || String(bannerData.slots[0]?.id ?? ''))
+      setProfileName(current => current || dashboardData.user.full_name)
+      setProfilePhone(current => current || dashboardData.user.phone || '')
       setDashboardError('')
     } catch (error) {
       setDashboardError(error instanceof Error ? error.message : 'Podaci trenutno nisu dostupni.')
@@ -467,6 +473,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
     status: task.status === 'active' ? 'aktivno' : task.status === 'pending' ? 'na_cekanju' : task.status === 'paused' ? 'obustavljeno' : task.status === 'rejected' ? 'odbijeno' : task.status === 'needs_revision' ? 'dorada' : task.status,
   }))
   const proofs = (dashboard?.submissions ?? []).map(submission => ({
+    submission,
     id: submission.id,
     korisnik: submission.user_name || 'Korisnik',
     zadatak: submission.task_title,
@@ -614,7 +621,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
             {page === 'dokazi' && (
               <div>
-                <SectionHeader title="Dokazi korisnika" description="Pregledaj i odobri ili odbij dostavljene dokaze." />
+                <SectionHeader title="Dokazi korisnika" description="Ti odlučuješ o rezultatu svoje kampanje. Admin interveniše samo kod spora ili anti-fraud provere." />
                 <Tabs
                   tabs={[{ id: 'svi', label: 'Svi' }, { id: 'na_proveri', label: 'Na proveri' }, { id: 'odobreno', label: 'Odobreno' }, { id: 'odbijeno', label: 'Odbijeno' }]}
                   active={proofsTab}
@@ -630,7 +637,9 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                         <span>{p.zadatak}</span>,
                         <span className="font-mono text-xs">{p.poslato}</span>,
                         <StatusBadge status={st} />,
-                        <span className="text-xs text-ink-3">Admin pregled</span>,
+                        st === 'na_proveri'
+                          ? <div className="flex gap-2"><Btn size="sm" variant="success" onClick={() => void (async () => { try { await api.reviewAdvertiserSubmission(p.id, 'approved'); await refreshDashboard(); showToast('Dokaz je odobren, a nagrada prebačena korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dokaz nije obrađen.', 'error') } })()}>Odobri</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.reviewAdvertiserSubmission(p.id, 'rejected', 'Dokaz ne ispunjava zahteve kampanje.'); await refreshDashboard(); showToast('Dokaz je vraćen korisniku kao odbijen.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dokaz nije obrađen.', 'error') } })()}>Odbij</Btn></div>
+                          : <span className="text-xs text-ink-3">{p.submission.review_note || 'Obrađeno'}</span>,
                       ]
                     })}
                   />
@@ -811,15 +820,14 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
             {page === 'profil' && (
               <div className="space-y-4">
-                <SectionHeader title="Profil oglašivača" />
+                <SectionHeader title="Profil oglašivača" description="Kontakt podaci se čuvaju na nalogu i koriste za komunikaciju o kampanjama." />
                 <Card className="p-5 space-y-4">
-                  <Input label={advertiser?.company_name ? 'Naziv firme' : 'Ime i prezime'} placeholder={advertiser?.company_name ? 'Acme d.o.o.' : 'Marko Marković'} />
-                  {advertiser?.company_name && <Input label="PIB" placeholder="123456789" />}
-                  <Input label="Kontakt email" placeholder="kontakt@firma.rs" />
-                  <Input label="Telefon" placeholder="+381 11 ..." />
+                  <Input label={advertiser?.company_name ? 'Kontakt osoba' : 'Ime i prezime'} placeholder="Ime i prezime" value={profileName} onChange={setProfileName} />
+                  <Input label="Telefon" placeholder="+381 11 ..." value={profilePhone} onChange={setProfilePhone} />
+                  <Input label="Grad" placeholder="npr. Beograd" value={profileCity} onChange={setProfileCity} />
                   <div className="flex gap-2">
-                    <Btn variant="success" onClick={() => showToast('Profil oglašivača je sačuvan.', 'success')}>Sačuvaj izmene</Btn>
-                    <Btn variant="secondary">Otkaži</Btn>
+                    <Btn variant="success" disabled={profileSaving || profileName.trim().length < 2} onClick={() => void (async () => { try { setProfileSaving(true); await api.saveProfile({ full_name: profileName.trim(), phone: profilePhone.trim() || undefined, city: profileCity.trim() || undefined }); await refreshDashboard(); showToast('Profil oglašivača je sačuvan.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Profil nije sačuvan.', 'error') } finally { setProfileSaving(false) } })()}>{profileSaving ? 'Čuvanje...' : 'Sačuvaj izmene'}</Btn>
+                    <Btn variant="secondary" onClick={() => { setProfileName(advertiser?.full_name || ''); setProfilePhone(advertiser?.phone || ''); setProfileCity('') }}>Otkaži</Btn>
                   </div>
                 </Card>
               </div>

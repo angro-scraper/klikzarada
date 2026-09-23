@@ -10,6 +10,8 @@ export type SessionUser = {
   balance_rsd: number
   pending_rsd: number
   lifetime_earned_rsd: number
+  phone: string | null
+  city: string | null
   payment_method: string | null
   payment_details: string | null
   company_name: string | null
@@ -284,6 +286,9 @@ export const api = {
   }),
   reviseCampaign: (id: number, payload: CampaignPayload) => request<{ campaign: Task; reserved_rsd: number }>(`/advertiser/campaigns/${id}`, {
     method: 'PUT', body: JSON.stringify(payload),
+  }),
+  reviewAdvertiserSubmission: (id: number, status: 'approved' | 'rejected', note?: string) => request<{ submission: Submission }>(`/advertiser/submissions/${id}`, {
+    method: 'PATCH', body: JSON.stringify({ status, note }),
   }),
   createPayPalOrder: (amount_rsd: number, checkout_flow: 'redirect' | 'smart_button' = 'redirect') => request<PayPalOrder>('/advertiser/paypal/orders', {
     method: 'POST', body: JSON.stringify({ amount_rsd, checkout_flow }),

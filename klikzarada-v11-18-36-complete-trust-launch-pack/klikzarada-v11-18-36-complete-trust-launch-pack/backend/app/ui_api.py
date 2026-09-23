@@ -344,6 +344,8 @@ def _user_data(user: User) -> dict:
         "balance_rsd": _money(user.balance_rsd),
         "pending_rsd": _money(user.pending_rsd),
         "lifetime_earned_rsd": _money(user.lifetime_earned_rsd),
+        "phone": user.phone,
+        "city": user.city,
         "payment_method": user.payment_method,
         "payment_details": user.payment_details,
         "company_name": user.company_name,
@@ -745,15 +747,16 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
 
 @router.put("/user/profile")
 def save_user_profile(payload: ProfilePayload, request: Request, db: Session = Depends(get_db)) -> dict:
-    user = _require_user(request, db, {"korisnik", "admin"})
+    user = _require_user(request, db, {"korisnik", "oglasivac", "admin"})
     phone = "".join(character for character in (payload.phone or "") if character.isdigit() or character == "+")
     if phone and db.query(User).filter(User.phone == phone, User.id != user.id).first():
         raise HTTPException(409, "Taj broj telefona je već povezan sa drugim nalogom.")
     user.full_name = payload.full_name.strip()
     user.phone = phone or None
     user.city = (payload.city or "").strip() or None
-    user.payment_method = "PayPal"
-    user.payment_details = _paypal_email(payload.payment_details)
+    if payload.payment_details:
+        user.payment_method = "PayPal"
+        user.payment_details = _paypal_email(payload.payment_details)
     db.commit()
     return {"user": _user_data(user)}
 
@@ -1697,9 +1700,7 @@ def admin_submissions(request: Request, db: Session = Depends(get_db)) -> dict:
     return {"submissions": [_submission_data(item) | {"user_name": item.user.full_name if item.user else "Korisnik"} for item in submissions]}
 
 
-@router.patch("/admin/submissions/{submission_id}")
-def review_submission(submission_id: int, payload: AdminStatusPayload, request: Request, db: Session = Depends(get_db)) -> dict:
-    admin = _require_user(request, db, {"admin"})
+def _review_submission(submission_id: int, payload: AdminStatusPayload, actor: User, db: Session) -> dict:
     submission = db.query(TaskSubmission).filter(TaskSubmission.id == submission_id).first()
     if not submission:
         raise HTTPException(404, "Dokaz nije pronađen.")
@@ -1732,9 +1733,26 @@ def review_submission(submission_id: int, payload: AdminStatusPayload, request: 
         user.pending_rsd = _money(user.pending_rsd - submission.reward_rsd)
         if submission.task:
             submission.task.used_slots = max(0, int(submission.task.used_slots or 0) - 1)
-    _audit(db, admin, "submission_review", "TaskSubmission", submission.id, payload.status)
+    _audit(db, actor, "submission_review", "TaskSubmission", submission.id, payload.status)
     db.commit()
     return {"submission": _submission_data(submission)}
+
+
+@router.patch("/advertiser/submissions/{submission_id}")
+def review_advertiser_submission(submission_id: int, payload: AdminStatusPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    """Only the campaign owner decides whether a normal task proof is accepted."""
+    advertiser = _require_user(request, db, {"oglasivac", "admin"})
+    submission = db.query(TaskSubmission).join(Task).filter(TaskSubmission.id == submission_id, Task.advertiser_id == advertiser.id).first()
+    if not submission:
+        raise HTTPException(404, "Dokaz za tvoju kampanju nije pronađen.")
+    return _review_submission(submission_id, payload, advertiser, db)
+
+
+@router.patch("/admin/submissions/{submission_id}")
+def review_submission(submission_id: int, payload: AdminStatusPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    """Admin only resolves exceptional fraud or dispute cases, never routine proof review."""
+    admin = _require_user(request, db, {"admin"})
+    raise HTTPException(403, "Dokaze pregleda oglašivač. Admin ih obrađuje samo kroz poseban spor ili anti-fraud postupak.")
 
 
 @router.get("/admin/withdrawals")
