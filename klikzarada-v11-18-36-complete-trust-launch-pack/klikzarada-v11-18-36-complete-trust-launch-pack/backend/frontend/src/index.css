@@ -1,0 +1,103 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  /* === Page & surface === */
+  --color-mint-50:  #F3FBF7;
+  --color-mint-100: #E6F5ED;
+  --color-mint-200: #CDEBDA;
+  --color-frame:    #DCE9E2;
+
+  /* === Navy (sidebar, nav, headings) === */
+  --color-navy-950: #040d1e;
+  --color-navy-900: #0a1628;
+  --color-navy-800: #112038;
+  --color-navy-700: #1a3050;
+  --color-navy-600: #234070;
+  --color-navy-text: #102A43;
+
+  /* === Text === */
+  --color-ink:      #102A43;
+  --color-ink-2:    #52677D;
+  --color-ink-3:    #7E94A8;
+  --color-ink-4:    #A8BAC8;
+
+  /* === Emerald / Success / Earnings === */
+  --color-emerald-700: #166534;
+  --color-emerald-600: #16A34A;
+  --color-emerald-500: #22c55e;
+  --color-emerald-100: #DCFCE7;
+  --color-emerald-50:  #F0FDF4;
+
+  /* === Blue / CTA / Navigation === */
+  --color-blue-700: #1d4ed8;
+  --color-blue-600: #2563EB;
+  --color-blue-500: #3b82f6;
+  --color-blue-100: #DBEAFE;
+  --color-blue-50:  #EFF6FF;
+
+  /* === Purple / Premium / Tier === */
+  --color-violet-700: #6d28d9;
+  --color-violet-600: #7C3AED;
+  --color-violet-400: #a78bfa;
+  --color-violet-100: #EDE9FE;
+  --color-violet-50:  #F5F3FF;
+
+  /* === Orange / Pending / Warning === */
+  --color-amber-700: #b45309;
+  --color-amber-600: #EA8A00;
+  --color-amber-500: #f59e0b;
+  --color-amber-100: #FFF3D6;
+  --color-amber-50:  #FFFBEB;
+
+  /* === Coral Red / Error / Risk === */
+  --color-coral-700: #b91c1c;
+  --color-coral-600: #E24B4A;
+  --color-coral-400: #f87171;
+  --color-coral-100: #FEE2E2;
+  --color-coral-50:  #FFF5F5;
+
+  /* === Teal / Analytics / Growth === */
+  --color-teal-700: #0f766e;
+  --color-teal-600: #0d9488;
+  --color-teal-500: #14b8a6;
+  --color-teal-100: #CCFBF1;
+  --color-teal-50:  #F0FDFA;
+
+  /* === Neutrals === */
+  --color-white: #ffffff;
+  --color-gray-50:  #f8fafc;
+  --color-gray-100: #f1f5f9;
+  --color-gray-200: #e2e8f0;
+  --color-gray-300: #cbd5e1;
+  --color-gray-400: #94a3b8;
+  --color-gray-500: #64748b;
+  --color-gray-600: #475569;
+  --color-gray-700: #334155;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  font-family: var(--font-sans);
+  background-color: #F3FBF7;
+  color: #102A43;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+body { margin: 0; }
+.font-mono { font-family: var(--font-mono); }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #DCE9E2; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #CDEBDA; }
+
+:focus-visible { outline: 2px solid #2563EB; outline-offset: 2px; }
+
+.table-scroll { overflow-x: auto; }
+.table-scroll::-webkit-scrollbar { height: 4px; }

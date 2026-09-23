@@ -25,12 +25,28 @@ from urllib.request import Request as UrlRequest, urlopen
 from .database import Base, engine, get_db, SessionLocal
 from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, TaskSourceV11, SecurityEvent, KycDocument, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
 from .security import create_session_token, hash_password, make_referral_code, read_session_token, verify_password
+from .ui_api import router as ui_api_router
 
 app = FastAPI(title="KlikZarada V11.18.36 Complete Trust Launch Pack", version="11.18.36")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+SPA_DIR = Path("app/static/app-ui")
+if SPA_DIR.exists():
+    app.mount("/app-ui", StaticFiles(directory=SPA_DIR), name="app-ui")
+app.include_router(ui_api_router)
 templates = Jinja2Templates(directory="app/templates")
 UPLOAD_DIR = Path("app/static/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+@app.middleware("http")
+async def serve_react_application(request: Request, call_next):
+    """Serve the Figma React application for browser pages, never for APIs/assets."""
+    path = request.url.path
+    excluded = ("/api/", "/static/", "/app-ui/", "/docs", "/openapi.json", "/favicon.ico", "/sw.js", "/logout")
+    index = SPA_DIR / "index.html"
+    wants_html = "text/html" in request.headers.get("accept", "")
+    if request.method == "GET" and wants_html and index.exists() and not path.startswith(excluded):
+        return FileResponse(index, media_type="text/html")
+    return await call_next(request)
 
 PLATFORM_FEE_PERCENT = 20.0
 REFERRAL_BONUS_RSD = 15.0
