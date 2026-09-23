@@ -179,12 +179,12 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
       <div className="w-8 h-8 rounded-full bg-coral-600 flex items-center justify-center text-white text-sm font-bold">A</div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-white truncate">Administrator</p>
-        <p className="text-xs" style={{ color: '#4a6a8a' }}>Ops pristup</p>
+        <p className="text-xs" style={{ color: '#9AB1C8' }}>Ops pristup</p>
       </div>
       <button
         onClick={() => setLogoutConfirm(true)}
         className="text-xs px-2 py-1 rounded hover:bg-white/10 cursor-pointer font-medium"
-        style={{ color: '#4a6a8a' }}
+        style={{ color: '#B9CDE0' }}
       >
         Odjava
       </button>

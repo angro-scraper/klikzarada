@@ -137,12 +137,12 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
       <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold">{user?.full_name?.slice(0, 1).toUpperCase() || 'K'}</div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-white truncate">{user?.full_name || 'Učitavanje...'}</p>
-        <p className="text-xs" style={{ color: '#4a6a8a' }}>🧭 {user?.level || 'Bronza'}</p>
+        <p className="text-xs" style={{ color: '#9AB1C8' }}>🧭 {user?.level || 'Bronza'}</p>
       </div>
       <button
         onClick={() => setLogoutConfirm(true)}
         className="text-xs px-2 py-1 rounded hover:bg-white/10 cursor-pointer font-medium"
-        style={{ color: '#4a6a8a' }}
+        style={{ color: '#B9CDE0' }}
         title="Odjavi se"
       >
         Odjava

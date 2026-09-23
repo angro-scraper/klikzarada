@@ -9,7 +9,7 @@ function Logo({ onClick }: { onClick: () => void }) {
       <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-sm shadow-sm">K</div>
       <div className="text-left">
         <span className="font-bold text-white text-sm tracking-tight">KlikZarada</span>
-        <span className="block text-[10px] text-navy-600/60 leading-none mt-0.5" style={{color:'#4a6a8a'}}>platforma</span>
+        <span className="block text-[10px] text-navy-600/60 leading-none mt-0.5" style={{color:'#9AB1C8'}}>platforma</span>
       </div>
     </button>
   )
@@ -22,7 +22,7 @@ function NavItemRow({ item, active, onClick }: { item: NavItem; active: boolean;
       className={`flex items-center gap-3 px-3 py-2 text-[13px] transition-all duration-100 cursor-pointer rounded-lg mx-2 ${
         active
           ? 'bg-blue-600 text-white font-semibold shadow-sm'
-          : 'text-slate-400 hover:text-slate-100 hover:bg-white/10'
+          : 'text-[#9db5ca] hover:text-white hover:bg-[#183a5b] font-medium'
       }`}
       style={{ width: 'calc(100% - 16px)' }}
     >
@@ -57,7 +57,7 @@ export function Sidebar({
         {groups.map((g, gi) => (
           <div key={gi} className="mb-3">
             {g.group && (
-              <p className="px-4 mb-1 text-[10px] font-bold uppercase tracking-widest" style={{ color: '#3a5a7a' }}>
+              <p className="px-4 mb-1 text-[10px] font-bold uppercase tracking-widest" style={{ color: '#8aa7c2' }}>
                 {g.group}
               </p>
             )}
