@@ -9,13 +9,16 @@
   --color-mint-200: #CDEBDA;
   --color-frame:    #DCE9E2;
 
-  /* === Navy (sidebar, nav, headings) === */
-  --color-navy-950: #040d1e;
-  --color-navy-900: #0a1628;
-  --color-navy-800: #112038;
-  --color-navy-700: #1a3050;
-  --color-navy-600: #234070;
+  /* === Light application surfaces === */
+  --color-navy-950: #ffffff;
+  --color-navy-900: #f3fbf7;
+  --color-navy-800: #e6f5ed;
+  --color-navy-700: #d9eee2;
+  --color-navy-600: #c9e1d3;
   --color-navy-text: #102A43;
+
+  --color-surface-2: #ffffff;
+  --color-border: #d7e6de;
 
   /* === Text === */
   --color-ink:      #102A43;
@@ -76,6 +79,15 @@
   --color-gray-600: #475569;
   --color-gray-700: #334155;
 
+  /* Existing Figma views use slate text utilities on dark surfaces. */
+  --color-slate-50: #102A43;
+  --color-slate-100: #102A43;
+  --color-slate-200: #233f57;
+  --color-slate-300: #3f5b71;
+  --color-slate-400: #52677D;
+  --color-slate-500: #70869a;
+  --color-slate-600: #8aa0b2;
+
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
@@ -84,12 +96,12 @@
 
 html {
   font-family: var(--font-sans);
-  background-color: #F3FBF7;
+  background: linear-gradient(135deg, #f7fdf9 0%, #edf8f2 48%, #f4f8ff 100%);
   color: #102A43;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-body { margin: 0; }
+body { margin: 0; min-height: 100vh; }
 .font-mono { font-family: var(--font-mono); }
 
 ::-webkit-scrollbar { width: 5px; height: 5px; }
