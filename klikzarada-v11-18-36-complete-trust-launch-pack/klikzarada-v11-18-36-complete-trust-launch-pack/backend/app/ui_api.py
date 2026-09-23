@@ -22,6 +22,8 @@ from .models import (
     AdvertiserBudgetTransaction,
     AuditLog,
     SystemSetting,
+    SupportMessage,
+    SupportTicket,
     Task,
     TaskSourceV11,
     TaskSubmission,
@@ -94,6 +96,12 @@ class SourcePayload(BaseModel):
     import_mode: Literal["review", "sync", "manual"] = "review"
 
 
+class SupportTicketPayload(BaseModel):
+    subject: str = Field(min_length=3, max_length=220)
+    body: str = Field(min_length=5, max_length=5000)
+    category: str = Field(default="Opšte", max_length=80)
+
+
 def _money(value: float | None) -> float:
     return round(float(value or 0), 2)
 
@@ -158,6 +166,19 @@ def _submission_data(submission: TaskSubmission) -> dict:
         "reward_rsd": _money(submission.reward_rsd),
         "review_note": submission.review_note,
         "created_at": _iso(submission.created_at),
+    }
+
+
+def _ticket_data(ticket: SupportTicket) -> dict:
+    return {
+        "id": ticket.id,
+        "subject": ticket.subject,
+        "category": ticket.category,
+        "priority": ticket.priority,
+        "status": _status(ticket.status),
+        "created_at": _iso(ticket.created_at),
+        "updated_at": _iso(ticket.updated_at),
+        "user_name": ticket.user.full_name if ticket.user else "Korisnik",
     }
 
 
@@ -270,6 +291,25 @@ def save_user_profile(payload: ProfilePayload, request: Request, db: Session = D
     user.payment_details = (payload.payment_details or "").strip() or None
     db.commit()
     return {"user": _user_data(user)}
+
+
+@router.get("/tickets")
+def my_support_tickets(request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db)
+    tickets = db.query(SupportTicket).filter(SupportTicket.user_id == user.id).order_by(SupportTicket.updated_at.desc()).limit(100).all()
+    return {"tickets": [_ticket_data(ticket) for ticket in tickets]}
+
+
+@router.post("/tickets", status_code=201)
+def create_support_ticket(payload: SupportTicketPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db)
+    ticket = SupportTicket(user_id=user.id, subject=payload.subject.strip(), category=payload.category.strip() or "Opšte", status="open")
+    db.add(ticket)
+    db.flush()
+    db.add(SupportMessage(ticket_id=ticket.id, sender_id=user.id, body=payload.body.strip()))
+    db.commit()
+    db.refresh(ticket)
+    return {"ticket": _ticket_data(ticket)}
 
 
 @router.post("/user/tasks/{task_id}/proof", status_code=201)
@@ -443,6 +483,13 @@ def admin_withdrawals(request: Request, db: Session = Depends(get_db)) -> dict:
     _require_user(request, db, {"admin"})
     items = db.query(Withdrawal).order_by(Withdrawal.created_at.desc()).limit(300).all()
     return {"withdrawals": [{"id": item.id, "user_name": item.user.full_name if item.user else "Korisnik", "amount_rsd": _money(item.amount_rsd), "payment_method": item.payment_method, "payment_details": item.payment_details, "status": _status(item.status), "created_at": _iso(item.created_at)} for item in items]}
+
+
+@router.get("/admin/tickets")
+def admin_tickets(request: Request, db: Session = Depends(get_db)) -> dict:
+    _require_user(request, db, {"admin"})
+    tickets = db.query(SupportTicket).order_by(SupportTicket.updated_at.desc()).limit(300).all()
+    return {"tickets": [_ticket_data(ticket) for ticket in tickets]}
 
 
 @router.patch("/admin/withdrawals/{withdrawal_id}")

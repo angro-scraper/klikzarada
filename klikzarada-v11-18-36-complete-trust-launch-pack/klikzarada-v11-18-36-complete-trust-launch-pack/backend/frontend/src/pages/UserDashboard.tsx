@@ -4,7 +4,7 @@ import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tab
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal, InfoModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { api, type SessionUser, type Task, type UserDashboardData } from '../lib/api'
+import { api, type SessionUser, type SupportTicket, type Task, type UserDashboardData } from '../lib/api'
 
 const navGroups = [
   { items: [
@@ -100,12 +100,16 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
   const [paymentDetails, setPaymentDetails] = useState('')
   const [profileName, setProfileName] = useState('')
   const [saving, setSaving] = useState(false)
+  const [tickets, setTickets] = useState<SupportTicket[]>([])
+  const [ticketSubject, setTicketSubject] = useState('')
+  const [ticketBody, setTicketBody] = useState('')
   const { show: showToast, node: toastNode } = useToast()
 
   const refreshDashboard = async () => {
     try {
-      const data = await api.userDashboard()
+      const [data, ticketData] = await Promise.all([api.userDashboard(), api.tickets()])
       setDashboard(data)
+      setTickets(ticketData.tickets)
       setPaymentMethod(data.user.payment_method || 'bankovni račun')
       setPaymentDetails(data.user.payment_details || '')
       setProfileName(data.user.full_name)
@@ -672,15 +676,21 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
                     <p className="font-bold text-ink mb-1">📚 Centar za pomoć</p>
                     <p className="text-sm text-ink-2 mb-3">Odgovori na česta pitanja korisnika.</p>
-                    <Btn variant="secondary" size="sm">Otvori pomoć</Btn>
+                    <Btn variant="secondary" size="sm" onClick={() => showToast('Centar za pomoć se priprema. Za konkretan slučaj otvori tiket.', 'info')}>Otvori pomoć</Btn>
                   </div>
                   <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5">
                     <p className="font-bold text-ink mb-1">💬 Kontaktiraj podršku</p>
                     <p className="text-sm text-ink-2 mb-3">Odgovaramo u roku od 24h, svakog dana.</p>
-                    <Btn variant="secondary" size="sm">Pošalji poruku</Btn>
+                    <Btn variant="secondary" size="sm" onClick={() => document.getElementById('novi-tiket')?.scrollIntoView({ behavior: 'smooth' })}>Pošalji poruku</Btn>
                   </div>
                 </div>
-                <EmptyState icon="🎫" title="Nema otvorenih tiketa" description="Sva tvoja pitanja su rešena." />
+                <div id="novi-tiket"><Card className="p-5 space-y-3">
+                  <h3 className="font-bold text-ink">Novi tiket</h3>
+                  <input value={ticketSubject} onChange={event => setTicketSubject(event.target.value)} placeholder="Kratak naslov problema" className="w-full bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                  <textarea value={ticketBody} onChange={event => setTicketBody(event.target.value)} rows={4} placeholder="Opiši problem i dodaj bitne detalje." className="w-full bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-y" />
+                  <Btn disabled={saving || !ticketSubject.trim() || !ticketBody.trim()} onClick={async () => { setSaving(true); try { await api.createTicket({ subject: ticketSubject, body: ticketBody }); await refreshDashboard(); setTicketSubject(''); setTicketBody(''); showToast('Tiket je poslat podršci.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Tiket nije poslat.', 'error') } finally { setSaving(false) } }}>{saving ? 'Slanje...' : 'Pošalji tiket'}</Btn>
+                </Card></div>
+                {tickets.length === 0 ? <EmptyState icon="🎫" title="Nema otvorenih tiketa" description="Sva tvoja pitanja su rešena." /> : <Card><Table headers={['Naslov', 'Kategorija', 'Status', 'Ažurirano']} rows={tickets.map(ticket => [<span className="font-medium text-ink">{ticket.subject}</span>, <span className="text-sm text-ink-2">{ticket.category}</span>, <StatusBadge status={ticket.status === 'open' ? 'na_cekanju' : ticket.status === 'closed' ? 'odobreno' : 'na_proveri'} />, <span className="font-mono text-xs text-ink-2">{formatDate(ticket.updated_at)}</span>])} /></Card>}
               </div>
             )}
           </div>

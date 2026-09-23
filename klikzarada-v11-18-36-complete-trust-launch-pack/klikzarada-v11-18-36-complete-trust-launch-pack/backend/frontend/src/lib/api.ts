@@ -113,6 +113,7 @@ export type AdminCampaign = Task & { advertiser_name: string }
 export type AdminSubmission = Submission & { user_name: string }
 export type AdminWithdrawal = Withdrawal & { user_name: string; payment_details: string }
 export type TaskSource = { id: number; name: string; endpoint_url: string; source_type: string; import_mode: string; status: string; has_api_key: boolean; last_sync_at: string | null; created_at: string | null }
+export type SupportTicket = { id: number; subject: string; category: string; priority: string; status: string; created_at: string | null; updated_at: string | null; user_name: string }
 
 type ApiErrorBody = { detail?: string }
 
@@ -148,6 +149,10 @@ export const api = {
   }),
   saveProfile: (payload: { full_name: string; phone?: string; city?: string; payment_method?: string; payment_details?: string }) => request<{ user: SessionUser }>('/user/profile', {
     method: 'PUT', body: JSON.stringify(payload),
+  }),
+  tickets: () => request<{ tickets: SupportTicket[] }>('/tickets'),
+  createTicket: (payload: { subject: string; body: string; category?: string }) => request<{ ticket: SupportTicket }>('/tickets', {
+    method: 'POST', body: JSON.stringify(payload),
   }),
   advertiserDashboard: () => request<AdvertiserDashboardData>('/advertiser/dashboard'),
   createCampaign: (payload: CampaignPayload) => request<{ campaign: Task; reserved_rsd: number }>('/advertiser/campaigns', {
