@@ -38,6 +38,43 @@ export type Task = {
   created_at: string | null
 }
 
+export type Submission = {
+  id: number
+  task_id: number
+  task_title: string
+  proof: string
+  status: string
+  reward_rsd: number
+  review_note: string | null
+  created_at: string | null
+}
+
+export type WalletTransaction = {
+  id: number
+  amount_rsd: number
+  tx_type: string
+  description: string
+  created_at: string | null
+}
+
+export type Withdrawal = {
+  id: number
+  amount_rsd: number
+  status: string
+  payment_method: string
+  created_at: string | null
+}
+
+export type UserDashboardData = {
+  user: SessionUser
+  min_withdrawal_rsd: number
+  referral_count: number
+  tasks: Task[]
+  submissions: Submission[]
+  withdrawals: Withdrawal[]
+  transactions: WalletTransaction[]
+}
+
 type ApiErrorBody = { detail?: string }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -63,4 +100,14 @@ export const api = {
   }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   publicTasks: () => request<{ tasks: Task[] }>('/public/tasks'),
+  userDashboard: () => request<UserDashboardData>('/user/dashboard'),
+  submitProof: (taskId: number, proof: string) => request<{ submission: Submission }>(`/user/tasks/${taskId}/proof`, {
+    method: 'POST', body: JSON.stringify({ proof }),
+  }),
+  requestWithdrawal: (payload: { amount_rsd: number; payment_method: string; payment_details: string }) => request<{ withdrawal: Withdrawal }>('/user/withdrawals', {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
+  saveProfile: (payload: { full_name: string; phone?: string; city?: string; payment_method?: string; payment_details?: string }) => request<{ user: SessionUser }>('/user/profile', {
+    method: 'PUT', body: JSON.stringify(payload),
+  }),
 }

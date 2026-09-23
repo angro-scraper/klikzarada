@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Sidebar, TopBar } from '../components/Sidebar'
 import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tabs, Alert } from '../components/ui'
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal, InfoModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
+import { api, type SessionUser, type Task, type UserDashboardData } from '../lib/api'
 
 const navGroups = [
   { items: [
@@ -60,27 +61,14 @@ const BREADCRUMBS: Partial<Record<Page, { label: string }[]>> = {
   'zadatak-detalj':[{ label: 'Korisnik' }, { label: 'Zadaci' }, { label: 'Detalj zadatka' }],
 }
 
-const activeTasks = [
-  { id: 1, title: 'Lajkuj i komentiraj objavu na Instagram-u', reward: '35 RSD', time: '5 min', cat: 'Društvene mreže', catColor: 'bg-blue-100 text-blue-700' },
-  { id: 2, title: 'Popuni anketu o navikama u kupovini', reward: '80 RSD', time: '10 min', cat: 'Ankete', catColor: 'bg-violet-100 text-violet-700' },
-  { id: 3, title: 'Ostavi recenziju aplikacije na Google Play-u', reward: '120 RSD', time: '8 min', cat: 'Recenzije', catColor: 'bg-teal-100 text-teal-700' },
-  { id: 4, title: 'Pogledaj video reklamu', reward: '50 RSD', time: '6 min', cat: 'Video', catColor: 'bg-emerald-100 text-emerald-700' },
-]
+const categoryColor = (category: string) => {
+  const colors = ['bg-blue-100 text-blue-700', 'bg-violet-100 text-violet-700', 'bg-teal-100 text-teal-700', 'bg-emerald-100 text-emerald-700']
+  const total = [...category].reduce((sum, character) => sum + character.charCodeAt(0), 0)
+  return colors[total % colors.length]
+}
 
-const myProofs = [
-  { task: 'Lajkuj Facebook objavu', submitted: '23.12.2024', reward: '35 RSD', status: 'odobreno' },
-  { task: 'Anketa — kupovne navike', submitted: '22.12.2024', reward: '80 RSD', status: 'na_cekanju' },
-  { task: 'Recenzija aplikacije', submitted: '20.12.2024', reward: '120 RSD', status: 'odbijeno' },
-  { task: 'Pogledaj video reklamu', submitted: '19.12.2024', reward: '50 RSD', status: 'odobreno' },
-]
-
-const txData = [
-  { date: '23.12.2024', opis: 'Zadatak: Lajkuj Facebook objavu', iznos: '+35 RSD', tip: 'zarada' },
-  { date: '19.12.2024', opis: 'Zadatak: Pogledaj video reklamu', iznos: '+50 RSD', tip: 'zarada' },
-  { date: '18.12.2024', opis: 'Dnevna nagrada — streak 7 dana', iznos: '+25 RSD', tip: 'nagrada' },
-  { date: '15.12.2024', opis: 'Isplata na račun', iznos: '-500 RSD', tip: 'isplata' },
-  { date: '12.12.2024', opis: 'Referral bonus — 1 poziv', iznos: '+100 RSD', tip: 'referral' },
-]
+const formatRsd = (amount: number) => `${new Intl.NumberFormat('sr-RS', { maximumFractionDigits: 2 }).format(amount)} RSD`
+const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('sr-RS').format(new Date(value)) : '—'
 
 const badges = [
   { icon: '🚀', name: 'Starter', desc: 'Prvih 5 zadataka', unlocked: true },
@@ -99,13 +87,42 @@ const missions = [
 export default function UserDashboard({ onNavigate }: { onNavigate: (id: string) => void }) {
   const [page, setPage] = useState<Page>('pregled')
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [dailyClaimed, setDailyClaimed] = useState(false)
   const [proofTab, setProofTab] = useState('svi')
   const [confirmPayout, setConfirmPayout] = useState(false)
   const [submitProofModal, setSubmitProofModal] = useState<number | null>(null)
-  const [proofSubmitted, setProofSubmitted] = useState<Record<number, boolean>>({})
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
   const [logoutConfirm, setLogoutConfirm] = useState(false)
+  const [dashboard, setDashboard] = useState<UserDashboardData | null>(null)
+  const [dashboardError, setDashboardError] = useState('')
+  const [proofText, setProofText] = useState('')
+  const [payoutAmount, setPayoutAmount] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('bankovni račun')
+  const [paymentDetails, setPaymentDetails] = useState('')
+  const [profileName, setProfileName] = useState('')
+  const [saving, setSaving] = useState(false)
   const { show: showToast, node: toastNode } = useToast()
+
+  const refreshDashboard = async () => {
+    try {
+      const data = await api.userDashboard()
+      setDashboard(data)
+      setPaymentMethod(data.user.payment_method || 'bankovni račun')
+      setPaymentDetails(data.user.payment_details || '')
+      setProfileName(data.user.full_name)
+      setDashboardError('')
+    } catch (error) {
+      setDashboardError(error instanceof Error ? error.message : 'Podaci trenutno nisu dostupni.')
+    }
+  }
+
+  useEffect(() => { void refreshDashboard() }, [])
+
+  const user: SessionUser | undefined = dashboard?.user
+  const activeTasks: Task[] = dashboard?.tasks ?? []
+  const balance = user?.balance_rsd ?? 0
+  const minWithdrawal = dashboard?.min_withdrawal_rsd ?? 1000
+  const payoutGap = Math.max(0, minWithdrawal - balance)
+  const selectedTask = activeTasks.find(task => task.id === selectedTaskId || task.id === submitProofModal)
 
   function goTo(p: Page) { setPage(p) }
   const back = BACK[page]
@@ -113,10 +130,10 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
 
   const sidebarFooter = (
     <div className="flex items-center gap-2.5">
-      <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold">M</div>
+      <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold">{user?.full_name?.slice(0, 1).toUpperCase() || 'K'}</div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white truncate">Marko M.</p>
-        <p className="text-xs" style={{ color: '#4a6a8a' }}>🧭 Explorer</p>
+        <p className="text-sm font-semibold text-white truncate">{user?.full_name || 'Učitavanje...'}</p>
+        <p className="text-xs" style={{ color: '#4a6a8a' }}>🧭 {user?.level || 'Bronza'}</p>
       </div>
       <button
         onClick={() => setLogoutConfirm(true)}
@@ -141,7 +158,13 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
         confirmLabel="Da, odjavi me"
         cancelLabel="Otkaži"
         variant="danger"
-        onConfirm={() => onNavigate('home')}
+        onConfirm={async () => {
+          try {
+            await api.logout()
+          } finally {
+            onNavigate('home')
+          }
+        }}
         onCancel={() => setLogoutConfirm(false)}
       />
 
@@ -149,11 +172,29 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
       <ConfirmModal
         open={confirmPayout}
         title="Zatražiti isplatu?"
-        description="Iznos od 1.285 RSD biće prosleđen na tvoj bankovni račun. Obrada traje 1–3 radna dana."
+        description={`Iznos od ${formatRsd(Number(payoutAmount) || balance)} biće prosleđen na navedene podatke. Zahtev prvo prolazi administrativnu proveru.`}
         confirmLabel="Zatraži isplatu"
         cancelLabel="Otkaži"
         variant="success"
-        onConfirm={() => { setConfirmPayout(false); showToast('Zahtev za isplatu je poslat. Obrada traje 1–3 radna dana.', 'success') }}
+        onConfirm={async () => {
+          const amount = Number(payoutAmount) || balance
+          if (!paymentDetails.trim()) {
+            showToast('Unesi podatke za isplatu pre slanja zahteva.', 'error')
+            return
+          }
+          setSaving(true)
+          try {
+            await api.requestWithdrawal({ amount_rsd: amount, payment_method: paymentMethod, payment_details: paymentDetails })
+            await refreshDashboard()
+            setConfirmPayout(false)
+            setPayoutAmount('')
+            showToast('Zahtev za isplatu je poslat na administrativnu obradu.', 'success')
+          } catch (error) {
+            showToast(error instanceof Error ? error.message : 'Zahtev nije poslat.', 'error')
+          } finally {
+            setSaving(false)
+          }
+        }}
         onCancel={() => setConfirmPayout(false)}
       />
 
@@ -165,22 +206,32 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
       >
         {submitProofModal !== null && (
           <div className="space-y-3">
-            <p className="text-sm text-ink-2">Priloži screenshot kao dokaz izvršenja zadatka.</p>
-            <div className="border-2 border-dashed border-frame rounded-xl p-6 text-center cursor-pointer hover:bg-mint-50 transition-colors">
-              <p className="text-2xl mb-1">📎</p>
-              <p className="text-sm font-semibold text-ink-2">Prevuci fajl ili klikni za odabir</p>
-              <p className="text-xs text-ink-3 mt-0.5">PNG, JPG ili MP4, max 10MB</p>
+            <p className="text-sm text-ink-2">{selectedTask ? `Dokaz za: ${selectedTask.title}` : 'Pošalji dokaz izvršenja zadatka.'}</p>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Link ili opis dokaza</label>
+              <textarea value={proofText} onChange={event => setProofText(event.target.value)} rows={4} placeholder="Nalepi javni link do screenshota ili napiši gde admin može da proveri izvršenje." className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-y" />
+              <p className="text-xs text-ink-3">Upload fajlova dodajemo kao sledeći korak; trenutno se šalje link ili detaljan opis za proveru.</p>
             </div>
             <Btn
               variant="success"
               className="w-full justify-center"
-              onClick={() => {
-                setProofSubmitted(p => ({ ...p, [submitProofModal]: true }))
-                setSubmitProofModal(null)
-                showToast('Dokaz je poslat i čeka pregled.', 'success')
+              disabled={saving || !proofText.trim()}
+              onClick={async () => {
+                setSaving(true)
+                try {
+                  await api.submitProof(submitProofModal, proofText)
+                  await refreshDashboard()
+                  setProofText('')
+                  setSubmitProofModal(null)
+                  showToast('Dokaz je poslat i čeka pregled.', 'success')
+                } catch (error) {
+                  showToast(error instanceof Error ? error.message : 'Dokaz nije poslat.', 'error')
+                } finally {
+                  setSaving(false)
+                }
               }}
             >
-              Pošalji dokaz
+              {saving ? 'Slanje...' : 'Pošalji dokaz'}
             </Btn>
           </div>
         )}
@@ -215,7 +266,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
           actions={
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
-                <p className="font-mono text-sm font-bold text-emerald-600">1.285 RSD</p>
+                <p className="font-mono text-sm font-bold text-emerald-600">{formatRsd(balance)}</p>
                 <p className="text-[10px] text-ink-3">Balans</p>
               </div>
               <Btn variant="success" size="sm" onClick={() => goTo('isplate')}>💸 Isplati</Btn>
@@ -225,6 +276,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
 
         <main className="flex-1 overflow-y-auto bg-mint-50">
           <div className="max-w-4xl mx-auto px-4 py-6">
+            {dashboardError && <div className="mb-4"><Alert type="error">{dashboardError}</Alert></div>}
             {/* Back + breadcrumb */}
             {page !== 'pregled' && (back || crumbs) && (
               <PageHeader
@@ -238,14 +290,14 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
             {page === 'pregled' && (
               <div className="space-y-5">
                 <div>
-                  <h1 className="text-xl font-extrabold text-ink">Dobrodošao/la, Marko! 👋</h1>
-                  <p className="text-sm text-ink-2 mt-0.5">Ponedeljak, 23. decembar 2024.</p>
+                  <h1 className="text-xl font-extrabold text-ink">Dobrodošao/la, {user?.full_name || 'korisniče'}! 👋</h1>
+                  <p className="text-sm text-ink-2 mt-0.5">Pregled stvarnog stanja tvog KlikZarada naloga.</p>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <StatCard label="Ukupan balans" value="1.285 RSD" icon="💰" accent="green" />
-                  <StatCard label="Zarađeno danas" value="85 RSD" icon="📈" accent="teal" />
-                  <StatCard label="Zadaci danas" value="2 / 5" icon="✅" accent="blue" />
-                  <StatCard label="Do isplate" value="215 RSD" sub="Min. 1.500 RSD" icon="🏦" accent="orange" />
+                  <StatCard label="Ukupan balans" value={formatRsd(balance)} icon="💰" accent="green" />
+                  <StatCard label="Na čekanju" value={formatRsd(user?.pending_rsd ?? 0)} icon="⏳" accent="teal" />
+                  <StatCard label="Dostupni zadaci" value={String(activeTasks.length)} icon="✅" accent="blue" />
+                  <StatCard label="Do isplate" value={formatRsd(payoutGap)} sub={`Min. ${formatRsd(minWithdrawal)}`} icon="🏦" accent="orange" />
                 </div>
 
                 {/* Daily reward */}
@@ -254,21 +306,18 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                     <span className="text-3xl">🎁</span>
                     <div>
                       <p className="font-bold text-ink">Dnevna nagrada</p>
-                      <p className="text-sm text-amber-700">Streak: <strong>7 dana 🔥</strong> • Nagrada: <span className="font-mono font-bold text-emerald-600">+25 RSD</span></p>
+                    <p className="text-sm text-amber-700">Program dnevnih nagrada se uvodi uskoro. Ne prikazujemo izmišljene bonuse.</p>
                     </div>
                   </div>
-                  {dailyClaimed
-                    ? <span className="text-sm text-emerald-700 font-bold bg-emerald-100 px-3 py-1.5 rounded-lg">✓ Preuzeto danas</span>
-                    : <Btn variant="success" size="sm" onClick={() => { setDailyClaimed(true); showToast('+25 RSD dodato na balans!', 'success') }}>Preuzmi nagradu</Btn>
-                  }
+                  <span className="text-sm text-amber-700 font-bold bg-amber-100 px-3 py-1.5 rounded-lg">Uskoro</span>
                 </div>
 
                 {/* Tier */}
                 <Card className="p-5">
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <p className="text-sm font-bold text-ink">Nivo: <span className="text-blue-600">Explorer 🧭</span></p>
-                      <p className="text-xs text-ink-3 mt-0.5">Naredni: Trusted — još 15 odobrenih dokaza</p>
+                      <p className="text-sm font-bold text-ink">Nivo: <span className="text-blue-600">{user?.level || 'Bronza'} 🧭</span></p>
+                      <p className="text-xs text-ink-3 mt-0.5">Nivoi i značke se računaju iz odobrenih dokaza.</p>
                     </div>
                   </div>
                   <div className="flex gap-2 mb-3">
@@ -292,14 +341,14 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                       <Card key={t.id} className="p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${t.catColor}`}>{t.cat}</span>
-                            <span className="text-[11px] text-ink-3">⏱ {t.time}</span>
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${categoryColor(t.category)}`}>{t.category}</span>
+                            <span className="text-[11px] text-ink-3">⏱ {t.estimated_minutes} min</span>
                           </div>
                           <p className="font-semibold text-ink text-sm truncate">{t.title}</p>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className="font-mono font-bold text-emerald-600">{t.reward}</span>
-                          <Btn size="sm" onClick={() => { setSubmitProofModal(null); goTo('zadatak-detalj') }}>Preuzmi</Btn>
+                          <span className="font-mono font-bold text-emerald-600">{formatRsd(t.reward_rsd)}</span>
+                          <Btn size="sm" onClick={() => { setSelectedTaskId(t.id); goTo('zadatak-detalj') }}>Detalji</Btn>
                         </div>
                       </Card>
                     ))}
@@ -311,7 +360,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                   <div>
                     <p className="font-bold text-ink">🔗 Referral program</p>
                     <p className="text-sm text-violet-700 mt-0.5">Ti: <span className="font-mono font-bold">+100 RSD</span> · Prijatelj: <span className="font-mono font-bold">+50 RSD</span></p>
-                    <p className="text-xs text-ink-3 mt-1">Pozvano: <strong className="text-ink">0</strong> korisnika</p>
+                    <p className="text-xs text-ink-3 mt-1">Pozvano: <strong className="text-ink">{dashboard?.referral_count ?? 0}</strong> korisnika</p>
                   </div>
                   <Btn onClick={() => goTo('referral')} variant="premium" size="sm">Podeli link</Btn>
                 </div>
@@ -328,18 +377,15 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap gap-2 mb-2">
-                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${t.catColor}`}>{t.cat}</span>
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${categoryColor(t.category)}`}>{t.category}</span>
                             <StatusBadge status="aktivno" />
                           </div>
                           <h3 className="font-semibold text-ink">{t.title}</h3>
-                          <p className="text-xs text-ink-3 mt-1">⏱ {t.time} · 📎 Screenshot</p>
+                          <p className="text-xs text-ink-3 mt-1">⏱ {t.estimated_minutes} min · 📎 {t.proof_required || 'Dokaz potreban'}</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="font-mono font-bold text-emerald-600 text-lg">{t.reward}</p>
-                          {proofSubmitted[t.id]
-                            ? <span className="text-xs text-emerald-600 font-semibold mt-2 block">✓ Dokaz poslat</span>
-                            : <Btn size="sm" className="mt-2" onClick={() => setSubmitProofModal(t.id)}>Preuzmi →</Btn>
-                          }
+                          <p className="font-mono font-bold text-emerald-600 text-lg">{formatRsd(t.reward_rsd)}</p>
+                          <Btn size="sm" className="mt-2" onClick={() => { setSelectedTaskId(t.id); goTo('zadatak-detalj') }}>Detalji →</Btn>
                         </div>
                       </div>
                     </Card>
@@ -351,22 +397,23 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
             {/* ── ZADATAK DETALJ ── */}
             {page === 'zadatak-detalj' && (
               <div>
-                <SectionHeader title="Lajkuj i komentiraj objavu" />
+                <SectionHeader title={selectedTask?.title || 'Detalj zadatka'} />
                 <Card className="p-5 space-y-4">
                   <div className="flex flex-wrap gap-2">
-                    <span className="bg-blue-100 text-blue-700 text-[11px] font-bold px-2 py-0.5 rounded-full">Društvene mreže</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${categoryColor(selectedTask?.category || '')}`}>{selectedTask?.category || 'Zadatak'}</span>
                     <StatusBadge status="aktivno" />
                   </div>
-                  <p className="text-sm text-ink-2">Poseti navedenu objavu na Instagram-u, lajkuj je i ostavi komentar prema datim uputstvima. Screenshot kao dokaz mora prikazivati tvoj nalog i lajk/komentar.</p>
+                  <p className="text-sm text-ink-2">{selectedTask?.description || 'Izaberi dostupni zadatak sa liste.'}</p>
+                  {selectedTask?.instructions && <Alert type="info">{selectedTask.instructions}</Alert>}
                   <div className="bg-mint-50 border border-frame rounded-lg p-3 text-sm space-y-1">
-                    <p><span className="text-ink-3 font-medium">Nagrada:</span> <span className="font-mono font-bold text-emerald-600">35 RSD</span></p>
-                    <p><span className="text-ink-3 font-medium">Vreme:</span> oko 5 min</p>
-                    <p><span className="text-ink-3 font-medium">Dokaz:</span> Screenshot</p>
-                    <p><span className="text-ink-3 font-medium">Nivo:</span> Explorer i više</p>
+                    <p><span className="text-ink-3 font-medium">Nagrada:</span> <span className="font-mono font-bold text-emerald-600">{formatRsd(selectedTask?.reward_rsd || 0)}</span></p>
+                    <p><span className="text-ink-3 font-medium">Vreme:</span> oko {selectedTask?.estimated_minutes || 0} min</p>
+                    <p><span className="text-ink-3 font-medium">Dokaz:</span> {selectedTask?.proof_required || '—'}</p>
+                    <p><span className="text-ink-3 font-medium">Nivo:</span> {selectedTask?.min_user_level || 'Bronza'} i više</p>
                   </div>
                   <Alert type="info">Nakon što izvršiš zadatak, napravi screenshot i pošalji ga kao dokaz. Naknada se odobrava ručno.</Alert>
                   <div className="flex gap-2">
-                    <Btn onClick={() => setSubmitProofModal(1)} variant="success">📎 Pošalji dokaz</Btn>
+                    <Btn onClick={() => selectedTask && setSubmitProofModal(selectedTask.id)} variant="success">📎 Pošalji dokaz</Btn>
                     <Btn onClick={() => goTo('zadaci')} variant="secondary">Nazad na zadatke</Btn>
                   </div>
                 </Card>
@@ -385,13 +432,13 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                     <Card key={t.id} className="p-5 border-teal-200 bg-teal-50/30 hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${t.catColor} inline-block mb-2`}>{t.cat}</span>
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${categoryColor(t.category)} inline-block mb-2`}>{t.category}</span>
                           <h3 className="font-semibold text-ink">{t.title}</h3>
-                          <p className="text-xs text-ink-3 mt-1">⏱ {t.time}</p>
+                          <p className="text-xs text-ink-3 mt-1">⏱ {t.estimated_minutes} min</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="font-mono font-bold text-emerald-600 text-lg">{t.reward}</p>
-                          <Btn size="sm" className="mt-2" onClick={() => setSubmitProofModal(t.id)}>Preuzmi</Btn>
+                          <p className="font-mono font-bold text-emerald-600 text-lg">{formatRsd(t.reward_rsd)}</p>
+                          <Btn size="sm" className="mt-2" onClick={() => { setSelectedTaskId(t.id); goTo('zadatak-detalj') }}>Detalji</Btn>
                         </div>
                       </div>
                     </Card>
@@ -412,10 +459,10 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                 <Card>
                   <Table
                     headers={['Zadatak', 'Poslato', 'Nagrada', 'Status']}
-                    rows={myProofs.filter(p => proofTab === 'svi' || p.status === proofTab).map(p => [
-                      <span className="font-medium text-ink">{p.task}</span>,
-                      <span className="font-mono text-xs text-ink-2">{p.submitted}</span>,
-                      <span className="font-mono font-semibold text-emerald-600">{p.reward}</span>,
+                    rows={(dashboard?.submissions ?? []).filter(p => proofTab === 'svi' || p.status === proofTab).map(p => [
+                      <span className="font-medium text-ink">{p.task_title}</span>,
+                      <span className="font-mono text-xs text-ink-2">{formatDate(p.created_at)}</span>,
+                      <span className="font-mono font-semibold text-emerald-600">{formatRsd(p.reward_rsd)}</span>,
                       <StatusBadge status={p.status} />,
                     ])}
                   />
@@ -428,17 +475,17 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
               <div>
                 <SectionHeader title="Novčanik" description="Pregled zarade i transakcija." />
                 <div className="grid grid-cols-2 gap-3 mb-5">
-                  <StatCard label="Ukupan balans" value="1.285 RSD" accent="green" icon="💰" />
-                  <StatCard label="Ukupno zarađeno" value="1.785 RSD" accent="teal" icon="📈" />
+                  <StatCard label="Ukupan balans" value={formatRsd(balance)} accent="green" icon="💰" />
+                  <StatCard label="Ukupno zarađeno" value={formatRsd(user?.lifetime_earned_rsd ?? 0)} accent="teal" icon="📈" />
                 </div>
                 <SectionHeader title="Istorija transakcija" />
                 <Card>
                   <Table
                     headers={['Datum', 'Opis', 'Iznos']}
-                    rows={txData.map(tx => [
-                      <span className="font-mono text-xs text-ink-2">{tx.date}</span>,
-                      <span className="text-ink">{tx.opis}</span>,
-                      <span className={`font-mono font-bold ${tx.iznos.startsWith('+') ? 'text-emerald-600' : 'text-coral-600'}`}>{tx.iznos}</span>,
+                    rows={(dashboard?.transactions ?? []).map(tx => [
+                      <span className="font-mono text-xs text-ink-2">{formatDate(tx.created_at)}</span>,
+                      <span className="text-ink">{tx.description}</span>,
+                      <span className={`font-mono font-bold ${tx.amount_rsd >= 0 ? 'text-emerald-600' : 'text-coral-600'}`}>{tx.amount_rsd >= 0 ? '+' : ''}{formatRsd(tx.amount_rsd)}</span>,
                     ])}
                   />
                 </Card>
@@ -450,12 +497,12 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
               <div className="space-y-4">
                 <SectionHeader title="Isplate" description="Zatraži isplatu kada dostigneš minimalni iznos." />
                 <Alert type="warning">
-                  Minimalni iznos za isplatu je <strong>1.500 RSD</strong>. Tvoj balans: <strong className="font-mono">1.285 RSD</strong>. Nedostaje još <strong className="font-mono text-amber-700">215 RSD</strong>.
+                  Minimalni iznos za isplatu je <strong>{formatRsd(minWithdrawal)}</strong>. Tvoj balans: <strong className="font-mono">{formatRsd(balance)}</strong>. {payoutGap > 0 ? <>Nedostaje još <strong className="font-mono text-amber-700">{formatRsd(payoutGap)}</strong>.</> : 'Možeš poslati zahtev za isplatu.'}
                 </Alert>
                 <Card className="p-5">
                   <h3 className="font-bold text-ink mb-4">Podaci za isplatu</h3>
                   <div className="divide-y divide-frame">
-                    {[['Metoda', 'Nije podešeno'], ['Broj računa', '—'], ['Ime primaoca', '—']].map(([k, v]) => (
+                    {[["Metoda", user?.payment_method || 'Nije podešeno'], ['Podaci računa', user?.payment_details ? 'Sačuvano' : '—'], ['Primalac', user?.full_name || '—']].map(([k, v]) => (
                       <div key={k} className="flex justify-between py-3">
                         <span className="text-sm text-ink-2">{k}</span>
                         <span className="text-sm text-ink font-medium">{v}</span>
@@ -464,13 +511,11 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                   </div>
                   <Btn onClick={() => goTo('podaci-isplata')} variant="secondary" size="sm" className="mt-4">Podesi podatke za isplatu</Btn>
                 </Card>
-                <Btn
-                  disabled
-                  className="w-full justify-center"
-                >
-                  Zatraži isplatu — balans 1.285 RSD
-                </Btn>
-                <p className="text-xs text-ink-3 text-center">Isplata postaje dostupna kada dostigneš 1.500 RSD.</p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input value={payoutAmount} onChange={event => setPayoutAmount(event.target.value)} type="number" min={minWithdrawal} max={balance} placeholder={`Iznos (${formatRsd(minWithdrawal)} min.)`} className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none flex-1" />
+                  <Btn disabled={balance < minWithdrawal || !user?.payment_details} onClick={() => setConfirmPayout(true)} className="justify-center">Zatraži isplatu</Btn>
+                </div>
+                <p className="text-xs text-ink-3 text-center">Zahtev se šalje adminu tek kada su saldo i podaci za isplatu validni.</p>
               </div>
             )}
 
@@ -480,14 +525,20 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                 <SectionHeader title="Podaci za isplatu" description="Unesi podatke računa na koji primaš isplate." />
                 <Card className="p-5 space-y-4">
                   <Alert type="info">Podaci su zaštićeni i koriste se isključivo za isplatu zarade.</Alert>
-                  {[{ label: 'Ime i prezime primaoca', placeholder: 'Marko Marković' }, { label: 'Broj tekućeg računa', placeholder: '160-000000000000-00' }, { label: 'Naziv banke', placeholder: 'Banca Intesa' }].map(f => (
-                    <div key={f.label} className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">{f.label}</label>
-                      <input placeholder={f.placeholder} className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
-                    </div>
-                  ))}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Ime i prezime primaoca</label>
+                    <input value={profileName} onChange={event => setProfileName(event.target.value)} placeholder="Ime i prezime" className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Metoda isplate</label>
+                    <input value={paymentMethod} onChange={event => setPaymentMethod(event.target.value)} placeholder="npr. bankovni račun" className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Broj računa / podaci za isplatu</label>
+                    <input value={paymentDetails} onChange={event => setPaymentDetails(event.target.value)} placeholder="160-000000000000-00" className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                  </div>
                   <div className="flex gap-2">
-                    <Btn variant="success" onClick={() => { showToast('Podaci za isplatu su sačuvani.', 'success'); goTo('isplate') }}>Sačuvaj podatke</Btn>
+                    <Btn variant="success" disabled={saving || !profileName.trim() || !paymentDetails.trim()} onClick={async () => { setSaving(true); try { await api.saveProfile({ full_name: profileName, payment_method: paymentMethod, payment_details: paymentDetails }); await refreshDashboard(); showToast('Podaci za isplatu su sačuvani.', 'success'); goTo('isplate') } catch (error) { showToast(error instanceof Error ? error.message : 'Podaci nisu sačuvani.', 'error') } finally { setSaving(false) } }}>{saving ? 'Čuvanje...' : 'Sačuvaj podatke'}</Btn>
                     <Btn variant="secondary" onClick={() => goTo('isplate')}>Otkaži</Btn>
                   </div>
                 </Card>
@@ -504,10 +555,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                       <p className="font-bold text-ink text-lg">🔥 Streak: 7 dana</p>
                       <p className="text-sm text-amber-700 mt-0.5">Nastavi svaki dan za bonus nagrade!</p>
                     </div>
-                    {!dailyClaimed
-                      ? <Btn variant="success" onClick={() => { setDailyClaimed(true); showToast('+25 RSD dodato na balans!', 'success') }}>Preuzmi +25 RSD</Btn>
-                      : <span className="text-emerald-700 font-bold bg-emerald-100 px-3 py-1.5 rounded-lg text-sm">✓ Preuzeto danas</span>
-                    }
+                    <span className="text-amber-700 font-bold bg-amber-100 px-3 py-1.5 rounded-lg text-sm">Uskoro</span>
                   </div>
                   <div className="grid grid-cols-7 gap-1.5">
                     {['Pon', 'Uto', 'Sre', 'Čet', 'Pet', 'Sub', 'Ned'].map((dan, i) => (
@@ -565,15 +613,15 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
               <div className="space-y-4">
                 <SectionHeader title="Referral program" description="Pozovi prijatelje i zaradite oboje." />
                 <div className="grid grid-cols-2 gap-3">
-                  <StatCard label="Pozvanih korisnika" value="0" icon="👥" accent="blue" />
+                  <StatCard label="Pozvanih korisnika" value={String(dashboard?.referral_count ?? 0)} icon="👥" accent="blue" />
                   <StatCard label="Zarađeno referral" value="0 RSD" icon="💰" accent="green" />
                 </div>
                 <Card className="p-5">
                   <h3 className="font-bold text-ink mb-2">Tvoj referral link</h3>
                   <p className="text-sm text-ink-2 mb-4">Podeli ovaj link. Kad se prijatelj registruje i izvrši prvi zadatak, oboje dobijate bonus.</p>
                   <div className="flex items-center gap-2 bg-mint-100 border border-frame rounded-lg p-3">
-                    <span className="font-mono text-sm text-ink-2 flex-1 truncate">klikzarada.rs/r/tvoj-kod</span>
-                    <Btn size="sm" variant="secondary" onClick={() => showToast('Link je kopiran u clipboard!', 'success')}>Kopiraj</Btn>
+                    <span className="font-mono text-sm text-ink-2 flex-1 truncate">{`${window.location.origin}/r/${user?.referral_code || '—'}`}</span>
+                    <Btn size="sm" variant="secondary" onClick={() => { void navigator.clipboard?.writeText(`${window.location.origin}/r/${user?.referral_code || ''}`); showToast('Link je kopiran u clipboard!', 'success') }}>Kopiraj</Btn>
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
@@ -596,11 +644,11 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                 <SectionHeader title="Profil i podešavanja" />
                 <Card className="p-5">
                   <div className="flex items-center gap-4 mb-5">
-                    <div className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center text-white text-xl font-bold">M</div>
+                    <div className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center text-white text-xl font-bold">{user?.full_name?.slice(0, 1).toUpperCase() || 'K'}</div>
                     <div>
-                      <p className="font-bold text-ink text-lg">Marko Marković</p>
-                      <p className="text-sm text-ink-2">marko@primer.rs</p>
-                      <span className="text-xs text-blue-600 font-semibold mt-0.5 block">🧭 Explorer tier</span>
+                      <p className="font-bold text-ink text-lg">{user?.full_name || 'Učitavanje...'}</p>
+                      <p className="text-sm text-ink-2">{user?.email || '—'}</p>
+                      <span className="text-xs text-blue-600 font-semibold mt-0.5 block">🧭 {user?.level || 'Bronza'} nivo</span>
                     </div>
                   </div>
                   <Btn variant="secondary" size="sm">Izmeni profil</Btn>
