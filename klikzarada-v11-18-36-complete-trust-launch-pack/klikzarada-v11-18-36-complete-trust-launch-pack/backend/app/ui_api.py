@@ -8,14 +8,18 @@ for the new UI, so business data still lives in the existing database.
 from __future__ import annotations
 
 import ipaddress
+import json
 import os
 import socket
 from datetime import datetime
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Literal
 from urllib.parse import urlparse
+from uuid import uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -24,6 +28,7 @@ from .database import get_db
 from .models import (
     AdvertiserBudgetTransaction,
     AuditLog,
+    PayPalCheckout,
     SystemSetting,
     SupportMessage,
     SupportTicket,
@@ -99,6 +104,10 @@ class CampaignPayload(BaseModel):
     target_city: str | None = Field(default="Srbija", max_length=100)
     target_age_group: str | None = Field(default="18+", max_length=40)
     target_interests: str | None = Field(default=None, max_length=2000)
+
+
+class PayPalTopupPayload(BaseModel):
+    amount_rsd: float = Field(ge=200, le=1_000_000)
 
 
 class AdminStatusPayload(BaseModel):
@@ -413,6 +422,284 @@ def advertiser_dashboard(request: Request, db: Session = Depends(get_db)) -> dic
         "submissions": [_submission_data(submission) | {"user_name": submission.user.full_name if submission.user else "Korisnik"} for submission in submissions],
         "transactions": [{"id": tx.id, "amount_rsd": _money(tx.amount_rsd), "tx_type": tx.tx_type, "description": tx.description, "created_at": _iso(tx.created_at)} for tx in transactions],
     }
+
+
+def _paypal_config() -> tuple[str, str, str, Decimal]:
+    """Read checkout credentials from environment, never from the database."""
+    mode = os.getenv("PAYPAL_MODE", "").strip().lower()
+    client_id = os.getenv("PAYPAL_CLIENT_ID", "").strip()
+    client_secret = os.getenv("PAYPAL_CLIENT_SECRET", "").strip()
+    rate_text = os.getenv("PAYPAL_RSD_PER_EUR", "").strip()
+    if mode != "live":
+        raise HTTPException(503, "PayPal Live nije aktiviran. Administrator mora postaviti PAYPAL_MODE=live u Renderu.")
+    if not client_id or not client_secret:
+        raise HTTPException(503, "PayPal Live kredencijali nisu podešeni u Renderu.")
+    try:
+        rate = Decimal(rate_text)
+    except InvalidOperation as exc:
+        raise HTTPException(503, "Kurs za PayPal nije podešen. Administrator mora postaviti PAYPAL_RSD_PER_EUR u Renderu.") from exc
+    if rate <= 0:
+        raise HTTPException(503, "Kurs za PayPal mora biti veći od nule.")
+    return "https://api-m.paypal.com", client_id, client_secret, rate
+
+
+def _public_app_url(request: Request) -> str:
+    configured = (os.getenv("PUBLIC_APP_URL") or os.getenv("RENDER_EXTERNAL_URL") or "").strip().rstrip("/")
+    if configured.startswith("https://"):
+        return configured
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme).split(",")[0].strip()
+    host = request.headers.get("x-forwarded-host", request.headers.get("host", "")).split(",")[0].strip()
+    if not host:
+        raise HTTPException(503, "Javni URL aplikacije nije podešen.")
+    return f"{proto}://{host}"
+
+
+def _paypal_access_token(config: tuple[str, str, str, Decimal]) -> str:
+    base_url, client_id, client_secret, _ = config
+    try:
+        response = httpx.post(
+            f"{base_url}/v1/oauth2/token",
+            auth=(client_id, client_secret),
+            data={"grant_type": "client_credentials"},
+            headers={"Accept": "application/json", "Accept-Language": "sr_RS"},
+            timeout=15,
+        )
+    except httpx.RequestError as exc:
+        raise HTTPException(502, "PayPal trenutno nije dostupan. Pokušaj ponovo malo kasnije.") from exc
+    if response.status_code >= 400:
+        raise HTTPException(502, "PayPal Live kredencijali nisu prihvaćeni.")
+    token = response.json().get("access_token")
+    if not token:
+        raise HTTPException(502, "PayPal nije vratio pristupni token.")
+    return str(token)
+
+
+def _paypal_get_order(config: tuple[str, str, str, Decimal], order_id: str) -> dict:
+    base_url = config[0]
+    try:
+        response = httpx.get(
+            f"{base_url}/v2/checkout/orders/{order_id}",
+            headers={"Authorization": f"Bearer {_paypal_access_token(config)}", "Accept": "application/json"},
+            timeout=15,
+        )
+    except httpx.RequestError as exc:
+        raise HTTPException(502, "Nije moguće proveriti PayPal uplatu.") from exc
+    if response.status_code >= 400:
+        raise HTTPException(502, "PayPal nije potvrdio podatke o uplati.")
+    return response.json()
+
+
+def _paypal_capture_data(order: dict) -> tuple[str, Decimal] | None:
+    try:
+        capture = order["purchase_units"][0]["payments"]["captures"][0]
+        if str(capture.get("status", "")).upper() != "COMPLETED":
+            return None
+        amount = capture["amount"]
+        if amount.get("currency_code") != "EUR":
+            return None
+        return str(capture["id"]), Decimal(str(amount["value"]))
+    except (IndexError, KeyError, TypeError, InvalidOperation):
+        return None
+
+
+def _complete_paypal_checkout(db: Session, checkout: PayPalCheckout, order: dict) -> bool:
+    """Credit the advertiser once and only after validating PayPal's capture."""
+    # A return redirect and a verified webhook can arrive together. Reloading
+    # under a row lock makes the completed status authoritative in both paths.
+    db.refresh(checkout, with_for_update=True)
+    if checkout.status == "completed":
+        return False
+    capture = _paypal_capture_data(order)
+    expected = Decimal(str(checkout.amount_eur)).quantize(Decimal("0.01"))
+    if not capture or capture[1].quantize(Decimal("0.01")) != expected:
+        checkout.status = "review_required"
+        raise HTTPException(400, "PayPal potvrda nema očekivani iznos. Uplata nije knjižena i čeka proveru.")
+    advertiser = db.query(User).filter(User.id == checkout.advertiser_id).with_for_update().first()
+    if not advertiser:
+        checkout.status = "review_required"
+        raise HTTPException(404, "Oglašivač za ovu uplatu više ne postoji.")
+    checkout.paypal_capture_id = capture[0]
+    checkout.status = "completed"
+    checkout.captured_at = datetime.utcnow()
+    advertiser.advertiser_budget_rsd = _money(advertiser.advertiser_budget_rsd + checkout.amount_rsd)
+    db.add(AdvertiserBudgetTransaction(
+        advertiser_id=advertiser.id,
+        amount_rsd=checkout.amount_rsd,
+        tx_type="paypal_live_topup",
+        description=f"PayPal Live uplata ({checkout.paypal_order_id})",
+    ))
+    return True
+
+
+def _capture_paypal_checkout(db: Session, checkout: PayPalCheckout) -> bool:
+    config = _paypal_config()
+    if not checkout.paypal_order_id:
+        raise HTTPException(400, "PayPal nalog nije pronađen.")
+    if checkout.status == "completed":
+        return False
+    base_url = config[0]
+    try:
+        response = httpx.post(
+            f"{base_url}/v2/checkout/orders/{checkout.paypal_order_id}/capture",
+            headers={
+                "Authorization": f"Bearer {_paypal_access_token(config)}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "PayPal-Request-Id": checkout.capture_request_id,
+            },
+            timeout=20,
+        )
+    except httpx.RequestError as exc:
+        raise HTTPException(502, "PayPal trenutno nije dostupan. Pokušaj ponovo malo kasnije.") from exc
+    # A retried browser redirect can report an already-captured order. Fetching
+    # the order makes the operation idempotent instead of crediting twice.
+    if response.status_code in {200, 201}:
+        order = response.json()
+    elif response.status_code == 422:
+        order = _paypal_get_order(config, checkout.paypal_order_id)
+    else:
+        raise HTTPException(400, "PayPal nije odobrio uplatu. Budžet nije promenjen.")
+    return _complete_paypal_checkout(db, checkout, order)
+
+
+@router.post("/advertiser/paypal/orders", status_code=201)
+def create_paypal_order(payload: PayPalTopupPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    advertiser = _require_user(request, db, {"oglasivac", "admin"})
+    config = _paypal_config()
+    amount_rsd = Decimal(str(payload.amount_rsd)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    amount_eur = (amount_rsd / config[3]).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if amount_eur < Decimal("1.00"):
+        raise HTTPException(400, "Minimalna PayPal uplata je protivvrednost od 1 EUR.")
+
+    checkout = PayPalCheckout(
+        advertiser_id=advertiser.id,
+        request_id=str(uuid4()),
+        capture_request_id=str(uuid4()),
+        amount_rsd=float(amount_rsd),
+        amount_eur=float(amount_eur),
+        exchange_rate=float(config[3]),
+        status="creating",
+    )
+    db.add(checkout)
+    db.flush()
+    public_url = _public_app_url(request)
+    order_payload = {
+        "intent": "CAPTURE",
+        "purchase_units": [{
+            "custom_id": f"kz-topup:{checkout.id}",
+            "invoice_id": f"KZ-{checkout.id}",
+            "description": "KlikZarada oglašivački budžet",
+            "amount": {"currency_code": "EUR", "value": f"{amount_eur:.2f}"},
+        }],
+        "payment_source": {"paypal": {"experience_context": {
+            "brand_name": "KlikZarada",
+            "landing_page": "LOGIN",
+            "user_action": "PAY_NOW",
+            "shipping_preference": "NO_SHIPPING",
+            "return_url": f"{public_url}/api/ui/advertiser/paypal/return",
+            "cancel_url": f"{public_url}/api/ui/advertiser/paypal/cancel",
+        }}},
+    }
+    try:
+        response = httpx.post(
+            f"{config[0]}/v2/checkout/orders",
+            headers={
+                "Authorization": f"Bearer {_paypal_access_token(config)}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "PayPal-Request-Id": checkout.request_id,
+            },
+            json=order_payload,
+            timeout=20,
+        )
+    except httpx.RequestError as exc:
+        db.rollback()
+        raise HTTPException(502, "PayPal trenutno nije dostupan. Pokušaj ponovo malo kasnije.") from exc
+    if response.status_code not in {200, 201}:
+        db.rollback()
+        raise HTTPException(502, "PayPal nije uspeo da kreira nalog za uplatu.")
+    order = response.json()
+    approval_url = next((link.get("href") for link in order.get("links", []) if link.get("rel") == "payer-action"), None)
+    if not order.get("id") or not approval_url:
+        db.rollback()
+        raise HTTPException(502, "PayPal nije vratio link za plaćanje.")
+    checkout.paypal_order_id = str(order["id"])
+    checkout.status = "approved"
+    db.commit()
+    return {
+        "approval_url": approval_url,
+        "amount_rsd": _money(float(amount_rsd)),
+        "amount_eur": _money(float(amount_eur)),
+        "exchange_rate": _money(float(config[3])),
+    }
+
+
+@router.get("/advertiser/paypal/return")
+def paypal_return(token: str, request: Request, db: Session = Depends(get_db)) -> RedirectResponse:
+    advertiser = _require_user(request, db, {"oglasivac", "admin"})
+    checkout = db.query(PayPalCheckout).filter(PayPalCheckout.paypal_order_id == token, PayPalCheckout.advertiser_id == advertiser.id).first()
+    if not checkout:
+        return RedirectResponse(f"{_public_app_url(request)}/oglasivac/panel?payment=error", status_code=303)
+    try:
+        _capture_paypal_checkout(db, checkout)
+        db.commit()
+        result = "success"
+    except HTTPException:
+        db.rollback()
+        result = "error"
+    return RedirectResponse(f"{_public_app_url(request)}/oglasivac/panel?payment={result}", status_code=303)
+
+
+@router.get("/advertiser/paypal/cancel")
+def paypal_cancel(request: Request) -> RedirectResponse:
+    return RedirectResponse(f"{_public_app_url(request)}/oglasivac/panel?payment=cancelled", status_code=303)
+
+
+@router.post("/paypal/webhook", status_code=204)
+async def paypal_webhook(request: Request, db: Session = Depends(get_db)) -> Response:
+    """Verify PayPal webhooks before using them as a secondary confirmation."""
+    config = _paypal_config()
+    webhook_id = os.getenv("PAYPAL_WEBHOOK_ID", "").strip()
+    if not webhook_id:
+        raise HTTPException(503, "PayPal webhook nije podešen.")
+    raw_body = await request.body()
+    try:
+        event = json.loads(raw_body)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(400, "Neispravan PayPal webhook.") from exc
+    required_headers = {
+        "auth_algo": request.headers.get("paypal-auth-algo"),
+        "cert_url": request.headers.get("paypal-cert-url"),
+        "transmission_id": request.headers.get("paypal-transmission-id"),
+        "transmission_sig": request.headers.get("paypal-transmission-sig"),
+        "transmission_time": request.headers.get("paypal-transmission-time"),
+    }
+    if not all(required_headers.values()):
+        raise HTTPException(400, "Nedostaju PayPal webhook zaglavlja.")
+    verification_payload = required_headers | {"webhook_id": webhook_id, "webhook_event": event}
+    try:
+        response = httpx.post(
+            f"{config[0]}/v1/notifications/verify-webhook-signature",
+            headers={"Authorization": f"Bearer {_paypal_access_token(config)}", "Content-Type": "application/json"},
+            json=verification_payload,
+            timeout=20,
+        )
+    except httpx.RequestError as exc:
+        raise HTTPException(502, "PayPal webhook provera trenutno nije dostupna.") from exc
+    if response.status_code >= 400 or response.json().get("verification_status") != "SUCCESS":
+        raise HTTPException(400, "PayPal webhook potpis nije validan.")
+    if event.get("event_type") != "PAYMENT.CAPTURE.COMPLETED":
+        return Response(status_code=204)
+    related = event.get("resource", {}).get("supplementary_data", {}).get("related_ids", {})
+    order_id = related.get("order_id")
+    if not order_id:
+        return Response(status_code=204)
+    checkout = db.query(PayPalCheckout).filter(PayPalCheckout.paypal_order_id == str(order_id)).with_for_update().first()
+    if not checkout or checkout.status == "completed":
+        return Response(status_code=204)
+    _complete_paypal_checkout(db, checkout, _paypal_get_order(config, str(order_id)))
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.post("/advertiser/campaigns", status_code=201)

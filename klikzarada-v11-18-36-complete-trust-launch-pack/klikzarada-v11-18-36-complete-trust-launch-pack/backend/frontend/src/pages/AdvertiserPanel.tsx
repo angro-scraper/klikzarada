@@ -209,6 +209,9 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [logoutConfirm, setLogoutConfirm] = useState(false)
   const [dashboard, setDashboard] = useState<AdvertiserDashboardData | null>(null)
   const [dashboardError, setDashboardError] = useState('')
+  const [topupAmount, setTopupAmount] = useState('')
+  const [topupError, setTopupError] = useState('')
+  const [topupLoading, setTopupLoading] = useState(false)
   const { show: showToast, node: toastNode } = useToast()
 
   const refreshDashboard = async () => {
@@ -221,6 +224,36 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   }
 
   useEffect(() => { void refreshDashboard() }, [])
+
+  useEffect(() => {
+    const payment = new URLSearchParams(window.location.search).get('payment')
+    if (!payment) return
+    const messages: Record<string, string> = {
+      success: 'PayPal uplata je potvrđena i budžet je dopunjen.',
+      cancelled: 'PayPal uplata je otkazana. Budžet nije promenjen.',
+      error: 'Uplata nije potvrđena. Budžet nije promenjen.',
+    }
+    if (messages[payment]) showToast(messages[payment], payment === 'success' ? 'success' : 'error')
+    window.history.replaceState({}, document.title, window.location.pathname)
+    if (payment === 'success') void refreshDashboard()
+  }, [])
+
+  const startPayPalTopup = async () => {
+    const amount = Number(topupAmount.replace(',', '.'))
+    if (!Number.isFinite(amount) || amount < 200) {
+      setTopupError('Unesi iznos od najmanje 200 RSD.')
+      return
+    }
+    setTopupLoading(true)
+    setTopupError('')
+    try {
+      const order = await api.createPayPalOrder(amount)
+      window.location.assign(order.approval_url)
+    } catch (error) {
+      setTopupError(error instanceof Error ? error.message : 'PayPal uplata nije mogla da se pokrene.')
+      setTopupLoading(false)
+    }
+  }
 
   const advertiser = dashboard?.user
   const campaigns = (dashboard?.tasks ?? []).map(task => ({
@@ -415,10 +448,17 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                   <StatCard label="Rezervisan" value={`${new Intl.NumberFormat('sr-RS').format(advertiser?.advertiser_reserved_rsd ?? 0)} RSD`} accent="orange" />
                 </div>
                 <Card className="p-5">
-                  <h3 className="font-bold text-ink mb-4">Uplati sredstva</h3>
-                  <Input label="Iznos uplate (RSD)" placeholder="npr. 5000" />
-                  <p className="text-xs text-ink-3 mt-2 mb-4">Sredstva su dostupna odmah po potvrdi transakcije.</p>
-                  <Btn>Nastavi na plaćanje →</Btn>
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div>
+                      <h3 className="font-bold text-ink">Uplati sredstva</h3>
+                      <p className="text-xs text-ink-3 mt-1">Sigurna online uplata preko PayPal-a.</p>
+                    </div>
+                    <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-2.5 py-1">PayPal Live</span>
+                  </div>
+                  <Input label="Iznos uplate (RSD)" placeholder="npr. 5000" type="number" value={topupAmount} onChange={setTopupAmount} />
+                  {topupError && <div className="mt-3"><Alert type="error">{topupError}</Alert></div>}
+                  <p className="text-xs text-ink-3 mt-3 mb-4">Na PayPal-u će iznos biti prikazan u EUR prema kursu koji je postavio administrator. Budžet se knjiži samo nakon PayPal potvrde.</p>
+                  <Btn disabled={topupLoading} onClick={() => void startPayPalTopup()}>{topupLoading ? 'Otvaranje PayPal-a...' : 'Nastavi na PayPal →'}</Btn>
                 </Card>
               </div>
             )}

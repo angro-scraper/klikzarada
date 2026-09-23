@@ -156,6 +156,10 @@ python scripts\restore_v11.py backups\klikzarada_v11_backup_YYYYMMDD_HHMMSS.db
 
 V11 još uvek koristi ručne/demo tokove za email, payment i legal proveru. Pre javne produkcije:
 - promeniti `KLIKZARADA_SECRET_KEY`
+
+### PayPal Live Checkout
+
+Oglašivač može dopuniti budžet preko PayPal-a samo kada su sledeće Render varijable podešene: `PAYPAL_MODE=live`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_RSD_PER_EUR` i `PUBLIC_APP_URL`. Tajne nikada ne unositi u Git, admin panel ili chat. PayPal naplaćuje EUR, dok se budžet platforme vodi u RSD; `PAYPAL_RSD_PER_EUR` mora biti kurs koji je vlasnik platforme odobrio pre puštanja u rad.
 - prebaciti bazu na PostgreSQL
 - podesiti HTTPS i domen
 - povezati pravi email provider

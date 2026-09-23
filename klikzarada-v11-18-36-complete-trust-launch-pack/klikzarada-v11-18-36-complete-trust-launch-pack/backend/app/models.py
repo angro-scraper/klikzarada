@@ -126,6 +126,30 @@ class AdvertiserBudgetTransaction(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     advertiser = relationship("User", back_populates="budget_transactions")
 
+
+class PayPalCheckout(Base):
+    """Server-side record of a PayPal budget top-up.
+
+    The browser never receives PayPal secrets and the budget is credited only
+    after PayPal confirms the exact order amount.
+    """
+    __tablename__ = "paypal_checkouts"
+    id = Column(Integer, primary_key=True, index=True)
+    advertiser_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    paypal_order_id = Column(String(128), unique=True, index=True, nullable=True)
+    paypal_capture_id = Column(String(128), unique=True, index=True, nullable=True)
+    request_id = Column(String(80), unique=True, index=True, nullable=False)
+    capture_request_id = Column(String(80), unique=True, index=True, nullable=False)
+    amount_rsd = Column(Float, nullable=False)
+    amount_eur = Column(Float, nullable=False)
+    exchange_rate = Column(Float, nullable=False)
+    currency = Column(String(8), default="EUR", nullable=False)
+    status = Column(String(40), default="created", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    captured_at = Column(DateTime, nullable=True)
+
+    advertiser = relationship("User")
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
     id = Column(Integer, primary_key=True, index=True)

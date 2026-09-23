@@ -13,3 +13,16 @@ services:
         value: production
       - key: DATABASE_URL
         sync: false
+      # PayPal credentials stay only in Render. Do not put their values in Git.
+      - key: PAYPAL_MODE
+        value: live
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: PAYPAL_RSD_PER_EUR
+        sync: false
+      - key: PUBLIC_APP_URL
+        sync: false

@@ -98,6 +98,13 @@ export type CampaignPayload = {
   target_interests?: string
 }
 
+export type PayPalOrder = {
+  approval_url: string
+  amount_rsd: number
+  amount_eur: number
+  exchange_rate: number
+}
+
 export type AdminMetrics = {
   users: number
   advertisers: number
@@ -158,6 +165,9 @@ export const api = {
   advertiserDashboard: () => request<AdvertiserDashboardData>('/advertiser/dashboard'),
   createCampaign: (payload: CampaignPayload) => request<{ campaign: Task; reserved_rsd: number }>('/advertiser/campaigns', {
     method: 'POST', body: JSON.stringify(payload),
+  }),
+  createPayPalOrder: (amount_rsd: number) => request<PayPalOrder>('/advertiser/paypal/orders', {
+    method: 'POST', body: JSON.stringify({ amount_rsd }),
   }),
   adminDashboard: () => request<{ metrics: AdminMetrics }>('/admin/dashboard'),
   adminUsers: () => request<{ users: AdminUser[] }>('/admin/users'),
