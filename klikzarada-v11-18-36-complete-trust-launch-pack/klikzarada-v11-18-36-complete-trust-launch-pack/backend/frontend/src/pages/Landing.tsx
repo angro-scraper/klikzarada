@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Btn, Card } from '../components/ui'
 import { api, type PaidBanner, type Task } from '../lib/api'
 
@@ -19,15 +19,35 @@ const userSteps = [
 ]
 
 function BannerCard({ banner }: { banner: PaidBanner }) {
+  const cardRef = useRef<HTMLAnchorElement>(null)
+
+  useEffect(() => {
+    const node = cardRef.current
+    if (!node || !('IntersectionObserver' in window)) return
+    let recorded = false
+    const observer = new IntersectionObserver(entries => {
+      if (!recorded && entries.some(entry => entry.isIntersecting && entry.intersectionRatio >= 0.5)) {
+        recorded = true
+        void api.recordBannerImpression(banner.id).catch(() => undefined)
+        observer.disconnect()
+      }
+    }, { threshold: 0.5 })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [banner.id])
+
   return (
     <a
+      ref={cardRef}
       href={banner.target_url || '#'}
       target="_blank"
       rel="noopener noreferrer sponsored"
       className="group block rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-md"
     >
       <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-lg text-white">↗</span>
+        {banner.image_url
+          ? <img src={banner.image_url} alt="" className="h-12 w-12 shrink-0 rounded-xl border border-blue-100 object-cover" />
+          : <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-lg text-white">↗</span>}
         <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-700">Sponzorisano</p>
           <h3 className="mt-1 font-bold text-ink group-hover:text-blue-700">{banner.title}</h3>

@@ -153,7 +153,7 @@ const CRUMBS: Partial<Record<Page, { label: string }[]>> = {
   podrska:   [{ label: 'Oglašivač' }, { label: 'Podrška' }],
 }
 
-function NovaCampanja({ onCancel, onSuccess, onCreate }: { onCancel: () => void; onSuccess: () => void; onCreate: (payload: Parameters<typeof api.createCampaign>[0]) => Promise<void> }) {
+function NovaCampanja({ onCancel, onSuccess, onCreate, feePercent, categories }: { onCancel: () => void; onSuccess: () => void; onCreate: (payload: Parameters<typeof api.createCampaign>[0]) => Promise<void>; feePercent: number; categories: string[] }) {
   const [step, setStep] = useState(1)
   const [naziv, setNaziv] = useState('')
   const [reward, setReward] = useState('')
@@ -212,12 +212,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate }: { onCancel: () => void;
             </div>
             <Select label="Kategorija" options={[
               { value: '', label: 'Odaberi kategoriju' },
-              { value: 'Ankete i testiranja', label: 'Ankete i testiranja' },
-              { value: 'Testiranje sajta ili aplikacije', label: 'Testiranje sajta ili aplikacije' },
-              { value: 'Provera podataka', label: 'Provera podataka' },
-              { value: 'Kratak feedback', label: 'Kratak feedback' },
-              { value: 'Lokalna provera', label: 'Lokalna provera' },
-              { value: 'Označavanje podataka', label: 'Označavanje podataka' },
+              ...categories.map(value => ({ value, label: value })),
             ]} value={category} onChange={setCategory} />
             <Input label="Link za zadatak (opciono)" placeholder="https://vas-sajt.rs/test" value={taskUrl} onChange={setTaskUrl} />
             <div className="flex gap-2">
@@ -233,7 +228,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate }: { onCancel: () => void;
             <Input label="Ukupni budžet (RSD)" placeholder="npr. 5000" value={budget} onChange={setBudget} />
             <Select label="Trajanje" options={[{ value: '7', label: '7 dana' }, { value: '14', label: '14 dana' }, { value: '30', label: '30 dana' }]} />
             {reward && budget && (
-              <Alert type="info">Procenjeno: <strong className="font-mono">{Math.floor(Number(budget) / (Number(reward) * 1.2))}</strong> izvršenih zadataka, uključujući postojeću platformsku naknadu.</Alert>
+              <Alert type="info">Procenjeno: <strong className="font-mono">{Math.floor(Number(budget) / (Number(reward) * (1 + feePercent / 100)))}</strong> izvršenih zadataka, uključujući platformsku naknadu od {feePercent}%.</Alert>
             )}
             <div className="flex gap-2">
               <Btn onClick={() => setStep(1)} variant="secondary">← Prethodni korak</Btn>
@@ -280,7 +275,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate }: { onCancel: () => void;
               <Btn onClick={() => setStep(3)} variant="secondary">← Izmeni prethodni korak</Btn>
               <Btn disabled={submitting} onClick={async () => {
                 const rewardRsd = Number(reward)
-                const totalSlots = Math.floor(Number(budget) / (rewardRsd * 1.2))
+                const totalSlots = Math.floor(Number(budget) / (rewardRsd * (1 + feePercent / 100)))
                 if (!Number.isFinite(rewardRsd) || rewardRsd <= 0 || totalSlots < 1) {
                   setError('Unesi validnu nagradu i budžet dovoljan za najmanje jedan zadatak.')
                   return
@@ -319,6 +314,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [bannerSlotId, setBannerSlotId] = useState('')
   const [bannerTitle, setBannerTitle] = useState('')
   const [bannerBody, setBannerBody] = useState('')
+  const [bannerImageUrl, setBannerImageUrl] = useState('')
   const [bannerUrl, setBannerUrl] = useState('')
   const [bannerDays, setBannerDays] = useState('7')
   const [bannerError, setBannerError] = useState('')
@@ -383,11 +379,13 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
         slot_id: Number(bannerSlotId),
         title: bannerTitle.trim(),
         body: bannerBody.trim() || undefined,
+        image_url: bannerImageUrl.trim() || undefined,
         target_url: bannerUrl.trim(),
         days_count: daysCount,
       })
       setBannerTitle('')
       setBannerBody('')
+      setBannerImageUrl('')
       setBannerUrl('')
       await refreshDashboard()
       showToast(`Zakup je rezervisan: ${new Intl.NumberFormat('sr-RS').format(result.reserved_rsd)} RSD. Čeka odobrenje admina.`, 'success')
@@ -399,10 +397,17 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   }
 
   const advertiser = dashboard?.user
+  const pricing = dashboard?.pricing
+  const feePercent = pricing?.platform_fee_percent ?? 20
+  const feeMultiplier = 1 + feePercent / 100
+  const selectedBannerSlot = bannerSlots.find(slot => slot.id === Number(bannerSlotId))
+  const selectedBannerPrice = selectedBannerSlot
+    ? selectedBannerSlot.price_rsd * Number(bannerDays || 0) / (pricing?.banner_price_basis_days ?? 7)
+    : 0
   const campaigns = (dashboard?.tasks ?? []).map(task => ({
     naziv: task.title,
-    budžet: `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.total_slots * 1.2)} RSD`,
-    potrošeno: `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.used_slots * 1.2)} RSD`,
+    budžet: `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.total_slots * feeMultiplier)} RSD`,
+    potrošeno: `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.used_slots * feeMultiplier)} RSD`,
     dokazi: task.used_slots,
     status: task.status === 'active' ? 'aktivno' : task.status === 'pending' ? 'na_cekanju' : task.status === 'paused' ? 'obustavljeno' : task.status === 'rejected' ? 'odbijeno' : task.status,
   }))
@@ -523,6 +528,8 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                 onCancel={() => goTo('pregled')}
                 onSuccess={() => goTo('kampanje')}
                 onCreate={async payload => { await api.createCampaign(payload); await refreshDashboard(); showToast('Kampanja je poslata na moderaciju.', 'success') }}
+                feePercent={feePercent}
+                categories={pricing?.task_categories ?? []}
               />
             )}
 
@@ -630,9 +637,35 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
             )}
 
             {page === 'izvestaji' && (
-              <div>
-                <SectionHeader title="Izveštaji" />
-                <EmptyState icon="📋" title="Nema izveštaja" description="Izveštaji će biti dostupni nakon aktivacije prve kampanje." />
+              <div className="space-y-5">
+                <SectionHeader title="Izveštaji" description="Pregled koristi stvarne kampanje, dokaze, zakup banera i potrošnju sa ovog naloga." />
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <StatCard label="Ukupno kampanja" value={String(campaigns.length)} accent="blue" />
+                  <StatCard label="Poslato dokaza" value={String(proofs.length)} accent="green" />
+                  <StatCard label="Prikazi banera" value={String(ownBanners.reduce((total, banner) => total + banner.views_count, 0))} accent="teal" />
+                </div>
+                <Card>
+                  <Table
+                    headers={['Kampanja', 'Dokazi', 'Rezervisano', 'Status']}
+                    rows={campaigns.length > 0 ? campaigns.map(campaign => [
+                      <span className="font-semibold text-ink">{campaign.naziv}</span>,
+                      <span className="font-mono">{campaign.dokazi}</span>,
+                      <span className="font-mono text-xs">{campaign.budžet}</span>,
+                      <StatusBadge status={campaign.status} />,
+                    ]) : [[<span className="text-sm text-ink-3">Još nema kampanja.</span>, '—', '—', '—']]}
+                  />
+                </Card>
+                <Card>
+                  <Table
+                    headers={['Banner', 'Pozicija', 'Prikazi', 'Status']}
+                    rows={ownBanners.length > 0 ? ownBanners.map(banner => [
+                      <span className="font-semibold text-ink">{banner.title}</span>,
+                      <span className="text-xs text-ink-2">{banner.slot_title}</span>,
+                      <span className="font-mono">{banner.views_count}</span>,
+                      <StatusBadge status={banner.status} />,
+                    ]) : [[<span className="text-sm text-ink-3">Još nema zakupa banera.</span>, '—', '—', '—']]}
+                  />
+                </Card>
               </div>
             )}
 
@@ -655,10 +688,16 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     <Input label="Trajanje u danima" type="number" value={bannerDays} onChange={setBannerDays} />
                     <Input label="Naslov reklame" placeholder="npr. Jesenja ponuda" value={bannerTitle} onChange={setBannerTitle} />
                     <Input label="Link na koji vodi banner" placeholder="https://vas-sajt.rs/ponuda" value={bannerUrl} onChange={setBannerUrl} />
+                    <Input label="URL slike banera (opciono)" placeholder="https://vas-sajt.rs/banner.jpg" value={bannerImageUrl} onChange={setBannerImageUrl} />
                   </div>
                   <div className="mt-3">
                     <Input label="Kratak opis (opciono)" placeholder="Jedna jasna poruka za posetioce" value={bannerBody} onChange={setBannerBody} />
                   </div>
+                  {selectedBannerSlot && <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-sm text-ink-2">
+                    <p><strong className="text-ink">Cena rezervacije:</strong> {new Intl.NumberFormat('sr-RS').format(Math.round(selectedBannerPrice))} RSD za {bannerDays || 0} dana.</p>
+                    <p className="mt-1 text-xs">Format: {selectedBannerSlot.width_label}. Zauzeti termini se prikazuju pre rezervacije i admin proverava kreativni sadržaj.</p>
+                    {selectedBannerSlot.schedule.length > 0 && <p className="mt-1 text-xs text-amber-700">Postojeće rezervacije: {selectedBannerSlot.schedule.map(item => item.title).join(', ')}.</p>}
+                  </div>}
                   {bannerError && <div className="mt-3"><Alert type="error">{bannerError}</Alert></div>}
                   <div className="flex flex-wrap items-center gap-3 mt-4">
                     <Btn disabled={bannerLoading || bannerSlots.length === 0} onClick={() => void reserveBanner()}>{bannerLoading ? 'Rezervacija...' : 'Rezerviši banner'}</Btn>
@@ -671,11 +710,12 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     ? <EmptyState icon="🖼️" title="Još nemaš zakupljen banner" description="Izaberi slobodnu poziciju i pošalji rezervaciju na proveru." />
                     : <Card>
                       <Table
-                        headers={['Reklama', 'Pozicija', 'Trajanje', 'Iznos', 'Status', 'Napomena']}
+                        headers={['Reklama', 'Pozicija', 'Trajanje', 'Prikazi', 'Iznos', 'Status', 'Napomena']}
                         rows={ownBanners.map(banner => [
                           <span className="font-semibold text-ink">{banner.title}</span>,
                           <span className="text-xs text-ink-2">{banner.slot_title}</span>,
                           <span>{banner.days_count} dana</span>,
+                          <span className="font-mono text-xs">{banner.views_count}</span>,
                           <span className="font-mono text-xs">{new Intl.NumberFormat('sr-RS').format(banner.price_rsd)} RSD</span>,
                           <StatusBadge status={banner.status} />,
                           <span className="text-xs text-ink-3">{banner.admin_note || '—'}</span>,
@@ -687,18 +727,25 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
             )}
 
             {page === 'premium' && (
-              <div>
-                <SectionHeader title="Premium pozicije" />
-                <Alert type="info">Premium pozicije uključuju istaknuto mesto u listi zadataka i push obaveštenje korisnicima.</Alert>
-                <div className="mt-4 grid sm:grid-cols-2 gap-3">
-                  {[{ naziv: 'Istaknuto u listi zadataka', cena: '500 RSD / dan' }, { naziv: 'Push obaveštenje', cena: '800 RSD / slanje' }].map(p => (
-                    <div key={p.naziv} className="bg-violet-50 border border-violet-200 rounded-xl p-4">
-                      <p className="font-bold text-ink">{p.naziv}</p>
-                      <p className="font-mono font-bold text-violet-700 text-lg mt-1">{p.cena}</p>
-                      <Btn variant="premium" size="sm" className="mt-3">Rezerviši</Btn>
-                    </div>
-                  ))}
+              <div className="space-y-5">
+                <SectionHeader title="Katalog oglašavanja" description="Objavljuj samo merljive zadatke i banere sa jasnom cenom. Nedozvoljeni su plaćeni klikovi, lažni pratioci i manipulacija ocenama." />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Card className="border-blue-200 p-5">
+                    <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Proizvod 01</p>
+                    <h3 className="mt-2 font-bold text-ink">Kampanja sa dokazom</h3>
+                    <p className="mt-2 text-sm leading-6 text-ink-2">Anketa, testiranje sajta, provera podataka ili feedback. Nagrada se isplaćuje tek nakon odobrenog dokaza.</p>
+                    <p className="mt-3 font-mono text-sm font-bold text-blue-700">Naknada: {feePercent}% na nagrade</p>
+                    <Btn size="sm" className="mt-4" onClick={() => goTo('nova')}>Kreiraj kampanju</Btn>
+                  </Card>
+                  <Card className="border-violet-200 p-5">
+                    <p className="text-xs font-bold uppercase tracking-wide text-violet-700">Proizvod 02</p>
+                    <h3 className="mt-2 font-bold text-ink">Zakup banner pozicije</h3>
+                    <p className="mt-2 text-sm leading-6 text-ink-2">Pozicija na početnoj, izabran broj dana, URL odredišta i opciona slika. Admin odobrava sadržaj pre objave.</p>
+                    <p className="mt-3 font-mono text-sm font-bold text-violet-700">Od {new Intl.NumberFormat('sr-RS').format(bannerSlots.length > 0 ? Math.min(...bannerSlots.map(slot => slot.price_rsd)) : 0)} RSD / 7 dana</p>
+                    <Btn size="sm" variant="premium" className="mt-4" onClick={() => goTo('banneri')}>Pogledaj slotove</Btn>
+                  </Card>
                 </div>
+                <Alert type="info">Istaknute kampanje i push obaveštenja još nisu pušteni u prodaju, zato ih ne možeš slučajno rezervisati ili platiti.</Alert>
               </div>
             )}
 

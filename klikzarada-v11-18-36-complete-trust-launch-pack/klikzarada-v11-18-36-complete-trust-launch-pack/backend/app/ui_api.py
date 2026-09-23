@@ -139,6 +139,7 @@ class BannerReservationPayload(BaseModel):
     slot_id: int
     title: str = Field(min_length=3, max_length=180)
     body: str | None = Field(default=None, max_length=1000)
+    image_url: str | None = Field(default=None, max_length=500)
     target_url: str = Field(min_length=1, max_length=500)
     days_count: int = Field(default=7, ge=1, le=31)
 
@@ -475,6 +476,7 @@ def _banner_data(banner: PaidAdBannerV111) -> dict:
         "advertiser_name": banner.advertiser.company_name or banner.advertiser.full_name if banner.advertiser else "Oglašivač",
         "title": banner.title,
         "body": banner.body,
+        "image_url": banner.image_url,
         "target_url": banner.target_url,
         "price_rsd": _money(banner.price_rsd),
         "days_count": banner.days_count,
@@ -482,6 +484,7 @@ def _banner_data(banner: PaidAdBannerV111) -> dict:
         "admin_note": banner.admin_note,
         "starts_at": _iso(banner.starts_at),
         "ends_at": _iso(banner.ends_at),
+        "views_count": int(banner.views_count or 0),
         "created_at": _iso(banner.created_at),
     }
 
@@ -489,6 +492,13 @@ def _banner_data(banner: PaidAdBannerV111) -> dict:
 def _banner_slot_data(slot: HomeBannerSlotV111, banners: list[PaidAdBannerV111]) -> dict:
     slot_banners = [banner for banner in banners if banner.slot_id == slot.id]
     active = next((banner for banner in slot_banners if banner.status == "active"), None)
+    now = datetime.utcnow()
+    schedule = [
+        _banner_data(banner)
+        for banner in sorted(slot_banners, key=lambda item: item.starts_at or item.created_at or now)
+        if banner.status in {"active", "pending"}
+        and (banner.ends_at is None or banner.ends_at > now)
+    ]
     return {
         "id": slot.id,
         "code": slot.code,
@@ -499,6 +509,7 @@ def _banner_slot_data(slot: HomeBannerSlotV111, banners: list[PaidAdBannerV111])
         "is_active": bool(slot.is_active),
         "active_banner": _banner_data(active) if active else None,
         "pending_count": sum(1 for banner in slot_banners if banner.status == "pending"),
+        "schedule": schedule,
     }
 
 
@@ -508,6 +519,16 @@ def _validate_banner_target_url(value: str) -> str:
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise HTTPException(400, "Link banera mora biti pun http:// ili https:// URL.")
     return url
+
+
+def _pricing_data() -> dict:
+    """Expose the launch catalogue from the same values used for reservations."""
+    return {
+        "platform_fee_percent": PLATFORM_FEE_PERCENT,
+        "task_categories": sorted(_SAFE_CAMPAIGN_CATEGORIES),
+        "banner_price_basis_days": 7,
+        "banner_max_days": 31,
+    }
 
 
 def _banner_slot_conflict(
@@ -681,6 +702,22 @@ def public_banners(db: Session = Depends(get_db)) -> dict:
         (PaidAdBannerV111.ends_at.is_(None)) | (PaidAdBannerV111.ends_at > now),
     ).order_by(PaidAdBannerV111.created_at.desc()).limit(20).all()
     return {"banners": [_banner_data(banner) for banner in banners if not _is_legacy_demo_banner(banner)]}
+
+
+@router.post("/public/banners/{banner_id}/impression", status_code=204)
+def record_banner_impression(banner_id: int, db: Session = Depends(get_db)) -> Response:
+    """Count a visible homepage placement. This never creates a user reward."""
+    now = datetime.utcnow()
+    banner = db.query(PaidAdBannerV111).filter(
+        PaidAdBannerV111.id == banner_id,
+        PaidAdBannerV111.status == "active",
+        (PaidAdBannerV111.starts_at.is_(None)) | (PaidAdBannerV111.starts_at <= now),
+        (PaidAdBannerV111.ends_at.is_(None)) | (PaidAdBannerV111.ends_at > now),
+    ).first()
+    if banner and not _is_legacy_demo_banner(banner):
+        banner.views_count = int(banner.views_count or 0) + 1
+        db.commit()
+    return Response(status_code=204)
 
 
 @router.get("/user/dashboard")
@@ -998,6 +1035,7 @@ def advertiser_dashboard(request: Request, db: Session = Depends(get_db)) -> dic
         "tasks": [_task_data(task) for task in tasks],
         "submissions": [_submission_data(submission) | {"user_name": submission.user.full_name if submission.user else "Korisnik"} for submission in submissions],
         "transactions": [{"id": tx.id, "amount_rsd": _money(tx.amount_rsd), "tx_type": tx.tx_type, "description": tx.description, "created_at": _iso(tx.created_at)} for tx in transactions],
+        "pricing": _pricing_data(),
     }
 
 
@@ -1017,6 +1055,7 @@ def advertiser_banners(request: Request, db: Session = Depends(get_db)) -> dict:
     return {
         "slots": [_banner_slot_data(slot, visible_active_and_pending) for slot in slots],
         "banners": [_banner_data(banner) for banner in visible_banners],
+        "pricing": _pricing_data(),
     }
 
 
@@ -1039,6 +1078,7 @@ def reserve_advertiser_banner(
     if _banner_slot_conflict(db, slot.id, starts_at, ends_at):
         raise HTTPException(409, "Ovaj slot je već rezervisan za traženi period.")
     target_url = _validate_banner_target_url(payload.target_url)
+    image_url = _validate_banner_target_url(payload.image_url) if payload.image_url and payload.image_url.strip() else None
     price_rsd = _money(float(slot.price_rsd or 0) * payload.days_count / 7)
     if user.advertiser_budget_rsd < price_rsd:
         raise HTTPException(400, f"Nedovoljno budžeta. Za ovaj zakup potrebno je {price_rsd:.0f} RSD.")
@@ -1049,6 +1089,7 @@ def reserve_advertiser_banner(
         slot_id=slot.id,
         title=payload.title.strip(),
         body=(payload.body or "").strip() or None,
+        image_url=image_url,
         target_url=target_url,
         price_rsd=price_rsd,
         days_count=payload.days_count,
@@ -1487,6 +1528,7 @@ def admin_banners(request: Request, db: Session = Depends(get_db)) -> dict:
     return {
         "slots": [_banner_slot_data(slot, visible_banners) for slot in slots],
         "banners": [_banner_data(banner) for banner in visible_banners],
+        "pricing": _pricing_data(),
     }
 
 

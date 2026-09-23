@@ -619,6 +619,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                         <p>Cena: <span className="font-mono font-semibold text-emerald-600">{new Intl.NumberFormat('sr-RS').format(slot.price_rsd)} RSD / 7 dana</span></p>
                         {slot.active_banner && <p>Aktivni oglašivač: <span className="text-ink font-medium">{slot.active_banner.advertiser_name}</span></p>}
                         {slot.pending_count > 0 && <p className="text-amber-700">Čeka moderaciju: {slot.pending_count}</p>}
+                        {slot.schedule.length > 0 && <p className="text-ink-3">Raspored: {slot.schedule.map(banner => `${banner.title} (${banner.status})`).join(', ')}</p>}
                       </div>
                     </Card>
                   ))}
@@ -628,9 +629,13 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                   <SectionHeader title="Zakupi na proveri" description="Odobren zakup se automatski prikazuje na početnoj stranici." />
                   <Card>
                     <Table
-                      headers={['Banner', 'Oglašivač', 'Slot', 'Trajanje', 'Iznos', 'Status', 'Akcija']}
+                      headers={['Banner i odredište', 'Oglašivač', 'Slot', 'Trajanje', 'Iznos', 'Status', 'Akcija']}
                       rows={banners.filter(banner => banner.status === 'na_cekanju').map(banner => [
-                        <span className="font-semibold text-ink">{banner.title}</span>,
+                        <div className="min-w-[180px]">
+                          <p className="font-semibold text-ink">{banner.title}</p>
+                          {banner.image_url && <img src={banner.image_url} alt="Pregled banera" className="mt-2 h-12 w-20 rounded border border-frame object-cover" />}
+                          {banner.target_url && <a href={banner.target_url} target="_blank" rel="noopener noreferrer" className="mt-1 block truncate text-xs text-blue-700 hover:underline">{banner.target_url}</a>}
+                        </div>,
                         <span className="text-xs text-ink-2">{banner.advertiser_name}</span>,
                         <span className="text-xs text-ink-2">{banner.slot_title}</span>,
                         <span>{banner.days_count} dana</span>,

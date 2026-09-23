@@ -81,6 +81,14 @@ export type AdvertiserDashboardData = {
   tasks: Task[]
   submissions: Submission[]
   transactions: WalletTransaction[]
+  pricing: AdvertisingPricing
+}
+
+export type AdvertisingPricing = {
+  platform_fee_percent: number
+  task_categories: string[]
+  banner_price_basis_days: number
+  banner_max_days: number
 }
 
 export type CampaignPayload = {
@@ -153,6 +161,7 @@ export type PaidBanner = {
   advertiser_name: string
   title: string
   body: string | null
+  image_url: string | null
   target_url: string | null
   price_rsd: number
   days_count: number
@@ -160,6 +169,7 @@ export type PaidBanner = {
   admin_note: string | null
   starts_at: string | null
   ends_at: string | null
+  views_count: number
   created_at: string | null
 }
 export type BannerSlot = {
@@ -172,6 +182,7 @@ export type BannerSlot = {
   is_active: boolean
   active_banner: PaidBanner | null
   pending_count: number
+  schedule: PaidBanner[]
 }
 export type TaskVerification = {
   token: string
@@ -238,6 +249,7 @@ export const api = {
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   publicTasks: () => request<{ tasks: Task[] }>('/public/tasks'),
   publicBanners: () => request<{ banners: PaidBanner[] }>('/public/banners'),
+  recordBannerImpression: (id: number) => request<void>(`/public/banners/${id}/impression`, { method: 'POST' }),
   userDashboard: () => request<UserDashboardData>('/user/dashboard'),
   startTaskVerification: (taskId: number, payload: { device_fingerprint: string; device_label?: string }) => request<{ session: TaskVerification; resumed: boolean }>(`/user/tasks/${taskId}/verification/start`, {
     method: 'POST', body: JSON.stringify(payload),
@@ -259,8 +271,8 @@ export const api = {
     method: 'POST', body: JSON.stringify(payload),
   }),
   advertiserDashboard: () => request<AdvertiserDashboardData>('/advertiser/dashboard'),
-  advertiserBanners: () => request<{ slots: BannerSlot[]; banners: PaidBanner[] }>('/advertiser/banners'),
-  reserveAdvertiserBanner: (payload: { slot_id: number; title: string; body?: string; target_url: string; days_count: number }) => request<{ banner: PaidBanner; reserved_rsd: number }>('/advertiser/banners', {
+  advertiserBanners: () => request<{ slots: BannerSlot[]; banners: PaidBanner[]; pricing: AdvertisingPricing }>('/advertiser/banners'),
+  reserveAdvertiserBanner: (payload: { slot_id: number; title: string; body?: string; image_url?: string; target_url: string; days_count: number }) => request<{ banner: PaidBanner; reserved_rsd: number }>('/advertiser/banners', {
     method: 'POST', body: JSON.stringify(payload),
   }),
   createCampaign: (payload: CampaignPayload) => request<{ campaign: Task; reserved_rsd: number }>('/advertiser/campaigns', {
@@ -274,7 +286,7 @@ export const api = {
     method: 'POST',
   }),
   adminDashboard: () => request<{ metrics: AdminMetrics }>('/admin/dashboard'),
-  adminBanners: () => request<{ slots: BannerSlot[]; banners: PaidBanner[] }>('/admin/banners'),
+  adminBanners: () => request<{ slots: BannerSlot[]; banners: PaidBanner[]; pricing: AdvertisingPricing }>('/admin/banners'),
   reviewAdminBanner: (id: number, status: 'active' | 'rejected', note?: string) => request<{ banner: PaidBanner }>(`/admin/banners/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),
   }),
