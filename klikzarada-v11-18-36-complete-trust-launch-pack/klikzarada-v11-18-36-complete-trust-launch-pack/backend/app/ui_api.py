@@ -12,6 +12,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import socket
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -33,6 +34,7 @@ from .models import (
     AuditLog,
     FraudSignalV11,
     PayPalCheckout,
+    PayPalPayoutAttempt,
     SystemSetting,
     SupportMessage,
     SupportTicket,
@@ -139,6 +141,11 @@ class PayPalTopupPayload(BaseModel):
 class AdminStatusPayload(BaseModel):
     status: str = Field(min_length=2, max_length=40)
     note: str | None = Field(default=None, max_length=2000)
+
+
+class PayPalPayoutPayload(BaseModel):
+    """An explicit phrase prevents an accidental API call from sending money."""
+    confirmation_code: str = Field(min_length=8, max_length=160)
 
 
 class SourcePayload(BaseModel):
@@ -854,6 +861,53 @@ def _paypal_config() -> tuple[str, str, str, Decimal]:
     return "https://api-m.paypal.com", client_id, client_secret, rate
 
 
+def _paypal_payout_config() -> tuple[tuple[str, str, str, Decimal], str, Decimal]:
+    """Return an explicitly enabled payout configuration.
+
+    PayPal's supported-currency list does not include RSD, so platform ledger
+    amounts are converted to EUR only after a human administrator confirms the
+    payout. A dedicated payout rate keeps that financial decision auditable.
+    """
+    enabled = os.getenv("PAYPAL_PAYOUTS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+    if not enabled:
+        raise HTTPException(503, "PayPal Payouts nije uključen. Administrator mora postaviti PAYPAL_PAYOUTS_ENABLED=true u Renderu.")
+    config = _paypal_config()
+    currency = os.getenv("PAYPAL_PAYOUT_CURRENCY", "EUR").strip().upper()
+    if currency != "EUR":
+        raise HTTPException(503, "KlikZarada trenutno podržava samo EUR za PayPal isplate.")
+    rate_text = os.getenv("PAYPAL_PAYOUT_RSD_PER_EUR", "").strip() or str(config[3])
+    try:
+        rate = Decimal(rate_text)
+    except InvalidOperation as exc:
+        raise HTTPException(503, "Kurs za PayPal isplatu nije podešen.") from exc
+    if rate <= 0:
+        raise HTTPException(503, "Kurs za PayPal isplatu mora biti veći od nule.")
+    return config, currency, rate
+
+
+def _paypal_payout_recipient(withdrawal: Withdrawal) -> str:
+    if "paypal" not in (withdrawal.payment_method or "").lower():
+        raise HTTPException(400, "Za PayPal isplatu korisnik mora izabrati PayPal kao metod isplate.")
+    recipient = (withdrawal.payment_details or "").strip().lower()
+    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", recipient):
+        raise HTTPException(400, "Podaci za isplatu moraju sadržati važeću PayPal email adresu.")
+    return recipient
+
+
+def _paypal_payout_data(attempt: PayPalPayoutAttempt) -> dict:
+    return {
+        "withdrawal_id": attempt.withdrawal_id,
+        "paypal_batch_id": attempt.paypal_batch_id,
+        "sender_batch_id": attempt.sender_batch_id,
+        "amount_rsd": _money(attempt.amount_rsd),
+        "amount_paypal": _money(attempt.amount_paypal),
+        "currency": attempt.currency,
+        "status": _status(attempt.status),
+        "created_at": _iso(attempt.created_at),
+        "updated_at": _iso(attempt.updated_at),
+    }
+
+
 def _paypal_card_checkout_enabled() -> bool:
     """Allow a controlled rollback while PayPal determines card eligibility."""
     return os.getenv("PAYPAL_CARD_PAYMENTS_ENABLED", "true").strip().lower() not in {"0", "false", "no", "off"}
@@ -1275,7 +1329,21 @@ def review_submission(submission_id: int, payload: AdminStatusPayload, request: 
 def admin_withdrawals(request: Request, db: Session = Depends(get_db)) -> dict:
     _require_user(request, db, {"admin"})
     items = db.query(Withdrawal).order_by(Withdrawal.created_at.desc()).limit(300).all()
-    return {"withdrawals": [{"id": item.id, "user_name": item.user.full_name if item.user else "Korisnik", "amount_rsd": _money(item.amount_rsd), "payment_method": item.payment_method, "payment_details": item.payment_details, "status": _status(item.status), "created_at": _iso(item.created_at)} for item in items]}
+    attempts = {
+        item.withdrawal_id: item for item in db.query(PayPalPayoutAttempt).filter(
+            PayPalPayoutAttempt.withdrawal_id.in_([withdrawal.id for withdrawal in items] or [-1])
+        ).all()
+    }
+    return {"withdrawals": [{
+        "id": item.id,
+        "user_name": item.user.full_name if item.user else "Korisnik",
+        "amount_rsd": _money(item.amount_rsd),
+        "payment_method": item.payment_method,
+        "payment_details": item.payment_details,
+        "status": _status(item.status),
+        "created_at": _iso(item.created_at),
+        "paypal_payout": _paypal_payout_data(attempts[item.id]) if item.id in attempts else None,
+    } for item in items]}
 
 
 @router.get("/admin/tickets")
@@ -1311,8 +1379,10 @@ def update_withdrawal(withdrawal_id: int, payload: AdminStatusPayload, request: 
         raise HTTPException(404, "Isplata nije pronađena.")
     if payload.status not in {"paid", "rejected"}:
         raise HTTPException(400, "Status isplate mora biti paid ili rejected.")
-    if item.status != "pending":
-        raise HTTPException(409, "Ova isplata je već obrađena.")
+    if item.status not in {"pending", "payout_failed"}:
+        raise HTTPException(409, "Ova isplata je već obrađena ili se još obrađuje preko PayPal-a.")
+    if payload.status == "paid" and item.status != "pending":
+        raise HTTPException(409, "Neuspelu PayPal isplatu možeš odbiti i vratiti saldo, ali je ne smeš ručno označiti kao plaćenu.")
     if payload.status == "paid" and _open_risk_score(db, item.user_id) >= ANTI_FRAUD_HIGH_RISK_SCORE:
         raise HTTPException(409, "Isplata ima otvoren visokorizični fraud signal. Prvo pregledaj signal ili odbij isplatu.")
     item.status = payload.status
@@ -1324,6 +1394,154 @@ def update_withdrawal(withdrawal_id: int, payload: AdminStatusPayload, request: 
     _audit(db, admin, "withdrawal_review", "Withdrawal", item.id, payload.status)
     db.commit()
     return {"withdrawal": {"id": item.id, "status": _status(item.status)}}
+
+
+@router.post("/admin/withdrawals/{withdrawal_id}/paypal-payout")
+def send_paypal_payout(withdrawal_id: int, payload: PayPalPayoutPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    """Send exactly one PayPal payout after a deliberate, auditable admin action."""
+    admin = _require_user(request, db, {"admin"})
+    item = db.query(Withdrawal).filter(Withdrawal.id == withdrawal_id).with_for_update().first()
+    if not item:
+        raise HTTPException(404, "Isplata nije pronađena.")
+    if item.status != "pending":
+        raise HTTPException(409, "Samo isplata na čekanju može biti poslata na PayPal.")
+    expected_confirmation = f"PAYPAL-ISPLATA-{item.id}"
+    if not hmac.compare_digest(payload.confirmation_code.strip().upper(), expected_confirmation):
+        raise HTTPException(400, f"Potvrda mora biti tačno: {expected_confirmation}")
+    if _open_risk_score(db, item.user_id) >= ANTI_FRAUD_HIGH_RISK_SCORE:
+        raise HTTPException(409, "Isplata ima otvoren visokorizični fraud signal. Prvo pregledaj signal.")
+
+    config, currency, exchange_rate = _paypal_payout_config()
+    recipient = _paypal_payout_recipient(item)
+    amount_rsd = Decimal(str(item.amount_rsd)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    amount_paypal = (amount_rsd / exchange_rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if amount_paypal < Decimal("1.00"):
+        raise HTTPException(400, "PayPal isplata mora iznositi najmanje 1,00 EUR po odobrenom kursu.")
+
+    attempt = db.query(PayPalPayoutAttempt).filter(PayPalPayoutAttempt.withdrawal_id == item.id).with_for_update().first()
+    if attempt and attempt.paypal_batch_id:
+        raise HTTPException(409, "PayPal isplata je već poslata. Prvo osveži njen status.")
+    if not attempt:
+        attempt = PayPalPayoutAttempt(
+            withdrawal_id=item.id,
+            admin_id=admin.id,
+            sender_batch_id=f"kz-w-{item.id}-{uuid4().hex[:16]}",
+            recipient_email=recipient,
+            amount_rsd=float(amount_rsd),
+            amount_paypal=float(amount_paypal),
+            currency=currency,
+            status="created",
+        )
+        db.add(attempt)
+        db.commit()
+        db.refresh(attempt)
+    else:
+        # Retrying uses the original accounting values and sender batch ID.
+        # PayPal treats that ID idempotently for 30 days.
+        recipient = attempt.recipient_email
+        amount_paypal = Decimal(str(attempt.amount_paypal)).quantize(Decimal("0.01"))
+        currency = attempt.currency
+
+    payout_payload = {
+        "sender_batch_header": {
+            "sender_batch_id": attempt.sender_batch_id,
+            "recipient_type": "EMAIL",
+            "email_subject": "KlikZarada isplata",
+            "email_message": f"Isplata zahteva #{item.id} sa platforme KlikZarada.",
+        },
+        "items": [{
+            "recipient_type": "EMAIL",
+            "amount": {"value": f"{amount_paypal:.2f}", "currency": currency},
+            "receiver": recipient,
+            "note": f"KlikZarada isplata #{item.id}",
+            "sender_item_id": f"withdrawal-{item.id}",
+        }],
+    }
+    try:
+        response = httpx.post(
+            f"{config[0]}/v1/payments/payouts",
+            headers={
+                "Authorization": f"Bearer {_paypal_access_token(config)}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "PayPal-Request-Id": attempt.sender_batch_id,
+            },
+            json=payout_payload,
+            timeout=25,
+        )
+    except httpx.RequestError as exc:
+        attempt.status = "retryable_error"
+        attempt.response_summary = "Mrežna greška pri slanju PayPal zahteva. Isti batch ID može bezbedno da se pokuša ponovo."
+        attempt.updated_at = datetime.utcnow()
+        db.commit()
+        raise HTTPException(502, "PayPal trenutno nije dostupan. Isplata nije označena kao plaćena.") from exc
+
+    if response.status_code not in {200, 201, 202}:
+        attempt.status = "retryable_error"
+        attempt.response_summary = f"PayPal HTTP {response.status_code}"
+        attempt.updated_at = datetime.utcnow()
+        db.commit()
+        raise HTTPException(502, "PayPal nije prihvatio isplatu. Sredstva nisu označena kao plaćena.")
+
+    result = response.json()
+    batch_header = result.get("batch_header") if isinstance(result, dict) else None
+    batch_id = str((batch_header or {}).get("payout_batch_id") or "")
+    batch_status = str((batch_header or {}).get("batch_status") or "PENDING").upper()
+    if not batch_id:
+        attempt.status = "review_required"
+        attempt.response_summary = "PayPal odgovor nije sadržao payout_batch_id."
+        attempt.updated_at = datetime.utcnow()
+        db.commit()
+        raise HTTPException(502, "PayPal odgovor nije potpun. Isplata ostaje na ručnoj proveri.")
+
+    attempt.paypal_batch_id = batch_id
+    attempt.status = _status(batch_status)
+    attempt.response_summary = json.dumps({"batch_status": batch_status}, separators=(",", ":"))
+    attempt.updated_at = datetime.utcnow()
+    item.status = "processing"
+    item.admin_note = f"PayPal batch {batch_id} je poslat i čeka potvrdu."
+    _audit(db, admin, "paypal_payout_send", "Withdrawal", item.id, batch_id)
+    db.commit()
+    return {"withdrawal": {"id": item.id, "status": _status(item.status)}, "payout": _paypal_payout_data(attempt)}
+
+
+@router.post("/admin/withdrawals/{withdrawal_id}/paypal-payout/sync")
+def sync_paypal_payout(withdrawal_id: int, request: Request, db: Session = Depends(get_db)) -> dict:
+    """Read the provider status; only PayPal SUCCESS marks a withdrawal paid."""
+    admin = _require_user(request, db, {"admin"})
+    item = db.query(Withdrawal).filter(Withdrawal.id == withdrawal_id).with_for_update().first()
+    attempt = db.query(PayPalPayoutAttempt).filter(PayPalPayoutAttempt.withdrawal_id == withdrawal_id).with_for_update().first()
+    if not item or not attempt or not attempt.paypal_batch_id:
+        raise HTTPException(404, "PayPal batch za ovu isplatu nije pronađen.")
+    config, _, _ = _paypal_payout_config()
+    try:
+        response = httpx.get(
+            f"{config[0]}/v1/payments/payouts/{attempt.paypal_batch_id}",
+            params={"fields": "batch_header"},
+            headers={"Authorization": f"Bearer {_paypal_access_token(config)}", "Accept": "application/json"},
+            timeout=20,
+        )
+    except httpx.RequestError as exc:
+        raise HTTPException(502, "PayPal status trenutno nije dostupan.") from exc
+    if response.status_code >= 400:
+        raise HTTPException(502, "PayPal nije vratio status isplate.")
+    result = response.json()
+    batch_status = str(result.get("batch_header", {}).get("batch_status") or "PENDING").upper()
+    attempt.status = _status(batch_status)
+    attempt.response_summary = json.dumps({"batch_status": batch_status}, separators=(",", ":"))
+    attempt.updated_at = datetime.utcnow()
+    if batch_status == "SUCCESS":
+        item.status = "paid"
+        item.processed_at = datetime.utcnow()
+        item.admin_note = f"PayPal batch {attempt.paypal_batch_id} je uspešno potvrđen."
+    elif batch_status in {"DENIED", "CANCELED"}:
+        item.status = "payout_failed"
+        item.admin_note = f"PayPal batch {attempt.paypal_batch_id} nije izvršen ({batch_status}). Odbij isplatu da bi se saldo vratio korisniku."
+    else:
+        item.status = "processing"
+    _audit(db, admin, "paypal_payout_sync", "Withdrawal", item.id, batch_status)
+    db.commit()
+    return {"withdrawal": {"id": item.id, "status": _status(item.status)}, "payout": _paypal_payout_data(attempt)}
 
 
 def _fraud_details(value: str | None) -> dict:

@@ -165,6 +165,12 @@ Oglašivač može dopuniti budžet preko PayPal-a samo kada su sledeće Render v
 
 Pored PayPal naloga, oglašivač može platiti kreditnom ili debitnom karticom kroz PayPal Checkout. `PAYPAL_CARD_PAYMENTS_ENABLED=true` je podrazumevana vrednost; postavi `false` u Renderu samo ako želiš privremeno da sakriješ kartičnu opciju. PayPal određuje dostupnost kartica prema Live nalogu, zemlji, kupcu i sopstvenoj proceni, pa se kartični taster prikazuje samo kad je PayPal Checkout prihvati. KlikZarada nikada ne prima niti čuva broj kartice ili CVV.
 
+### PayPal isplate korisnika
+
+PayPal Payouts je zaseban, ručno potvrđen admin korak. Korisnik prvo bira `PayPal` i upisuje svoju PayPal email adresu kao podatak za isplatu. Administrator u **Finansije -> Isplate korisnika** klikne `Pošalji PayPal`, potvrdi akciju, a zatim klikne `Proveri PayPal` dok PayPal ne vrati `SUCCESS`. Tek tada se zahtev označava kao plaćen. Svaki zahtev ima jedinstven PayPal sender batch ID, pa ponovljeni mrežni zahtev ne može napraviti duplu isplatu u PayPal-ovom 30-dnevnom periodu.
+
+Pre prvog stvarnog slanja, PayPal nalog mora imati odobren pristup funkciji Payouts. U Render dodaj `PAYPAL_PAYOUTS_ENABLED=false`, `PAYPAL_PAYOUT_CURRENCY=EUR` i odobreni `PAYPAL_PAYOUT_RSD_PER_EUR`; tek nakon kontrolisanog testa promeni prvu vrednost na `true`. RSD nije na PayPal-ovoj listi podržanih payout valuta, zato aplikacija šalje EUR i jasno evidentira kurs i RSD iznos. [PayPal Payouts dokumentacija](https://developer.paypal.com/docs/payouts/standard/integrate-api/customize/) objašnjava batch status i idempotentni `sender_batch_id`, a [PayPal podržane valute](https://developer.paypal.com/reports/reference/supported-currencies/) potvrđuju dostupne valute.
+
 ### Produkcijska baza i admin
 
 Render web servis ne sme koristiti lokalni SQLite fajl u produkciji, jer se njegov sadržaj gubi pri redeploy-u ili restartu. Kreiraj Render PostgreSQL bazu i postavi njen **Internal Database URL** kao `DATABASE_URL` na web servisu. Zatim postavi `ADMIN_BOOTSTRAP_NAME`, `ADMIN_BOOTSTRAP_EMAIL` i jaku `ADMIN_BOOTSTRAP_PASSWORD` u Renderu pre sledećeg deploy-a. Admin se prijavljuje preko `/admin/prijava`; demo nalozi se ne kreiraju u produkciji.

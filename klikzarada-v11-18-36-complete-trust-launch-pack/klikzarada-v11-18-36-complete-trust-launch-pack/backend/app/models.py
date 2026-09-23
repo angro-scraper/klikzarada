@@ -150,6 +150,28 @@ class PayPalCheckout(Base):
 
     advertiser = relationship("User")
 
+
+class PayPalPayoutAttempt(Base):
+    """Idempotent record of one administrator-approved PayPal payout attempt."""
+    __tablename__ = "paypal_payout_attempts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    withdrawal_id = Column(Integer, ForeignKey("withdrawals.id"), unique=True, nullable=False, index=True)
+    admin_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    sender_batch_id = Column(String(128), unique=True, nullable=False, index=True)
+    paypal_batch_id = Column(String(128), unique=True, nullable=True, index=True)
+    recipient_email = Column(String(160), nullable=False)
+    amount_rsd = Column(Float, nullable=False)
+    amount_paypal = Column(Float, nullable=False)
+    currency = Column(String(8), default="EUR", nullable=False)
+    status = Column(String(40), default="created", nullable=False)
+    response_summary = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+    withdrawal = relationship("Withdrawal")
+    admin = relationship("User")
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
     id = Column(Integer, primary_key=True, index=True)

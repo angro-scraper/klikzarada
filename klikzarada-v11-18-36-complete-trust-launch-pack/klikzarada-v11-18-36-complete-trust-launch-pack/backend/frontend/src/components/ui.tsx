@@ -9,6 +9,7 @@ const statusMap: Record<string, { label: string; cls: string }> = {
   blokirano:    { label: 'Blokirano',    cls: 'bg-coral-100   text-coral-700   border border-coral-200' },
   placeno:      { label: 'Plaćeno',      cls: 'bg-blue-100    text-blue-700    border border-blue-200' },
   na_proveri:   { label: 'Na proveri',   cls: 'bg-violet-100  text-violet-700  border border-violet-200' },
+  u_obradi:     { label: 'U obradi',     cls: 'bg-blue-100    text-blue-700    border border-blue-200' },
   greska:       { label: 'Greška',       cls: 'bg-coral-100   text-coral-700   border border-coral-200' },
   obustavljeno: { label: 'Obustavljeno', cls: 'bg-gray-100    text-gray-600    border border-gray-200' },
   premium:      { label: 'Premium',      cls: 'bg-violet-100  text-violet-700  border border-violet-200' },

@@ -118,6 +118,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [logoutConfirm, setLogoutConfirm] = useState(false)
   const [blockUser, setBlockUser] = useState<{ id: number; ime: string; action: 'block' | 'unblock' } | null>(null)
   const [payoutAction, setPayoutAction] = useState<{ id: number; korisnik: string; iznos: string; type: 'approve' | 'reject' } | null>(null)
+  const [paypalPayoutAction, setPaypalPayoutAction] = useState<{ id: number; korisnik: string; iznos: string } | null>(null)
   const [campAction, setCampAction] = useState<{ id: number; naziv: string; type: 'approve' | 'reject' } | null>(null)
   const [submissionAction, setSubmissionAction] = useState<{ id: number; naslov: string; type: 'approve' | 'reject' } | null>(null)
   const [userStatuses, setUserStatuses] = useState<Record<number, string>>({})
@@ -174,7 +175,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   }
   function payoutStatus(id: number, orig: string) {
     const status = payoutStatuses[id] ?? orig
-    return status === 'pending' ? 'na_cekanju' : status === 'paid' ? 'placeno' : status === 'rejected' ? 'odbijeno' : status
+    return status === 'pending' ? 'na_cekanju' : status === 'paid' ? 'placeno' : status === 'rejected' ? 'odbijeno' : status === 'processing' ? 'u_obradi' : status === 'payout_failed' ? 'greska' : status
   }
   function campStatus(id: number, orig: string) {
     const status = campStatuses[id] ?? orig
@@ -273,6 +274,28 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
           } finally { setSavingAction(false) }
         }}
         onCancel={() => setPayoutAction(null)}
+      />
+
+      <ConfirmModal
+        open={paypalPayoutAction !== null}
+        title="Poslati stvarnu PayPal isplatu?"
+        description={`Poslaćeš ${paypalPayoutAction?.iznos} korisniku ${paypalPayoutAction?.korisnik} na PayPal email koji je korisnik uneo. Isplata je prethodno prošla fraud proveru. Nakon slanja, prvo ćeš morati da osvežiš PayPal status pre konačnog označavanja kao plaćene.`}
+        confirmLabel="Da, pošalji na PayPal"
+        cancelLabel="Otkaži"
+        variant="danger"
+        onConfirm={async () => {
+          if (!paypalPayoutAction) return
+          setSavingAction(true)
+          try {
+            await api.sendAdminPayPalPayout(paypalPayoutAction.id)
+            await refreshAdmin()
+            showToast('PayPal batch je poslat. Osveži status dok PayPal ne potvrdi obradu.', 'success')
+            setPaypalPayoutAction(null)
+          } catch (error) {
+            showToast(error instanceof Error ? error.message : 'PayPal isplata nije poslata.', 'error')
+          } finally { setSavingAction(false) }
+        }}
+        onCancel={() => setPaypalPayoutAction(null)}
       />
 
       <ConfirmModal
@@ -403,9 +426,20 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                         <StatusBadge status={st} />,
                         st === 'na_cekanju'
                           ? <div className="flex gap-1.5">
-                              <Btn size="sm" variant="success" disabled={savingAction} onClick={() => setPayoutAction({ id: p.id, korisnik: p.user_name, iznos: `${new Intl.NumberFormat('sr-RS').format(p.amount_rsd)} RSD`, type: 'approve' })}>Plaćeno</Btn>
+                              {p.payment_method.toLowerCase().includes('paypal')
+                                ? <Btn size="sm" variant="success" disabled={savingAction} onClick={() => setPaypalPayoutAction({ id: p.id, korisnik: p.user_name, iznos: `${new Intl.NumberFormat('sr-RS').format(p.amount_rsd)} RSD` })}>Pošalji PayPal</Btn>
+                                : <Btn size="sm" variant="success" disabled={savingAction} onClick={() => setPayoutAction({ id: p.id, korisnik: p.user_name, iznos: `${new Intl.NumberFormat('sr-RS').format(p.amount_rsd)} RSD`, type: 'approve' })}>Označi plaćeno</Btn>}
                               <Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setPayoutAction({ id: p.id, korisnik: p.user_name, iznos: `${new Intl.NumberFormat('sr-RS').format(p.amount_rsd)} RSD`, type: 'reject' })}>Odbij</Btn>
                             </div>
+                          : st === 'u_obradi' && p.paypal_payout
+                            ? <Btn size="sm" variant="secondary" disabled={savingAction} onClick={async () => {
+                                setSavingAction(true)
+                                try { await api.syncAdminPayPalPayout(p.id); await refreshAdmin(); showToast('PayPal status je osvežen.', 'success') }
+                                catch (error) { showToast(error instanceof Error ? error.message : 'PayPal status nije osvežen.', 'error') }
+                                finally { setSavingAction(false) }
+                              }}>Proveri PayPal</Btn>
+                          : st === 'greska'
+                            ? <Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setPayoutAction({ id: p.id, korisnik: p.user_name, iznos: `${new Intl.NumberFormat('sr-RS').format(p.amount_rsd)} RSD`, type: 'reject' })}>Vrati saldo</Btn>
                           : <span className="text-xs text-ink-3">—</span>,
                       ]
                     })}

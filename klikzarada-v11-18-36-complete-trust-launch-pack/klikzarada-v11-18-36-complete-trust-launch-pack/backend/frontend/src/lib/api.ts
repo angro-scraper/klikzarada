@@ -125,7 +125,21 @@ export type AdminMetrics = {
 export type AdminUser = SessionUser & { created_at: string | null }
 export type AdminCampaign = Task & { advertiser_name: string }
 export type AdminSubmission = Submission & { user_name: string }
-export type AdminWithdrawal = Withdrawal & { user_name: string; payment_details: string }
+export type AdminWithdrawal = Withdrawal & {
+  user_name: string
+  payment_details: string
+  paypal_payout: null | {
+    withdrawal_id: number
+    paypal_batch_id: string | null
+    sender_batch_id: string
+    amount_rsd: number
+    amount_paypal: number
+    currency: string
+    status: string
+    created_at: string | null
+    updated_at: string | null
+  }
+}
 export type TaskSource = { id: number; name: string; endpoint_url: string; source_type: string; import_mode: string; status: string; has_api_key: boolean; last_sync_at: string | null; created_at: string | null }
 export type SupportTicket = { id: number; subject: string; category: string; priority: string; status: string; created_at: string | null; updated_at: string | null; user_name: string }
 export type AdminSetting = { key: string; value: string; has_value: boolean | null; description: string | null; sensitive: boolean }
@@ -240,6 +254,12 @@ export const api = {
   adminWithdrawals: () => request<{ withdrawals: AdminWithdrawal[] }>('/admin/withdrawals'),
   updateAdminWithdrawal: (id: number, status: 'paid' | 'rejected', note?: string) => request<{ withdrawal: Withdrawal }>(`/admin/withdrawals/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),
+  }),
+  sendAdminPayPalPayout: (id: number) => request<{ withdrawal: Withdrawal; payout: AdminWithdrawal['paypal_payout'] }>(`/admin/withdrawals/${id}/paypal-payout`, {
+    method: 'POST', body: JSON.stringify({ confirmation_code: `PAYPAL-ISPLATA-${id}` }),
+  }),
+  syncAdminPayPalPayout: (id: number) => request<{ withdrawal: Withdrawal; payout: AdminWithdrawal['paypal_payout'] }>(`/admin/withdrawals/${id}/paypal-payout/sync`, {
+    method: 'POST',
   }),
   adminTickets: () => request<{ tickets: SupportTicket[] }>('/admin/tickets'),
   updateAdminTicket: (id: number, status: 'open' | 'waiting' | 'closed', note?: string) => request<{ ticket: SupportTicket }>(`/admin/tickets/${id}`, {

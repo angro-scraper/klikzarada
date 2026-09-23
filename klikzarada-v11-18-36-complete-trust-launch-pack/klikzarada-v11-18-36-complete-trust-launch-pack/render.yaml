@@ -48,5 +48,11 @@ services:
         value: true
       - key: PAYPAL_RSD_PER_EUR
         sync: false
+      - key: PAYPAL_PAYOUTS_ENABLED
+        value: false
+      - key: PAYPAL_PAYOUT_CURRENCY
+        value: EUR
+      - key: PAYPAL_PAYOUT_RSD_PER_EUR
+        sync: false
       - key: PUBLIC_APP_URL
         sync: false
