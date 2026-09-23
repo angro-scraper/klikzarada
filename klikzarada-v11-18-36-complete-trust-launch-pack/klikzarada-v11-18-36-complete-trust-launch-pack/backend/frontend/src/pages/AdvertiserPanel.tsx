@@ -401,8 +401,10 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const feePercent = pricing?.platform_fee_percent ?? 20
   const feeMultiplier = 1 + feePercent / 100
   const selectedBannerSlot = bannerSlots.find(slot => slot.id === Number(bannerSlotId))
+  const bannerMaxDays = pricing?.banner_max_days ?? 31
+  const normalizedBannerDays = Math.min(bannerMaxDays, Math.max(1, Math.floor(Number(bannerDays) || 1)))
   const selectedBannerPrice = selectedBannerSlot
-    ? selectedBannerSlot.price_rsd * Number(bannerDays || 0) / (pricing?.banner_price_basis_days ?? 7)
+    ? selectedBannerSlot.price_rsd * normalizedBannerDays / (pricing?.banner_price_basis_days ?? 7)
     : 0
   const campaigns = (dashboard?.tasks ?? []).map(task => ({
     naziv: task.title,
@@ -685,7 +687,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                         label: `${slot.title} — ${new Intl.NumberFormat('sr-RS').format(slot.price_rsd)} RSD / 7 dana`,
                       }))}
                     />
-                    <Input label="Trajanje u danima" type="number" value={bannerDays} onChange={setBannerDays} />
+                    <Input label="Trajanje u danima" type="number" min={1} max={bannerMaxDays} step={1} value={String(normalizedBannerDays)} onChange={value => setBannerDays(String(Math.min(bannerMaxDays, Math.max(1, Math.floor(Number(value) || 1))))) } />
                     <Input label="Naslov reklame" placeholder="npr. Jesenja ponuda" value={bannerTitle} onChange={setBannerTitle} />
                     <Input label="Link na koji vodi banner" placeholder="https://vas-sajt.rs/ponuda" value={bannerUrl} onChange={setBannerUrl} />
                     <Input label="URL slike banera (opciono)" placeholder="https://vas-sajt.rs/banner.jpg" value={bannerImageUrl} onChange={setBannerImageUrl} />
@@ -694,7 +696,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     <Input label="Kratak opis (opciono)" placeholder="Jedna jasna poruka za posetioce" value={bannerBody} onChange={setBannerBody} />
                   </div>
                   {selectedBannerSlot && <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-sm text-ink-2">
-                    <p><strong className="text-ink">Cena rezervacije:</strong> {new Intl.NumberFormat('sr-RS').format(Math.round(selectedBannerPrice))} RSD za {bannerDays || 0} dana.</p>
+                    <p><strong className="text-ink">Cena rezervacije:</strong> {new Intl.NumberFormat('sr-RS').format(Math.round(selectedBannerPrice))} RSD za {normalizedBannerDays} dana.</p>
                     <p className="mt-1 text-xs">Format: {selectedBannerSlot.width_label}. Zauzeti termini se prikazuju pre rezervacije i admin proverava kreativni sadržaj.</p>
                     {selectedBannerSlot.schedule.length > 0 && <p className="mt-1 text-xs text-amber-700">Postojeće rezervacije: {selectedBannerSlot.schedule.map(item => item.title).join(', ')}.</p>}
                   </div>}

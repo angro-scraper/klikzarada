@@ -179,8 +179,8 @@ export function Table({ headers, rows }: { headers: string[]; rows: ReactNode[][
 }
 
 // ── Inputs ─────────────────────────────────────────────────────────────────────
-export function Input({ label, placeholder, type = 'text', value, onChange }: {
-  label?: string; placeholder?: string; type?: string; value?: string; onChange?: (v: string) => void
+export function Input({ label, placeholder, type = 'text', value, onChange, min, max, step }: {
+  label?: string; placeholder?: string; type?: string; value?: string; onChange?: (v: string) => void; min?: number; max?: number; step?: number
 }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -189,6 +189,9 @@ export function Input({ label, placeholder, type = 'text', value, onChange }: {
         type={type}
         placeholder={placeholder}
         value={value}
+        min={min}
+        max={max}
+        step={step}
         onChange={e => onChange?.(e.target.value)}
         className="bg-white border border-frame text-ink placeholder-ink-4 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all"
       />
