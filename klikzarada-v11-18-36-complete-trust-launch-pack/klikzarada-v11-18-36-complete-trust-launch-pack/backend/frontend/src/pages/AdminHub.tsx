@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Sidebar, TopBar } from '../components/Sidebar'
 import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tabs, Alert } from '../components/ui'
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
+import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminWithdrawal, type TaskSource } from '../lib/api'
 
 const navGroups = [
   { group: 'Dashboard', items: [{ id: 'dashboard', label: 'Pregled', icon: '📊' }] },
@@ -118,18 +119,56 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [blockUser, setBlockUser] = useState<{ id: number; ime: string; action: 'block' | 'unblock' } | null>(null)
   const [payoutAction, setPayoutAction] = useState<{ id: number; korisnik: string; iznos: string; type: 'approve' | 'reject' } | null>(null)
   const [campAction, setCampAction] = useState<{ id: number; naziv: string; type: 'approve' | 'reject' } | null>(null)
+  const [submissionAction, setSubmissionAction] = useState<{ id: number; naslov: string; type: 'approve' | 'reject' } | null>(null)
   const [userStatuses, setUserStatuses] = useState<Record<number, string>>({})
   const [payoutStatuses, setPayoutStatuses] = useState<Record<number, string>>({})
   const [campStatuses, setCampStatuses] = useState<Record<number, string>>({})
+  const [metrics, setMetrics] = useState<AdminMetrics | null>(null)
+  const [users, setUsers] = useState<AdminUser[]>([])
+  const [campaigns, setCampaigns] = useState<AdminCampaign[]>([])
+  const [submissions, setSubmissions] = useState<AdminSubmission[]>([])
+  const [withdrawals, setWithdrawals] = useState<AdminWithdrawal[]>([])
+  const [sources, setSources] = useState<TaskSource[]>([])
+  const [dataError, setDataError] = useState('')
+  const [savingAction, setSavingAction] = useState(false)
   const { show: showToast, node: toastNode } = useToast()
+
+  const refreshAdmin = async () => {
+    try {
+      const [dashboard, userData, campaignData, submissionData, withdrawalData, sourceData] = await Promise.all([
+        api.adminDashboard(), api.adminUsers(), api.adminCampaigns(), api.adminSubmissions(), api.adminWithdrawals(), api.adminTaskSources(),
+      ])
+      setMetrics(dashboard.metrics)
+      setUsers(userData.users)
+      setCampaigns(campaignData.campaigns)
+      setSubmissions(submissionData.submissions)
+      setWithdrawals(withdrawalData.withdrawals)
+      setSources(sourceData.sources)
+      setDataError('')
+    } catch (error) {
+      setDataError(error instanceof Error ? error.message : 'Admin podaci nisu dostupni.')
+    }
+  }
+
+  useEffect(() => { void refreshAdmin() }, [])
 
   function goTo(p: AdminPage) { setPage(p) }
   const back = BACK[page]
   const crumbs = CRUMBS[page]
 
-  function userStatus(id: number, orig: string) { return userStatuses[id] ?? orig }
-  function payoutStatus(id: number, orig: string) { return payoutStatuses[id] ?? orig }
-  function campStatus(id: number, orig: string) { return campStatuses[id] ?? orig }
+  function userStatus(id: number, orig: string) {
+    const status = userStatuses[id] ?? orig
+    return status === 'active' ? 'aktivno' : status === 'blocked' ? 'blokirano' : status === 'suspended' ? 'obustavljeno' : status
+  }
+  function payoutStatus(id: number, orig: string) {
+    const status = payoutStatuses[id] ?? orig
+    return status === 'pending' ? 'na_cekanju' : status === 'paid' ? 'placeno' : status === 'rejected' ? 'odbijeno' : status
+  }
+  function campStatus(id: number, orig: string) {
+    const status = campStatuses[id] ?? orig
+    return status === 'pending' ? 'na_cekanju' : status === 'active' ? 'aktivno' : status === 'rejected' ? 'odbijeno' : status === 'paused' ? 'obustavljeno' : status
+  }
+  function sourceStatus(status: string) { return status === 'active' ? 'aktivno' : status === 'paused' ? 'obustavljeno' : status === 'error' ? 'greska' : status }
 
   const sidebarFooter = (
     <div className="flex items-center gap-2.5">
@@ -159,7 +198,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
         confirmLabel="Da, odjavi me"
         cancelLabel="Otkaži"
         variant="danger"
-        onConfirm={() => onNavigate('home')}
+        onConfirm={async () => { try { await api.logout() } finally { onNavigate('home') } }}
         onCancel={() => setLogoutConfirm(false)}
       />
 
@@ -172,12 +211,18 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
         confirmLabel={blockUser?.action === 'block' ? 'Blokiraj korisnika' : 'Odblokiraj korisnika'}
         cancelLabel="Otkaži"
         variant={blockUser?.action === 'block' ? 'danger' : 'success'}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!blockUser) return
-          const newStatus = blockUser.action === 'block' ? 'blokirano' : 'aktivno'
-          setUserStatuses(s => ({ ...s, [blockUser.id]: newStatus }))
-          showToast(blockUser.action === 'block' ? `${blockUser.ime} je blokiran/a.` : `${blockUser.ime} je odblokirano.`, blockUser.action === 'block' ? 'error' : 'success')
-          setBlockUser(null)
+          setSavingAction(true)
+          try {
+            const newStatus = blockUser.action === 'block' ? 'blocked' : 'active'
+            await api.updateAdminUser(blockUser.id, newStatus)
+            await refreshAdmin()
+            showToast(blockUser.action === 'block' ? `${blockUser.ime} je blokiran/a.` : `${blockUser.ime} je odblokirano.`, blockUser.action === 'block' ? 'error' : 'success')
+            setBlockUser(null)
+          } catch (error) {
+            showToast(error instanceof Error ? error.message : 'Status korisnika nije promenjen.', 'error')
+          } finally { setSavingAction(false) }
         }}
         onCancel={() => setBlockUser(null)}
       />
@@ -191,11 +236,17 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
         confirmLabel={payoutAction?.type === 'approve' ? 'Odobri isplatu' : 'Odbij isplatu'}
         cancelLabel="Otkaži"
         variant={payoutAction?.type === 'approve' ? 'success' : 'danger'}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!payoutAction) return
-          setPayoutStatuses(s => ({ ...s, [payoutAction.id]: payoutAction.type === 'approve' ? 'placeno' : 'odbijeno' }))
-          showToast(payoutAction.type === 'approve' ? 'Isplata je odobrena.' : 'Isplata je odbijena.', payoutAction.type === 'approve' ? 'success' : 'error')
-          setPayoutAction(null)
+          setSavingAction(true)
+          try {
+            await api.updateAdminWithdrawal(payoutAction.id, payoutAction.type === 'approve' ? 'paid' : 'rejected')
+            await refreshAdmin()
+            showToast(payoutAction.type === 'approve' ? 'Isplata je označena kao plaćena.' : 'Isplata je odbijena i saldo je vraćen.', payoutAction.type === 'approve' ? 'success' : 'error')
+            setPayoutAction(null)
+          } catch (error) {
+            showToast(error instanceof Error ? error.message : 'Isplata nije promenjena.', 'error')
+          } finally { setSavingAction(false) }
         }}
         onCancel={() => setPayoutAction(null)}
       />
@@ -209,13 +260,43 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
         confirmLabel={campAction?.type === 'approve' ? 'Aktiviraj kampanju' : 'Odbij kampanju'}
         cancelLabel="Otkaži"
         variant={campAction?.type === 'approve' ? 'success' : 'danger'}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!campAction) return
-          setCampStatuses(s => ({ ...s, [campAction.id]: campAction.type === 'approve' ? 'aktivno' : 'odbijeno' }))
-          showToast(campAction.type === 'approve' ? 'Kampanja je aktivirana.' : 'Kampanja je odbijena.', campAction.type === 'approve' ? 'success' : 'error')
-          setCampAction(null)
+          setSavingAction(true)
+          try {
+            await api.updateAdminCampaign(campAction.id, campAction.type === 'approve' ? 'active' : 'rejected')
+            await refreshAdmin()
+            showToast(campAction.type === 'approve' ? 'Kampanja je aktivirana.' : 'Kampanja je odbijena.', campAction.type === 'approve' ? 'success' : 'error')
+            setCampAction(null)
+          } catch (error) {
+            showToast(error instanceof Error ? error.message : 'Kampanja nije promenjena.', 'error')
+          } finally { setSavingAction(false) }
         }}
         onCancel={() => setCampAction(null)}
+      />
+
+      <ConfirmModal
+        open={submissionAction !== null}
+        title={submissionAction?.type === 'approve' ? 'Odobri dokaz?' : 'Odbij dokaz?'}
+        description={submissionAction?.type === 'approve'
+          ? `Dokaz za „${submissionAction?.naslov}” biće odobren, a nagrada prebačena na korisnički saldo.`
+          : `Dokaz za „${submissionAction?.naslov}” biće odbijen. Korisnik neće dobiti nagradu.`}
+        confirmLabel={submissionAction?.type === 'approve' ? 'Odobri dokaz' : 'Odbij dokaz'}
+        cancelLabel="Otkaži"
+        variant={submissionAction?.type === 'approve' ? 'success' : 'danger'}
+        onConfirm={async () => {
+          if (!submissionAction) return
+          setSavingAction(true)
+          try {
+            await api.reviewAdminSubmission(submissionAction.id, submissionAction.type === 'approve' ? 'approved' : 'rejected')
+            await refreshAdmin()
+            showToast(submissionAction.type === 'approve' ? 'Dokaz je odobren i saldo je ažuriran.' : 'Dokaz je odbijen.', submissionAction.type === 'approve' ? 'success' : 'error')
+            setSubmissionAction(null)
+          } catch (error) {
+            showToast(error instanceof Error ? error.message : 'Dokaz nije obrađen.', 'error')
+          } finally { setSavingAction(false) }
+        }}
+        onCancel={() => setSubmissionAction(null)}
       />
 
       {mobileOpen && <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />}
@@ -239,6 +320,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
         <main className="flex-1 overflow-y-auto bg-mint-50">
           <div className="max-w-5xl mx-auto px-4 py-6">
+            {dataError && <div className="mb-4"><Alert type="error">{dataError}</Alert></div>}
             {page !== 'dashboard' && (back || crumbs) && (
               <PageHeader
                 breadcrumbs={crumbs}
@@ -251,23 +333,23 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
               <div className="space-y-5">
                 <div>
                   <h1 className="text-xl font-extrabold text-ink">Operativni pregled</h1>
-                  <p className="text-sm text-ink-2 mt-0.5">23. decembar 2024.</p>
+                  <p className="text-sm text-ink-2 mt-0.5">Pregled stvarnog operativnog stanja platforme.</p>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <StatCard label="Ukupno korisnika" value="—" icon="👥" accent="blue" />
-                  <StatCard label="Aktivnih kampanja" value="1" icon="🎯" accent="green" />
-                  <StatCard label="Dokazi na čekanju" value="7" icon="📎" accent="orange" />
-                  <StatCard label="Isplate na čekanju" value="2" icon="💸" accent="purple" />
+                  <StatCard label="Ukupno korisnika" value={String(metrics?.users ?? 0)} icon="👥" accent="blue" />
+                  <StatCard label="Aktivnih kampanja" value={String(metrics?.active_tasks ?? 0)} icon="🎯" accent="green" />
+                  <StatCard label="Dokazi na čekanju" value={String(metrics?.pending_submissions ?? 0)} icon="📎" accent="orange" />
+                  <StatCard label="Isplate na čekanju" value={String(metrics?.pending_withdrawals ?? 0)} icon="💸" accent="purple" />
                 </div>
                 <div className="space-y-2">
-                  <Alert type="warning"><strong>2 kampanje</strong> čekaju moderaciju pre aktivacije.</Alert>
-                  <Alert type="error"><strong>Partner API 2</strong> vraća grešku — uvoz zadataka nije moguć.</Alert>
+                  {(metrics?.pending_campaigns ?? 0) > 0 && <Alert type="warning"><strong>{metrics?.pending_campaigns} kampanja</strong> čeka moderaciju pre aktivacije.</Alert>}
+                  {sources.some(source => source.status === 'error') && <Alert type="error">Najmanje jedan partner izvor je u grešci. Proveri API izvore pre sledećeg uvoza.</Alert>}
                 </div>
                 <div className="grid sm:grid-cols-3 gap-4">
                   {[
-                    { label: 'Finansije', items: ['Isplate na čekanju: 2', 'Uplate ovaj mesec: —', 'Fakture: 0 novih'], page: 'fin-isplate' as AdminPage, color: 'bg-emerald-50 border-emerald-200' },
-                    { label: 'Kampanje', items: ['Na čekanju: 2', 'Aktivnih: 1', 'Moderacija dokaza: 7'], page: 'kam-kampanje' as AdminPage, color: 'bg-blue-50 border-blue-200' },
-                    { label: 'Korisnici', items: ['Ukupno: —', 'Blokiranih: 1', 'Tiketa: 1 novih'], page: 'lj-korisnici' as AdminPage, color: 'bg-violet-50 border-violet-200' },
+                    { label: 'Finansije', items: [`Isplate na čekanju: ${metrics?.pending_withdrawals ?? 0}`, `Rezervisan budžet: ${new Intl.NumberFormat('sr-RS').format(metrics?.reserved_budget_rsd ?? 0)} RSD`, 'Fakture: uskoro'], page: 'fin-isplate' as AdminPage, color: 'bg-emerald-50 border-emerald-200' },
+                    { label: 'Kampanje', items: [`Na čekanju: ${metrics?.pending_campaigns ?? 0}`, `Aktivnih: ${metrics?.active_tasks ?? 0}`, `Moderacija dokaza: ${metrics?.pending_submissions ?? 0}`], page: 'kam-kampanje' as AdminPage, color: 'bg-blue-50 border-blue-200' },
+                    { label: 'Korisnici', items: [`Korisnici: ${metrics?.users ?? 0}`, `Oglašivači: ${metrics?.advertisers ?? 0}`, 'Tiketi: uskoro'], page: 'lj-korisnici' as AdminPage, color: 'bg-violet-50 border-violet-200' },
                   ].map(g => (
                     <div key={g.label} className={`border rounded-xl p-4 ${g.color}`}>
                       <h3 className="text-sm font-bold text-ink mb-2">{g.label}</h3>
@@ -287,18 +369,18 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                 <Card>
                   <Table
                     headers={['Korisnik', 'Iznos', 'Metoda', 'Traženo', 'Status', 'Akcija']}
-                    rows={payoutsData.map(p => {
+                    rows={withdrawals.map(p => {
                       const st = payoutStatus(p.id, p.status)
                       return [
-                        <span className="font-semibold text-ink">{p.korisnik}</span>,
-                        <span className="font-mono font-semibold text-emerald-600">{p.iznos}</span>,
-                        <span>{p.metoda}</span>,
-                        <span className="font-mono text-xs">{p.trazeno}</span>,
+                        <span className="font-semibold text-ink">{p.user_name}</span>,
+                        <span className="font-mono font-semibold text-emerald-600">{new Intl.NumberFormat('sr-RS').format(p.amount_rsd)} RSD</span>,
+                        <span>{p.payment_method}</span>,
+                        <span className="font-mono text-xs">{p.created_at ? new Intl.DateTimeFormat('sr-RS').format(new Date(p.created_at)) : '—'}</span>,
                         <StatusBadge status={st} />,
                         st === 'na_cekanju'
                           ? <div className="flex gap-1.5">
-                              <Btn size="sm" variant="success" onClick={() => setPayoutAction({ id: p.id, korisnik: p.korisnik, iznos: p.iznos, type: 'approve' })}>Odobri</Btn>
-                              <Btn size="sm" variant="danger" onClick={() => setPayoutAction({ id: p.id, korisnik: p.korisnik, iznos: p.iznos, type: 'reject' })}>Odbij</Btn>
+                              <Btn size="sm" variant="success" disabled={savingAction} onClick={() => setPayoutAction({ id: p.id, korisnik: p.user_name, iznos: `${new Intl.NumberFormat('sr-RS').format(p.amount_rsd)} RSD`, type: 'approve' })}>Plaćeno</Btn>
+                              <Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setPayoutAction({ id: p.id, korisnik: p.user_name, iznos: `${new Intl.NumberFormat('sr-RS').format(p.amount_rsd)} RSD`, type: 'reject' })}>Odbij</Btn>
                             </div>
                           : <span className="text-xs text-ink-3">—</span>,
                       ]
@@ -339,17 +421,17 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                 <Card>
                   <Table
                     headers={['Naziv', 'Oglašivač', 'Budžet', 'Status', 'Akcija']}
-                    rows={campaignModData.map(c => {
+                    rows={campaigns.map(c => {
                       const st = campStatus(c.id, c.status)
                       return [
-                        <span className="font-semibold text-ink">{c.naziv}</span>,
-                        <span className="text-sm text-ink-2">{c.oglasivac}</span>,
-                        <span className="font-mono">{c.budžet}</span>,
+                        <span className="font-semibold text-ink">{c.title}</span>,
+                        <span className="text-sm text-ink-2">{c.advertiser_name}</span>,
+                        <span className="font-mono">{new Intl.NumberFormat('sr-RS').format(c.reward_rsd * c.total_slots * 1.2)} RSD</span>,
                         <StatusBadge status={st} />,
                         st === 'na_cekanju'
                           ? <div className="flex gap-1.5">
-                              <Btn size="sm" variant="success" onClick={() => setCampAction({ id: c.id, naziv: c.naziv, type: 'approve' })}>Odobri</Btn>
-                              <Btn size="sm" variant="danger" onClick={() => setCampAction({ id: c.id, naziv: c.naziv, type: 'reject' })}>Odbij</Btn>
+                              <Btn size="sm" variant="success" disabled={savingAction} onClick={() => setCampAction({ id: c.id, naziv: c.title, type: 'approve' })}>Odobri</Btn>
+                              <Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setCampAction({ id: c.id, naziv: c.title, type: 'reject' })}>Odbij</Btn>
                             </div>
                           : <Btn size="sm" variant="ghost">Detalji</Btn>,
                       ]
@@ -370,17 +452,19 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                 <Card>
                   <Table
                     headers={['Korisnik', 'Zadatak', 'Kampanja', 'Anti-fraud', 'Akcija']}
-                    rows={proofsModData
-                      .filter(p => dokaziTab === 'svi' || (dokaziTab === 'ok' ? p.flag === 'OK' : p.flag !== 'OK'))
-                      .map(p => [
-                        <span className="font-mono text-xs">{p.korisnik}</span>,
-                        <span>{p.zadatak}</span>,
-                        <span className="text-xs text-ink-3">{p.kampanja}</span>,
-                        <span className={`text-xs font-bold ${p.flagColor}`}>{p.flag}</span>,
-                        <div className="flex gap-1.5">
-                          <Btn size="sm" variant="success">✓</Btn>
-                          <Btn size="sm" variant="danger">✗</Btn>
-                        </div>,
+                    rows={submissions
+                      .filter(submission => dokaziTab === 'svi' || (dokaziTab === 'ok' ? submission.status !== 'pending' : submission.status === 'pending'))
+                      .map(submission => [
+                        <span className="font-mono text-xs">{submission.user_name}</span>,
+                        <span>{submission.task_title}</span>,
+                        <span className="text-xs text-ink-3">{submission.proof || 'Bez dodatne napomene'}</span>,
+                        <span className={`text-xs font-bold ${submission.status === 'pending' ? 'text-amber-700' : submission.status === 'approved' ? 'text-emerald-600' : 'text-coral-700'}`}>{submission.status === 'pending' ? 'Čeka pregled' : submission.status === 'approved' ? 'Odobreno' : 'Odbijeno'}</span>,
+                        submission.status === 'pending'
+                          ? <div className="flex gap-1.5">
+                              <Btn size="sm" variant="success" disabled={savingAction} onClick={() => setSubmissionAction({ id: submission.id, naslov: submission.task_title, type: 'approve' })}>✓</Btn>
+                              <Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setSubmissionAction({ id: submission.id, naslov: submission.task_title, type: 'reject' })}>✗</Btn>
+                            </div>
+                          : <span className="text-xs text-ink-3">—</span>,
                       ])}
                   />
                 </Card>
@@ -392,30 +476,22 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                 <SectionHeader title="Uvoz zadataka" description="Upravljanje eksternim API izvorima. Svi uvozi čekaju moderaciju." />
                 <Alert type="info">Zadaci uvezeni od partnera ne postaju vidljivi korisnicima dok admin ne odobri svaki zadatak posebno.</Alert>
                 <div className="mt-4 space-y-3">
-                  {importSources.map(src => (
-                    <Card key={src.naziv} className="p-4">
+                  {sources.map(src => (
+                    <Card key={src.id} className="p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <p className="font-bold text-ink">{src.naziv}</p>
-                            <StatusBadge status={src.status} />
+                            <p className="font-bold text-ink">{src.name}</p>
+                            <StatusBadge status={sourceStatus(src.status)} />
                           </div>
-                          <p className="text-xs text-ink-3 font-mono truncate">{src.url}</p>
+                          <p className="text-xs text-ink-3 font-mono truncate">{src.endpoint_url}</p>
                           <div className="flex gap-4 mt-2">
-                            <span className="text-xs text-ink-2">Poslednja sync: {src.sync}</span>
-                            {src.status === 'aktivno' && (
-                              <>
-                                <span className="text-xs font-semibold text-emerald-600">+{src.novi} novih</span>
-                                <span className="text-xs text-ink-3">{src.preskoceni} preskočenih</span>
-                              </>
-                            )}
+                            <span className="text-xs text-ink-2">Poslednja sync: {src.last_sync_at ? new Intl.DateTimeFormat('sr-RS').format(new Date(src.last_sync_at)) : 'nije pokrenuta'}</span>
                           </div>
-                          {src.greska && <p className="text-xs text-coral-700 font-semibold mt-1.5">⚠ {src.greska}</p>}
                         </div>
                         <div className="flex gap-2 shrink-0">
-                          {src.status === 'aktivno' && <Btn size="sm" variant="secondary">Sync</Btn>}
-                          {src.status === 'greska' && <Btn size="sm" variant="danger">Dijagnostika</Btn>}
-                          {src.status === 'obustavljeno' && <Btn size="sm" variant="ghost">Aktiviraj</Btn>}
+                          {src.status === 'active' && <Btn size="sm" variant="secondary" disabled={savingAction} onClick={async () => { setSavingAction(true); try { const result = await api.syncTaskSource(src.id); await refreshAdmin(); showToast(`${result.created} zadataka je uvezeno, ${result.skipped} preskočeno.`, 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Uvoz nije uspeo.', 'error') } finally { setSavingAction(false) } }}>Sync</Btn>}
+                          {src.status === 'error' && <Btn size="sm" variant="danger" onClick={() => showToast('Proveri HTTPS endpoint i JSON format izvora pre novog pokušaja.', 'warning')}>Dijagnostika</Btn>}
                         </div>
                       </div>
                     </Card>
@@ -461,20 +537,20 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                 <Card>
                   <Table
                     headers={['Ime', 'Email', 'Tier', 'Zarada', 'Dokazi', 'Status', 'Akcija']}
-                    rows={usersData.map(u => {
+                    rows={users.filter(u => u.role === 'korisnik').map(u => {
                       const st = userStatus(u.id, u.status)
                       return [
-                        <span className="font-semibold text-ink">{u.ime}</span>,
+                        <span className="font-semibold text-ink">{u.full_name}</span>,
                         <span className="text-xs font-mono text-ink-2">{u.email}</span>,
-                        <span className="text-xs font-medium">{u.tier}</span>,
-                        <span className="font-mono text-xs font-semibold text-emerald-600">{u.zarada}</span>,
-                        <span className="font-mono text-xs">{u.dokazi}</span>,
+                        <span className="text-xs font-medium">{u.level}</span>,
+                        <span className="font-mono text-xs font-semibold text-emerald-600">{new Intl.NumberFormat('sr-RS').format(u.lifetime_earned_rsd)} RSD</span>,
+                        <span className="font-mono text-xs">—</span>,
                         <StatusBadge status={st} />,
                         <div className="flex gap-1.5">
                           <Btn size="sm" variant="ghost">Profil</Btn>
                           {st !== 'blokirano'
-                            ? <Btn size="sm" variant="danger" onClick={() => setBlockUser({ id: u.id, ime: u.ime, action: 'block' })}>Blokiraj</Btn>
-                            : <Btn size="sm" variant="success" onClick={() => setBlockUser({ id: u.id, ime: u.ime, action: 'unblock' })}>Odblokiraj</Btn>
+                            ? <Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setBlockUser({ id: u.id, ime: u.full_name, action: 'block' })}>Blokiraj</Btn>
+                            : <Btn size="sm" variant="success" disabled={savingAction} onClick={() => setBlockUser({ id: u.id, ime: u.full_name, action: 'unblock' })}>Odblokiraj</Btn>
                           }
                         </div>,
                       ]
@@ -490,15 +566,12 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                 <Card>
                   <Table
                     headers={['Firma', 'Email', 'Kampanje', 'Potrošeno', 'Status']}
-                    rows={[
-                      { firma: 'Acme d.o.o.', email: 'kontakt@acme.rs', kampanje: '2', potroseno: '6.540 RSD', status: 'aktivno' },
-                      { firma: 'StartupXYZ', email: 'info@startupxyz.rs', kampanje: '1', potroseno: '0 RSD', status: 'na_cekanju' },
-                    ].map(r => [
-                      <span className="font-semibold text-ink">{r.firma}</span>,
-                      <span className="font-mono text-xs text-ink-2">{r.email}</span>,
-                      <span className="font-mono">{r.kampanje}</span>,
-                      <span className="font-mono text-xs font-semibold text-amber-700">{r.potroseno}</span>,
-                      <StatusBadge status={r.status} />,
+                    rows={users.filter(user => user.role === 'oglasivac').map(advertiser => [
+                      <span className="font-semibold text-ink">{advertiser.company_name || advertiser.full_name}</span>,
+                      <span className="font-mono text-xs text-ink-2">{advertiser.email}</span>,
+                      <span className="font-mono">{campaigns.filter(campaign => campaign.advertiser_name === advertiser.full_name).length}</span>,
+                      <span className="font-mono text-xs font-semibold text-amber-700">{new Intl.NumberFormat('sr-RS').format(advertiser.advertiser_spent_rsd)} RSD</span>,
+                      <StatusBadge status={userStatus(advertiser.id, advertiser.status)} />,
                     ])}
                   />
                 </Card>
@@ -588,14 +661,14 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
               <div>
                 <SectionHeader title="API izvori zadataka" description="Konfiguracija partner integacija." />
                 <div className="space-y-3">
-                  {importSources.map(src => (
-                    <Card key={src.naziv} className="p-4 flex items-center justify-between gap-4">
+                  {sources.map(src => (
+                    <Card key={src.id} className="p-4 flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-bold text-ink">{src.naziv}</p>
-                        <p className="font-mono text-xs text-ink-3">{src.url}</p>
+                        <p className="font-bold text-ink">{src.name}</p>
+                        <p className="font-mono text-xs text-ink-3">{src.endpoint_url}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <StatusBadge status={src.status} />
+                        <StatusBadge status={sourceStatus(src.status)} />
                         <Btn size="sm" variant="ghost">Uredi</Btn>
                       </div>
                     </Card>

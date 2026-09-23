@@ -98,6 +98,22 @@ export type CampaignPayload = {
   target_interests?: string
 }
 
+export type AdminMetrics = {
+  users: number
+  advertisers: number
+  active_tasks: number
+  pending_submissions: number
+  pending_withdrawals: number
+  pending_campaigns: number
+  reserved_budget_rsd: number
+}
+
+export type AdminUser = SessionUser & { created_at: string | null }
+export type AdminCampaign = Task & { advertiser_name: string }
+export type AdminSubmission = Submission & { user_name: string }
+export type AdminWithdrawal = Withdrawal & { user_name: string; payment_details: string }
+export type TaskSource = { id: number; name: string; endpoint_url: string; source_type: string; import_mode: string; status: string; has_api_key: boolean; last_sync_at: string | null; created_at: string | null }
+
 type ApiErrorBody = { detail?: string }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -137,4 +153,23 @@ export const api = {
   createCampaign: (payload: CampaignPayload) => request<{ campaign: Task; reserved_rsd: number }>('/advertiser/campaigns', {
     method: 'POST', body: JSON.stringify(payload),
   }),
+  adminDashboard: () => request<{ metrics: AdminMetrics }>('/admin/dashboard'),
+  adminUsers: () => request<{ users: AdminUser[] }>('/admin/users'),
+  updateAdminUser: (id: number, status: 'active' | 'blocked' | 'suspended', note?: string) => request<{ user: SessionUser }>(`/admin/users/${id}`, {
+    method: 'PATCH', body: JSON.stringify({ status, note }),
+  }),
+  adminCampaigns: () => request<{ campaigns: AdminCampaign[] }>('/admin/campaigns'),
+  updateAdminCampaign: (id: number, status: 'active' | 'rejected' | 'paused', note?: string) => request<{ campaign: Task }>(`/admin/campaigns/${id}`, {
+    method: 'PATCH', body: JSON.stringify({ status, note }),
+  }),
+  adminSubmissions: () => request<{ submissions: AdminSubmission[] }>('/admin/submissions'),
+  reviewAdminSubmission: (id: number, status: 'approved' | 'rejected', note?: string) => request<{ submission: Submission }>(`/admin/submissions/${id}`, {
+    method: 'PATCH', body: JSON.stringify({ status, note }),
+  }),
+  adminWithdrawals: () => request<{ withdrawals: AdminWithdrawal[] }>('/admin/withdrawals'),
+  updateAdminWithdrawal: (id: number, status: 'paid' | 'rejected', note?: string) => request<{ withdrawal: Withdrawal }>(`/admin/withdrawals/${id}`, {
+    method: 'PATCH', body: JSON.stringify({ status, note }),
+  }),
+  adminTaskSources: () => request<{ sources: TaskSource[] }>('/admin/task-sources'),
+  syncTaskSource: (id: number) => request<{ created: number; skipped: number; message: string }>(`/admin/task-sources/${id}/sync`, { method: 'POST' }),
 }
