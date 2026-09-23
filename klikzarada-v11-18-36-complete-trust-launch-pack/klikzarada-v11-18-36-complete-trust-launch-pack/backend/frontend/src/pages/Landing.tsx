@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Btn, Card } from '../components/ui'
+import { api, type PaidBanner } from '../lib/api'
 
 const taskCategories = [
   { icon: '📱', label: 'Društvene mreže', count: 42 },
@@ -32,6 +33,13 @@ const trustPoints = [
 
 export default function Landing({ onNavigate }: { onNavigate: (id: string) => void }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [banners, setBanners] = useState<PaidBanner[]>([])
+
+  useEffect(() => {
+    void api.publicBanners()
+      .then(data => setBanners(data.banners))
+      .catch(() => setBanners([]))
+  }, [])
 
   return (
     <div className="min-h-screen bg-navy-900 text-slate-200">
@@ -98,6 +106,34 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
           </div>
         </div>
       </section>
+
+      {banners.length > 0 && (
+        <section className="border-t border-border bg-navy-950/50">
+          <div className="max-w-6xl mx-auto px-4 py-7">
+            <p className="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500 mb-3">Sponzorisano</p>
+            <div className="grid gap-3 md:grid-cols-2">
+              {banners.map(banner => (
+                <a
+                  key={banner.id}
+                  href={banner.target_url || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer sponsored"
+                  className="group rounded-xl border border-blue-400/25 bg-gradient-to-br from-blue-500/20 via-navy-800 to-violet-500/15 p-5 transition-colors hover:border-blue-300/60"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 text-lg">📣</span>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-100 group-hover:text-white">{banner.title}</p>
+                      {banner.body && <p className="mt-1 text-sm text-slate-300">{banner.body}</p>}
+                      <p className="mt-3 text-xs font-semibold text-blue-300">Saznaj više →</p>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Categories */}
       <section className="border-t border-border bg-navy-950/50">

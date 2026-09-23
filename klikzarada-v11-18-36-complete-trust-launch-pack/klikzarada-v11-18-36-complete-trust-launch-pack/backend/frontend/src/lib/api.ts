@@ -119,6 +119,7 @@ export type AdminMetrics = {
   pending_submissions: number
   pending_withdrawals: number
   pending_campaigns: number
+  pending_banners: number
   reserved_budget_rsd: number
 }
 
@@ -143,6 +144,35 @@ export type AdminWithdrawal = Withdrawal & {
 export type TaskSource = { id: number; name: string; endpoint_url: string; source_type: string; import_mode: string; status: string; has_api_key: boolean; last_sync_at: string | null; created_at: string | null }
 export type SupportTicket = { id: number; subject: string; category: string; priority: string; status: string; created_at: string | null; updated_at: string | null; user_name: string }
 export type AdminSetting = { key: string; value: string; has_value: boolean | null; description: string | null; sensitive: boolean }
+export type PaidBanner = {
+  id: number
+  slot_id: number | null
+  slot_title: string
+  slot_code: string | null
+  advertiser_id: number
+  advertiser_name: string
+  title: string
+  body: string | null
+  target_url: string | null
+  price_rsd: number
+  days_count: number
+  status: string
+  admin_note: string | null
+  starts_at: string | null
+  ends_at: string | null
+  created_at: string | null
+}
+export type BannerSlot = {
+  id: number
+  code: string
+  title: string
+  placement: string
+  width_label: string
+  price_rsd: number
+  is_active: boolean
+  active_banner: PaidBanner | null
+  pending_count: number
+}
 export type TaskVerification = {
   token: string
   status: 'started' | 'ready' | 'flagged' | 'submitted' | 'expired'
@@ -207,6 +237,7 @@ export const api = {
   }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   publicTasks: () => request<{ tasks: Task[] }>('/public/tasks'),
+  publicBanners: () => request<{ banners: PaidBanner[] }>('/public/banners'),
   userDashboard: () => request<UserDashboardData>('/user/dashboard'),
   startTaskVerification: (taskId: number, payload: { device_fingerprint: string; device_label?: string }) => request<{ session: TaskVerification; resumed: boolean }>(`/user/tasks/${taskId}/verification/start`, {
     method: 'POST', body: JSON.stringify(payload),
@@ -228,6 +259,10 @@ export const api = {
     method: 'POST', body: JSON.stringify(payload),
   }),
   advertiserDashboard: () => request<AdvertiserDashboardData>('/advertiser/dashboard'),
+  advertiserBanners: () => request<{ slots: BannerSlot[]; banners: PaidBanner[] }>('/advertiser/banners'),
+  reserveAdvertiserBanner: (payload: { slot_id: number; title: string; body?: string; target_url: string; days_count: number }) => request<{ banner: PaidBanner; reserved_rsd: number }>('/advertiser/banners', {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
   createCampaign: (payload: CampaignPayload) => request<{ campaign: Task; reserved_rsd: number }>('/advertiser/campaigns', {
     method: 'POST', body: JSON.stringify(payload),
   }),
@@ -239,6 +274,10 @@ export const api = {
     method: 'POST',
   }),
   adminDashboard: () => request<{ metrics: AdminMetrics }>('/admin/dashboard'),
+  adminBanners: () => request<{ slots: BannerSlot[]; banners: PaidBanner[] }>('/admin/banners'),
+  reviewAdminBanner: (id: number, status: 'active' | 'rejected', note?: string) => request<{ banner: PaidBanner }>(`/admin/banners/${id}`, {
+    method: 'PATCH', body: JSON.stringify({ status, note }),
+  }),
   adminUsers: () => request<{ users: AdminUser[] }>('/admin/users'),
   updateAdminUser: (id: number, status: 'active' | 'blocked' | 'suspended', note?: string) => request<{ user: SessionUser }>(`/admin/users/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),

@@ -4,7 +4,7 @@ import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tab
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { api, type AdvertiserDashboardData } from '../lib/api'
+import { api, type AdvertiserDashboardData, type BannerSlot, type PaidBanner } from '../lib/api'
 
 type PayPalSdk = {
   FUNDING: { CARD: unknown }
@@ -304,11 +304,24 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [topupAmount, setTopupAmount] = useState('')
   const [topupError, setTopupError] = useState('')
   const [topupLoading, setTopupLoading] = useState(false)
+  const [bannerSlots, setBannerSlots] = useState<BannerSlot[]>([])
+  const [ownBanners, setOwnBanners] = useState<PaidBanner[]>([])
+  const [bannerSlotId, setBannerSlotId] = useState('')
+  const [bannerTitle, setBannerTitle] = useState('')
+  const [bannerBody, setBannerBody] = useState('')
+  const [bannerUrl, setBannerUrl] = useState('')
+  const [bannerDays, setBannerDays] = useState('7')
+  const [bannerError, setBannerError] = useState('')
+  const [bannerLoading, setBannerLoading] = useState(false)
   const { show: showToast, node: toastNode } = useToast()
 
   const refreshDashboard = async () => {
     try {
-      setDashboard(await api.advertiserDashboard())
+      const [dashboardData, bannerData] = await Promise.all([api.advertiserDashboard(), api.advertiserBanners()])
+      setDashboard(dashboardData)
+      setBannerSlots(bannerData.slots)
+      setOwnBanners(bannerData.banners)
+      setBannerSlotId(current => current || String(bannerData.slots[0]?.id ?? ''))
       setDashboardError('')
     } catch (error) {
       setDashboardError(error instanceof Error ? error.message : 'Podaci trenutno nisu dostupni.')
@@ -344,6 +357,34 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
     } catch (error) {
       setTopupError(error instanceof Error ? error.message : 'PayPal uplata nije mogla da se pokrene.')
       setTopupLoading(false)
+    }
+  }
+
+  const reserveBanner = async () => {
+    const daysCount = Number(bannerDays)
+    if (!bannerSlotId || !bannerTitle.trim() || !bannerUrl.trim() || !Number.isInteger(daysCount) || daysCount < 1 || daysCount > 31) {
+      setBannerError('Izaberi slot, unesi naslov i link, pa trajanje od 1 do 31 dana.')
+      return
+    }
+    setBannerLoading(true)
+    setBannerError('')
+    try {
+      const result = await api.reserveAdvertiserBanner({
+        slot_id: Number(bannerSlotId),
+        title: bannerTitle.trim(),
+        body: bannerBody.trim() || undefined,
+        target_url: bannerUrl.trim(),
+        days_count: daysCount,
+      })
+      setBannerTitle('')
+      setBannerBody('')
+      setBannerUrl('')
+      await refreshDashboard()
+      showToast(`Zakup je rezervisan: ${new Intl.NumberFormat('sr-RS').format(result.reserved_rsd)} RSD. Čeka odobrenje admina.`, 'success')
+    } catch (error) {
+      setBannerError(error instanceof Error ? error.message : 'Zakup banera nije uspeo.')
+    } finally {
+      setBannerLoading(false)
     }
   }
 
@@ -586,9 +627,52 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
             )}
 
             {page === 'banneri' && (
-              <div>
-                <SectionHeader title="Banner reklame" description="Sponzorisani prostor. Oznaka 'Sponzorisano' je obavezna." />
-                <EmptyState icon="🖼️" title="Nema aktivnih banera" description="Kontaktiraj podršku za rezervaciju banner prostora." action={<Btn variant="secondary" size="sm" onClick={() => goTo('podrska')}>Kontaktiraj podršku</Btn>} />
+              <div className="space-y-5">
+                <SectionHeader title="Banner reklame" description="Rezerviši poziciju na početnoj stranici. Svaki zakup prolazi proveru administratora pre objave." />
+                <Card className="p-5">
+                  <h2 className="font-bold text-ink">Novi zakup</h2>
+                  <p className="text-sm text-ink-3 mt-1">Iznos se samo rezerviše iz budžeta dok admin ne odobri sadržaj.</p>
+                  <div className="grid sm:grid-cols-2 gap-3 mt-4">
+                    <Select
+                      label="Pozicija na početnoj"
+                      value={bannerSlotId}
+                      onChange={setBannerSlotId}
+                      options={bannerSlots.map(slot => ({
+                        value: String(slot.id),
+                        label: `${slot.title} — ${new Intl.NumberFormat('sr-RS').format(slot.price_rsd)} RSD / 7 dana`,
+                      }))}
+                    />
+                    <Input label="Trajanje u danima" type="number" value={bannerDays} onChange={setBannerDays} />
+                    <Input label="Naslov reklame" placeholder="npr. Jesenja ponuda" value={bannerTitle} onChange={setBannerTitle} />
+                    <Input label="Link na koji vodi banner" placeholder="https://vas-sajt.rs/ponuda" value={bannerUrl} onChange={setBannerUrl} />
+                  </div>
+                  <div className="mt-3">
+                    <Input label="Kratak opis (opciono)" placeholder="Jedna jasna poruka za posetioce" value={bannerBody} onChange={setBannerBody} />
+                  </div>
+                  {bannerError && <div className="mt-3"><Alert type="error">{bannerError}</Alert></div>}
+                  <div className="flex flex-wrap items-center gap-3 mt-4">
+                    <Btn disabled={bannerLoading || bannerSlots.length === 0} onClick={() => void reserveBanner()}>{bannerLoading ? 'Rezervacija...' : 'Rezerviši banner'}</Btn>
+                    <span className="text-xs text-ink-3">Objava je moguća samo posle admin odobrenja.</span>
+                  </div>
+                </Card>
+                <div>
+                  <SectionHeader title="Moji zakupi" />
+                  {ownBanners.length === 0
+                    ? <EmptyState icon="🖼️" title="Još nemaš zakupljen banner" description="Izaberi slobodnu poziciju i pošalji rezervaciju na proveru." />
+                    : <Card>
+                      <Table
+                        headers={['Reklama', 'Pozicija', 'Trajanje', 'Iznos', 'Status', 'Napomena']}
+                        rows={ownBanners.map(banner => [
+                          <span className="font-semibold text-ink">{banner.title}</span>,
+                          <span className="text-xs text-ink-2">{banner.slot_title}</span>,
+                          <span>{banner.days_count} dana</span>,
+                          <span className="font-mono text-xs">{new Intl.NumberFormat('sr-RS').format(banner.price_rsd)} RSD</span>,
+                          <StatusBadge status={banner.status} />,
+                          <span className="text-xs text-ink-3">{banner.admin_note || '—'}</span>,
+                        ])}
+                      />
+                    </Card>}
+                </div>
               </div>
             )}
 

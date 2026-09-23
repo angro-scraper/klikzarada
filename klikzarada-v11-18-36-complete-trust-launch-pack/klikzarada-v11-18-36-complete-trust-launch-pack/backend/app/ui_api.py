@@ -33,8 +33,10 @@ from .models import (
     AntiFraudDeviceV1,
     AuditLog,
     FraudSignalV11,
+    HomeBannerSlotV111,
     PayPalCheckout,
     PayPalPayoutAttempt,
+    PaidAdBannerV111,
     SystemSetting,
     SupportMessage,
     SupportTicket,
@@ -131,6 +133,19 @@ class CampaignPayload(BaseModel):
     target_city: str | None = Field(default="Srbija", max_length=100)
     target_age_group: str | None = Field(default="18+", max_length=40)
     target_interests: str | None = Field(default=None, max_length=2000)
+
+
+class BannerReservationPayload(BaseModel):
+    slot_id: int
+    title: str = Field(min_length=3, max_length=180)
+    body: str | None = Field(default=None, max_length=1000)
+    target_url: str = Field(min_length=1, max_length=500)
+    days_count: int = Field(default=7, ge=1, le=31)
+
+
+class AdminBannerStatusPayload(BaseModel):
+    status: Literal["active", "rejected"]
+    note: str | None = Field(default=None, max_length=1000)
 
 
 class PayPalTopupPayload(BaseModel):
@@ -385,6 +400,111 @@ def _ticket_data(ticket: SupportTicket) -> dict:
     }
 
 
+_BANNER_SLOT_DEFAULTS = (
+    ("home_top_left", "Početna — gornji levi premium banner", "home_top", "half", 5000),
+    ("home_top_right", "Početna — gornji desni premium banner", "home_top", "half", 5000),
+    ("home_sponsor_1", "Početna — sponzorski banner 1", "home_sponsor", "quarter", 3000),
+    ("home_sponsor_2", "Početna — sponzorski banner 2", "home_sponsor", "quarter", 3000),
+    ("home_sponsor_3", "Početna — sponzorski banner 3", "home_sponsor", "quarter", 3000),
+    ("home_sponsor_4", "Početna — sponzorski banner 4", "home_sponsor", "quarter", 3000),
+    ("home_dashboard_banner", "Početna — banner ispod isplate", "home_dashboard", "wide", 4500),
+    ("home_bottom_1", "Početna — donji banner 1", "home_bottom", "third", 2500),
+    ("home_bottom_2", "Početna — donji banner 2", "home_bottom", "third", 2500),
+    ("home_bottom_3", "Početna — donji banner 3", "home_bottom", "third", 2500),
+)
+
+
+def _ensure_banner_slots(db: Session) -> None:
+    existing_codes = {code for (code,) in db.query(HomeBannerSlotV111.code).all()}
+    missing = [
+        HomeBannerSlotV111(
+            code=code,
+            title=title,
+            placement=placement,
+            width_label=width_label,
+            price_rsd=price_rsd,
+            is_active=True,
+        )
+        for code, title, placement, width_label, price_rsd in _BANNER_SLOT_DEFAULTS
+        if code not in existing_codes
+    ]
+    if missing:
+        db.add_all(missing)
+        db.commit()
+
+
+def _banner_status(value: str | None) -> str:
+    return {
+        "active": "aktivno",
+        "pending": "na_cekanju",
+        "rejected": "odbijeno",
+        "expired": "obustavljeno",
+    }.get(_status(value), _status(value))
+
+
+def _banner_data(banner: PaidAdBannerV111) -> dict:
+    return {
+        "id": banner.id,
+        "slot_id": banner.slot_id,
+        "slot_title": banner.slot.title if banner.slot else "Banner slot",
+        "slot_code": banner.slot.code if banner.slot else None,
+        "advertiser_id": banner.advertiser_id,
+        "advertiser_name": banner.advertiser.company_name or banner.advertiser.full_name if banner.advertiser else "Oglašivač",
+        "title": banner.title,
+        "body": banner.body,
+        "target_url": banner.target_url,
+        "price_rsd": _money(banner.price_rsd),
+        "days_count": banner.days_count,
+        "status": _banner_status(banner.status),
+        "admin_note": banner.admin_note,
+        "starts_at": _iso(banner.starts_at),
+        "ends_at": _iso(banner.ends_at),
+        "created_at": _iso(banner.created_at),
+    }
+
+
+def _banner_slot_data(slot: HomeBannerSlotV111, banners: list[PaidAdBannerV111]) -> dict:
+    slot_banners = [banner for banner in banners if banner.slot_id == slot.id]
+    active = next((banner for banner in slot_banners if banner.status == "active"), None)
+    return {
+        "id": slot.id,
+        "code": slot.code,
+        "title": slot.title,
+        "placement": slot.placement,
+        "width_label": slot.width_label,
+        "price_rsd": _money(slot.price_rsd),
+        "is_active": bool(slot.is_active),
+        "active_banner": _banner_data(active) if active else None,
+        "pending_count": sum(1 for banner in slot_banners if banner.status == "pending"),
+    }
+
+
+def _validate_banner_target_url(value: str) -> str:
+    url = value.strip()
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise HTTPException(400, "Link banera mora biti pun http:// ili https:// URL.")
+    return url
+
+
+def _banner_slot_conflict(
+    db: Session,
+    slot_id: int,
+    starts_at: datetime,
+    ends_at: datetime,
+) -> bool:
+    candidates = db.query(PaidAdBannerV111).filter(
+        PaidAdBannerV111.slot_id == slot_id,
+        PaidAdBannerV111.status.in_(("pending", "active")),
+    ).all()
+    for banner in candidates:
+        existing_start = banner.starts_at or banner.created_at or datetime.utcnow()
+        existing_end = banner.ends_at or existing_start + timedelta(days=max(1, banner.days_count or 7))
+        if starts_at < existing_end and existing_start < ends_at:
+            return True
+    return False
+
+
 def _cookie_is_secure(request: Request) -> bool:
     forced = os.getenv("KLIKZARADA_COOKIE_SECURE", "").strip().lower()
     if forced in {"1", "true", "yes"}:
@@ -525,6 +645,17 @@ def logout(response: Response) -> Response:
 def public_tasks(db: Session = Depends(get_db)) -> dict:
     tasks = db.query(Task).filter(Task.status == "active", Task.used_slots < Task.total_slots).order_by(Task.featured.desc(), Task.reward_rsd.desc()).limit(100).all()
     return {"tasks": [_task_data(task) for task in tasks]}
+
+
+@router.get("/public/banners")
+def public_banners(db: Session = Depends(get_db)) -> dict:
+    now = datetime.utcnow()
+    banners = db.query(PaidAdBannerV111).filter(
+        PaidAdBannerV111.status == "active",
+        (PaidAdBannerV111.starts_at.is_(None)) | (PaidAdBannerV111.starts_at <= now),
+        (PaidAdBannerV111.ends_at.is_(None)) | (PaidAdBannerV111.ends_at > now),
+    ).order_by(PaidAdBannerV111.created_at.desc()).limit(20).all()
+    return {"banners": [_banner_data(banner) for banner in banners]}
 
 
 @router.get("/user/dashboard")
@@ -840,6 +971,72 @@ def advertiser_dashboard(request: Request, db: Session = Depends(get_db)) -> dic
         "submissions": [_submission_data(submission) | {"user_name": submission.user.full_name if submission.user else "Korisnik"} for submission in submissions],
         "transactions": [{"id": tx.id, "amount_rsd": _money(tx.amount_rsd), "tx_type": tx.tx_type, "description": tx.description, "created_at": _iso(tx.created_at)} for tx in transactions],
     }
+
+
+@router.get("/advertiser/banners")
+def advertiser_banners(request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db, {"oglasivac", "admin"})
+    _ensure_banner_slots(db)
+    slots = db.query(HomeBannerSlotV111).filter(HomeBannerSlotV111.is_active.is_(True)).order_by(HomeBannerSlotV111.price_rsd.desc()).all()
+    banners = db.query(PaidAdBannerV111).filter(
+        PaidAdBannerV111.advertiser_id == user.id,
+    ).order_by(PaidAdBannerV111.created_at.desc()).limit(100).all()
+    all_active_and_pending = db.query(PaidAdBannerV111).filter(
+        PaidAdBannerV111.status.in_(("active", "pending")),
+    ).all()
+    return {
+        "slots": [_banner_slot_data(slot, all_active_and_pending) for slot in slots],
+        "banners": [_banner_data(banner) for banner in banners],
+    }
+
+
+@router.post("/advertiser/banners", status_code=201)
+def reserve_advertiser_banner(
+    payload: BannerReservationPayload,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    user = _require_user(request, db, {"oglasivac", "admin"})
+    _ensure_banner_slots(db)
+    slot = db.query(HomeBannerSlotV111).filter(
+        HomeBannerSlotV111.id == payload.slot_id,
+        HomeBannerSlotV111.is_active.is_(True),
+    ).with_for_update().first()
+    if not slot:
+        raise HTTPException(404, "Banner slot nije dostupan.")
+    starts_at = datetime.utcnow()
+    ends_at = starts_at + timedelta(days=payload.days_count)
+    if _banner_slot_conflict(db, slot.id, starts_at, ends_at):
+        raise HTTPException(409, "Ovaj slot je već rezervisan za traženi period.")
+    target_url = _validate_banner_target_url(payload.target_url)
+    price_rsd = _money(float(slot.price_rsd or 0) * payload.days_count / 7)
+    if user.advertiser_budget_rsd < price_rsd:
+        raise HTTPException(400, f"Nedovoljno budžeta. Za ovaj zakup potrebno je {price_rsd:.0f} RSD.")
+    user.advertiser_budget_rsd = _money(user.advertiser_budget_rsd - price_rsd)
+    user.advertiser_reserved_rsd = _money(user.advertiser_reserved_rsd + price_rsd)
+    banner = PaidAdBannerV111(
+        advertiser_id=user.id,
+        slot_id=slot.id,
+        title=payload.title.strip(),
+        body=(payload.body or "").strip() or None,
+        target_url=target_url,
+        price_rsd=price_rsd,
+        days_count=payload.days_count,
+        status="pending",
+        admin_note="Rezervacija čeka proveru administratora.",
+        starts_at=starts_at,
+        ends_at=ends_at,
+    )
+    db.add(banner)
+    db.add(AdvertiserBudgetTransaction(
+        advertiser_id=user.id,
+        amount_rsd=-price_rsd,
+        tx_type="reserve_banner",
+        description=f"Rezervisan banner slot: {slot.title}",
+    ))
+    db.commit()
+    db.refresh(banner)
+    return {"banner": _banner_data(banner), "reserved_rsd": price_rsd}
 
 
 def _paypal_config() -> tuple[str, str, str, Decimal]:
@@ -1229,6 +1426,7 @@ def _admin_dashboard_data(db: Session) -> dict:
     pending_submissions = db.query(TaskSubmission).filter(TaskSubmission.status == "pending").count()
     pending_withdrawals = db.query(Withdrawal).filter(Withdrawal.status == "pending").count()
     pending_campaigns = db.query(Task).filter(Task.status == "pending").count()
+    pending_banners = db.query(PaidAdBannerV111).filter(PaidAdBannerV111.status == "pending").count()
     return {
         "metrics": {
             "users": db.query(User).filter(User.role == "korisnik").count(),
@@ -1237,6 +1435,7 @@ def _admin_dashboard_data(db: Session) -> dict:
             "pending_submissions": pending_submissions,
             "pending_withdrawals": pending_withdrawals,
             "pending_campaigns": pending_campaigns,
+            "pending_banners": pending_banners,
             "reserved_budget_rsd": _money(db.query(func.coalesce(func.sum(User.advertiser_reserved_rsd), 0)).scalar()),
         }
     }
@@ -1246,6 +1445,65 @@ def _admin_dashboard_data(db: Session) -> dict:
 def admin_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
     _require_user(request, db, {"admin"})
     return _admin_dashboard_data(db)
+
+
+@router.get("/admin/banners")
+def admin_banners(request: Request, db: Session = Depends(get_db)) -> dict:
+    _require_user(request, db, {"admin"})
+    _ensure_banner_slots(db)
+    slots = db.query(HomeBannerSlotV111).order_by(HomeBannerSlotV111.price_rsd.desc()).all()
+    banners = db.query(PaidAdBannerV111).order_by(PaidAdBannerV111.created_at.desc()).limit(300).all()
+    return {
+        "slots": [_banner_slot_data(slot, banners) for slot in slots],
+        "banners": [_banner_data(banner) for banner in banners],
+    }
+
+
+@router.patch("/admin/banners/{banner_id}")
+def review_admin_banner(
+    banner_id: int,
+    payload: AdminBannerStatusPayload,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    admin = _require_user(request, db, {"admin"})
+    banner = db.query(PaidAdBannerV111).filter(PaidAdBannerV111.id == banner_id).with_for_update().first()
+    if not banner:
+        raise HTTPException(404, "Banner nije pronađen.")
+    if banner.status != "pending":
+        raise HTTPException(409, "Samo banner koji čeka proveru može biti obrađen.")
+    advertiser = db.query(User).filter(User.id == banner.advertiser_id).with_for_update().first()
+    if not advertiser:
+        raise HTTPException(404, "Oglašivač banera nije pronađen.")
+    amount = _money(banner.price_rsd)
+    if payload.status == "active":
+        advertiser.advertiser_reserved_rsd = _money(max(0, advertiser.advertiser_reserved_rsd - amount))
+        advertiser.advertiser_spent_rsd = _money(advertiser.advertiser_spent_rsd + amount)
+        banner.status = "active"
+        banner.starts_at = datetime.utcnow()
+        banner.ends_at = banner.starts_at + timedelta(days=max(1, banner.days_count or 7))
+        banner.admin_note = (payload.note or "").strip() or "Zakup je odobren."
+        db.add(AdvertiserBudgetTransaction(
+            advertiser_id=advertiser.id,
+            amount_rsd=0,
+            tx_type="activate_banner",
+            description=f"Odobren banner zakup: {banner.title}",
+        ))
+    else:
+        advertiser.advertiser_reserved_rsd = _money(max(0, advertiser.advertiser_reserved_rsd - amount))
+        advertiser.advertiser_budget_rsd = _money(advertiser.advertiser_budget_rsd + amount)
+        banner.status = "rejected"
+        banner.admin_note = (payload.note or "").strip() or "Zakup je odbijen, rezervisani budžet je vraćen."
+        db.add(AdvertiserBudgetTransaction(
+            advertiser_id=advertiser.id,
+            amount_rsd=amount,
+            tx_type="release_banner_reservation",
+            description=f"Vraćen budžet za odbijen banner: {banner.title}",
+        ))
+    _audit(db, admin, "banner_review", "PaidAdBannerV111", banner.id, banner.status)
+    db.commit()
+    db.refresh(banner)
+    return {"banner": _banner_data(banner)}
 
 
 @router.get("/admin/users")

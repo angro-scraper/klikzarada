@@ -4,27 +4,34 @@ import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tab
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminWithdrawal, type AdminSetting, type FraudOverview, type SupportTicket, type TaskSource } from '../lib/api'
+import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminWithdrawal, type AdminSetting, type BannerSlot, type FraudOverview, type PaidBanner, type SupportTicket, type TaskSource } from '../lib/api'
 
-const navGroups = [
+function adminNavigation(metrics: AdminMetrics | null, tickets: SupportTicket[]) {
+  const pendingWithdrawals = metrics?.pending_withdrawals ?? 0
+  const pendingCampaigns = metrics?.pending_campaigns ?? 0
+  const pendingBanners = metrics?.pending_banners ?? 0
+  const pendingSubmissions = metrics?.pending_submissions ?? 0
+  const openTickets = tickets.filter(ticket => ticket.status !== 'closed').length
+
+  return [
   { group: 'Dashboard', items: [{ id: 'dashboard', label: 'Pregled', icon: '📊' }] },
   { group: 'Finansije', items: [
     { id: 'fin-racuni', label: 'Računi platforme', icon: '🏦' },
-    { id: 'fin-isplate', label: 'Isplate korisnika', icon: '💸', badge: 3 },
+    { id: 'fin-isplate', label: 'Isplate korisnika', icon: '💸', badge: pendingWithdrawals || undefined },
     { id: 'fin-uplate', label: 'Uplate oglašivača', icon: '💳' },
     { id: 'fin-fakture', label: 'Fakture', icon: '🧾' },
   ]},
   { group: 'Kampanje i reklame', items: [
-    { id: 'kam-kampanje', label: 'Kampanje', icon: '🎯', badge: 2 },
-    { id: 'kam-dokazi', label: 'Moderacija dokaza', icon: '📎', badge: 7 },
+    { id: 'kam-kampanje', label: 'Kampanje', icon: '🎯', badge: pendingCampaigns || undefined },
+    { id: 'kam-dokazi', label: 'Moderacija dokaza', icon: '📎', badge: pendingSubmissions || undefined },
     { id: 'kam-uvoz', label: 'Uvoz zadataka', icon: '🔄' },
-    { id: 'kam-banneri', label: 'Banner slotovi', icon: '🖼️' },
+    { id: 'kam-banneri', label: 'Banner slotovi', icon: '🖼️', badge: pendingBanners || undefined },
   ]},
   { group: 'Ljudi', items: [
     { id: 'lj-korisnici', label: 'Korisnici', icon: '👥' },
     { id: 'lj-oglasivaci', label: 'Oglašivači', icon: '🏢' },
     { id: 'lj-referral', label: 'Referral', icon: '🔗' },
-    { id: 'lj-podrska', label: 'Tiketi', icon: '🎫', badge: 1 },
+    { id: 'lj-podrska', label: 'Tiketi', icon: '🎫', badge: openTickets || undefined },
   ]},
   { group: 'Operacije', items: [
     { id: 'ops-antifraud', label: 'Anti-fraud', icon: '🛡️' },
@@ -34,7 +41,8 @@ const navGroups = [
     { id: 'sys-api', label: 'API izvori', icon: '🔌' },
     { id: 'sys-settings', label: 'Podešavanja', icon: '⚙️' },
   ]},
-]
+  ]
+}
 
 type AdminPage = 'dashboard'|'fin-racuni'|'fin-isplate'|'fin-uplate'|'fin-fakture'|
   'kam-kampanje'|'kam-dokazi'|'kam-uvoz'|'kam-banneri'|
@@ -121,6 +129,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [paypalPayoutAction, setPaypalPayoutAction] = useState<{ id: number; korisnik: string; iznos: string } | null>(null)
   const [campAction, setCampAction] = useState<{ id: number; naziv: string; type: 'approve' | 'reject' } | null>(null)
   const [submissionAction, setSubmissionAction] = useState<{ id: number; naslov: string; type: 'approve' | 'reject' } | null>(null)
+  const [bannerAction, setBannerAction] = useState<{ id: number; naslov: string; iznos: number; type: 'approve' | 'reject' } | null>(null)
   const [userStatuses, setUserStatuses] = useState<Record<number, string>>({})
   const [payoutStatuses, setPayoutStatuses] = useState<Record<number, string>>({})
   const [campStatuses, setCampStatuses] = useState<Record<number, string>>({})
@@ -133,6 +142,8 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [tickets, setTickets] = useState<SupportTicket[]>([])
   const [settings, setSettings] = useState<AdminSetting[]>([])
   const [fraudOverview, setFraudOverview] = useState<FraudOverview | null>(null)
+  const [bannerSlots, setBannerSlots] = useState<BannerSlot[]>([])
+  const [banners, setBanners] = useState<PaidBanner[]>([])
   const [settingDrafts, setSettingDrafts] = useState<Record<string, string>>({})
   const [dataError, setDataError] = useState('')
   const [savingAction, setSavingAction] = useState(false)
@@ -144,8 +155,8 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
   const refreshAdmin = async () => {
     try {
-      const [dashboard, userData, campaignData, submissionData, withdrawalData, sourceData, ticketData, settingData, fraudData] = await Promise.all([
-        api.adminDashboard(), api.adminUsers(), api.adminCampaigns(), api.adminSubmissions(), api.adminWithdrawals(), api.adminTaskSources(), api.adminTickets(), api.adminSettings(), api.adminFraudOverview(),
+      const [dashboard, userData, campaignData, submissionData, withdrawalData, sourceData, ticketData, settingData, fraudData, bannerData] = await Promise.all([
+        api.adminDashboard(), api.adminUsers(), api.adminCampaigns(), api.adminSubmissions(), api.adminWithdrawals(), api.adminTaskSources(), api.adminTickets(), api.adminSettings(), api.adminFraudOverview(), api.adminBanners(),
       ])
       setMetrics(dashboard.metrics)
       setUsers(userData.users)
@@ -156,6 +167,8 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
       setTickets(ticketData.tickets)
       setSettings(settingData.settings)
       setFraudOverview(fraudData)
+      setBannerSlots(bannerData.slots)
+      setBanners(bannerData.banners)
       setSettingDrafts(Object.fromEntries(settingData.settings.map(setting => [setting.key, setting.value])))
       setDataError('')
     } catch (error) {
@@ -346,13 +359,37 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
         onCancel={() => setSubmissionAction(null)}
       />
 
+      <ConfirmModal
+        open={bannerAction !== null}
+        title={bannerAction?.type === 'approve' ? 'Odobri zakup banera?' : 'Odbij zakup banera?'}
+        description={bannerAction?.type === 'approve'
+          ? `Banner „${bannerAction?.naslov}” će biti objavljen na početnoj stranici. Rezervisanih ${new Intl.NumberFormat('sr-RS').format(bannerAction?.iznos ?? 0)} RSD biće evidentirano kao potrošen budžet.`
+          : `Banner „${bannerAction?.naslov}” neće biti objavljen, a rezervisani budžet će se automatski vratiti oglašivaču.`}
+        confirmLabel={bannerAction?.type === 'approve' ? 'Odobri i objavi' : 'Odbij i vrati budžet'}
+        cancelLabel="Otkaži"
+        variant={bannerAction?.type === 'approve' ? 'success' : 'danger'}
+        onConfirm={async () => {
+          if (!bannerAction) return
+          setSavingAction(true)
+          try {
+            await api.reviewAdminBanner(bannerAction.id, bannerAction.type === 'approve' ? 'active' : 'rejected')
+            await refreshAdmin()
+            showToast(bannerAction.type === 'approve' ? 'Banner je odobren i objavljen.' : 'Zakup je odbijen, a budžet vraćen.', bannerAction.type === 'approve' ? 'success' : 'error')
+            setBannerAction(null)
+          } catch (error) {
+            showToast(error instanceof Error ? error.message : 'Banner nije obrađen.', 'error')
+          } finally { setSavingAction(false) }
+        }}
+        onCancel={() => setBannerAction(null)}
+      />
+
       {mobileOpen && <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />}
       <div className="hidden lg:flex shrink-0">
-        <Sidebar groups={navGroups} active={page} onNavigate={p => goTo(p as AdminPage)} footer={sidebarFooter} />
+        <Sidebar groups={adminNavigation(metrics, tickets)} active={page} onNavigate={p => goTo(p as AdminPage)} footer={sidebarFooter} />
       </div>
       {mobileOpen && (
         <div className="fixed left-0 top-0 h-full z-50 lg:hidden">
-          <Sidebar groups={navGroups} active={page} onNavigate={p => { goTo(p as AdminPage); setMobileOpen(false) }} footer={sidebarFooter} isMobile onClose={() => setMobileOpen(false)} />
+          <Sidebar groups={adminNavigation(metrics, tickets)} active={page} onNavigate={p => { goTo(p as AdminPage); setMobileOpen(false) }} footer={sidebarFooter} isMobile onClose={() => setMobileOpen(false)} />
         </div>
       )}
 
@@ -394,9 +431,9 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                 </div>
                 <div className="grid sm:grid-cols-3 gap-4">
                   {[
-                    { label: 'Finansije', items: [`Isplate na čekanju: ${metrics?.pending_withdrawals ?? 0}`, `Rezervisan budžet: ${new Intl.NumberFormat('sr-RS').format(metrics?.reserved_budget_rsd ?? 0)} RSD`, 'Fakture: uskoro'], page: 'fin-isplate' as AdminPage, color: 'bg-emerald-50 border-emerald-200' },
+                    { label: 'Finansije', items: [`Isplate na čekanju: ${metrics?.pending_withdrawals ?? 0}`, `Rezervisan budžet: ${new Intl.NumberFormat('sr-RS').format(metrics?.reserved_budget_rsd ?? 0)} RSD`, 'Fakture: nema izdatih faktura'], page: 'fin-isplate' as AdminPage, color: 'bg-emerald-50 border-emerald-200' },
                     { label: 'Kampanje', items: [`Na čekanju: ${metrics?.pending_campaigns ?? 0}`, `Aktivnih: ${metrics?.active_tasks ?? 0}`, `Moderacija dokaza: ${metrics?.pending_submissions ?? 0}`], page: 'kam-kampanje' as AdminPage, color: 'bg-blue-50 border-blue-200' },
-                    { label: 'Korisnici', items: [`Korisnici: ${metrics?.users ?? 0}`, `Oglašivači: ${metrics?.advertisers ?? 0}`, 'Tiketi: uskoro'], page: 'lj-korisnici' as AdminPage, color: 'bg-violet-50 border-violet-200' },
+                    { label: 'Korisnici', items: [`Korisnici: ${metrics?.users ?? 0}`, `Oglašivači: ${metrics?.advertisers ?? 0}`, `Otvoreni tiketi: ${tickets.filter(ticket => ticket.status !== 'closed').length}`], page: 'lj-korisnici' as AdminPage, color: 'bg-violet-50 border-violet-200' },
                   ].map(g => (
                     <div key={g.label} className={`border rounded-xl p-4 ${g.color}`}>
                       <h3 className="text-sm font-bold text-ink mb-2">{g.label}</h3>
@@ -563,28 +600,50 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
             {page === 'kam-banneri' && (
               <div>
-                <SectionHeader title="Banner slotovi" description="Reklamni prostor na platformi. Sponzorisani sadržaj mora biti označen." />
+                <SectionHeader title="Banner slotovi" description="Zakup ide kroz rezervaciju, admin proveru i objavu na početnoj stranici." />
+                {dataError && <div className="mb-4"><Alert type="error">{dataError}</Alert></div>}
                 <div className="grid sm:grid-cols-2 gap-3">
-                  {[
-                    { naziv: 'Header baner — početna', status: 'aktivno', oglasivac: 'Acme d.o.o.', ističe: '31.12.2024', cena: '2.000 RSD / mesec' },
-                    { naziv: 'Sidebar — korisnički panel', status: 'obustavljeno', oglasivac: '—', ističe: '—', cena: '1.500 RSD / mesec' },
-                  ].map(b => (
-                    <Card key={b.naziv} className="p-4">
+                  {bannerSlots.map(slot => (
+                    <Card key={slot.id} className="p-4">
                       <div className="flex items-start justify-between mb-3">
-                        <p className="font-bold text-ink text-sm">{b.naziv}</p>
-                        <StatusBadge status={b.status} />
+                        <p className="font-bold text-ink text-sm">{slot.title}</p>
+                        {slot.active_banner
+                          ? <StatusBadge status="aktivno" />
+                          : slot.pending_count > 0
+                            ? <StatusBadge status="na_cekanju" />
+                            : <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-0.5">Slobodan</span>}
                       </div>
                       <div className="space-y-1 text-xs text-ink-2">
-                        <p>Oglašivač: <span className="text-ink font-medium">{b.oglasivac}</span></p>
-                        <p>Ističe: <span className="text-ink font-medium">{b.ističe}</span></p>
-                        <p>Cena: <span className="font-mono font-semibold text-emerald-600">{b.cena}</span></p>
-                      </div>
-                      <div className="flex gap-2 mt-3">
-                        <Btn size="sm" variant="ghost">Uredi</Btn>
-                        {b.status === 'aktivno' && <Btn size="sm" variant="danger">Pauziraj</Btn>}
+                        <p>Pozicija: <span className="text-ink font-medium">{slot.placement}</span></p>
+                        <p>Format: <span className="text-ink font-medium">{slot.width_label}</span></p>
+                        <p>Cena: <span className="font-mono font-semibold text-emerald-600">{new Intl.NumberFormat('sr-RS').format(slot.price_rsd)} RSD / 7 dana</span></p>
+                        {slot.active_banner && <p>Aktivni oglašivač: <span className="text-ink font-medium">{slot.active_banner.advertiser_name}</span></p>}
+                        {slot.pending_count > 0 && <p className="text-amber-700">Čeka moderaciju: {slot.pending_count}</p>}
                       </div>
                     </Card>
                   ))}
+                </div>
+                {bannerSlots.length === 0 && <EmptyState icon="🖼️" title="Nema podešenih slotova" description="Slotovi se kreiraju automatski pri prvom otvaranju ovog ekrana." />}
+                <div className="mt-6">
+                  <SectionHeader title="Zakupi na proveri" description="Odobren zakup se automatski prikazuje na početnoj stranici." />
+                  <Card>
+                    <Table
+                      headers={['Banner', 'Oglašivač', 'Slot', 'Trajanje', 'Iznos', 'Status', 'Akcija']}
+                      rows={banners.filter(banner => banner.status === 'na_cekanju').map(banner => [
+                        <span className="font-semibold text-ink">{banner.title}</span>,
+                        <span className="text-xs text-ink-2">{banner.advertiser_name}</span>,
+                        <span className="text-xs text-ink-2">{banner.slot_title}</span>,
+                        <span>{banner.days_count} dana</span>,
+                        <span className="font-mono text-xs font-semibold">{new Intl.NumberFormat('sr-RS').format(banner.price_rsd)} RSD</span>,
+                        <StatusBadge status={banner.status} />,
+                        <div className="flex gap-1.5">
+                          <Btn size="sm" variant="success" disabled={savingAction} onClick={() => setBannerAction({ id: banner.id, naslov: banner.title, iznos: banner.price_rsd, type: 'approve' })}>Odobri</Btn>
+                          <Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setBannerAction({ id: banner.id, naslov: banner.title, iznos: banner.price_rsd, type: 'reject' })}>Odbij</Btn>
+                        </div>,
+                      ])}
+                    />
+                    {banners.filter(banner => banner.status === 'na_cekanju').length === 0 && <p className="px-4 pb-4 text-sm text-ink-3">Trenutno nema zakupa koji čekaju proveru.</p>}
+                  </Card>
                 </div>
               </div>
             )}
