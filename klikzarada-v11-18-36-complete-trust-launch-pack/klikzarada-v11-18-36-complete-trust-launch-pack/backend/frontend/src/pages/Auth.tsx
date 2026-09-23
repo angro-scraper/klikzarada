@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Btn, Input, Alert } from '../components/ui'
 import { api } from '../lib/api'
 
-type Mode = 'login' | 'register' | 'advertiser-login' | 'advertiser-register'
+type Mode = 'login' | 'register' | 'advertiser-login' | 'advertiser-register' | 'admin-login'
 
 export default function Auth({
   initialMode = 'login',
@@ -22,6 +22,7 @@ export default function Auth({
 
   const isAdvertiser = mode === 'advertiser-login' || mode === 'advertiser-register'
   const isRegister = mode === 'register' || mode === 'advertiser-register'
+  const isAdmin = mode === 'admin-login'
 
   async function handleSubmit() {
     if (!email || !password || (isRegister && !name)) return
@@ -62,7 +63,11 @@ export default function Auth({
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-sm">
           {/* Role switcher */}
-          <div className="flex rounded-lg border border-border overflow-hidden mb-6">
+          {isAdmin ? (
+            <div className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-2.5 text-center text-sm font-semibold text-violet-800 mb-6">
+              Administratorski pristup
+            </div>
+          ) : <div className="flex rounded-lg border border-border overflow-hidden mb-6">
             <button
               onClick={() => setMode(isRegister ? 'register' : 'login')}
               className={`flex-1 py-2 text-sm font-medium transition-colors cursor-pointer ${
@@ -79,18 +84,18 @@ export default function Auth({
             >
               Oglašivač
             </button>
-          </div>
+          </div>}
 
           <div className="bg-surface-2 border border-border rounded-lg p-6">
             <h1 className="text-lg font-semibold text-slate-100 mb-1">
               {isRegister
                 ? isAdvertiser ? 'Registracija oglašivača' : 'Kreiraj nalog'
-                : isAdvertiser ? 'Prijava oglašivača' : 'Prijavi se'}
+                : isAdmin ? 'Admin prijava' : isAdvertiser ? 'Prijava oglašivača' : 'Prijavi se'}
             </h1>
             <p className="text-sm text-slate-400 mb-5">
               {isRegister
                 ? 'Registracija je besplatna i traje manje od 2 minuta.'
-                : 'Dobrodošao/la natrag.'}
+                : isAdmin ? 'Pristup je dozvoljen samo ovlašćenom administratoru.' : 'Dobrodošao/la natrag.'}
             </p>
 
             {error && <Alert type="error">{error}</Alert>}
@@ -132,7 +137,9 @@ export default function Auth({
             </div>
 
             <div className="mt-5 pt-5 border-t border-border text-center">
-              {isRegister ? (
+              {isAdmin ? (
+                <p className="text-sm text-slate-400">Admin nalog kreira vlasnik platforme kroz zaštićena Render podešavanja.</p>
+              ) : isRegister ? (
                 <p className="text-sm text-slate-400">
                   Već imaš nalog?{' '}
                   <button

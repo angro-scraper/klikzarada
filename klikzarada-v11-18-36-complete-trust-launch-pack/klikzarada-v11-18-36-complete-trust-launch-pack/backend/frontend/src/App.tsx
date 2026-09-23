@@ -5,11 +5,13 @@ import TasksPublic from './pages/TasksPublic'
 import UserDashboard from './pages/UserDashboard'
 import AdvertiserPanel from './pages/AdvertiserPanel'
 import AdminHub from './pages/AdminHub'
+import { api } from './lib/api'
 
 type Route =
   | 'home'
   | 'login' | 'register'
   | 'advertiser-login' | 'advertiser-register'
+  | 'admin-login'
   | 'tasks-public'
   | 'dashboard'
   | 'advertiser'
@@ -21,6 +23,7 @@ const routePaths: Record<Route, string> = {
   register: '/registracija',
   'advertiser-login': '/oglasivac/prijava',
   'advertiser-register': '/oglasivac/registracija',
+  'admin-login': '/admin/prijava',
   'tasks-public': '/zadaci',
   dashboard: '/korisnik/panel',
   advertiser: '/oglasivac/panel',
@@ -28,11 +31,28 @@ const routePaths: Record<Route, string> = {
 }
 
 function routeFromPath(pathname: string): Route {
+  if (pathname === '/admin/prijava') return 'admin-login'
   if (pathname.startsWith('/admin')) return 'admin'
   if (pathname.startsWith('/korisnik')) return 'dashboard'
   if (pathname.startsWith('/oglasivac/panel')) return 'advertiser'
   if (pathname === '/login') return 'login'
   return (Object.entries(routePaths).find(([, path]) => path === pathname)?.[0] as Route | undefined) ?? 'home'
+}
+
+function AdminRoute({ onNavigate }: { onNavigate: (id: string) => void }) {
+  const [checked, setChecked] = useState(false)
+
+  useEffect(() => {
+    void api.session()
+      .then(({ user }) => {
+        if (user?.role !== 'admin') onNavigate('admin-login')
+        else setChecked(true)
+      })
+      .catch(() => onNavigate('admin-login'))
+  }, [onNavigate])
+
+  if (!checked) return <div className="min-h-screen bg-mint-50" />
+  return <AdminHub onNavigate={onNavigate} />
 }
 
 export default function App() {
@@ -58,9 +78,10 @@ export default function App() {
   if (route === 'register')           return <Auth initialMode="register" onNavigate={go} />
   if (route === 'advertiser-login')   return <Auth initialMode="advertiser-login" onNavigate={go} />
   if (route === 'advertiser-register')return <Auth initialMode="advertiser-register" onNavigate={go} />
+  if (route === 'admin-login')         return <Auth initialMode="admin-login" onNavigate={go} />
   if (route === 'dashboard')          return <UserDashboard onNavigate={go} />
   if (route === 'advertiser')         return <AdvertiserPanel onNavigate={go} />
-  if (route === 'admin')              return <AdminHub onNavigate={go} />
+  if (route === 'admin')              return <AdminRoute onNavigate={go} />
 
   return <Landing onNavigate={go} />
 }

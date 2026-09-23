@@ -1,6 +1,7 @@
 import io
 import html
 import json
+import os
 import re
 import mimetypes
 from PIL import Image
@@ -1768,10 +1769,33 @@ def seed():
     Base.metadata.create_all(bind=engine)
     db = next(get_db())
     try:
-        admin = db.query(User).filter(User.email=="admin@klikzarada.rs").first()
-        if not admin:
-            admin = User(full_name="Admin", email="admin@klikzarada.rs", password_hash=hash_password("Admin123!"), role="admin", referral_code="ADMIN", email_verified=True, phone_verified=True)
-            db.add(admin)
+        production = os.getenv("APP_ENV", "").strip().lower() == "production"
+        admin_email = os.getenv("ADMIN_BOOTSTRAP_EMAIL", "").strip().lower()
+        admin_password = os.getenv("ADMIN_BOOTSTRAP_PASSWORD", "")
+        admin_name = os.getenv("ADMIN_BOOTSTRAP_NAME", "Administrator").strip() or "Administrator"
+        if not production and not admin_email:
+            # Local development gets a disposable account; production never does.
+            admin_email = "admin@klikzarada.rs"
+            admin_password = "Admin123!"
+        if admin_email and admin_password:
+            admin = db.query(User).filter(User.email == admin_email).first()
+            if not admin:
+                db.add(User(
+                    full_name=admin_name,
+                    email=admin_email,
+                    password_hash=hash_password(admin_password),
+                    role="admin",
+                    referral_code="ADMIN",
+                    email_verified=True,
+                    phone_verified=True,
+                    status="active",
+                ))
+            elif admin.role != "admin":
+                # A first owner can safely promote their already-registered email.
+                admin.role = "admin"
+                admin.status = "active"
+        elif production:
+            print("WARNING: ADMIN_BOOTSTRAP_EMAIL and ADMIN_BOOTSTRAP_PASSWORD are not set; no admin account was created.")
         demo_accounts = [
             {
                 "full_name": "Demo Oglašivač",
@@ -1788,27 +1812,21 @@ def seed():
                 "referral_code": "KORIS",
             },
         ]
-        for item in demo_accounts:
-            user = db.query(User).filter(User.email == item["email"]).first()
-            if not user:
-                user = User(
-                    full_name=item["full_name"],
-                    email=item["email"],
-                    password_hash=hash_password(item["password"]),
-                    role=item["role"],
-                    referral_code=item["referral_code"],
-                    email_verified=True,
-                    phone_verified=True,
-                    status="active",
-                )
-                db.add(user)
-            else:
-                user.full_name = item["full_name"]
-                user.role = item["role"]
-                user.password_hash = hash_password(item["password"])
-                user.email_verified = True
-                user.phone_verified = True
-                user.status = "active"
+        if not production and os.getenv("KLIKZARADA_SEED_DEMO", "true").strip().lower() in {"1", "true", "yes"}:
+            for item in demo_accounts:
+                user = db.query(User).filter(User.email == item["email"]).first()
+                if not user:
+                    user = User(
+                        full_name=item["full_name"],
+                        email=item["email"],
+                        password_hash=hash_password(item["password"]),
+                        role=item["role"],
+                        referral_code=item["referral_code"],
+                        email_verified=True,
+                        phone_verified=True,
+                        status="active",
+                    )
+                    db.add(user)
         db.commit()
     finally:
         db.close()

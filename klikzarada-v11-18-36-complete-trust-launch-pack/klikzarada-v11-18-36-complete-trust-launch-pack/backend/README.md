@@ -164,6 +164,10 @@ Oglašivač može dopuniti budžet preko PayPal-a samo kada su sledeće Render v
 ### Kartice preko PayPal-a
 
 Pored PayPal naloga, oglašivač može platiti kreditnom ili debitnom karticom kroz PayPal Checkout. `PAYPAL_CARD_PAYMENTS_ENABLED=true` je podrazumevana vrednost; postavi `false` u Renderu samo ako želiš privremeno da sakriješ kartičnu opciju. PayPal određuje dostupnost kartica prema Live nalogu, zemlji, kupcu i sopstvenoj proceni, pa se kartični taster prikazuje samo kad je PayPal Checkout prihvati. KlikZarada nikada ne prima niti čuva broj kartice ili CVV.
+
+### Produkcijska baza i admin
+
+Render web servis ne sme koristiti lokalni SQLite fajl u produkciji, jer se njegov sadržaj gubi pri redeploy-u ili restartu. Kreiraj Render PostgreSQL bazu i postavi njen **Internal Database URL** kao `DATABASE_URL` na web servisu. Zatim postavi `ADMIN_BOOTSTRAP_NAME`, `ADMIN_BOOTSTRAP_EMAIL` i jaku `ADMIN_BOOTSTRAP_PASSWORD` u Renderu pre sledećeg deploy-a. Admin se prijavljuje preko `/admin/prijava`; demo nalozi se ne kreiraju u produkciji.
 - prebaciti bazu na PostgreSQL
 - podesiti HTTPS i domen
 - povezati pravi email provider

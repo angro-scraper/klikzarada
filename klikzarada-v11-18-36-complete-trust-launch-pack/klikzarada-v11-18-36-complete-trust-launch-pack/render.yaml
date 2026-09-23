@@ -13,6 +13,14 @@ services:
         value: production
       - key: DATABASE_URL
         sync: false
+      - key: ADMIN_BOOTSTRAP_NAME
+        sync: false
+      - key: ADMIN_BOOTSTRAP_EMAIL
+        sync: false
+      - key: ADMIN_BOOTSTRAP_PASSWORD
+        sync: false
+      - key: KLIKZARADA_SEED_DEMO
+        value: false
       # PayPal credentials stay only in Render. Do not put their values in Git.
       - key: PAYPAL_MODE
         value: live
