@@ -1,24 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Btn, Card, StatusBadge, EmptyState, Select } from '../components/ui'
-import { api, formatRsd } from '../lib/api'
 
-type Task = { id: number; title: string; category: string; reward_rsd: number; estimated_minutes: number; proof_required: string; min_user_level: string; status: string }
+const tasks = [
+  { id: 1, title: 'Lajkuj i komentiraj objavu na Instagram-u', cat: 'Društvene mreže', catColor: 'bg-blue-100 text-blue-700', reward: '35 RSD', time: '5 min', proof: 'Screenshot', level: 'Explorer', status: 'aktivno' },
+  { id: 2, title: 'Popuni anketu o navikama u kupovini', cat: 'Ankete', catColor: 'bg-violet-100 text-violet-700', reward: '80 RSD', time: '10 min', proof: 'Kod potvrde', level: 'Explorer', status: 'aktivno' },
+  { id: 3, title: 'Ostavi recenziju aplikacije na Google Play-u', cat: 'Recenzije', catColor: 'bg-teal-100 text-teal-700', reward: '120 RSD', time: '8 min', proof: 'Screenshot + link', level: 'Trusted', status: 'aktivno' },
+  { id: 4, title: 'Pogledaj video reklamu i odgovori na pitanja', cat: 'Video', catColor: 'bg-emerald-100 text-emerald-700', reward: '50 RSD', time: '6 min', proof: 'Screenshot', level: 'Explorer', status: 'aktivno' },
+  { id: 5, title: 'Registruj se na sajtu partnera i potvrdi email', cat: 'Web zadaci', catColor: 'bg-amber-100 text-amber-700', reward: '200 RSD', time: '15 min', proof: 'Screenshot emaila', level: 'Trusted', status: 'aktivno' },
+  { id: 6, title: 'Podeli objavu na Facebook-u', cat: 'Društvene mreže', catColor: 'bg-blue-100 text-blue-700', reward: '40 RSD', time: '4 min', proof: 'Screenshot', level: 'Explorer', status: 'aktivno' },
+]
 
 export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) => void }) {
   const [cat, setCat] = useState('')
   const [level, setLevel] = useState('')
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    api<{ tasks: Task[] }>('/public/tasks')
-      .then(result => setTasks(result.tasks))
-      .finally(() => setLoading(false))
-  }, [])
 
   const filtered = tasks.filter(t => {
-    if (cat && t.category !== cat) return false
-    if (level && t.min_user_level !== level) return false
+    if (cat && t.cat !== cat) return false
+    if (level && t.level !== level) return false
     return true
   })
 
@@ -47,7 +45,11 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
           <Select
             options={[
               { value: '', label: 'Sve kategorije' },
-              ...Array.from(new Set(tasks.map(task => task.category))).map(value => ({ value, label: value })),
+              { value: 'Društvene mreže', label: 'Društvene mreže' },
+              { value: 'Ankete', label: 'Ankete' },
+              { value: 'Recenzije', label: 'Recenzije' },
+              { value: 'Video', label: 'Video' },
+              { value: 'Web zadaci', label: 'Web zadaci' },
             ]}
             value={cat}
             onChange={setCat}
@@ -55,7 +57,9 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
           <Select
             options={[
               { value: '', label: 'Svi nivoi' },
-              ...Array.from(new Set(tasks.map(task => task.min_user_level))).map(value => ({ value, label: value })),
+              { value: 'Explorer', label: 'Explorer' },
+              { value: 'Trusted', label: 'Trusted' },
+              { value: 'Pro', label: 'Pro' },
             ]}
             value={level}
             onChange={setLevel}
@@ -71,7 +75,7 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
         </div>
 
         {/* Task list */}
-        {loading ? <p className="text-sm text-ink-3">Učitavam dostupne zadatke...</p> : filtered.length === 0 ? (
+        {filtered.length === 0 ? (
           <EmptyState
             icon="📭"
             title="Nema zadataka za odabrane filtere"
@@ -84,18 +88,18 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{task.category}</span>
-                      <span className="text-[11px] text-ink-3 bg-gray-100 px-2 py-0.5 rounded-full">Nivo: {task.min_user_level}</span>
-                      <StatusBadge status={task.status === 'active' ? 'aktivno' : task.status} />
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${task.catColor}`}>{task.cat}</span>
+                      <span className="text-[11px] text-ink-3 bg-gray-100 px-2 py-0.5 rounded-full">Nivo: {task.level}</span>
+                      <StatusBadge status={task.status} />
                     </div>
                     <h3 className="font-semibold text-ink">{task.title}</h3>
                     <div className="flex flex-wrap gap-4 mt-2">
-                      <span className="text-xs text-ink-3">⏱ {task.estimated_minutes} min</span>
-                      <span className="text-xs text-ink-3">📎 {task.proof_required}</span>
+                      <span className="text-xs text-ink-3">⏱ {task.time}</span>
+                      <span className="text-xs text-ink-3">📎 {task.proof}</span>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="font-mono font-bold text-emerald-600 text-lg">{formatRsd(task.reward_rsd)}</p>
+                    <p className="font-mono font-bold text-emerald-600 text-lg">{task.reward}</p>
                     <Btn onClick={() => onNavigate('register')} size="sm" className="mt-2">Preuzmi</Btn>
                   </div>
                 </div>

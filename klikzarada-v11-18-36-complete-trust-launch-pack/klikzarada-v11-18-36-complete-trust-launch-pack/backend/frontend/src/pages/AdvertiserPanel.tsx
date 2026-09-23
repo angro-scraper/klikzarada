@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Sidebar, TopBar } from '../components/Sidebar'
 import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tabs, Alert, Input, Select } from '../components/ui'
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { api, formatRsd, type SessionUser } from '../lib/api'
 
 const navGroups = [
   { items: [
@@ -80,10 +79,6 @@ function NovaCampanja({ onCancel, onSuccess }: { onCancel: () => void; onSuccess
   const [naziv, setNaziv] = useState('')
   const [reward, setReward] = useState('')
   const [budget, setBudget] = useState('')
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('Promo')
-  const [proofRequired, setProofRequired] = useState('Screenshot ili javni link')
-  const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const steps = ['Definicija', 'Nagrada i budžet', 'Publika i dokaz', 'Pregled']
 
@@ -125,7 +120,7 @@ function NovaCampanja({ onCancel, onSuccess }: { onCancel: () => void; onSuccess
             <Input label="Naziv kampanje" placeholder="npr. Instagram kampanja — jan 2025" value={naziv} onChange={setNaziv} />
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Opis zadatka</label>
-              <textarea value={description} onChange={event => setDescription(event.target.value)} rows={3} placeholder="Šta korisnik treba da uradi? Budi precizan." className="bg-white border border-frame text-ink placeholder-ink-4 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none" />
+              <textarea rows={3} placeholder="Šta korisnik treba da uradi? Budi precizan." className="bg-white border border-frame text-ink placeholder-ink-4 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none" />
             </div>
             <Select label="Kategorija" options={[
               { value: '', label: 'Odaberi kategoriju' },
@@ -134,10 +129,10 @@ function NovaCampanja({ onCancel, onSuccess }: { onCancel: () => void; onSuccess
               { value: 'recenzija', label: 'Recenzije' },
               { value: 'video', label: 'Video' },
               { value: 'web', label: 'Web zadaci' },
-            ]} value={category} onChange={setCategory} />
+            ]} />
             <div className="flex gap-2">
               <Btn variant="ghost" onClick={onCancel} size="sm">Otkaži</Btn>
-              <Btn onClick={() => setStep(2)} disabled={!naziv || !description} className="flex-1 justify-center">Dalje →</Btn>
+              <Btn onClick={() => setStep(2)} disabled={!naziv} className="flex-1 justify-center">Dalje →</Btn>
             </div>
           </div>
         )}
@@ -163,7 +158,7 @@ function NovaCampanja({ onCancel, onSuccess }: { onCancel: () => void; onSuccess
               { value: 'sve', label: 'Svi korisnici' },
               { value: 'trusted', label: 'Trusted i više' },
               { value: 'pro', label: 'Pro i više' },
-            ]} value={proofRequired} onChange={setProofRequired} />
+            ]} />
             <Select label="Potreban dokaz" options={[
               { value: '', label: 'Odaberi tip dokaza' },
               { value: 'screenshot', label: 'Screenshot' },
@@ -186,18 +181,9 @@ function NovaCampanja({ onCancel, onSuccess }: { onCancel: () => void; onSuccess
               <div className="flex justify-between"><span className="text-ink-2">Budžet</span><span className="font-mono font-bold text-blue-600">{budget} RSD</span></div>
             </div>
             <Alert type="warning">Kampanja ide na moderaciju pre aktivacije. Status možeš pratiti u sekciji Kampanje.</Alert>
-            {error && <Alert type="error">{error}</Alert>}
             <div className="flex gap-2">
               <Btn onClick={() => setStep(3)} variant="secondary">← Izmeni prethodni korak</Btn>
-              <Btn onClick={async () => {
-                setError('')
-                try {
-                  const slots = Math.floor(Number(budget) / Number(reward))
-                  if (!Number.isFinite(slots) || slots < 1) throw new Error('Budžet mora pokriti najmanje jedan zadatak.')
-                  await api('/advertiser/campaigns', { method: 'POST', body: JSON.stringify({ title: naziv, category, task_type: category, description, instructions: description, proof_required: proofRequired, reward_rsd: Number(reward), total_slots: slots }) })
-                  setSubmitted(true)
-                } catch (err) { setError(err instanceof Error ? err.message : 'Kampanja nije poslata.') }
-              }} variant="success" className="flex-1 justify-center">✓ Pošalji na moderaciju</Btn>
+              <Btn onClick={() => setSubmitted(true)} variant="success" className="flex-1 justify-center">✓ Pošalji na moderaciju</Btn>
             </div>
           </div>
         )}
@@ -213,14 +199,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [proofAction, setProofAction] = useState<{ id: number; type: 'approve' | 'reject' } | null>(null)
   const [proofStatuses, setProofStatuses] = useState<Record<number, string>>({})
   const [logoutConfirm, setLogoutConfirm] = useState(false)
-  const [workspace, setWorkspace] = useState<any>(null)
   const { show: showToast, node: toastNode } = useToast()
-
-  async function refresh() { setWorkspace(await api<any>('/advertiser/dashboard')) }
-  useEffect(() => { refresh().catch(() => onNavigate('login')) }, [onNavigate])
-  const campaignsData: any[] = (workspace?.tasks || []).map((task: any) => ({ naziv: task.title, budžet: formatRsd(task.reward_rsd * task.total_slots), potrošeno: formatRsd(task.reward_rsd * task.used_slots), dokazi: task.used_slots, status: task.status === 'pending' ? 'na_cekanju' : task.status === 'active' ? 'aktivno' : 'obustavljeno' }))
-  const proofsData: any[] = (workspace?.submissions || []).map((item: any) => ({ id: item.id, korisnik: item.task_title, zadatak: item.task_title, poslato: item.created_at ? new Date(item.created_at).toLocaleDateString('sr-RS') : '—', status: item.status === 'pending' ? 'na_proveri' : item.status === 'approved' ? 'odobreno' : 'odbijeno' }))
-  const advertiser = workspace?.user as SessionUser | undefined
 
   function goTo(p: Page) { setPage(p) }
   const back = BACK[page]
@@ -230,7 +209,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
     <div className="flex items-center gap-2.5">
       <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-white text-sm font-bold">A</div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white truncate">{advertiser?.company_name || advertiser?.full_name || 'Učitavanje...'}</p>
+        <p className="text-sm font-semibold text-white truncate">Acme d.o.o.</p>
         <p className="text-xs" style={{ color: '#4a6a8a' }}>Oglašivač</p>
       </div>
       <button
@@ -258,7 +237,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
         confirmLabel="Da, odjavi me"
         cancelLabel="Otkaži"
         variant="danger"
-        onConfirm={async () => { await api('/auth/logout', { method: 'POST' }); onNavigate('home') }}
+        onConfirm={() => onNavigate('home')}
         onCancel={() => setLogoutConfirm(false)}
       />
 
@@ -311,10 +290,10 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
               <div className="space-y-5">
                 <h1 className="text-xl font-extrabold text-ink">Pregled</h1>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <StatCard label="Raspoloživi budžet" value={formatRsd(advertiser?.advertiser_budget_rsd || 0)} accent="green" icon="💰" />
-                  <StatCard label="Rezervisan budžet" value={formatRsd(advertiser?.advertiser_reserved_rsd || 0)} accent="orange" icon="🔒" />
-                  <StatCard label="Aktivnih kampanja" value={String(campaignsData.filter(c => c.status === 'aktivno').length)} accent="blue" icon="🎯" />
-                  <StatCard label="Odobrenih dokaza" value={String(proofsData.filter(p => p.status === 'odobreno').length)} accent="teal" icon="✅" />
+                  <StatCard label="Raspoloživi budžet" value="9.460 RSD" accent="green" icon="💰" />
+                  <StatCard label="Rezervisan budžet" value="6.540 RSD" accent="orange" icon="🔒" />
+                  <StatCard label="Aktivnih kampanja" value="1" accent="blue" icon="🎯" />
+                  <StatCard label="Odobrenih dokaza" value="55" accent="teal" icon="✅" />
                 </div>
                 <SectionHeader title="Kampanje" action={<Btn onClick={() => goTo('kampanje')} variant="ghost" size="sm">Sve →</Btn>} />
                 <Card>

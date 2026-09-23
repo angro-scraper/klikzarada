@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Btn, Input, Alert } from '../components/ui'
-import { api, type SessionUser } from '../lib/api'
 
 type Mode = 'login' | 'register' | 'advertiser-login' | 'advertiser-register'
 
@@ -17,32 +16,18 @@ export default function Auth({
   const [name, setName] = useState('')
   const [referral, setReferral] = useState('')
   const [submitted, setSubmitted] = useState(false)
-  const [error, setError] = useState('')
+  const [error] = useState('')
 
   const isAdvertiser = mode === 'advertiser-login' || mode === 'advertiser-register'
   const isRegister = mode === 'register' || mode === 'advertiser-register'
 
-  async function handleSubmit() {
-    if (!email || !password) {
-      setError('Unesi email adresu i lozinku.')
-      return
-    }
+  function handleSubmit() {
+    if (!email || !password) return
     setSubmitted(true)
-    setError('')
-    try {
-      const endpoint = isRegister ? '/auth/register' : '/auth/login'
-      const body = isRegister
-        ? { email, password, full_name: name, role: isAdvertiser ? 'oglasivac' : 'korisnik', referral_code: isAdvertiser ? undefined : referral || undefined }
-        : { email, password }
-      const result = await api<{ user: SessionUser }>(endpoint, { method: 'POST', body: JSON.stringify(body) })
-      if (result.user.role === 'admin') onNavigate('admin')
-      else if (result.user.role === 'oglasivac') onNavigate('advertiser')
+    setTimeout(() => {
+      if (isAdvertiser) onNavigate('advertiser')
       else onNavigate('dashboard')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Prijava nije uspela.')
-    } finally {
-      setSubmitted(false)
-    }
+    }, 800)
   }
 
   return (

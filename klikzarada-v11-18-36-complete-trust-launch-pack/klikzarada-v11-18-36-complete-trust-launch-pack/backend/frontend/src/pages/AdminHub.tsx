@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Sidebar, TopBar } from '../components/Sidebar'
-import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tabs, Alert, Input } from '../components/ui'
+import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tabs, Alert } from '../components/ui'
 import { PageHeader } from '../components/PageHeader'
-import { ConfirmModal, InfoModal } from '../components/Modal'
+import { ConfirmModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { api, formatRsd, type SessionUser } from '../lib/api'
 
 const navGroups = [
   { group: 'Dashboard', items: [{ id: 'dashboard', label: 'Pregled', icon: '📊' }] },
@@ -122,27 +121,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [userStatuses, setUserStatuses] = useState<Record<number, string>>({})
   const [payoutStatuses, setPayoutStatuses] = useState<Record<number, string>>({})
   const [campStatuses, setCampStatuses] = useState<Record<number, string>>({})
-  const [adminData, setAdminData] = useState<any>(null)
-  const [sourceModal, setSourceModal] = useState(false)
-  const [sourceName, setSourceName] = useState('')
-  const [sourceUrl, setSourceUrl] = useState('')
-  const [sourceKey, setSourceKey] = useState('')
   const { show: showToast, node: toastNode } = useToast()
-
-  async function refresh() {
-    const [dashboard, users, campaigns, submissions, withdrawals, sources] = await Promise.all([
-      api<any>('/admin/dashboard'), api<any>('/admin/users'), api<any>('/admin/campaigns'), api<any>('/admin/submissions'), api<any>('/admin/withdrawals'), api<any>('/admin/task-sources'),
-    ])
-    setAdminData({ dashboard, users: users.users, campaigns: campaigns.campaigns, submissions: submissions.submissions, withdrawals: withdrawals.withdrawals, sources: sources.sources })
-  }
-
-  useEffect(() => { refresh().catch(() => onNavigate('login')) }, [onNavigate])
-
-  const usersData: any[] = (adminData?.users || []).map((user: SessionUser) => ({ id: user.id, ime: user.full_name, email: user.email, tier: user.level, zarada: formatRsd(user.lifetime_earned_rsd), dokazi: 0, status: user.status === 'active' ? 'aktivno' : 'blokirano' }))
-  const campaignModData: any[] = (adminData?.campaigns || []).map((campaign: any) => ({ id: campaign.id, naziv: campaign.title, oglasivac: campaign.advertiser_name, budžet: formatRsd(campaign.reward_rsd * campaign.total_slots), status: campaign.status === 'pending' ? 'na_cekanju' : campaign.status === 'active' ? 'aktivno' : 'odbijeno' }))
-  const proofsModData: any[] = (adminData?.submissions || []).map((submission: any) => ({ id: submission.id, korisnik: submission.user_name, zadatak: submission.task_title, kampanja: submission.task_title, flag: submission.status === 'pending' ? 'Na proveri' : 'OK', flagColor: submission.status === 'pending' ? 'text-amber-700' : 'text-emerald-600' }))
-  const payoutsData: any[] = (adminData?.withdrawals || []).map((item: any) => ({ id: item.id, korisnik: item.user_name, iznos: formatRsd(item.amount_rsd), metoda: item.payment_method, trazeno: item.created_at ? new Date(item.created_at).toLocaleDateString('sr-RS') : '—', status: item.status === 'pending' ? 'na_cekanju' : item.status === 'paid' ? 'placeno' : 'odbijeno' }))
-  const importSources: any[] = (adminData?.sources || []).map((source: any) => ({ id: source.id, naziv: source.name, url: source.endpoint_url, status: source.status === 'active' ? 'aktivno' : 'obustavljeno', sync: source.last_sync_at ? new Date(source.last_sync_at).toLocaleString('sr-RS') : 'Još nije pokrenut', novi: 0, preskoceni: 0 }))
 
   function goTo(p: AdminPage) { setPage(p) }
   const back = BACK[page]
@@ -151,13 +130,6 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   function userStatus(id: number, orig: string) { return userStatuses[id] ?? orig }
   function payoutStatus(id: number, orig: string) { return payoutStatuses[id] ?? orig }
   function campStatus(id: number, orig: string) { return campStatuses[id] ?? orig }
-  async function reviewProof(id: number, status: 'approved' | 'rejected') {
-    try {
-      await api(`/admin/submissions/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) })
-      await refresh()
-      showToast(status === 'approved' ? 'Dokaz je odobren i korisniku je dodata zarada.' : 'Dokaz je odbijen.', status === 'approved' ? 'success' : 'error')
-    } catch (error) { showToast(error instanceof Error ? error.message : 'Dokaz nije obrađen.', 'error') }
-  }
 
   const sidebarFooter = (
     <div className="flex items-center gap-2.5">
@@ -187,27 +159,9 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
         confirmLabel="Da, odjavi me"
         cancelLabel="Otkaži"
         variant="danger"
-        onConfirm={async () => { await api('/auth/logout', { method: 'POST' }); onNavigate('home') }}
+        onConfirm={() => onNavigate('home')}
         onCancel={() => setLogoutConfirm(false)}
       />
-
-      <InfoModal open={sourceModal} title="Dodaj partner API izvor" onClose={() => setSourceModal(false)}>
-        <div className="space-y-4">
-          <Alert type="info">Unesi direktan HTTPS JSON feed. API ključ se čuva samo na serveru i ne prikazuje se posle čuvanja.</Alert>
-          <Input label="Naziv izvora" value={sourceName} onChange={setSourceName} placeholder="Partner feed" />
-          <Input label="HTTPS endpoint" value={sourceUrl} onChange={setSourceUrl} placeholder="https://partner.example/api/tasks" />
-          <Input label="API ključ" value={sourceKey} onChange={setSourceKey} placeholder="Opciono" />
-          <div className="flex gap-2">
-            <Btn variant="secondary" onClick={() => setSourceModal(false)}>Otkaži</Btn>
-            <Btn onClick={async () => {
-              try {
-                await api('/admin/task-sources', { method: 'POST', body: JSON.stringify({ name: sourceName, endpoint_url: sourceUrl, api_key: sourceKey || undefined }) })
-                setSourceModal(false); setSourceName(''); setSourceUrl(''); setSourceKey(''); await refresh(); showToast('Partner izvor je sačuvan.', 'success')
-              } catch (error) { showToast(error instanceof Error ? error.message : 'Izvor nije sačuvan.', 'error') }
-            }}>Sačuvaj izvor</Btn>
-          </div>
-        </div>
-      </InfoModal>
 
       <ConfirmModal
         open={blockUser !== null}
@@ -218,14 +172,9 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
         confirmLabel={blockUser?.action === 'block' ? 'Blokiraj korisnika' : 'Odblokiraj korisnika'}
         cancelLabel="Otkaži"
         variant={blockUser?.action === 'block' ? 'danger' : 'success'}
-        onConfirm={async () => {
+        onConfirm={() => {
           if (!blockUser) return
-          const backendStatus = blockUser.action === 'block' ? 'blocked' : 'active'
           const newStatus = blockUser.action === 'block' ? 'blokirano' : 'aktivno'
-          try {
-            await api(`/admin/users/${blockUser.id}`, { method: 'PATCH', body: JSON.stringify({ status: backendStatus }) })
-            await refresh()
-          } catch (error) { showToast(error instanceof Error ? error.message : 'Status nije promenjen.', 'error'); return }
           setUserStatuses(s => ({ ...s, [blockUser.id]: newStatus }))
           showToast(blockUser.action === 'block' ? `${blockUser.ime} je blokiran/a.` : `${blockUser.ime} je odblokirano.`, blockUser.action === 'block' ? 'error' : 'success')
           setBlockUser(null)
@@ -242,12 +191,8 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
         confirmLabel={payoutAction?.type === 'approve' ? 'Odobri isplatu' : 'Odbij isplatu'}
         cancelLabel="Otkaži"
         variant={payoutAction?.type === 'approve' ? 'success' : 'danger'}
-        onConfirm={async () => {
+        onConfirm={() => {
           if (!payoutAction) return
-          try {
-            await api(`/admin/withdrawals/${payoutAction.id}`, { method: 'PATCH', body: JSON.stringify({ status: payoutAction.type === 'approve' ? 'paid' : 'rejected' }) })
-            await refresh()
-          } catch (error) { showToast(error instanceof Error ? error.message : 'Isplata nije obrađena.', 'error'); return }
           setPayoutStatuses(s => ({ ...s, [payoutAction.id]: payoutAction.type === 'approve' ? 'placeno' : 'odbijeno' }))
           showToast(payoutAction.type === 'approve' ? 'Isplata je odobrena.' : 'Isplata je odbijena.', payoutAction.type === 'approve' ? 'success' : 'error')
           setPayoutAction(null)
@@ -264,12 +209,8 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
         confirmLabel={campAction?.type === 'approve' ? 'Aktiviraj kampanju' : 'Odbij kampanju'}
         cancelLabel="Otkaži"
         variant={campAction?.type === 'approve' ? 'success' : 'danger'}
-        onConfirm={async () => {
+        onConfirm={() => {
           if (!campAction) return
-          try {
-            await api(`/admin/campaigns/${campAction.id}`, { method: 'PATCH', body: JSON.stringify({ status: campAction.type === 'approve' ? 'active' : 'rejected' }) })
-            await refresh()
-          } catch (error) { showToast(error instanceof Error ? error.message : 'Kampanja nije obrađena.', 'error'); return }
           setCampStatuses(s => ({ ...s, [campAction.id]: campAction.type === 'approve' ? 'aktivno' : 'odbijeno' }))
           showToast(campAction.type === 'approve' ? 'Kampanja je aktivirana.' : 'Kampanja je odbijena.', campAction.type === 'approve' ? 'success' : 'error')
           setCampAction(null)
@@ -313,20 +254,20 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                   <p className="text-sm text-ink-2 mt-0.5">23. decembar 2024.</p>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <StatCard label="Ukupno korisnika" value={String(adminData?.dashboard?.metrics?.users ?? '—')} icon="👥" accent="blue" />
-                  <StatCard label="Aktivnih kampanja" value={String(adminData?.dashboard?.metrics?.active_tasks ?? '—')} icon="🎯" accent="green" />
-                  <StatCard label="Dokazi na čekanju" value={String(adminData?.dashboard?.metrics?.pending_submissions ?? '—')} icon="📎" accent="orange" />
-                  <StatCard label="Isplate na čekanju" value={String(adminData?.dashboard?.metrics?.pending_withdrawals ?? '—')} icon="💸" accent="purple" />
+                  <StatCard label="Ukupno korisnika" value="—" icon="👥" accent="blue" />
+                  <StatCard label="Aktivnih kampanja" value="1" icon="🎯" accent="green" />
+                  <StatCard label="Dokazi na čekanju" value="7" icon="📎" accent="orange" />
+                  <StatCard label="Isplate na čekanju" value="2" icon="💸" accent="purple" />
                 </div>
                 <div className="space-y-2">
-                  <Alert type="warning"><strong>{adminData?.dashboard?.metrics?.pending_campaigns ?? 0} kampanja</strong> čeka moderaciju pre aktivacije.</Alert>
-                  <Alert type="info">Partner izvori se proveravaju samo kroz validan JSON feed; svaka stavka ostaje na moderaciji pre objave.</Alert>
+                  <Alert type="warning"><strong>2 kampanje</strong> čekaju moderaciju pre aktivacije.</Alert>
+                  <Alert type="error"><strong>Partner API 2</strong> vraća grešku — uvoz zadataka nije moguć.</Alert>
                 </div>
                 <div className="grid sm:grid-cols-3 gap-4">
                   {[
-                    { label: 'Finansije', items: [`Isplate na čekanju: ${adminData?.dashboard?.metrics?.pending_withdrawals ?? 0}`, `Rezervisan budžet: ${formatRsd(adminData?.dashboard?.metrics?.reserved_budget_rsd ?? 0)}`, 'Fakture: pregled u pripremi'], page: 'fin-isplate' as AdminPage, color: 'bg-emerald-50 border-emerald-200' },
-                    { label: 'Kampanje', items: [`Na čekanju: ${adminData?.dashboard?.metrics?.pending_campaigns ?? 0}`, `Aktivnih: ${adminData?.dashboard?.metrics?.active_tasks ?? 0}`, `Moderacija dokaza: ${adminData?.dashboard?.metrics?.pending_submissions ?? 0}`], page: 'kam-kampanje' as AdminPage, color: 'bg-blue-50 border-blue-200' },
-                    { label: 'Korisnici', items: [`Ukupno: ${adminData?.dashboard?.metrics?.users ?? 0}`, `Oglašivača: ${adminData?.dashboard?.metrics?.advertisers ?? 0}`, 'Tiketi: pregled u pripremi'], page: 'lj-korisnici' as AdminPage, color: 'bg-violet-50 border-violet-200' },
+                    { label: 'Finansije', items: ['Isplate na čekanju: 2', 'Uplate ovaj mesec: —', 'Fakture: 0 novih'], page: 'fin-isplate' as AdminPage, color: 'bg-emerald-50 border-emerald-200' },
+                    { label: 'Kampanje', items: ['Na čekanju: 2', 'Aktivnih: 1', 'Moderacija dokaza: 7'], page: 'kam-kampanje' as AdminPage, color: 'bg-blue-50 border-blue-200' },
+                    { label: 'Korisnici', items: ['Ukupno: —', 'Blokiranih: 1', 'Tiketa: 1 novih'], page: 'lj-korisnici' as AdminPage, color: 'bg-violet-50 border-violet-200' },
                   ].map(g => (
                     <div key={g.label} className={`border rounded-xl p-4 ${g.color}`}>
                       <h3 className="text-sm font-bold text-ink mb-2">{g.label}</h3>
@@ -437,8 +378,8 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                         <span className="text-xs text-ink-3">{p.kampanja}</span>,
                         <span className={`text-xs font-bold ${p.flagColor}`}>{p.flag}</span>,
                         <div className="flex gap-1.5">
-                          <Btn size="sm" variant="success" onClick={() => reviewProof(p.id, 'approved')}>✓</Btn>
-                          <Btn size="sm" variant="danger" onClick={() => reviewProof(p.id, 'rejected')}>✗</Btn>
+                          <Btn size="sm" variant="success">✓</Btn>
+                          <Btn size="sm" variant="danger">✗</Btn>
                         </div>,
                       ])}
                   />
@@ -472,10 +413,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                           {src.greska && <p className="text-xs text-coral-700 font-semibold mt-1.5">⚠ {src.greska}</p>}
                         </div>
                         <div className="flex gap-2 shrink-0">
-                          {src.status === 'aktivno' && <Btn size="sm" variant="secondary" onClick={async () => {
-                            try { const result = await api<any>(`/admin/task-sources/${src.id}/sync`, { method: 'POST' }); await refresh(); showToast(`Uvoz: ${result.created} novih, ${result.skipped} preskočeno.`, 'success') }
-                            catch (error) { showToast(error instanceof Error ? error.message : 'Sinhronizacija nije uspela.', 'error') }
-                          }}>Sync</Btn>}
+                          {src.status === 'aktivno' && <Btn size="sm" variant="secondary">Sync</Btn>}
                           {src.status === 'greska' && <Btn size="sm" variant="danger">Dijagnostika</Btn>}
                           {src.status === 'obustavljeno' && <Btn size="sm" variant="ghost">Aktiviraj</Btn>}
                         </div>
@@ -484,7 +422,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                   ))}
                 </div>
                 <div className="mt-4">
-                  <Btn variant="secondary" size="sm" onClick={() => setSourceModal(true)}>+ Dodaj novi izvor</Btn>
+                  <Btn variant="secondary" size="sm">+ Dodaj novi izvor</Btn>
                 </div>
               </div>
             )}
@@ -662,7 +600,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                       </div>
                     </Card>
                   ))}
-                  <Btn variant="secondary" size="sm" onClick={() => setSourceModal(true)}>+ Dodaj izvor</Btn>
+                  <Btn variant="secondary" size="sm">+ Dodaj izvor</Btn>
                 </div>
               </div>
             )}

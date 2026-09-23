@@ -4,7 +4,7 @@ WORKDIR /frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile
 COPY frontend ./
-RUN pnpm build
+RUN FIGMA_PUBLIC_URL=/app-ui pnpm build
 
 FROM python:3.13-slim
 

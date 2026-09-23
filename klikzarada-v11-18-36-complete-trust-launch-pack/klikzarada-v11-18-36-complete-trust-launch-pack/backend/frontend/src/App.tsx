@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Landing from './pages/Landing'
 import Auth from './pages/Auth'
 import TasksPublic from './pages/TasksPublic'
@@ -16,19 +16,10 @@ type Route =
   | 'admin'
 
 export default function App() {
-  const [route, setRoute] = useState<Route>(() => routeFromPath(window.location.pathname))
-
-  useEffect(() => {
-    const onPopState = () => setRoute(routeFromPath(window.location.pathname))
-    window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
-  }, [])
+  const [route, setRoute] = useState<Route>('home')
 
   function go(id: string) {
-    const next = id as Route
-    const path = pathForRoute(next)
-    if (window.location.pathname !== path) window.history.pushState({}, '', path)
-    setRoute(next)
+    setRoute(id as Route)
     window.scrollTo(0, 0)
   }
 
@@ -43,24 +34,4 @@ export default function App() {
   if (route === 'admin')              return <AdminHub onNavigate={go} />
 
   return <Landing onNavigate={go} />
-}
-
-function routeFromPath(path: string): Route {
-  if (path === '/login') return 'login'
-  if (path === '/registracija') return 'register'
-  if (path === '/oglasivac/login') return 'advertiser-login'
-  if (path === '/oglasivac/registracija') return 'advertiser-register'
-  if (path === '/zadaci') return 'tasks-public'
-  if (path.startsWith('/korisnik')) return 'dashboard'
-  if (path.startsWith('/oglasivac')) return 'advertiser'
-  if (path.startsWith('/admin')) return 'admin'
-  return 'home'
-}
-
-function pathForRoute(route: Route) {
-  return {
-    home: '/', login: '/login', register: '/registracija',
-    'advertiser-login': '/oglasivac/login', 'advertiser-register': '/oglasivac/registracija',
-    'tasks-public': '/zadaci', dashboard: '/korisnik/panel', advertiser: '/oglasivac/panel', admin: '/admin/v11',
-  }[route]
 }
