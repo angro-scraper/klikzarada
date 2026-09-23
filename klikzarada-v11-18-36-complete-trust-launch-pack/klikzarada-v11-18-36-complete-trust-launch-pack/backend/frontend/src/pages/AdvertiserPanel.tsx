@@ -502,14 +502,14 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
             {page === 'profil' && (
               <div className="space-y-4">
-                <SectionHeader title="Profil firme" />
+                <SectionHeader title="Profil oglašivača" />
                 <Card className="p-5 space-y-4">
-                  <Input label="Naziv firme" placeholder="Acme d.o.o." />
-                  <Input label="PIB" placeholder="123456789" />
+                  <Input label={advertiser?.company_name ? 'Naziv firme' : 'Ime i prezime'} placeholder={advertiser?.company_name ? 'Acme d.o.o.' : 'Marko Marković'} />
+                  {advertiser?.company_name && <Input label="PIB" placeholder="123456789" />}
                   <Input label="Kontakt email" placeholder="kontakt@firma.rs" />
                   <Input label="Telefon" placeholder="+381 11 ..." />
                   <div className="flex gap-2">
-                    <Btn variant="success" onClick={() => showToast('Profil firme je sačuvan.', 'success')}>Sačuvaj izmene</Btn>
+                    <Btn variant="success" onClick={() => showToast('Profil oglašivača je sačuvan.', 'success')}>Sačuvaj izmene</Btn>
                     <Btn variant="secondary">Otkaži</Btn>
                   </div>
                 </Card>

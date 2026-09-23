@@ -70,6 +70,7 @@ class Credentials(BaseModel):
 class Registration(Credentials):
     full_name: str = Field(min_length=2, max_length=160)
     role: Literal["korisnik", "oglasivac"] = "korisnik"
+    advertiser_type: Literal["business", "private"] = "business"
     referral_code: str | None = Field(default=None, max_length=40)
 
 
@@ -303,7 +304,7 @@ def register(payload: Registration, request: Request, response: Response, db: Se
         status="active",
         referral_code=make_referral_code(payload.full_name),
         referred_by_id=referrer.id if referrer else None,
-        company_name=payload.full_name.strip() if payload.role == "oglasivac" else None,
+        company_name=payload.full_name.strip() if payload.role == "oglasivac" and payload.advertiser_type == "business" else None,
     )
     db.add(user)
     db.commit()

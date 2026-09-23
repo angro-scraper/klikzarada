@@ -15,6 +15,7 @@ export default function Auth({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [advertiserType, setAdvertiserType] = useState<'business' | 'private'>('business')
   const [referral, setReferral] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
@@ -33,6 +34,7 @@ export default function Auth({
             email,
             password,
             role: isAdvertiser ? 'oglasivac' : 'korisnik',
+            advertiser_type: isAdvertiser ? advertiserType : undefined,
             referral_code: referral || undefined,
           })
         : await api.login(email, password)
@@ -94,10 +96,20 @@ export default function Auth({
             {error && <Alert type="error">{error}</Alert>}
 
             <div className="flex flex-col gap-4">
+              {isRegister && isAdvertiser && (
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-semibold text-ink-2 uppercase tracking-wide">Tip oglašivača</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => setAdvertiserType('business')} className={`rounded-lg border px-3 py-2 text-sm font-semibold cursor-pointer transition-colors ${advertiserType === 'business' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-frame bg-white text-ink-2 hover:border-blue-200'}`}>Firma</button>
+                    <button onClick={() => setAdvertiserType('private')} className={`rounded-lg border px-3 py-2 text-sm font-semibold cursor-pointer transition-colors ${advertiserType === 'private' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-frame bg-white text-ink-2 hover:border-blue-200'}`}>Privatno lice</button>
+                  </div>
+                  <p className="text-xs text-ink-3">Privatno lice koristi svoje ime i prezime; firma koristi registrovani naziv.</p>
+                </div>
+              )}
               {isRegister && (
                 <Input
-                  label={isAdvertiser ? 'Naziv firme' : 'Ime i prezime'}
-                  placeholder={isAdvertiser ? 'Moja Firma d.o.o.' : 'Marko Marković'}
+                  label={isAdvertiser ? advertiserType === 'business' ? 'Naziv firme' : 'Ime i prezime' : 'Ime i prezime'}
+                  placeholder={isAdvertiser && advertiserType === 'business' ? 'Moja Firma d.o.o.' : 'Marko Marković'}
                   value={name}
                   onChange={setName}
                 />

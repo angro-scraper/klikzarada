@@ -587,7 +587,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                 <SectionHeader title="Oglašivači" />
                 <Card>
                   <Table
-                    headers={['Firma', 'Email', 'Kampanje', 'Potrošeno', 'Status']}
+                    headers={['Oglašivač', 'Email', 'Kampanje', 'Potrošeno', 'Status']}
                     rows={users.filter(user => user.role === 'oglasivac').map(advertiser => [
                       <span className="font-semibold text-ink">{advertiser.company_name || advertiser.full_name}</span>,
                       <span className="font-mono text-xs text-ink-2">{advertiser.email}</span>,
