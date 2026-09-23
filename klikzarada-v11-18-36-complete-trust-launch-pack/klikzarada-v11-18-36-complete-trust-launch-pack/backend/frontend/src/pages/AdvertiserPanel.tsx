@@ -159,8 +159,12 @@ function NovaCampanja({ onCancel, onSuccess, onCreate }: { onCancel: () => void;
   const [reward, setReward] = useState('')
   const [budget, setBudget] = useState('')
   const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('social')
+  const [taskUrl, setTaskUrl] = useState('')
+  const [category, setCategory] = useState('')
   const [proofRequired, setProofRequired] = useState('screenshot')
+  const [targetCity, setTargetCity] = useState('Srbija')
+  const [targetAgeGroup, setTargetAgeGroup] = useState('18+')
+  const [targetInterests, setTargetInterests] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
@@ -179,7 +183,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate }: { onCancel: () => void;
 
   return (
     <div>
-      <SectionHeader title="Nova kampanja" description="Definiši zadatak koji korisnici treba da izvrše." />
+      <SectionHeader title="Nova kampanja" description="Kreiraj merljiv, bezbedan zadatak koji može da se proveri dokazom." />
       <div className="flex items-center gap-2 mb-6 flex-wrap">
         {steps.map((s, i) => (
           <div key={s} className="flex items-center gap-2">
@@ -201,22 +205,24 @@ function NovaCampanja({ onCancel, onSuccess, onCreate }: { onCancel: () => void;
         {step === 1 && (
           <div className="space-y-4">
             <h3 className="font-bold text-ink">Definicija zadatka</h3>
-            <Input label="Naziv kampanje" placeholder="npr. Instagram kampanja — jan 2025" value={naziv} onChange={setNaziv} />
+            <Input label="Naziv kampanje" placeholder="npr. Test poručivanja na sajtu — oktobar" value={naziv} onChange={setNaziv} />
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Opis zadatka</label>
               <textarea value={description} onChange={event => setDescription(event.target.value)} rows={3} placeholder="Šta korisnik treba da uradi? Budi precizan." className="bg-white border border-frame text-ink placeholder-ink-4 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none" />
             </div>
             <Select label="Kategorija" options={[
               { value: '', label: 'Odaberi kategoriju' },
-              { value: 'social', label: 'Društvene mreže' },
-              { value: 'anketa', label: 'Ankete' },
-              { value: 'recenzija', label: 'Recenzije' },
-              { value: 'video', label: 'Video' },
-              { value: 'web', label: 'Web zadaci' },
+              { value: 'Ankete i testiranja', label: 'Ankete i testiranja' },
+              { value: 'Testiranje sajta ili aplikacije', label: 'Testiranje sajta ili aplikacije' },
+              { value: 'Provera podataka', label: 'Provera podataka' },
+              { value: 'Kratak feedback', label: 'Kratak feedback' },
+              { value: 'Lokalna provera', label: 'Lokalna provera' },
+              { value: 'Označavanje podataka', label: 'Označavanje podataka' },
             ]} value={category} onChange={setCategory} />
+            <Input label="Link za zadatak (opciono)" placeholder="https://vas-sajt.rs/test" value={taskUrl} onChange={setTaskUrl} />
             <div className="flex gap-2">
               <Btn variant="ghost" onClick={onCancel} size="sm">Otkaži</Btn>
-              <Btn onClick={() => setStep(2)} disabled={!naziv || !description} className="flex-1 justify-center">Dalje →</Btn>
+              <Btn onClick={() => setStep(2)} disabled={!naziv || !description || !category} className="flex-1 justify-center">Dalje →</Btn>
             </div>
           </div>
         )}
@@ -227,7 +233,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate }: { onCancel: () => void;
             <Input label="Ukupni budžet (RSD)" placeholder="npr. 5000" value={budget} onChange={setBudget} />
             <Select label="Trajanje" options={[{ value: '7', label: '7 dana' }, { value: '14', label: '14 dana' }, { value: '30', label: '30 dana' }]} />
             {reward && budget && (
-              <Alert type="info">Procenjeno: <strong className="font-mono">{Math.floor(Number(budget) / Number(reward))}</strong> izvršenih zadataka</Alert>
+              <Alert type="info">Procenjeno: <strong className="font-mono">{Math.floor(Number(budget) / (Number(reward) * 1.2))}</strong> izvršenih zadataka, uključujući postojeću platformsku naknadu.</Alert>
             )}
             <div className="flex gap-2">
               <Btn onClick={() => setStep(1)} variant="secondary">← Prethodni korak</Btn>
@@ -238,18 +244,21 @@ function NovaCampanja({ onCancel, onSuccess, onCreate }: { onCancel: () => void;
         {step === 3 && (
           <div className="space-y-4">
             <h3 className="font-bold text-ink">Ciljna publika i dokaz</h3>
-            <Select label="Ciljni nivo korisnika" options={[
-              { value: 'sve', label: 'Svi korisnici' },
-              { value: 'trusted', label: 'Trusted i više' },
-              { value: 'pro', label: 'Pro i više' },
-            ]} value={proofRequired} onChange={setProofRequired} />
+            <Input label="Država ili grad (opciono)" placeholder="npr. Srbija ili Novi Sad" value={targetCity} onChange={setTargetCity} />
+            <Select label="Starosna grupa" options={[
+              { value: '18+', label: '18+ godina' },
+              { value: '18-24', label: '18–24 godine' },
+              { value: '25-44', label: '25–44 godine' },
+              { value: '45+', label: '45+ godina' },
+            ]} value={targetAgeGroup} onChange={setTargetAgeGroup} />
+            <Input label="Interesovanja publike (opciono)" placeholder="npr. online kupovina, tehnologija" value={targetInterests} onChange={setTargetInterests} />
             <Select label="Potreban dokaz" options={[
               { value: '', label: 'Odaberi tip dokaza' },
               { value: 'screenshot', label: 'Screenshot' },
               { value: 'link', label: 'Screenshot + link' },
               { value: 'video', label: 'Video snimak' },
               { value: 'kod', label: 'Kod potvrde' },
-            ]} />
+            ]} value={proofRequired} onChange={setProofRequired} />
             <div className="flex gap-2">
               <Btn onClick={() => setStep(2)} variant="secondary">← Prethodni korak</Btn>
               <Btn onClick={() => setStep(4)} className="flex-1 justify-center">Pregled →</Btn>
@@ -259,10 +268,11 @@ function NovaCampanja({ onCancel, onSuccess, onCreate }: { onCancel: () => void;
         {step === 4 && (
           <div className="space-y-4">
             <h3 className="font-bold text-ink">Pregled kampanje</h3>
-            <div className="bg-mint-50 border border-frame rounded-xl p-4 space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-ink-2">Naziv</span><span className="font-semibold text-ink">{naziv}</span></div>
-              <div className="flex justify-between"><span className="text-ink-2">Nagrada</span><span className="font-mono font-bold text-emerald-600">{reward} RSD</span></div>
-              <div className="flex justify-between"><span className="text-ink-2">Budžet</span><span className="font-mono font-bold text-blue-600">{budget} RSD</span></div>
+              <div className="bg-mint-50 border border-frame rounded-xl p-4 space-y-2 text-sm">
+                <div className="flex justify-between"><span className="text-ink-2">Naziv</span><span className="font-semibold text-ink">{naziv}</span></div>
+                <div className="flex justify-between gap-4"><span className="text-ink-2">Kategorija</span><span className="font-semibold text-ink text-right">{category}</span></div>
+                <div className="flex justify-between"><span className="text-ink-2">Nagrada</span><span className="font-mono font-bold text-emerald-600">{reward} RSD</span></div>
+                <div className="flex justify-between"><span className="text-ink-2">Budžet</span><span className="font-mono font-bold text-blue-600">{budget} RSD</span></div>
             </div>
             {error && <Alert type="error">{error}</Alert>}
             <Alert type="warning">Kampanja ide na moderaciju pre aktivacije. Budžet se rezerviše tek kada zahtev prođe proveru dostupnih sredstava.</Alert>
@@ -278,7 +288,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate }: { onCancel: () => void;
                 setSubmitting(true)
                 setError('')
                 try {
-                  await onCreate({ title: naziv, category, task_type: category, description, instructions: description, proof_required: proofRequired, reward_rsd: rewardRsd, total_slots: totalSlots })
+                  await onCreate({ title: naziv, category, task_type: category, target_url: taskUrl || undefined, description, instructions: description, proof_required: proofRequired, reward_rsd: rewardRsd, total_slots: totalSlots, target_city: targetCity || undefined, target_age_group: targetAgeGroup, target_interests: targetInterests || undefined })
                   setSubmitted(true)
                 } catch (requestError) {
                   setError(requestError instanceof Error ? requestError.message : 'Kampanja nije poslata.')

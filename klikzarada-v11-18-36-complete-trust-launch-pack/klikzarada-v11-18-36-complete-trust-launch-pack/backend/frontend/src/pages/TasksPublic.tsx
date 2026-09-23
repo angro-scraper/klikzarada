@@ -37,6 +37,7 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
     if (level && t.level !== level) return false
     return true
   })
+  const categories = [...new Set(tasks.map(task => task.category).filter(Boolean))].sort()
 
   return (
     <div className="min-h-screen bg-mint-50 text-ink">
@@ -63,11 +64,7 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
           <Select
             options={[
               { value: '', label: 'Sve kategorije' },
-              { value: 'Društvene mreže', label: 'Društvene mreže' },
-              { value: 'Ankete', label: 'Ankete' },
-              { value: 'Recenzije', label: 'Recenzije' },
-              { value: 'Video', label: 'Video' },
-              { value: 'Web zadaci', label: 'Web zadaci' },
+              ...categories.map(category => ({ value: category, label: category })),
             ]}
             value={cat}
             onChange={setCat}

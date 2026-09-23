@@ -421,6 +421,17 @@ _BANNER_SLOT_DEFAULTS = (
     ("home_bottom_3", "Početna — donji banner 3", "home_bottom", "third", 2500),
 )
 
+# These are the only campaign categories offered at launch. They are designed
+# around verifiable work rather than incentivized clicks, reviews, or follows.
+_SAFE_CAMPAIGN_CATEGORIES = {
+    "Ankete i testiranja",
+    "Testiranje sajta ili aplikacije",
+    "Provera podataka",
+    "Kratak feedback",
+    "Lokalna provera",
+    "Označavanje podataka",
+}
+
 
 def _ensure_banner_slots(db: Session) -> None:
     existing_codes = {code for (code,) in db.query(HomeBannerSlotV111.code).all()}
@@ -1425,10 +1436,13 @@ async def paypal_webhook(request: Request, db: Session = Depends(get_db)) -> Res
 @router.post("/advertiser/campaigns", status_code=201)
 def create_campaign(payload: CampaignPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"oglasivac", "admin"})
+    category = payload.category.strip()
+    if category not in _SAFE_CAMPAIGN_CATEGORIES:
+        raise HTTPException(400, "Izaberi jednu od dozvoljenih kategorija zadatka.")
     total = _money(payload.reward_rsd * payload.total_slots * (1 + PLATFORM_FEE_PERCENT / 100))
     if user.advertiser_budget_rsd < total:
         raise HTTPException(400, f"Nedovoljno budžeta. Potrebno je {total:.0f} RSD.")
-    task = Task(advertiser_id=user.id, title=payload.title.strip(), category=payload.category.strip() or "Promo", task_type=payload.task_type.strip(), target_url=(payload.target_url or "").strip() or None, description=payload.description.strip(), instructions=payload.instructions.strip(), proof_required=payload.proof_required.strip(), reward_rsd=payload.reward_rsd, platform_fee_percent=PLATFORM_FEE_PERCENT, total_slots=payload.total_slots, target_city=payload.target_city, target_age_group=payload.target_age_group, target_interests=payload.target_interests, status="pending")
+    task = Task(advertiser_id=user.id, title=payload.title.strip(), category=category, task_type=payload.task_type.strip(), target_url=(payload.target_url or "").strip() or None, description=payload.description.strip(), instructions=payload.instructions.strip(), proof_required=payload.proof_required.strip(), reward_rsd=payload.reward_rsd, platform_fee_percent=PLATFORM_FEE_PERCENT, total_slots=payload.total_slots, target_city=payload.target_city, target_age_group=payload.target_age_group, target_interests=payload.target_interests, status="pending")
     user.advertiser_budget_rsd = _money(user.advertiser_budget_rsd - total)
     user.advertiser_reserved_rsd = _money(user.advertiser_reserved_rsd + total)
     db.add(task)
