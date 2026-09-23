@@ -129,6 +129,44 @@ export type AdminWithdrawal = Withdrawal & { user_name: string; payment_details:
 export type TaskSource = { id: number; name: string; endpoint_url: string; source_type: string; import_mode: string; status: string; has_api_key: boolean; last_sync_at: string | null; created_at: string | null }
 export type SupportTicket = { id: number; subject: string; category: string; priority: string; status: string; created_at: string | null; updated_at: string | null; user_name: string }
 export type AdminSetting = { key: string; value: string; has_value: boolean | null; description: string | null; sensitive: boolean }
+export type TaskVerification = {
+  token: string
+  status: 'started' | 'ready' | 'flagged' | 'submitted' | 'expired'
+  required_seconds: number
+  active_seconds: number
+  activity_events: number
+  risk_score: number
+  remaining_seconds: number
+}
+export type FraudSignal = {
+  id: number
+  user_id: number | null
+  user_name: string
+  user_email: string | null
+  signal_type: string
+  risk_score: number
+  status: string
+  details: Record<string, unknown>
+  created_at: string | null
+}
+export type FraudOverview = {
+  policy: { daily_task_limit: number; daily_earnings_rsd: number; minimum_activity_events: number; ip_reputation_enabled: boolean }
+  summary: { open_signals: number; high_risk_users: number; flagged_sessions: number; shared_devices: number }
+  signals: FraudSignal[]
+  sessions: Array<{ id: number; user_id: number; user_name: string; task_title: string; network: string | null; active_seconds: number; required_seconds: number; activity_events: number; focus_loss_count: number; risk_score: number; status: string; started_at: string | null }>
+  devices: Array<{ id: number; user_id: number; user_name: string; network: string | null; device: string; last_seen_at: string | null }>
+}
+
+export function deviceFingerprint(): string {
+  const key = 'klikzarada-device-id'
+  let stableId = localStorage.getItem(key)
+  if (!stableId) {
+    stableId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`
+    localStorage.setItem(key, stableId)
+  }
+  const traits = [navigator.userAgent, navigator.language, screen.width, screen.height, Intl.DateTimeFormat().resolvedOptions().timeZone]
+  return `${stableId}|${traits.join('|')}`.slice(0, 300)
+}
 
 type ApiErrorBody = { detail?: string }
 
@@ -150,14 +188,20 @@ export const api = {
   login: (email: string, password: string) => request<{ user: SessionUser }>('/auth/login', {
     method: 'POST', body: JSON.stringify({ email, password }),
   }),
-  register: (payload: { full_name: string; email: string; password: string; role: 'korisnik' | 'oglasivac'; advertiser_type?: 'business' | 'private'; referral_code?: string }) => request<{ user: SessionUser }>('/auth/register', {
+  register: (payload: { full_name: string; email: string; password: string; role: 'korisnik' | 'oglasivac'; advertiser_type?: 'business' | 'private'; referral_code?: string; phone?: string; device_fingerprint?: string }) => request<{ user: SessionUser }>('/auth/register', {
     method: 'POST', body: JSON.stringify(payload),
   }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   publicTasks: () => request<{ tasks: Task[] }>('/public/tasks'),
   userDashboard: () => request<UserDashboardData>('/user/dashboard'),
-  submitProof: (taskId: number, proof: string) => request<{ submission: Submission }>(`/user/tasks/${taskId}/proof`, {
-    method: 'POST', body: JSON.stringify({ proof }),
+  startTaskVerification: (taskId: number, payload: { device_fingerprint: string; device_label?: string }) => request<{ session: TaskVerification; resumed: boolean }>(`/user/tasks/${taskId}/verification/start`, {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
+  taskVerificationHeartbeat: (payload: { token: string; activity_events: number; visible: boolean; focus_lost: boolean }) => request<{ session: TaskVerification }>('/user/tasks/verification/heartbeat', {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
+  submitProof: (taskId: number, proof: string, verificationToken: string) => request<{ submission: Submission }>(`/user/tasks/${taskId}/proof`, {
+    method: 'POST', body: JSON.stringify({ proof, verification_token: verificationToken }),
   }),
   requestWithdrawal: (payload: { amount_rsd: number; payment_method: string; payment_details: string }) => request<{ withdrawal: Withdrawal }>('/user/withdrawals', {
     method: 'POST', body: JSON.stringify(payload),
@@ -210,4 +254,8 @@ export const api = {
     method: 'POST', body: JSON.stringify(payload),
   }),
   syncTaskSource: (id: number) => request<{ created: number; skipped: number; message: string }>(`/admin/task-sources/${id}/sync`, { method: 'POST' }),
+  adminFraudOverview: () => request<FraudOverview>('/admin/fraud/overview'),
+  reviewAdminFraudSignal: (id: number, status: 'reviewed' | 'dismissed', note?: string) => request<{ signal: { id: number; status: string } }>(`/admin/fraud/signals/${id}`, {
+    method: 'PATCH', body: JSON.stringify({ status, note }),
+  }),
 }

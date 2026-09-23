@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Btn, Input, Alert } from '../components/ui'
-import { api } from '../lib/api'
+import { api, deviceFingerprint } from '../lib/api'
 
 type Mode = 'login' | 'register' | 'advertiser-login' | 'advertiser-register' | 'admin-login'
 
@@ -15,6 +15,7 @@ export default function Auth({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
   const [advertiserType, setAdvertiserType] = useState<'business' | 'private'>('business')
   const [referral, setReferral] = useState('')
   const [submitted, setSubmitted] = useState(false)
@@ -37,6 +38,8 @@ export default function Auth({
             role: isAdvertiser ? 'oglasivac' : 'korisnik',
             advertiser_type: isAdvertiser ? advertiserType : undefined,
             referral_code: referral || undefined,
+            phone: isAdvertiser ? undefined : phone,
+            device_fingerprint: deviceFingerprint(),
           })
         : await api.login(email, password)
       if (result.user.role === 'admin') onNavigate('admin')
@@ -120,6 +123,9 @@ export default function Auth({
                 />
               )}
               <Input label="Email adresa" type="email" placeholder="email@primer.rs" value={email} onChange={setEmail} />
+              {isRegister && !isAdvertiser && (
+                <Input label="Telefon za proveru naloga" type="tel" placeholder="npr. +381 60 123 4567" value={phone} onChange={setPhone} />
+              )}
               <Input label="Lozinka" type="password" placeholder="••••••••" value={password} onChange={setPassword} />
               {isRegister && !isAdvertiser && (
                 <Input label="Referral kod (opciono)" placeholder="npr. USER123" value={referral} onChange={setReferral} />
@@ -127,7 +133,7 @@ export default function Auth({
 
               <Btn
                 onClick={handleSubmit}
-                disabled={submitted}
+                disabled={submitted || (isRegister && !isAdvertiser && phone.trim().length < 7)}
                 className="w-full justify-center"
               >
                 {submitted

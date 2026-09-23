@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -1732,6 +1732,58 @@ class TaskViewSessionV114(Base):
 
     user = relationship("User")
     task = relationship("Task")
+
+
+class AntiFraudDeviceV1(Base):
+    """Pseudonymous device and network link used only for fraud review.
+
+    Fingerprints and IP addresses are HMAC hashes. The dashboard receives a
+    masked network label, never a raw client IP address.
+    """
+    __tablename__ = "anti_fraud_devices_v1"
+    __table_args__ = (UniqueConstraint("user_id", "fingerprint_hash", name="uq_fraud_device_user_fingerprint"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    fingerprint_hash = Column(String(128), nullable=False, index=True)
+    network_hash = Column(String(128), nullable=True, index=True)
+    network_label = Column(String(80), nullable=True)
+    device_label = Column(String(180), nullable=True)
+    status = Column(String(40), default="active")
+    first_seen_at = Column(DateTime, default=datetime.utcnow)
+    last_seen_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+
+
+class TaskVerificationSessionV1(Base):
+    """Server-side audit trail for timed task execution before proof review."""
+    __tablename__ = "task_verification_sessions_v1"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String(80), unique=True, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False, index=True)
+    fingerprint_hash = Column(String(128), nullable=True, index=True)
+    network_hash = Column(String(128), nullable=True, index=True)
+    network_label = Column(String(80), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    required_seconds = Column(Integer, default=60)
+    active_seconds = Column(Integer, default=0)
+    activity_events = Column(Integer, default=0)
+    heartbeat_count = Column(Integer, default=0)
+    inactive_heartbeats = Column(Integer, default=0)
+    focus_loss_count = Column(Integer, default=0)
+    risk_score = Column(Float, default=0)
+    status = Column(String(40), default="started")  # started, ready, flagged, submitted, expired
+    submission_id = Column(Integer, ForeignKey("task_submissions.id"), nullable=True)
+    started_at = Column(DateTime, default=datetime.utcnow)
+    last_activity_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+    user = relationship("User")
+    task = relationship("Task")
+    submission = relationship("TaskSubmission")
 
 
 # ---------------------------------------------------

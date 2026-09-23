@@ -8,10 +8,12 @@ for the new UI, so business data still lives in the existing database.
 from __future__ import annotations
 
 import ipaddress
+import hashlib
+import hmac
 import json
 import os
 import socket
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Literal
 from urllib.parse import urlparse
@@ -27,7 +29,9 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import (
     AdvertiserBudgetTransaction,
+    AntiFraudDeviceV1,
     AuditLog,
+    FraudSignalV11,
     PayPalCheckout,
     SystemSetting,
     SupportMessage,
@@ -35,6 +39,7 @@ from .models import (
     Task,
     TaskSourceV11,
     TaskSubmission,
+    TaskVerificationSessionV1,
     User,
     WalletTransaction,
     Withdrawal,
@@ -46,6 +51,10 @@ router = APIRouter(prefix="/api/ui", tags=["KlikZarada UI"])
 
 PLATFORM_FEE_PERCENT = 20.0
 MIN_WITHDRAWAL_RSD = 1000.0
+ANTI_FRAUD_DAILY_TASK_LIMIT = 20
+ANTI_FRAUD_DAILY_EARNINGS_RSD = 2000.0
+ANTI_FRAUD_MIN_ACTIVITY_EVENTS = 8
+ANTI_FRAUD_HIGH_RISK_SCORE = 70.0
 
 REQUIRED_SYSTEM_SETTINGS = {
     "advertiser_payment_account": "Poslovni račun na koji oglašivači uplaćuju budžet.",
@@ -72,10 +81,25 @@ class Registration(Credentials):
     role: Literal["korisnik", "oglasivac"] = "korisnik"
     advertiser_type: Literal["business", "private"] = "business"
     referral_code: str | None = Field(default=None, max_length=40)
+    phone: str | None = Field(default=None, max_length=80)
+    device_fingerprint: str | None = Field(default=None, max_length=300)
 
 
 class ProofPayload(BaseModel):
     proof: str = Field(min_length=3, max_length=5000)
+    verification_token: str = Field(min_length=20, max_length=80)
+
+
+class VerificationStartPayload(BaseModel):
+    device_fingerprint: str = Field(min_length=12, max_length=300)
+    device_label: str | None = Field(default=None, max_length=180)
+
+
+class VerificationHeartbeatPayload(BaseModel):
+    token: str = Field(min_length=20, max_length=80)
+    activity_events: int = Field(default=0, ge=0, le=2000)
+    visible: bool = True
+    focus_lost: bool = False
 
 
 class WithdrawalPayload(BaseModel):
@@ -136,6 +160,146 @@ class SettingPayload(BaseModel):
 
 def _money(value: float | None) -> float:
     return round(float(value or 0), 2)
+
+
+def _limit_from_env(name: str, default: int | float) -> int | float:
+    """Keep operational limits configurable without trusting browser input."""
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    return int(value) if isinstance(default, int) else value
+
+
+def _fraud_pepper() -> bytes:
+    secret = os.getenv("KLIKZARADA_FRAUD_PEPPER") or os.getenv("KLIKZARADA_SECRET_KEY")
+    if secret:
+        return secret.encode("utf-8")
+    # Local development stays usable; production must set the application secret.
+    return b"klikzarada-local-development-fraud-pepper"
+
+
+def _hash_fraud_value(value: str | None) -> str | None:
+    normalized = (value or "").strip()
+    if not normalized:
+        return None
+    return hmac.new(_fraud_pepper(), normalized.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def _request_client_ip(request: Request) -> str | None:
+    """Return the connection IP, using the Render proxy header when present."""
+    forwarded = request.headers.get("x-forwarded-for", "").split(",")
+    candidates = [item.strip() for item in forwarded if item.strip()]
+    if request.client and request.client.host:
+        candidates.append(request.client.host)
+    for candidate in candidates:
+        try:
+            return str(ipaddress.ip_address(candidate))
+        except ValueError:
+            continue
+    return None
+
+
+def _request_ip_context(request: Request) -> tuple[str | None, str | None, str | None]:
+    """Return HMAC hashes plus a masked network for admin review.
+
+    Forwarded headers are used only as a risk signal and never as identity or
+    a reason to credit a task automatically.
+    """
+    client_ip = _request_client_ip(request)
+    if not client_ip:
+        return None, None, None
+    address = ipaddress.ip_address(client_ip)
+    if address.version == 4:
+        network = ipaddress.ip_network(f"{address}/24", strict=False)
+    else:
+        network = ipaddress.ip_network(f"{address}/56", strict=False)
+    return _hash_fraud_value(str(address)), _hash_fraud_value(str(network)), str(network)
+
+
+def _device_label(request: Request, submitted_label: str | None = None) -> str:
+    label = (submitted_label or "").strip()
+    if label:
+        return label[:180]
+    return (request.headers.get("user-agent") or "Nepoznat uređaj")[:180]
+
+
+def _record_fraud_device(
+    db: Session,
+    user: User,
+    request: Request,
+    fingerprint: str | None,
+    device_label: str | None = None,
+) -> tuple[str | None, str | None, str | None]:
+    _, network_hash, network_label = _request_ip_context(request)
+    fingerprint_hash = _hash_fraud_value(fingerprint)
+    now = datetime.utcnow()
+    if fingerprint_hash:
+        row = db.query(AntiFraudDeviceV1).filter(
+            AntiFraudDeviceV1.user_id == user.id,
+            AntiFraudDeviceV1.fingerprint_hash == fingerprint_hash,
+        ).first()
+        if row:
+            row.network_hash = network_hash
+            row.network_label = network_label
+            row.device_label = _device_label(request, device_label)
+            row.last_seen_at = now
+        else:
+            db.add(AntiFraudDeviceV1(
+                user_id=user.id,
+                fingerprint_hash=fingerprint_hash,
+                network_hash=network_hash,
+                network_label=network_label,
+                device_label=_device_label(request, device_label),
+            ))
+    return fingerprint_hash, network_hash, network_label
+
+
+def _add_fraud_signal(
+    db: Session,
+    user_id: int,
+    signal_type: str,
+    risk_score: float,
+    details: dict,
+) -> FraudSignalV11:
+    """De-duplicate open signals so one bad browser cannot flood the queue."""
+    recent = datetime.utcnow() - timedelta(hours=24)
+    existing = db.query(FraudSignalV11).filter(
+        FraudSignalV11.user_id == user_id,
+        FraudSignalV11.signal_type == signal_type,
+        FraudSignalV11.status == "open",
+        FraudSignalV11.created_at >= recent,
+    ).first()
+    encoded = json.dumps(details, ensure_ascii=False, separators=(",", ":"))
+    if existing:
+        existing.risk_score = max(float(existing.risk_score or 0), risk_score)
+        existing.details = encoded
+        return existing
+    signal = FraudSignalV11(user_id=user_id, signal_type=signal_type, risk_score=risk_score, details=encoded)
+    db.add(signal)
+    return signal
+
+
+def _open_risk_score(db: Session, user_id: int) -> float:
+    return float(db.query(func.coalesce(func.max(FraudSignalV11.risk_score), 0)).filter(
+        FraudSignalV11.user_id == user_id,
+        FraudSignalV11.status == "open",
+    ).scalar() or 0)
+
+
+def _verification_data(session: TaskVerificationSessionV1) -> dict:
+    return {
+        "token": session.token,
+        "status": _status(session.status),
+        "required_seconds": session.required_seconds,
+        "active_seconds": session.active_seconds,
+        "activity_events": session.activity_events,
+        "risk_score": _money(session.risk_score),
+        "remaining_seconds": max(0, int(session.required_seconds or 0) - int(session.active_seconds or 0)),
+    }
 
 
 def _iso(value: datetime | None) -> str | None:
@@ -292,6 +456,11 @@ def register(payload: Registration, request: Request, response: Response, db: Se
     email = payload.email.strip().lower()
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(409, "Email adresa je već registrovana.")
+    phone = "".join(character for character in (payload.phone or "") if character.isdigit() or character == "+")
+    if payload.role == "korisnik" and len(phone.replace("+", "")) < 7:
+        raise HTTPException(400, "Unesi broj telefona za proveru jedinstvenosti naloga.")
+    if phone and db.query(User).filter(User.phone == phone).first():
+        raise HTTPException(409, "Ovaj broj telefona je već povezan sa drugim nalogom.")
     referrer = None
     if payload.referral_code:
         referrer = db.query(User).filter(User.referral_code == payload.referral_code.strip().upper()).first()
@@ -303,11 +472,36 @@ def register(payload: Registration, request: Request, response: Response, db: Se
         password_hash=hash_password(payload.password),
         role=payload.role,
         status="active",
+        phone=phone or None,
         referral_code=make_referral_code(payload.full_name),
         referred_by_id=referrer.id if referrer else None,
         company_name=payload.full_name.strip() if payload.role == "oglasivac" and payload.advertiser_type == "business" else None,
     )
     db.add(user)
+    db.flush()
+    fingerprint_hash, network_hash, network_label = _record_fraud_device(db, user, request, payload.device_fingerprint)
+    if fingerprint_hash:
+        linked_users = db.query(AntiFraudDeviceV1.user_id).filter(
+            AntiFraudDeviceV1.fingerprint_hash == fingerprint_hash,
+            AntiFraudDeviceV1.user_id != user.id,
+        ).distinct().count()
+        if linked_users:
+            _add_fraud_signal(db, user.id, "shared_device_registration", 65, {
+                "reason": "Uređaj je već korišćen za drugi nalog.",
+                "network": network_label,
+                "linked_accounts": linked_users,
+            })
+    if network_hash:
+        network_users = db.query(AntiFraudDeviceV1.user_id).filter(
+            AntiFraudDeviceV1.network_hash == network_hash,
+            AntiFraudDeviceV1.user_id != user.id,
+        ).distinct().count()
+        if network_users >= 3:
+            _add_fraud_signal(db, user.id, "shared_network_registration", 35, {
+                "reason": "Veći broj naloga deli istu mrežu; potrebna je provera.",
+                "network": network_label,
+                "linked_accounts": network_users,
+            })
     db.commit()
     db.refresh(user)
     response.set_cookie("kz_session", create_session_token(user.id), httponly=True, samesite="lax", secure=_cookie_is_secure(request))
@@ -348,8 +542,11 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
 @router.put("/user/profile")
 def save_user_profile(payload: ProfilePayload, request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"korisnik", "admin"})
+    phone = "".join(character for character in (payload.phone or "") if character.isdigit() or character == "+")
+    if phone and db.query(User).filter(User.phone == phone, User.id != user.id).first():
+        raise HTTPException(409, "Taj broj telefona je već povezan sa drugim nalogom.")
     user.full_name = payload.full_name.strip()
-    user.phone = (payload.phone or "").strip() or None
+    user.phone = phone or None
     user.city = (payload.city or "").strip() or None
     user.payment_method = (payload.payment_method or "").strip() or None
     user.payment_details = (payload.payment_details or "").strip() or None
@@ -376,6 +573,197 @@ def create_support_ticket(payload: SupportTicketPayload, request: Request, db: S
     return {"ticket": _ticket_data(ticket)}
 
 
+def _proxy_risk(request: Request) -> tuple[float, str | None]:
+    """Use trustworthy local hints and an optional IPQualityScore check.
+
+    A reputation provider is intentionally optional: lack of its API key never
+    denies a legitimate task, while a positive VPN/proxy result raises risk for
+    review. The browser cannot turn this check off.
+    """
+    risk = 0.0
+    note = None
+    if request.headers.get("via") or request.headers.get("forwarded"):
+        risk += 15.0
+        note = "Proxy-forwarding header je prisutan."
+    api_key = os.getenv("IPQUALITYSCORE_API_KEY", "").strip()
+    client_ip = _request_client_ip(request)
+    _, _, network_label = _request_ip_context(request)
+    if not api_key or not client_ip:
+        return risk, note
+    try:
+        response = httpx.get(
+            f"https://ipqualityscore.com/api/json/ip/{api_key}/{client_ip}",
+            params={"strictness": 1, "allow_public_access_points": "true"},
+            timeout=3,
+        )
+        result = response.json() if response.is_success else {}
+        if result.get("vpn") or result.get("proxy") or result.get("tor"):
+            risk += 45.0
+            note = f"Reputation provera je označila VPN/proxy mrežu ({network_label or 'mreža'})."
+        elif float(result.get("fraud_score") or 0) >= 75:
+            risk += 30.0
+            note = f"Reputation provera je vratila visok rizik mreže ({network_label or 'mreža'})."
+    except (httpx.HTTPError, ValueError, TypeError):
+        # A third-party outage must not break the task flow.
+        pass
+    return risk, note
+
+
+def _task_required_seconds(task: Task) -> int:
+    configured_min = int(_limit_from_env("ANTI_FRAUD_MIN_TASK_SECONDS", 30))
+    configured_max = int(_limit_from_env("ANTI_FRAUD_MAX_TASK_SECONDS", 600))
+    estimated = max(1, int(task.estimated_minutes or 1)) * 60
+    return min(max(estimated, configured_min), max(configured_min, configured_max))
+
+
+def _verify_daily_limits(db: Session, user: User, task: Task) -> None:
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    task_limit = int(_limit_from_env("ANTI_FRAUD_DAILY_TASK_LIMIT", ANTI_FRAUD_DAILY_TASK_LIMIT))
+    earnings_limit = float(_limit_from_env("ANTI_FRAUD_DAILY_EARNINGS_RSD", ANTI_FRAUD_DAILY_EARNINGS_RSD))
+    completed_today = db.query(TaskSubmission).filter(
+        TaskSubmission.user_id == user.id,
+        TaskSubmission.created_at >= today,
+    ).count()
+    daily_reward = float(db.query(func.coalesce(func.sum(TaskSubmission.reward_rsd), 0)).filter(
+        TaskSubmission.user_id == user.id,
+        TaskSubmission.created_at >= today,
+    ).scalar() or 0)
+    if completed_today >= task_limit:
+        raise HTTPException(429, "Dnevni limit zadataka je dostignut. Pokušaj ponovo sutra.")
+    if daily_reward + float(task.reward_rsd or 0) > earnings_limit:
+        raise HTTPException(429, "Dnevni limit zarade je dostignut. Pokušaj ponovo sutra.")
+
+
+@router.post("/user/tasks/{task_id}/verification/start", status_code=201)
+def start_task_verification(task_id: int, payload: VerificationStartPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db, {"korisnik", "admin"})
+    task = db.query(Task).filter(Task.id == task_id, Task.status == "active", Task.used_slots < Task.total_slots).first()
+    if not task:
+        raise HTTPException(404, "Zadatak nije dostupan.")
+    _verify_daily_limits(db, user, task)
+    existing_submission = db.query(TaskSubmission).filter(
+        TaskSubmission.user_id == user.id,
+        TaskSubmission.task_id == task.id,
+        TaskSubmission.status.in_(["pending", "approved"]),
+    ).first()
+    if existing_submission:
+        raise HTTPException(409, "Za ovaj zadatak je već poslat dokaz.")
+
+    now = datetime.utcnow()
+    active_session = db.query(TaskVerificationSessionV1).filter(
+        TaskVerificationSessionV1.user_id == user.id,
+        TaskVerificationSessionV1.task_id == task.id,
+        TaskVerificationSessionV1.status.in_(["started", "ready", "flagged"]),
+        TaskVerificationSessionV1.started_at >= now - timedelta(hours=2),
+    ).order_by(TaskVerificationSessionV1.started_at.desc()).first()
+    if active_session:
+        return {"session": _verification_data(active_session), "resumed": True}
+
+    fingerprint_hash, network_hash, network_label = _record_fraud_device(
+        db, user, request, payload.device_fingerprint, payload.device_label,
+    )
+    risk_score = _open_risk_score(db, user.id)
+    if fingerprint_hash:
+        linked_users = db.query(AntiFraudDeviceV1.user_id).filter(
+            AntiFraudDeviceV1.fingerprint_hash == fingerprint_hash,
+            AntiFraudDeviceV1.user_id != user.id,
+        ).distinct().count()
+        if linked_users:
+            risk_score += 45.0
+            _add_fraud_signal(db, user.id, "shared_device", 65, {
+                "reason": "Isti uređaj je povezan sa više naloga.",
+                "network": network_label,
+                "linked_accounts": linked_users,
+            })
+    if network_hash:
+        linked_network_users = db.query(AntiFraudDeviceV1.user_id).filter(
+            AntiFraudDeviceV1.network_hash == network_hash,
+            AntiFraudDeviceV1.user_id != user.id,
+        ).distinct().count()
+        if linked_network_users >= 3:
+            risk_score += 25.0
+            _add_fraud_signal(db, user.id, "shared_network", 35, {
+                "reason": "Više naloga koristi istu mrežu; potreban je ručni pregled.",
+                "network": network_label,
+                "linked_accounts": linked_network_users,
+            })
+    proxy_score, proxy_note = _proxy_risk(request)
+    if proxy_score:
+        risk_score += proxy_score
+        _add_fraud_signal(db, user.id, "vpn_proxy_risk", min(90.0, proxy_score + 30.0), {
+            "reason": proxy_note or "Sumnjiv mrežni signal.",
+            "network": network_label,
+        })
+
+    session = TaskVerificationSessionV1(
+        token=uuid4().hex,
+        user_id=user.id,
+        task_id=task.id,
+        fingerprint_hash=fingerprint_hash,
+        network_hash=network_hash,
+        network_label=network_label,
+        user_agent=(request.headers.get("user-agent") or "")[:2000],
+        required_seconds=_task_required_seconds(task),
+        risk_score=min(100.0, risk_score),
+        status="flagged" if risk_score >= ANTI_FRAUD_HIGH_RISK_SCORE else "started",
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return {"session": _verification_data(session), "resumed": False}
+
+
+@router.post("/user/tasks/verification/heartbeat")
+def task_verification_heartbeat(payload: VerificationHeartbeatPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db, {"korisnik", "admin"})
+    session = db.query(TaskVerificationSessionV1).filter(
+        TaskVerificationSessionV1.token == payload.token,
+        TaskVerificationSessionV1.user_id == user.id,
+    ).first()
+    if not session:
+        raise HTTPException(404, "Sesija provere nije pronađena.")
+    now = datetime.utcnow()
+    if session.status == "submitted":
+        raise HTTPException(409, "Sesija je već iskorišćena.")
+    if session.started_at < now - timedelta(hours=2):
+        session.status = "expired"
+        db.commit()
+        raise HTTPException(409, "Vreme za proveru je isteklo. Pokreni zadatak ponovo.")
+
+    elapsed = max(0, int((now - (session.last_activity_at or session.started_at)).total_seconds()))
+    # A single heartbeat may never add more than 15 seconds, so changing the
+    # browser clock or sending one late request cannot skip the timer.
+    if payload.visible and payload.activity_events > 0:
+        session.active_seconds = min(session.required_seconds, session.active_seconds + min(elapsed, 15))
+        session.activity_events = min(100_000, session.activity_events + payload.activity_events)
+    else:
+        session.inactive_heartbeats += 1
+    if payload.focus_lost or not payload.visible:
+        session.focus_loss_count += 1
+    session.heartbeat_count += 1
+    session.last_activity_at = now
+
+    minimum_events = int(_limit_from_env("ANTI_FRAUD_MIN_ACTIVITY_EVENTS", ANTI_FRAUD_MIN_ACTIVITY_EVENTS))
+    if session.inactive_heartbeats >= 8:
+        session.risk_score = min(100.0, float(session.risk_score or 0) + 20.0)
+        _add_fraud_signal(db, user.id, "inactive_task_session", 50, {
+            "reason": "Timer je tekao bez dovoljno vidljive aktivnosti.",
+            "session": session.token[:8],
+        })
+    if session.focus_loss_count >= 6:
+        session.risk_score = min(100.0, float(session.risk_score or 0) + 20.0)
+        _add_fraud_signal(db, user.id, "repeated_focus_loss", 45, {
+            "reason": "Zadatak je više puta gubio fokus taba.",
+            "session": session.token[:8],
+        })
+    if session.active_seconds >= session.required_seconds and session.activity_events >= minimum_events:
+        session.status = "flagged" if session.risk_score >= ANTI_FRAUD_HIGH_RISK_SCORE else "ready"
+        session.completed_at = now
+    db.commit()
+    db.refresh(session)
+    return {"session": _verification_data(session)}
+
+
 @router.post("/user/tasks/{task_id}/proof", status_code=201)
 def submit_proof(task_id: int, payload: ProofPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"korisnik", "admin"})
@@ -385,11 +773,30 @@ def submit_proof(task_id: int, payload: ProofPayload, request: Request, db: Sess
     existing = db.query(TaskSubmission).filter(TaskSubmission.user_id == user.id, TaskSubmission.task_id == task.id, TaskSubmission.status.in_(["pending", "approved"])).first()
     if existing:
         raise HTTPException(409, "Za ovaj zadatak je već poslat dokaz.")
+    verification = db.query(TaskVerificationSessionV1).filter(
+        TaskVerificationSessionV1.token == payload.verification_token,
+        TaskVerificationSessionV1.user_id == user.id,
+        TaskVerificationSessionV1.task_id == task.id,
+        TaskVerificationSessionV1.status.in_(["ready", "flagged"]),
+    ).first()
+    minimum_events = int(_limit_from_env("ANTI_FRAUD_MIN_ACTIVITY_EVENTS", ANTI_FRAUD_MIN_ACTIVITY_EVENTS))
+    if not verification or verification.active_seconds < verification.required_seconds or verification.activity_events < minimum_events:
+        raise HTTPException(409, "Pre slanja dokaza završi proveru vremena i aktivnosti zadatka.")
     fee = _money(task.reward_rsd * (task.platform_fee_percent or PLATFORM_FEE_PERCENT) / 100)
     submission = TaskSubmission(user_id=user.id, task_id=task.id, proof=payload.proof.strip(), reward_rsd=task.reward_rsd, platform_fee_rsd=fee, advertiser_cost_rsd=_money(task.reward_rsd + fee), status="pending")
     task.used_slots += 1
     user.pending_rsd = _money(user.pending_rsd + task.reward_rsd)
     db.add(submission)
+    db.flush()
+    verification.status = "submitted"
+    verification.submission_id = submission.id
+    verification.completed_at = datetime.utcnow()
+    if verification.risk_score >= ANTI_FRAUD_HIGH_RISK_SCORE:
+        _add_fraud_signal(db, user.id, "high_risk_submission", verification.risk_score, {
+            "reason": "Dokaz je poslat, ali zahteva obaveznu ručnu fraud proveru.",
+            "submission_id": submission.id,
+            "network": verification.network_label,
+        })
     db.commit()
     db.refresh(submission)
     return {"submission": _submission_data(submission)}
@@ -398,6 +805,8 @@ def submit_proof(task_id: int, payload: ProofPayload, request: Request, db: Sess
 @router.post("/user/withdrawals", status_code=201)
 def request_withdrawal(payload: WithdrawalPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"korisnik", "admin"})
+    if _open_risk_score(db, user.id) >= ANTI_FRAUD_HIGH_RISK_SCORE:
+        raise HTTPException(403, "Isplata je privremeno na fraud proveri. Administrator će pregledati nalog.")
     if payload.amount_rsd < MIN_WITHDRAWAL_RSD:
         raise HTTPException(400, f"Minimalna isplata je {MIN_WITHDRAWAL_RSD:.0f} RSD.")
     if payload.amount_rsd > user.balance_rsd:
@@ -904,6 +1313,8 @@ def update_withdrawal(withdrawal_id: int, payload: AdminStatusPayload, request: 
         raise HTTPException(400, "Status isplate mora biti paid ili rejected.")
     if item.status != "pending":
         raise HTTPException(409, "Ova isplata je već obrađena.")
+    if payload.status == "paid" and _open_risk_score(db, item.user_id) >= ANTI_FRAUD_HIGH_RISK_SCORE:
+        raise HTTPException(409, "Isplata ima otvoren visokorizični fraud signal. Prvo pregledaj signal ili odbij isplatu.")
     item.status = payload.status
     item.admin_note = payload.note
     item.processed_at = datetime.utcnow()
@@ -913,6 +1324,92 @@ def update_withdrawal(withdrawal_id: int, payload: AdminStatusPayload, request: 
     _audit(db, admin, "withdrawal_review", "Withdrawal", item.id, payload.status)
     db.commit()
     return {"withdrawal": {"id": item.id, "status": _status(item.status)}}
+
+
+def _fraud_details(value: str | None) -> dict:
+    if not value:
+        return {}
+    try:
+        parsed = json.loads(value)
+        return parsed if isinstance(parsed, dict) else {"note": value}
+    except json.JSONDecodeError:
+        return {"note": value}
+
+
+@router.get("/admin/fraud/overview")
+def admin_fraud_overview(request: Request, db: Session = Depends(get_db)) -> dict:
+    _require_user(request, db, {"admin"})
+    signals = db.query(FraudSignalV11).order_by(
+        FraudSignalV11.status.asc(), FraudSignalV11.risk_score.desc(), FraudSignalV11.created_at.desc(),
+    ).limit(300).all()
+    sessions = db.query(TaskVerificationSessionV1).order_by(TaskVerificationSessionV1.started_at.desc()).limit(200).all()
+    devices = db.query(AntiFraudDeviceV1).order_by(AntiFraudDeviceV1.last_seen_at.desc()).limit(300).all()
+    high_risk_users = {item.user_id for item in signals if item.status == "open" and float(item.risk_score or 0) >= ANTI_FRAUD_HIGH_RISK_SCORE and item.user_id}
+    return {
+        "policy": {
+            "daily_task_limit": int(_limit_from_env("ANTI_FRAUD_DAILY_TASK_LIMIT", ANTI_FRAUD_DAILY_TASK_LIMIT)),
+            "daily_earnings_rsd": float(_limit_from_env("ANTI_FRAUD_DAILY_EARNINGS_RSD", ANTI_FRAUD_DAILY_EARNINGS_RSD)),
+            "minimum_activity_events": int(_limit_from_env("ANTI_FRAUD_MIN_ACTIVITY_EVENTS", ANTI_FRAUD_MIN_ACTIVITY_EVENTS)),
+            "ip_reputation_enabled": bool(os.getenv("IPQUALITYSCORE_API_KEY", "").strip()),
+        },
+        "summary": {
+            "open_signals": sum(1 for item in signals if item.status == "open"),
+            "high_risk_users": len(high_risk_users),
+            "flagged_sessions": sum(1 for item in sessions if item.status == "flagged"),
+            "shared_devices": sum(1 for item in devices if db.query(AntiFraudDeviceV1.user_id).filter(AntiFraudDeviceV1.fingerprint_hash == item.fingerprint_hash).distinct().count() > 1),
+        },
+        "signals": [{
+            "id": item.id,
+            "user_id": item.user_id,
+            "user_name": item.user.full_name if item.user else "Obrisan korisnik",
+            "user_email": item.user.email if item.user else None,
+            "signal_type": item.signal_type,
+            "risk_score": _money(item.risk_score),
+            "status": _status(item.status),
+            "details": _fraud_details(item.details),
+            "created_at": _iso(item.created_at),
+        } for item in signals],
+        "sessions": [{
+            "id": item.id,
+            "user_id": item.user_id,
+            "user_name": item.user.full_name if item.user else "Korisnik",
+            "task_title": item.task.title if item.task else "Zadatak",
+            "network": item.network_label,
+            "active_seconds": item.active_seconds,
+            "required_seconds": item.required_seconds,
+            "activity_events": item.activity_events,
+            "focus_loss_count": item.focus_loss_count,
+            "risk_score": _money(item.risk_score),
+            "status": _status(item.status),
+            "started_at": _iso(item.started_at),
+        } for item in sessions],
+        "devices": [{
+            "id": item.id,
+            "user_id": item.user_id,
+            "user_name": item.user.full_name if item.user else "Korisnik",
+            "network": item.network_label,
+            "device": item.device_label or "Nepoznat uređaj",
+            "last_seen_at": _iso(item.last_seen_at),
+        } for item in devices],
+    }
+
+
+@router.patch("/admin/fraud/signals/{signal_id}")
+def review_fraud_signal(signal_id: int, payload: AdminStatusPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    admin = _require_user(request, db, {"admin"})
+    signal = db.query(FraudSignalV11).filter(FraudSignalV11.id == signal_id).first()
+    if not signal:
+        raise HTTPException(404, "Fraud signal nije pronađen.")
+    if payload.status not in {"reviewed", "dismissed"}:
+        raise HTTPException(400, "Signal može biti označen kao reviewed ili dismissed.")
+    signal.status = payload.status
+    if payload.note:
+        details = _fraud_details(signal.details)
+        details["admin_note"] = payload.note.strip()
+        signal.details = json.dumps(details, ensure_ascii=False, separators=(",", ":"))
+    _audit(db, admin, "fraud_signal_review", "FraudSignalV11", signal.id, payload.status)
+    db.commit()
+    return {"signal": {"id": signal.id, "status": _status(signal.status)}}
 
 
 @router.get("/admin/task-sources")

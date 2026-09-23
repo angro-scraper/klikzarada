@@ -21,6 +21,20 @@ services:
         sync: false
       - key: KLIKZARADA_SEED_DEMO
         value: false
+      - key: KLIKZARADA_FRAUD_PEPPER
+        sync: false
+      - key: ANTI_FRAUD_DAILY_TASK_LIMIT
+        value: 20
+      - key: ANTI_FRAUD_DAILY_EARNINGS_RSD
+        value: 2000
+      - key: ANTI_FRAUD_MIN_TASK_SECONDS
+        value: 30
+      - key: ANTI_FRAUD_MAX_TASK_SECONDS
+        value: 600
+      - key: ANTI_FRAUD_MIN_ACTIVITY_EVENTS
+        value: 8
+      - key: IPQUALITYSCORE_API_KEY
+        sync: false
       # PayPal credentials stay only in Render. Do not put their values in Git.
       - key: PAYPAL_MODE
         value: live

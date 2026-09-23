@@ -168,6 +168,12 @@ Pored PayPal naloga, oglašivač može platiti kreditnom ili debitnom karticom k
 ### Produkcijska baza i admin
 
 Render web servis ne sme koristiti lokalni SQLite fajl u produkciji, jer se njegov sadržaj gubi pri redeploy-u ili restartu. Kreiraj Render PostgreSQL bazu i postavi njen **Internal Database URL** kao `DATABASE_URL` na web servisu. Zatim postavi `ADMIN_BOOTSTRAP_NAME`, `ADMIN_BOOTSTRAP_EMAIL` i jaku `ADMIN_BOOTSTRAP_PASSWORD` u Renderu pre sledećeg deploy-a. Admin se prijavljuje preko `/admin/prijava`; demo nalozi se ne kreiraju u produkciji.
+
+### Anti-fraud tok
+
+Svaki korisnički zadatak prolazi kroz server-side proveru pre slanja dokaza: proveravaju se ograničeno vreme na zadatku, vidljivost taba, aktivnost i pseudonimizovani signal uređaja/mreže. Nagrada se prvo vodi kao `pending`; tek ručno odobren dokaz prelazi u raspoloživi saldo. Otvoren signal sa rizikom 70+ blokira zahtev za isplatu i označavanje isplate kao plaćene dok administrator ne pregleda signal na React admin stranici **Operacije -> Anti-fraud**.
+
+U Renderu podesi `KLIKZARADA_FRAUD_PEPPER` kao jedinstvenu slučajnu vrednost. Ona HMAC-štiti identifikatore uređaja i IP signale pre upisa u bazu. `IPQUALITYSCORE_API_KEY` je opcioni ključ za dodatnu VPN/proxy reputaciju; bez njega rade lokalne provere uređaja, mreže, tajmera i aktivnosti. Ograničenja možeš podesiti bez redeploy-a kroz `ANTI_FRAUD_DAILY_TASK_LIMIT`, `ANTI_FRAUD_DAILY_EARNINGS_RSD`, `ANTI_FRAUD_MIN_TASK_SECONDS`, `ANTI_FRAUD_MAX_TASK_SECONDS` i `ANTI_FRAUD_MIN_ACTIVITY_EVENTS`.
 - prebaciti bazu na PostgreSQL
 - podesiti HTTPS i domen
 - povezati pravi email provider

@@ -4,7 +4,7 @@ import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tab
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminWithdrawal, type AdminSetting, type SupportTicket, type TaskSource } from '../lib/api'
+import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminWithdrawal, type AdminSetting, type FraudOverview, type SupportTicket, type TaskSource } from '../lib/api'
 
 const navGroups = [
   { group: 'Dashboard', items: [{ id: 'dashboard', label: 'Pregled', icon: '📊' }] },
@@ -131,6 +131,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [sources, setSources] = useState<TaskSource[]>([])
   const [tickets, setTickets] = useState<SupportTicket[]>([])
   const [settings, setSettings] = useState<AdminSetting[]>([])
+  const [fraudOverview, setFraudOverview] = useState<FraudOverview | null>(null)
   const [settingDrafts, setSettingDrafts] = useState<Record<string, string>>({})
   const [dataError, setDataError] = useState('')
   const [savingAction, setSavingAction] = useState(false)
@@ -142,8 +143,8 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
   const refreshAdmin = async () => {
     try {
-      const [dashboard, userData, campaignData, submissionData, withdrawalData, sourceData, ticketData, settingData] = await Promise.all([
-        api.adminDashboard(), api.adminUsers(), api.adminCampaigns(), api.adminSubmissions(), api.adminWithdrawals(), api.adminTaskSources(), api.adminTickets(), api.adminSettings(),
+      const [dashboard, userData, campaignData, submissionData, withdrawalData, sourceData, ticketData, settingData, fraudData] = await Promise.all([
+        api.adminDashboard(), api.adminUsers(), api.adminCampaigns(), api.adminSubmissions(), api.adminWithdrawals(), api.adminTaskSources(), api.adminTickets(), api.adminSettings(), api.adminFraudOverview(),
       ])
       setMetrics(dashboard.metrics)
       setUsers(userData.users)
@@ -153,6 +154,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
       setSources(sourceData.sources)
       setTickets(ticketData.tickets)
       setSettings(settingData.settings)
+      setFraudOverview(fraudData)
       setSettingDrafts(Object.fromEntries(settingData.settings.map(setting => [setting.key, setting.value])))
       setDataError('')
     } catch (error) {
@@ -635,29 +637,87 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
             )}
 
             {page === 'ops-antifraud' && (
-              <div>
-                <SectionHeader title="Anti-fraud sistem" description="Automatski signali za sumnjive aktivnosti." />
-                <Alert type="warning"><strong>2 dokaza</strong> su automatski flagovana i čekaju manuelni pregled.</Alert>
-                <div className="mt-4">
+              <div className="space-y-4">
+                <SectionHeader
+                  title="Anti-fraud kontrola"
+                  description="Server proverava uređaj, mrežu, vreme na zadatku i aktivnost pre nego što nagrada ode na čekanje."
+                  action={<Btn size="sm" variant="secondary" onClick={() => void refreshAdmin()}>Osveži podatke</Btn>}
+                />
+                {fraudOverview ? <>
+                  {fraudOverview.summary.open_signals > 0 ? (
+                    <Alert type="warning"><strong>{fraudOverview.summary.open_signals} otvorenih signala</strong> čeka pregled. Isplate korisnika sa visokim rizikom ostaju blokirane dok signal ne pregledaš.</Alert>
+                  ) : (
+                    <Alert type="success">Nema otvorenih fraud signala. Sistem i dalje beleži proveru vremena, fokusa i uređaja.</Alert>
+                  )}
+
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <StatCard label="Otvoreni signali" value={String(fraudOverview.summary.open_signals)} icon="⚠️" accent={fraudOverview.summary.open_signals ? 'orange' : 'green'} />
+                    <StatCard label="Visok rizik" value={String(fraudOverview.summary.high_risk_users)} icon="🛑" accent={fraudOverview.summary.high_risk_users ? 'red' : 'green'} />
+                    <StatCard label="Flagovane sesije" value={String(fraudOverview.summary.flagged_sessions)} icon="🕒" accent="purple" />
+                    <StatCard label="Deljeni uređaji" value={String(fraudOverview.summary.shared_devices)} icon="📱" accent="blue" />
+                  </div>
+
                   <Card>
-                    <Table
-                      headers={['Korisnik', 'Signal', 'Ozbiljnost', 'Datum', 'Akcija']}
-                      rows={[
-                        { k: 'petar_k', s: 'Sumnjiv obrazac aktivnosti', o: 'Srednje ⚠', d: '23.12.2024', oc: 'text-amber-700' },
-                        { k: 'ana_s', s: 'Duplikat dokaza', o: 'Visoko 🔴', d: '22.12.2024', oc: 'text-coral-700' },
-                      ].map(r => [
-                        <span className="font-mono text-xs">{r.k}</span>,
-                        <span className="text-sm">{r.s}</span>,
-                        <span className={`text-xs font-bold ${r.oc}`}>{r.o}</span>,
-                        <span className="font-mono text-xs">{r.d}</span>,
-                        <Btn size="sm" variant="danger"
-                          onClick={() => setBlockUser({ id: r.k === 'ana_s' ? 4 : 99, ime: r.k, action: 'block' })}>
-                          Blokiraj
-                        </Btn>,
-                      ])}
-                    />
+                    <div className="p-4 border-b border-frame">
+                      <h3 className="font-bold text-ink">Signali za ručni pregled</h3>
+                      <p className="text-xs text-ink-3 mt-0.5">Mreže su prikazane u maskiranom obliku; ne čuvamo sirove identifikatore uređaja u admin prikazu.</p>
+                    </div>
+                    {fraudOverview.signals.filter(signal => signal.status === 'open').length === 0 ? (
+                      <EmptyState icon="✅" title="Red za pregled je prazan" description="Novi rizični nalozi i sesije pojaviće se ovde." />
+                    ) : (
+                      <Table
+                        headers={['Korisnik', 'Signal', 'Rizik', 'Mreža / detalj', 'Vreme', 'Akcije']}
+                        rows={fraudOverview.signals.filter(signal => signal.status === 'open').map(signal => {
+                          const reason = typeof signal.details.reason === 'string' ? signal.details.reason : signal.signal_type
+                          const network = typeof signal.details.network === 'string' ? signal.details.network : 'Nije dostupno'
+                          const highRisk = signal.risk_score >= 70
+                          return [
+                            <div><p className="font-semibold text-ink">{signal.user_name}</p><p className="text-xs text-ink-3">{signal.user_email ?? 'Bez emaila'}</p></div>,
+                            <span className="text-sm text-ink-2">{reason}</span>,
+                            <span className={`font-mono text-xs font-bold ${highRisk ? 'text-coral-700' : 'text-amber-700'}`}>{signal.risk_score}/100</span>,
+                            <div><p className="text-xs text-ink-2">{network}</p><p className="text-xs text-ink-3 truncate max-w-48">{signal.signal_type}</p></div>,
+                            <span className="text-xs text-ink-3">{signal.created_at ? new Date(signal.created_at).toLocaleString('sr-RS') : '—'}</span>,
+                            <div className="flex gap-2">
+                              <Btn size="sm" variant="secondary" disabled={savingAction} onClick={async () => {
+                                setSavingAction(true)
+                                try { await api.reviewAdminFraudSignal(signal.id, 'reviewed'); await refreshAdmin(); showToast('Signal je označen kao pregledan.', 'success') }
+                                catch (error) { showToast(error instanceof Error ? error.message : 'Signal nije promenjen.', 'error') }
+                                finally { setSavingAction(false) }
+                              }}>Pregledano</Btn>
+                              {signal.user_id && <Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setBlockUser({ id: signal.user_id as number, ime: signal.user_name, action: 'block' })}>Blokiraj</Btn>}
+                            </div>,
+                          ]
+                        })}
+                      />
+                    )}
                   </Card>
-                </div>
+
+                  <div className="grid lg:grid-cols-2 gap-4">
+                    <Card>
+                      <div className="p-4 border-b border-frame"><h3 className="font-bold text-ink">Sesije provere zadataka</h3></div>
+                      {fraudOverview.sessions.length === 0 ? <EmptyState icon="🕒" title="Nema sesija" description="Provera se pojavljuje kada korisnik započne zadatak." /> : <Table
+                        headers={['Korisnik', 'Zadatak', 'Aktivnost', 'Rizik', 'Status']}
+                        rows={fraudOverview.sessions.slice(0, 20).map(session => [
+                          <span className="text-sm font-medium">{session.user_name}</span>,
+                          <span className="text-xs text-ink-2 max-w-48 truncate block">{session.task_title}</span>,
+                          <span className="font-mono text-xs">{session.active_seconds}/{session.required_seconds}s · {session.activity_events} događaja</span>,
+                          <span className={`font-mono text-xs font-bold ${session.risk_score >= 70 ? 'text-coral-700' : 'text-ink-2'}`}>{session.risk_score}/100</span>,
+                          <StatusBadge status={session.status === 'flagged' ? 'na_proveri' : session.status === 'ready' ? 'aktivno' : session.status} />,
+                        ])}
+                      />}
+                    </Card>
+                    <Card className="p-5">
+                      <h3 className="font-bold text-ink">Aktivna pravila</h3>
+                      <dl className="mt-3 space-y-3 text-sm">
+                        <div className="flex justify-between gap-4"><dt className="text-ink-2">Dnevni broj zadataka</dt><dd className="font-mono font-bold">{fraudOverview.policy.daily_task_limit}</dd></div>
+                        <div className="flex justify-between gap-4"><dt className="text-ink-2">Dnevna zarada</dt><dd className="font-mono font-bold">{new Intl.NumberFormat('sr-RS').format(fraudOverview.policy.daily_earnings_rsd)} RSD</dd></div>
+                        <div className="flex justify-between gap-4"><dt className="text-ink-2">Minimum aktivnosti</dt><dd className="font-mono font-bold">{fraudOverview.policy.minimum_activity_events} događaja</dd></div>
+                        <div className="flex justify-between gap-4"><dt className="text-ink-2">IP/VPN reputacija</dt><dd className={fraudOverview.policy.ip_reputation_enabled ? 'font-semibold text-emerald-700' : 'font-semibold text-amber-700'}>{fraudOverview.policy.ip_reputation_enabled ? 'Uključena' : 'Nije podešena'}</dd></div>
+                      </dl>
+                      {!fraudOverview.policy.ip_reputation_enabled && <p className="mt-4 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">Dodaj `IPQUALITYSCORE_API_KEY` u Render samo ako želiš dodatnu proveru VPN/proxy reputacije. Osnovne provere uređaja, mreže, fokusa i tajmera rade i bez spoljnog servisa.</p>}
+                    </Card>
+                  </div>
+                </> : <EmptyState icon="🛡️" title="Učitavam anti-fraud podatke" description="Ako se poruka ne promeni, proveri administratorsku prijavu i API konekciju." />}
               </div>
             )}
 

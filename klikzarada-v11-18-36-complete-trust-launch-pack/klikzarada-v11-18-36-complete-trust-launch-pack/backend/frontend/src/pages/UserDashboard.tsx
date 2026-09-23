@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Sidebar, TopBar } from '../components/Sidebar'
 import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tabs, Alert } from '../components/ui'
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal, InfoModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { api, type SessionUser, type SupportTicket, type Task, type UserDashboardData } from '../lib/api'
+import { api, deviceFingerprint, type SessionUser, type SupportTicket, type Task, type TaskVerification, type UserDashboardData } from '../lib/api'
 
 const navGroups = [
   { items: [
@@ -95,6 +95,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
   const [dashboard, setDashboard] = useState<UserDashboardData | null>(null)
   const [dashboardError, setDashboardError] = useState('')
   const [proofText, setProofText] = useState('')
+  const [verification, setVerification] = useState<TaskVerification | null>(null)
   const [payoutAmount, setPayoutAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('bankovni račun')
   const [paymentDetails, setPaymentDetails] = useState('')
@@ -103,6 +104,8 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
   const [tickets, setTickets] = useState<SupportTicket[]>([])
   const [ticketSubject, setTicketSubject] = useState('')
   const [ticketBody, setTicketBody] = useState('')
+  const activityEvents = useRef(0)
+  const focusLost = useRef(false)
   const { show: showToast, node: toastNode } = useToast()
 
   const refreshDashboard = async () => {
@@ -121,6 +124,46 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
 
   useEffect(() => { void refreshDashboard() }, [])
 
+  useEffect(() => {
+    if (!verification || submitProofModal === null || verification.active_seconds >= verification.required_seconds) return
+    const countActivity = () => { activityEvents.current += 1 }
+    const markFocusLoss = () => { focusLost.current = true }
+    document.addEventListener('pointerdown', countActivity)
+    document.addEventListener('pointermove', countActivity)
+    document.addEventListener('keydown', countActivity)
+    document.addEventListener('scroll', countActivity, { passive: true })
+    window.addEventListener('blur', markFocusLoss)
+
+    let disposed = false
+    const heartbeat = async () => {
+      const events = activityEvents.current
+      const lostFocus = focusLost.current || document.visibilityState !== 'visible'
+      activityEvents.current = 0
+      focusLost.current = false
+      try {
+        const result = await api.taskVerificationHeartbeat({
+          token: verification.token,
+          activity_events: events,
+          visible: document.visibilityState === 'visible',
+          focus_lost: lostFocus,
+        })
+        if (!disposed) setVerification(result.session)
+      } catch (error) {
+        if (!disposed) showToast(error instanceof Error ? error.message : 'Provera zadatka je prekinuta.', 'error')
+      }
+    }
+    const interval = window.setInterval(() => { void heartbeat() }, 10_000)
+    return () => {
+      disposed = true
+      window.clearInterval(interval)
+      document.removeEventListener('pointerdown', countActivity)
+      document.removeEventListener('pointermove', countActivity)
+      document.removeEventListener('keydown', countActivity)
+      document.removeEventListener('scroll', countActivity)
+      window.removeEventListener('blur', markFocusLoss)
+    }
+  }, [verification?.token, verification?.active_seconds, verification?.required_seconds, submitProofModal])
+
   const user: SessionUser | undefined = dashboard?.user
   const activeTasks: Task[] = dashboard?.tasks ?? []
   const balance = user?.balance_rsd ?? 0
@@ -129,6 +172,26 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
   const selectedTask = activeTasks.find(task => task.id === selectedTaskId || task.id === submitProofModal)
 
   function goTo(p: Page) { setPage(p) }
+
+  async function beginTaskVerification(task: Task) {
+    setSaving(true)
+    try {
+      const result = await api.startTaskVerification(task.id, {
+        device_fingerprint: deviceFingerprint(),
+        device_label: `${navigator.platform || 'Web'} · ${screen.width}x${screen.height}`,
+      })
+      activityEvents.current = 0
+      focusLost.current = false
+      setVerification(result.session)
+      setProofText('')
+      setSubmitProofModal(task.id)
+      showToast(result.resumed ? 'Nastavljena je postojeća provera zadatka.' : 'Provera zadatka je pokrenuta. Ostani aktivan/na dok se timer ne završi.', 'info')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Provera zadatka nije pokrenuta.', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
   const back = BACK[page]
   const crumbs = BREADCRUMBS[page]
 
@@ -205,28 +268,48 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
       {/* Submit proof modal */}
       <InfoModal
         open={submitProofModal !== null}
-        title="Pošalji dokaz"
-        onClose={() => setSubmitProofModal(null)}
+        title="Provera zadatka i dokaz"
+        onClose={() => { setSubmitProofModal(null); setVerification(null) }}
       >
         {submitProofModal !== null && (
           <div className="space-y-3">
             <p className="text-sm text-ink-2">{selectedTask ? `Dokaz za: ${selectedTask.title}` : 'Pošalji dokaz izvršenja zadatka.'}</p>
+            {verification && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-bold text-ink text-sm">🛡️ Provera aktivnosti</p>
+                  <span className="font-mono text-sm font-bold text-blue-700">{verification.active_seconds}/{verification.required_seconds} s</span>
+                </div>
+                <div className="h-2 rounded-full bg-blue-100 overflow-hidden">
+                  <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${Math.min(100, (verification.active_seconds / verification.required_seconds) * 100)}%` }} />
+                </div>
+                {verification.active_seconds < verification.required_seconds ? (
+                  <p className="text-xs text-blue-800">Ostani na zadatku i povremeno pomeri miš, skroluj ili koristi tastaturu. Timer računa samo serverom potvrđeno vreme.</p>
+                ) : (
+                  <p className="text-xs text-emerald-700 font-semibold">Provera vremena je završena. Sada možeš poslati dokaz na ručnu moderaciju.</p>
+                )}
+                {verification.status === 'flagged' && <p className="text-xs text-amber-800">Ovaj zadatak će pre odobrenja proći dodatnu fraud proveru.</p>}
+              </div>
+            )}
+            {!verification && <Alert type="warning">Pokreni proveru zadatka pre slanja dokaza.</Alert>}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Link ili opis dokaza</label>
-              <textarea value={proofText} onChange={event => setProofText(event.target.value)} rows={4} placeholder="Nalepi javni link do screenshota ili napiši gde admin može da proveri izvršenje." className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-y" />
-              <p className="text-xs text-ink-3">Upload fajlova dodajemo kao sledeći korak; trenutno se šalje link ili detaljan opis za proveru.</p>
+              <textarea disabled={!verification || verification.active_seconds < verification.required_seconds} value={proofText} onChange={event => setProofText(event.target.value)} rows={4} placeholder="Nalepi javni link do screenshota ili napiši gde admin može da proveri izvršenje." className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-y disabled:bg-gray-100 disabled:text-ink-3" />
+              <p className="text-xs text-ink-3">Dokaz i nagrada prvo idu na čekanje. Admin odobrava tek posle provere.</p>
             </div>
             <Btn
               variant="success"
               className="w-full justify-center"
-              disabled={saving || !proofText.trim()}
+              disabled={saving || !proofText.trim() || !verification || verification.active_seconds < verification.required_seconds}
               onClick={async () => {
+                if (!verification) return
                 setSaving(true)
                 try {
-                  await api.submitProof(submitProofModal, proofText)
+                  await api.submitProof(submitProofModal, proofText, verification.token)
                   await refreshDashboard()
                   setProofText('')
                   setSubmitProofModal(null)
+                  setVerification(null)
                   showToast('Dokaz je poslat i čeka pregled.', 'success')
                 } catch (error) {
                   showToast(error instanceof Error ? error.message : 'Dokaz nije poslat.', 'error')
@@ -235,7 +318,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                 }
               }}
             >
-              {saving ? 'Slanje...' : 'Pošalji dokaz'}
+              {saving ? 'Slanje...' : verification && verification.active_seconds < verification.required_seconds ? 'Sačekaj proveru vremena' : 'Pošalji dokaz na proveru'}
             </Btn>
           </div>
         )}
@@ -415,9 +498,10 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                     <p><span className="text-ink-3 font-medium">Dokaz:</span> {selectedTask?.proof_required || '—'}</p>
                     <p><span className="text-ink-3 font-medium">Nivo:</span> {selectedTask?.min_user_level || 'Bronza'} i više</p>
                   </div>
-                  <Alert type="info">Nakon što izvršiš zadatak, napravi screenshot i pošalji ga kao dokaz. Naknada se odobrava ručno.</Alert>
+                  <Alert type="info">Pre dokaza pokreni proveru: server prati vreme, aktivnost i fokus taba. Nagrada prvo ide na čekanje, a admin je odobrava nakon kontrole.</Alert>
                   <div className="flex gap-2">
-                    <Btn onClick={() => selectedTask && setSubmitProofModal(selectedTask.id)} variant="success">📎 Pošalji dokaz</Btn>
+                    {selectedTask?.target_url && <Btn onClick={() => window.open(selectedTask.target_url || '', '_blank', 'noopener,noreferrer')} variant="secondary">↗ Otvori zadatak</Btn>}
+                    <Btn disabled={saving} onClick={() => selectedTask && void beginTaskVerification(selectedTask)} variant="success">🛡️ Pokreni proveru</Btn>
                     <Btn onClick={() => goTo('zadaci')} variant="secondary">Nazad na zadatke</Btn>
                   </div>
                 </Card>
