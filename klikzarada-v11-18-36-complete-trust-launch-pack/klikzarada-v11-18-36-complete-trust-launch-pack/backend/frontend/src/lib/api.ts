@@ -41,6 +41,8 @@ export type Task = {
   target_city: string | null
   target_age_group: string | null
   target_interests: string | null
+  sponsored?: boolean
+  promotion_type?: 'featured' | 'priority' | null
   created_at: string | null
 }
 
@@ -134,6 +136,7 @@ export type AdminMetrics = {
   pending_withdrawals: number
   pending_campaigns: number
   pending_banners: number
+  pending_promotions?: number
   reserved_budget_rsd: number
 }
 
@@ -156,7 +159,8 @@ export type AdminWithdrawal = Withdrawal & {
   }
 }
 export type TaskSource = { id: number; name: string; endpoint_url: string; source_type: string; import_mode: string; status: string; has_api_key: boolean; last_sync_at: string | null; created_at: string | null }
-export type SupportTicket = { id: number; subject: string; category: string; priority: string; status: string; created_at: string | null; updated_at: string | null; user_name: string }
+export type SupportTicketMessage = { id: number; body: string; sender_name: string; from_support: boolean; created_at: string | null }
+export type SupportTicket = { id: number; subject: string; category: string; priority: string; status: string; created_at: string | null; updated_at: string | null; user_name: string; messages: SupportTicketMessage[] }
 export type AdminSetting = { key: string; value: string; has_value: boolean | null; description: string | null; sensitive: boolean }
 export type PaidBanner = {
   id: number
@@ -189,6 +193,21 @@ export type BannerSlot = {
   active_banner: PaidBanner | null
   pending_count: number
   schedule: PaidBanner[]
+}
+export type PaidPromotion = {
+  id: number
+  task_id: number | null
+  task_title: string
+  advertiser_id: number
+  advertiser_name: string
+  promotion_type: 'featured' | 'priority'
+  price_rsd: number
+  days_count: number
+  status: string
+  admin_note: string | null
+  starts_at: string | null
+  ends_at: string | null
+  created_at: string | null
 }
 export type TaskVerification = {
   token: string
@@ -232,10 +251,11 @@ export function deviceFingerprint(): string {
 type ApiErrorBody = { detail?: string }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
   const response = await fetch(`${API_ROOT}${path}`, {
     ...options,
     credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json', ...(options.headers ?? {}) },
+    headers: { ...(isFormData ? {} : { 'Content-Type': 'application/json' }), ...(options.headers ?? {}) },
   })
 
   if (response.status === 204) return undefined as T
@@ -276,9 +296,21 @@ export const api = {
   createTicket: (payload: { subject: string; body: string; category?: string }) => request<{ ticket: SupportTicket }>('/tickets', {
     method: 'POST', body: JSON.stringify(payload),
   }),
+  replyToTicket: (id: number, body: string) => request<{ ticket: SupportTicket }>(`/tickets/${id}/messages`, {
+    method: 'POST', body: JSON.stringify({ body }),
+  }),
   advertiserDashboard: () => request<AdvertiserDashboardData>('/advertiser/dashboard'),
   advertiserBanners: () => request<{ slots: BannerSlot[]; banners: PaidBanner[]; pricing: AdvertisingPricing }>('/advertiser/banners'),
   reserveAdvertiserBanner: (payload: { slot_id: number; title: string; body?: string; image_url?: string; target_url: string; days_count: number }) => request<{ banner: PaidBanner; reserved_rsd: number }>('/advertiser/banners', {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
+  uploadAdvertiserBanner: (file: File) => {
+    const data = new FormData()
+    data.append('file', file)
+    return request<{ image_url: string; width: number; height: number; warning: string }>('/advertiser/banners/upload', { method: 'POST', body: data })
+  },
+  advertiserPromotions: () => request<{ promotions: PaidPromotion[]; prices: { featured_per_7_days_rsd: number; priority_per_7_days_rsd: number; max_days: number } }>('/advertiser/promotions'),
+  reserveAdvertiserPromotion: (payload: { task_id: number; promotion_type: 'featured' | 'priority'; days_count: number }) => request<{ promotion: PaidPromotion; reserved_rsd: number }>('/advertiser/promotions', {
     method: 'POST', body: JSON.stringify(payload),
   }),
   createCampaign: (payload: CampaignPayload) => request<{ campaign: Task; reserved_rsd: number }>('/advertiser/campaigns', {
@@ -299,6 +331,10 @@ export const api = {
   }),
   adminDashboard: () => request<{ metrics: AdminMetrics }>('/admin/dashboard'),
   adminBanners: () => request<{ slots: BannerSlot[]; banners: PaidBanner[]; pricing: AdvertisingPricing }>('/admin/banners'),
+  adminPromotions: () => request<{ promotions: PaidPromotion[] }>('/admin/promotions'),
+  reviewAdminPromotion: (id: number, status: 'active' | 'rejected', note?: string) => request<{ promotion: PaidPromotion }>(`/admin/promotions/${id}`, {
+    method: 'PATCH', body: JSON.stringify({ status, note }),
+  }),
   reviewAdminBanner: (id: number, status: 'active' | 'rejected', note?: string) => request<{ banner: PaidBanner }>(`/admin/banners/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),
   }),

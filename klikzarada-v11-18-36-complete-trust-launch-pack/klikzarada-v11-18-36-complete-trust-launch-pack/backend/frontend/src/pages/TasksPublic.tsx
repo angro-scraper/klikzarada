@@ -108,6 +108,7 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-1.5">
                       <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${task.catColor}`}>{task.cat}</span>
+                      {task.sponsored && <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 border border-violet-200">Sponzorisano · {task.promotion_type === 'featured' ? 'Istaknuto' : 'Prioritet'}</span>}
                       <span className="text-[11px] text-ink-3 bg-gray-100 px-2 py-0.5 rounded-full">Nivo: {task.level}</span>
                       <StatusBadge status={task.status} />
                     </div>

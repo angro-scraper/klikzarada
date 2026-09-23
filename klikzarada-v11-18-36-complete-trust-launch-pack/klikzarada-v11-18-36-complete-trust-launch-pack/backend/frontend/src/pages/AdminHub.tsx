@@ -4,7 +4,7 @@ import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tab
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminWithdrawal, type AdminSetting, type BannerSlot, type FraudOverview, type PaidBanner, type SupportTicket, type TaskSource } from '../lib/api'
+import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminWithdrawal, type AdminSetting, type BannerSlot, type FraudOverview, type PaidBanner, type PaidPromotion, type SupportTicket, type TaskSource } from '../lib/api'
 
 function adminNavigation(metrics: AdminMetrics | null, tickets: SupportTicket[]) {
   const pendingWithdrawals = metrics?.pending_withdrawals ?? 0
@@ -128,8 +128,8 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [payoutAction, setPayoutAction] = useState<{ id: number; korisnik: string; iznos: string; type: 'approve' | 'reject' } | null>(null)
   const [paypalPayoutAction, setPaypalPayoutAction] = useState<{ id: number; korisnik: string; iznos: string } | null>(null)
   const [campAction, setCampAction] = useState<{ id: number; naziv: string; type: 'approve' | 'reject' | 'revision' } | null>(null)
-  const [submissionAction, setSubmissionAction] = useState<{ id: number; naslov: string; type: 'approve' | 'reject' } | null>(null)
   const [bannerAction, setBannerAction] = useState<{ id: number; naslov: string; iznos: number; type: 'approve' | 'reject' } | null>(null)
+  const [promotionAction, setPromotionAction] = useState<{ id: number; naslov: string; iznos: number; type: 'approve' | 'reject' } | null>(null)
   const [userStatuses, setUserStatuses] = useState<Record<number, string>>({})
   const [payoutStatuses, setPayoutStatuses] = useState<Record<number, string>>({})
   const [campStatuses, setCampStatuses] = useState<Record<number, string>>({})
@@ -144,6 +144,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [fraudOverview, setFraudOverview] = useState<FraudOverview | null>(null)
   const [bannerSlots, setBannerSlots] = useState<BannerSlot[]>([])
   const [banners, setBanners] = useState<PaidBanner[]>([])
+  const [promotions, setPromotions] = useState<PaidPromotion[]>([])
   const [settingDrafts, setSettingDrafts] = useState<Record<string, string>>({})
   const [dataError, setDataError] = useState('')
   const [savingAction, setSavingAction] = useState(false)
@@ -155,8 +156,8 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
   const refreshAdmin = async () => {
     try {
-      const [dashboard, userData, campaignData, submissionData, withdrawalData, sourceData, ticketData, settingData, fraudData, bannerData] = await Promise.all([
-        api.adminDashboard(), api.adminUsers(), api.adminCampaigns(), api.adminSubmissions(), api.adminWithdrawals(), api.adminTaskSources(), api.adminTickets(), api.adminSettings(), api.adminFraudOverview(), api.adminBanners(),
+      const [dashboard, userData, campaignData, submissionData, withdrawalData, sourceData, ticketData, settingData, fraudData, bannerData, promotionData] = await Promise.all([
+        api.adminDashboard(), api.adminUsers(), api.adminCampaigns(), api.adminSubmissions(), api.adminWithdrawals(), api.adminTaskSources(), api.adminTickets(), api.adminSettings(), api.adminFraudOverview(), api.adminBanners(), api.adminPromotions(),
       ])
       setMetrics(dashboard.metrics)
       setUsers(userData.users)
@@ -169,6 +170,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
       setFraudOverview(fraudData)
       setBannerSlots(bannerData.slots)
       setBanners(bannerData.banners)
+      setPromotions(promotionData.promotions)
       setSettingDrafts(Object.fromEntries(settingData.settings.map(setting => [setting.key, setting.value])))
       setDataError('')
     } catch (error) {
@@ -338,30 +340,6 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
       />
 
       <ConfirmModal
-        open={submissionAction !== null}
-        title={submissionAction?.type === 'approve' ? 'Odobri dokaz?' : 'Odbij dokaz?'}
-        description={submissionAction?.type === 'approve'
-          ? `Dokaz za „${submissionAction?.naslov}” biće odobren, a nagrada prebačena na korisnički saldo.`
-          : `Dokaz za „${submissionAction?.naslov}” biće odbijen. Korisnik neće dobiti nagradu.`}
-        confirmLabel={submissionAction?.type === 'approve' ? 'Odobri dokaz' : 'Odbij dokaz'}
-        cancelLabel="Otkaži"
-        variant={submissionAction?.type === 'approve' ? 'success' : 'danger'}
-        onConfirm={async () => {
-          if (!submissionAction) return
-          setSavingAction(true)
-          try {
-            await api.reviewAdminSubmission(submissionAction.id, submissionAction.type === 'approve' ? 'approved' : 'rejected')
-            await refreshAdmin()
-            showToast(submissionAction.type === 'approve' ? 'Dokaz je odobren i saldo je ažuriran.' : 'Dokaz je odbijen.', submissionAction.type === 'approve' ? 'success' : 'error')
-            setSubmissionAction(null)
-          } catch (error) {
-            showToast(error instanceof Error ? error.message : 'Dokaz nije obrađen.', 'error')
-          } finally { setSavingAction(false) }
-        }}
-        onCancel={() => setSubmissionAction(null)}
-      />
-
-      <ConfirmModal
         open={bannerAction !== null}
         title={bannerAction?.type === 'approve' ? 'Odobri zakup banera?' : 'Odbij zakup banera?'}
         description={bannerAction?.type === 'approve'
@@ -383,6 +361,30 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
           } finally { setSavingAction(false) }
         }}
         onCancel={() => setBannerAction(null)}
+      />
+
+      <ConfirmModal
+        open={promotionAction !== null}
+        title={promotionAction?.type === 'approve' ? 'Odobri promociju?' : 'Odbij promociju?'}
+        description={promotionAction?.type === 'approve'
+          ? `Promocija „${promotionAction?.naslov}” će biti označena kao sponzorisana i aktivna nakon odobrenja.`
+          : `Promocija „${promotionAction?.naslov}” neće biti objavljena, a rezervisanih ${new Intl.NumberFormat('sr-RS').format(promotionAction?.iznos ?? 0)} RSD biće vraćeno oglašivaču.`}
+        confirmLabel={promotionAction?.type === 'approve' ? 'Odobri promociju' : 'Odbij i vrati budžet'}
+        cancelLabel="Otkaži"
+        variant={promotionAction?.type === 'approve' ? 'success' : 'danger'}
+        onConfirm={async () => {
+          if (!promotionAction) return
+          setSavingAction(true)
+          try {
+            await api.reviewAdminPromotion(promotionAction.id, promotionAction.type === 'approve' ? 'active' : 'rejected')
+            await refreshAdmin()
+            showToast(promotionAction.type === 'approve' ? 'Promocija je odobrena.' : 'Promocija je odbijena, a budžet vraćen.', promotionAction.type === 'approve' ? 'success' : 'error')
+            setPromotionAction(null)
+          } catch (error) {
+            showToast(error instanceof Error ? error.message : 'Promocija nije obrađena.', 'error')
+          } finally { setSavingAction(false) }
+        }}
+        onCancel={() => setPromotionAction(null)}
       />
 
       {mobileOpen && <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />}
@@ -541,7 +543,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
             {page === 'kam-dokazi' && (
               <div>
-                <SectionHeader title="Moderacija dokaza" description="Anti-fraud signali su automatski označeni." />
+                <SectionHeader title="Pregled dokaza" description="Dokaze pregleda oglašivač. Admin ovde vidi stanje i rešava samo anti-fraud ili sporove." />
                 <Tabs
                   tabs={[{ id: 'svi', label: 'Svi' }, { id: 'ok', label: 'OK' }, { id: 'flag', label: 'Flagovano' }]}
                   active={dokaziTab}
@@ -549,7 +551,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                 />
                 <Card>
                   <Table
-                    headers={['Korisnik', 'Zadatak', 'Kampanja', 'Anti-fraud', 'Akcija']}
+                    headers={['Korisnik', 'Zadatak', 'Kampanja', 'Status', 'Vlasnik pregleda']}
                     rows={submissions
                       .filter(submission => dokaziTab === 'svi' || (dokaziTab === 'ok' ? submission.status !== 'pending' : submission.status === 'pending'))
                       .map(submission => [
@@ -557,12 +559,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                         <span>{submission.task_title}</span>,
                         <span className="text-xs text-ink-3">{submission.proof || 'Bez dodatne napomene'}</span>,
                         <span className={`text-xs font-bold ${submission.status === 'pending' ? 'text-amber-700' : submission.status === 'approved' ? 'text-emerald-600' : 'text-coral-700'}`}>{submission.status === 'pending' ? 'Čeka pregled' : submission.status === 'approved' ? 'Odobreno' : 'Odbijeno'}</span>,
-                        submission.status === 'pending'
-                          ? <div className="flex gap-1.5">
-                              <Btn size="sm" variant="success" disabled={savingAction} onClick={() => setSubmissionAction({ id: submission.id, naslov: submission.task_title, type: 'approve' })}>✓</Btn>
-                              <Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setSubmissionAction({ id: submission.id, naslov: submission.task_title, type: 'reject' })}>✗</Btn>
-                            </div>
-                          : <span className="text-xs text-ink-3">—</span>,
+                        <span className="text-xs text-ink-3">Oglašivač</span>,
                       ])}
                   />
                 </Card>
@@ -653,6 +650,27 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                     {banners.filter(banner => banner.status === 'na_cekanju').length === 0 && <p className="px-4 pb-4 text-sm text-ink-3">Trenutno nema zakupa koji čekaju proveru.</p>}
                   </Card>
                 </div>
+                <div className="mt-6">
+                  <SectionHeader title="VIP promocije" description="Istaknute i prioritetne kampanje su sponzorisane, ograničene na 1–31 dan i zahtevaju odobrenje." />
+                  <Card>
+                    <Table
+                      headers={['Kampanja', 'Oglašivač', 'Tip', 'Trajanje', 'Iznos', 'Status', 'Akcija']}
+                      rows={promotions.filter(item => item.status === 'na_cekanju').map(item => [
+                        <span className="font-semibold text-ink">{item.task_title}</span>,
+                        <span className="text-xs text-ink-2">{item.advertiser_name}</span>,
+                        <span className="text-xs font-semibold text-violet-700">{item.promotion_type === 'featured' ? 'Istaknuta kampanja' : 'Prioritetni prikaz'}</span>,
+                        <span>{item.days_count} dana</span>,
+                        <span className="font-mono text-xs font-semibold">{new Intl.NumberFormat('sr-RS').format(item.price_rsd)} RSD</span>,
+                        <StatusBadge status={item.status} />,
+                        <div className="flex gap-1.5">
+                          <Btn size="sm" variant="success" disabled={savingAction} onClick={() => setPromotionAction({ id: item.id, naslov: item.task_title, iznos: item.price_rsd, type: 'approve' })}>Odobri</Btn>
+                          <Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setPromotionAction({ id: item.id, naslov: item.task_title, iznos: item.price_rsd, type: 'reject' })}>Odbij</Btn>
+                        </div>,
+                      ])}
+                    />
+                    {promotions.filter(item => item.status === 'na_cekanju').length === 0 && <p className="px-4 pb-4 text-sm text-ink-3">Trenutno nema VIP promocija na proveri.</p>}
+                  </Card>
+                </div>
               </div>
             )}
 
@@ -727,9 +745,12 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                         <span className="text-sm text-ink-2">{ticket.category}</span>,
                         <span className="text-xs text-ink-3">{ticket.updated_at ? new Date(ticket.updated_at).toLocaleString('sr-RS') : '—'}</span>,
                         <StatusBadge status={ticketStatus(ticket.status)} />,
-                        ticket.status === 'closed'
-                          ? <Btn size="sm" variant="secondary" disabled={savingAction} onClick={async () => { try { await api.updateAdminTicket(ticket.id, 'open'); await refreshAdmin(); showToast('Tiket je ponovo otvoren.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Tiket nije promenjen.', 'error') } }}>Otvori</Btn>
-                          : <Btn size="sm" variant="success" disabled={savingAction} onClick={async () => { try { await api.updateAdminTicket(ticket.id, 'closed'); await refreshAdmin(); showToast('Tiket je zatvoren.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Tiket nije promenjen.', 'error') } }}>Zatvori</Btn>,
+                        <div className="flex gap-1.5">
+                          <Btn size="sm" variant="secondary" disabled={savingAction} onClick={async () => { const note = window.prompt(`Odgovor na tiket #${ticket.id}:`); if (!note?.trim()) return; try { setSavingAction(true); await api.updateAdminTicket(ticket.id, 'waiting', note.trim()); await refreshAdmin(); showToast('Odgovor je poslat korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Odgovor nije poslat.', 'error') } finally { setSavingAction(false) } }}>Odgovori</Btn>
+                          {ticket.status === 'closed'
+                            ? <Btn size="sm" variant="secondary" disabled={savingAction} onClick={async () => { try { await api.updateAdminTicket(ticket.id, 'open'); await refreshAdmin(); showToast('Tiket je ponovo otvoren.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Tiket nije promenjen.', 'error') } }}>Otvori</Btn>
+                            : <Btn size="sm" variant="success" disabled={savingAction} onClick={async () => { try { await api.updateAdminTicket(ticket.id, 'closed'); await refreshAdmin(); showToast('Tiket je zatvoren.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Tiket nije promenjen.', 'error') } }}>Zatvori</Btn>}
+                        </div>,
                       ])}
                     />
                   </Card>

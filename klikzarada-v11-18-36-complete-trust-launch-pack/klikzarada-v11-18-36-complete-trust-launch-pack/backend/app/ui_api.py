@@ -16,13 +16,16 @@ import re
 import socket
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from io import BytesIO
+from pathlib import Path
 from typing import Literal
 from urllib.parse import urlparse
 from uuid import uuid4
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
+from fastapi.responses import FileResponse, RedirectResponse
+from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -34,9 +37,11 @@ from .models import (
     AuditLog,
     FraudSignalV11,
     HomeBannerSlotV111,
+    Notification,
     PayPalCheckout,
     PayPalPayoutAttempt,
     PaidAdBannerV111,
+    PaidPromotionRequestV111,
     SystemSetting,
     SupportMessage,
     SupportTicket,
@@ -175,6 +180,21 @@ class SupportTicketPayload(BaseModel):
     subject: str = Field(min_length=3, max_length=220)
     body: str = Field(min_length=5, max_length=5000)
     category: str = Field(default="Opšte", max_length=80)
+
+
+class SupportTicketMessagePayload(BaseModel):
+    body: str = Field(min_length=2, max_length=5000)
+
+
+class PromotionPayload(BaseModel):
+    task_id: int
+    promotion_type: Literal["featured", "priority"]
+    days_count: int = Field(default=7, ge=1, le=31)
+
+
+class AdminPromotionStatusPayload(BaseModel):
+    status: Literal["active", "rejected"]
+    note: str | None = Field(default=None, max_length=1000)
 
 
 class SettingPayload(BaseModel):
@@ -404,6 +424,13 @@ def _ticket_data(ticket: SupportTicket) -> dict:
         "created_at": _iso(ticket.created_at),
         "updated_at": _iso(ticket.updated_at),
         "user_name": ticket.user.full_name if ticket.user else "Korisnik",
+        "messages": [{
+            "id": message.id,
+            "body": message.body,
+            "sender_name": message.sender.full_name if message.sender else "Podrška",
+            "from_support": bool(message.sender and message.sender.role == "admin"),
+            "created_at": _iso(message.created_at),
+        } for message in sorted(ticket.messages, key=lambda item: item.created_at or datetime.min)],
     }
 
 
@@ -525,6 +552,61 @@ def _validate_banner_target_url(value: str) -> str:
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise HTTPException(400, "Link banera mora biti pun http:// ili https:// URL.")
     return url
+
+
+def _validate_banner_image_url(value: str) -> str:
+    url = value.strip()
+    if url.startswith("/api/ui/public/banner-files/"):
+        return url
+    return _validate_banner_target_url(url)
+
+
+_BANNER_UPLOAD_DIR = Path(os.getenv("BANNER_UPLOAD_DIR", "app/static/uploads/banners"))
+_BANNER_MAX_BYTES = 5 * 1024 * 1024
+_BANNER_IMAGE_FORMATS = {"JPEG": ".jpg", "PNG": ".png", "WEBP": ".webp"}
+
+
+def _banner_upload_url(filename: str) -> str:
+    return f"/api/ui/public/banner-files/{filename}"
+
+
+def _promotion_price(promotion_type: str, days_count: int) -> float:
+    weekly_price = {"featured": 1200.0, "priority": 700.0}.get(promotion_type)
+    if weekly_price is None:
+        raise HTTPException(400, "Nepoznat tip promocije.")
+    return _money(weekly_price * days_count / 7)
+
+
+def _promotion_data(item: PaidPromotionRequestV111) -> dict:
+    return {
+        "id": item.id,
+        "task_id": item.task_id,
+        "task_title": item.task.title if item.task else item.title,
+        "advertiser_id": item.advertiser_id,
+        "advertiser_name": item.advertiser.company_name or item.advertiser.full_name if item.advertiser else "Oglašivač",
+        "promotion_type": item.promotion_type,
+        "price_rsd": _money(item.price_rsd),
+        "days_count": item.days_count,
+        "status": _banner_status(item.status),
+        "admin_note": item.admin_note,
+        "starts_at": _iso(item.starts_at),
+        "ends_at": _iso(item.ends_at),
+        "created_at": _iso(item.created_at),
+    }
+
+
+def _expire_promotions(db: Session) -> None:
+    now = datetime.utcnow()
+    expired = db.query(PaidPromotionRequestV111).filter(
+        PaidPromotionRequestV111.status == "active",
+        PaidPromotionRequestV111.ends_at.is_not(None),
+        PaidPromotionRequestV111.ends_at <= now,
+    ).all()
+    if expired:
+        for item in expired:
+            item.status = "expired"
+            item.admin_note = "Promocija je automatski istekla."
+        db.commit()
 
 
 def _pricing_data() -> dict:
@@ -695,8 +777,24 @@ def logout(response: Response) -> Response:
 
 @router.get("/public/tasks")
 def public_tasks(db: Session = Depends(get_db)) -> dict:
-    tasks = db.query(Task).filter(Task.status == "active", Task.used_slots < Task.total_slots).order_by(Task.featured.desc(), Task.reward_rsd.desc()).limit(100).all()
-    return {"tasks": [_task_data(task) for task in tasks]}
+    _expire_promotions(db)
+    now = datetime.utcnow()
+    active_promotions = db.query(PaidPromotionRequestV111).filter(
+        PaidPromotionRequestV111.status == "active",
+        PaidPromotionRequestV111.starts_at <= now,
+        PaidPromotionRequestV111.ends_at > now,
+    ).all()
+    promotion_by_task = {item.task_id: item for item in active_promotions if item.task_id}
+    tasks = db.query(Task).filter(Task.status == "active", Task.used_slots < Task.total_slots).order_by(Task.reward_rsd.desc()).limit(100).all()
+    payload = []
+    for task in tasks:
+        item = promotion_by_task.get(task.id)
+        data = _task_data(task)
+        data["sponsored"] = bool(item)
+        data["promotion_type"] = item.promotion_type if item else None
+        payload.append(data)
+    payload.sort(key=lambda item: (0 if item.get("promotion_type") == "featured" else 1 if item.get("promotion_type") == "priority" else 2, -item["reward_rsd"]))
+    return {"tasks": payload}
 
 
 @router.get("/public/banners")
@@ -774,6 +872,21 @@ def create_support_ticket(payload: SupportTicketPayload, request: Request, db: S
     ticket = SupportTicket(user_id=user.id, subject=payload.subject.strip(), category=payload.category.strip() or "Opšte", status="open")
     db.add(ticket)
     db.flush()
+    db.add(SupportMessage(ticket_id=ticket.id, sender_id=user.id, body=payload.body.strip()))
+    db.commit()
+    db.refresh(ticket)
+    return {"ticket": _ticket_data(ticket)}
+
+
+@router.post("/tickets/{ticket_id}/messages", status_code=201)
+def reply_to_support_ticket(ticket_id: int, payload: SupportTicketMessagePayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db)
+    ticket = db.query(SupportTicket).filter(SupportTicket.id == ticket_id, SupportTicket.user_id == user.id).first()
+    if not ticket:
+        raise HTTPException(404, "Tiket nije pronađen.")
+    if ticket.status == "closed":
+        ticket.status = "open"
+    ticket.updated_at = datetime.utcnow()
     db.add(SupportMessage(ticket_id=ticket.id, sender_id=user.id, body=payload.body.strip()))
     db.commit()
     db.refresh(ticket)
@@ -1066,6 +1179,97 @@ def advertiser_banners(request: Request, db: Session = Depends(get_db)) -> dict:
     }
 
 
+@router.post("/advertiser/banners/upload", status_code=201)
+async def upload_advertiser_banner(
+    file: UploadFile = File(...),
+    request: Request = None,
+    db: Session = Depends(get_db),
+) -> dict:
+    _require_user(request, db, {"oglasivac", "admin"})
+    declared_type = (file.content_type or "").lower()
+    if declared_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise HTTPException(400, "Banner mora biti JPG, PNG ili WEBP slika.")
+    content = await file.read(_BANNER_MAX_BYTES + 1)
+    if not content or len(content) > _BANNER_MAX_BYTES:
+        raise HTTPException(400, "Banner je prazan ili veći od 5 MB.")
+    try:
+        image = Image.open(BytesIO(content))
+        image.verify()
+        image = Image.open(BytesIO(content))
+        width, height = image.size
+        suffix = _BANNER_IMAGE_FORMATS.get(image.format or "")
+    except (UnidentifiedImageError, OSError, ValueError):
+        raise HTTPException(400, "Fajl nije ispravna slika.")
+    if not suffix:
+        raise HTTPException(400, "Podržani su samo JPG, PNG i WEBP banneri.")
+    if width < 200 or height < 80 or width > 6000 or height > 6000:
+        raise HTTPException(400, "Dimenzije bannera moraju biti između 200x80 i 6000x6000 px.")
+    _BANNER_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    filename = f"{uuid4().hex}{suffix}"
+    (_BANNER_UPLOAD_DIR / filename).write_bytes(content)
+    return {"image_url": _banner_upload_url(filename), "width": width, "height": height, "warning": "Fajl je sačuvan na disku aplikacije. Za trajno čuvanje posle redeploy-a podesi BANNER_UPLOAD_DIR na persistent disk ili object storage."}
+
+
+@router.get("/public/banner-files/{filename}")
+def uploaded_banner_file(filename: str) -> FileResponse:
+    safe_name = Path(filename).name
+    if safe_name != filename or not re.fullmatch(r"[a-f0-9]{32}\.(?:jpg|png|webp)", safe_name):
+        raise HTTPException(404, "Banner nije pronađen.")
+    path = _BANNER_UPLOAD_DIR / safe_name
+    if not path.is_file():
+        raise HTTPException(404, "Banner nije pronađen.")
+    media_types = {".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
+    return FileResponse(path, media_type=media_types[path.suffix])
+
+
+@router.get("/advertiser/promotions")
+def advertiser_promotions(request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db, {"oglasivac", "admin"})
+    _expire_promotions(db)
+    items = db.query(PaidPromotionRequestV111).filter(PaidPromotionRequestV111.advertiser_id == user.id).order_by(PaidPromotionRequestV111.created_at.desc()).limit(100).all()
+    return {"promotions": [_promotion_data(item) for item in items], "prices": {"featured_per_7_days_rsd": 1200, "priority_per_7_days_rsd": 700, "max_days": 31}}
+
+
+@router.post("/advertiser/promotions", status_code=201)
+def reserve_advertiser_promotion(payload: PromotionPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db, {"oglasivac", "admin"})
+    task = db.query(Task).filter(Task.id == payload.task_id, Task.advertiser_id == user.id).with_for_update().first()
+    if not task:
+        raise HTTPException(404, "Kampanja nije pronađena.")
+    if task.status != "active":
+        raise HTTPException(400, "Samo aktivna kampanja može dobiti promociju.")
+    now = datetime.utcnow()
+    active_or_pending = db.query(PaidPromotionRequestV111).filter(
+        PaidPromotionRequestV111.task_id == task.id,
+        PaidPromotionRequestV111.promotion_type == payload.promotion_type,
+        PaidPromotionRequestV111.status.in_(("pending", "active")),
+    ).first()
+    if active_or_pending:
+        raise HTTPException(409, "Za ovu kampanju već postoji aktivna ili poslata rezervacija iste promocije.")
+    price = _promotion_price(payload.promotion_type, payload.days_count)
+    if float(user.advertiser_budget_rsd or 0) < price:
+        raise HTTPException(400, f"Nedovoljno budžeta. Za ovu promociju potrebno je {price:.0f} RSD.")
+    user.advertiser_budget_rsd = _money(float(user.advertiser_budget_rsd or 0) - price)
+    user.advertiser_reserved_rsd = _money(float(user.advertiser_reserved_rsd or 0) + price)
+    item = PaidPromotionRequestV111(
+        advertiser_id=user.id,
+        task_id=task.id,
+        promotion_type=payload.promotion_type,
+        title=task.title,
+        price_rsd=price,
+        days_count=payload.days_count,
+        status="pending",
+        admin_note="Rezervacija čeka odobrenje administratora.",
+        starts_at=now,
+        ends_at=now + timedelta(days=payload.days_count),
+    )
+    db.add(item)
+    db.add(AdvertiserBudgetTransaction(advertiser_id=user.id, amount_rsd=-price, tx_type="reserve_promotion", description=f"Rezervisana promocija ({payload.promotion_type}): {task.title}"))
+    db.commit()
+    db.refresh(item)
+    return {"promotion": _promotion_data(item), "reserved_rsd": price}
+
+
 @router.post("/advertiser/banners", status_code=201)
 def reserve_advertiser_banner(
     payload: BannerReservationPayload,
@@ -1085,7 +1289,7 @@ def reserve_advertiser_banner(
     if _banner_slot_conflict(db, slot.id, starts_at, ends_at):
         raise HTTPException(409, "Ovaj slot je već rezervisan za traženi period.")
     target_url = _validate_banner_target_url(payload.target_url)
-    image_url = _validate_banner_target_url(payload.image_url) if payload.image_url and payload.image_url.strip() else None
+    image_url = _validate_banner_image_url(payload.image_url) if payload.image_url and payload.image_url.strip() else None
     price_rsd = _money(float(slot.price_rsd or 0) * payload.days_count / 7)
     if user.advertiser_budget_rsd < price_rsd:
         raise HTTPException(400, f"Nedovoljno budžeta. Za ovaj zakup potrebno je {price_rsd:.0f} RSD.")
@@ -1554,6 +1758,7 @@ def _admin_dashboard_data(db: Session) -> dict:
     pending_withdrawals = db.query(Withdrawal).filter(Withdrawal.status == "pending").count()
     pending_campaigns = db.query(Task).filter(Task.status == "pending").count()
     pending_banners = db.query(PaidAdBannerV111).filter(PaidAdBannerV111.status == "pending").count()
+    pending_promotions = db.query(PaidPromotionRequestV111).filter(PaidPromotionRequestV111.status == "pending").count()
     return {
         "metrics": {
             "users": db.query(User).filter(User.role == "korisnik").count(),
@@ -1563,6 +1768,7 @@ def _admin_dashboard_data(db: Session) -> dict:
             "pending_withdrawals": pending_withdrawals,
             "pending_campaigns": pending_campaigns,
             "pending_banners": pending_banners,
+            "pending_promotions": pending_promotions,
             "reserved_budget_rsd": _money(db.query(func.coalesce(func.sum(User.advertiser_reserved_rsd), 0)).scalar()),
         }
     }
@@ -1633,6 +1839,54 @@ def review_admin_banner(
     db.commit()
     db.refresh(banner)
     return {"banner": _banner_data(banner)}
+
+
+@router.get("/admin/promotions")
+def admin_promotions(request: Request, db: Session = Depends(get_db)) -> dict:
+    _require_user(request, db, {"admin"})
+    _expire_promotions(db)
+    items = db.query(PaidPromotionRequestV111).order_by(PaidPromotionRequestV111.created_at.desc()).limit(300).all()
+    return {"promotions": [_promotion_data(item) for item in items]}
+
+
+@router.patch("/admin/promotions/{promotion_id}")
+def review_admin_promotion(
+    promotion_id: int,
+    payload: AdminPromotionStatusPayload,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    admin = _require_user(request, db, {"admin"})
+    item = db.query(PaidPromotionRequestV111).filter(PaidPromotionRequestV111.id == promotion_id).with_for_update().first()
+    if not item:
+        raise HTTPException(404, "Promocija nije pronađena.")
+    if item.status != "pending":
+        raise HTTPException(409, "Samo promocija koja čeka proveru može biti obrađena.")
+    advertiser = db.query(User).filter(User.id == item.advertiser_id).with_for_update().first()
+    if not advertiser:
+        raise HTTPException(404, "Oglašivač promocije nije pronađen.")
+    amount = _money(item.price_rsd)
+    if payload.status == "active":
+        advertiser.advertiser_reserved_rsd = _money(max(0, float(advertiser.advertiser_reserved_rsd or 0) - amount))
+        advertiser.advertiser_spent_rsd = _money(float(advertiser.advertiser_spent_rsd or 0) + amount)
+        item.status = "active"
+        item.starts_at = datetime.utcnow()
+        item.ends_at = item.starts_at + timedelta(days=max(1, min(31, item.days_count or 7)))
+        item.admin_note = (payload.note or "").strip() or "Promocija je odobrena i jasno će biti označena kao sponzorisana."
+        tx_type = "activate_promotion"
+        description = f"Odobrena promocija ({item.promotion_type}): {item.title}"
+    else:
+        advertiser.advertiser_reserved_rsd = _money(max(0, float(advertiser.advertiser_reserved_rsd or 0) - amount))
+        advertiser.advertiser_budget_rsd = _money(float(advertiser.advertiser_budget_rsd or 0) + amount)
+        item.status = "rejected"
+        item.admin_note = (payload.note or "").strip() or "Promocija je odbijena, rezervisani budžet je vraćen."
+        tx_type = "release_promotion_reservation"
+        description = f"Vraćen budžet za odbijenu promociju: {item.title}"
+    db.add(AdvertiserBudgetTransaction(advertiser_id=advertiser.id, amount_rsd=amount if payload.status == "rejected" else 0, tx_type=tx_type, description=description))
+    _audit(db, admin, "promotion_review", "PaidPromotionRequestV111", item.id, item.status)
+    db.commit()
+    db.refresh(item)
+    return {"promotion": _promotion_data(item)}
 
 
 @router.get("/admin/users")
@@ -1795,6 +2049,12 @@ def update_admin_ticket(ticket_id: int, payload: AdminStatusPayload, request: Re
     ticket.updated_at = datetime.utcnow()
     if payload.note:
         db.add(SupportMessage(ticket_id=ticket.id, sender_id=admin.id, body=payload.note.strip()))
+        db.add(Notification(
+            user_id=ticket.user_id,
+            title=f"Odgovor na tiket #{ticket.id}",
+            body=f"Podrška je odgovorila na: {ticket.subject}",
+            status="unread",
+        ))
     _audit(db, admin, "support_ticket_update", "SupportTicket", ticket.id, payload.status)
     db.commit()
     db.refresh(ticket)

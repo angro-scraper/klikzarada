@@ -4,7 +4,7 @@ import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tab
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { api, type AdvertiserDashboardData, type BannerSlot, type PaidBanner } from '../lib/api'
+import { api, type AdvertiserDashboardData, type BannerSlot, type PaidBanner, type PaidPromotion, type SupportTicket } from '../lib/api'
 
 type PayPalSdk = {
   FUNDING: { CARD: unknown }
@@ -363,6 +363,12 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [topupLoading, setTopupLoading] = useState(false)
   const [bannerSlots, setBannerSlots] = useState<BannerSlot[]>([])
   const [ownBanners, setOwnBanners] = useState<PaidBanner[]>([])
+  const [promotions, setPromotions] = useState<PaidPromotion[]>([])
+  const [promotionTaskId, setPromotionTaskId] = useState('')
+  const [promotionType, setPromotionType] = useState<'featured' | 'priority'>('featured')
+  const [promotionDays, setPromotionDays] = useState('7')
+  const [promotionError, setPromotionError] = useState('')
+  const [promotionLoading, setPromotionLoading] = useState(false)
   const [bannerSlotId, setBannerSlotId] = useState('')
   const [bannerTitle, setBannerTitle] = useState('')
   const [bannerBody, setBannerBody] = useState('')
@@ -371,19 +377,27 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [bannerDays, setBannerDays] = useState('7')
   const [bannerError, setBannerError] = useState('')
   const [bannerLoading, setBannerLoading] = useState(false)
+  const [bannerUploading, setBannerUploading] = useState(false)
   const [profileName, setProfileName] = useState('')
   const [profilePhone, setProfilePhone] = useState('')
   const [profileCity, setProfileCity] = useState('')
   const [profileSaving, setProfileSaving] = useState(false)
+  const [tickets, setTickets] = useState<SupportTicket[]>([])
+  const [ticketSubject, setTicketSubject] = useState('')
+  const [ticketBody, setTicketBody] = useState('')
+  const [ticketLoading, setTicketLoading] = useState(false)
   const { show: showToast, node: toastNode } = useToast()
 
   const refreshDashboard = async () => {
     try {
-      const [dashboardData, bannerData] = await Promise.all([api.advertiserDashboard(), api.advertiserBanners()])
+      const [dashboardData, bannerData, promotionData, ticketData] = await Promise.all([api.advertiserDashboard(), api.advertiserBanners(), api.advertiserPromotions(), api.tickets()])
       setDashboard(dashboardData)
       setBannerSlots(bannerData.slots)
       setOwnBanners(bannerData.banners)
+      setPromotions(promotionData.promotions)
+      setTickets(ticketData.tickets)
       setBannerSlotId(current => current || String(bannerData.slots[0]?.id ?? ''))
+      setPromotionTaskId(current => current || String(dashboardData.tasks.find(task => task.status === 'aktivno' || task.status === 'active')?.id ?? ''))
       setProfileName(current => current || dashboardData.user.full_name)
       setProfilePhone(current => current || dashboardData.user.phone || '')
       setDashboardError('')
@@ -452,6 +466,53 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
     } finally {
       setBannerLoading(false)
     }
+  }
+
+  const uploadBanner = async (file: File | undefined) => {
+    if (!file) return
+    setBannerUploading(true)
+    setBannerError('')
+    try {
+      const result = await api.uploadAdvertiserBanner(file)
+      setBannerImageUrl(result.image_url)
+      showToast(`Slika je otpremljena (${result.width}×${result.height}). ${result.warning}`, 'success')
+    } catch (error) {
+      setBannerError(error instanceof Error ? error.message : 'Upload bannera nije uspeo.')
+    } finally { setBannerUploading(false) }
+  }
+
+  const reservePromotion = async () => {
+    const daysCount = Number(promotionDays)
+    if (!promotionTaskId || !Number.isInteger(daysCount) || daysCount < 1 || daysCount > 31) {
+      setPromotionError('Izaberi aktivnu kampanju i trajanje od 1 do 31 dana.')
+      return
+    }
+    setPromotionLoading(true)
+    setPromotionError('')
+    try {
+      const result = await api.reserveAdvertiserPromotion({ task_id: Number(promotionTaskId), promotion_type: promotionType, days_count: daysCount })
+      await refreshDashboard()
+      showToast(`Promocija je rezervisana: ${new Intl.NumberFormat('sr-RS').format(result.reserved_rsd)} RSD. Čeka odobrenje admina.`, 'success')
+    } catch (error) {
+      setPromotionError(error instanceof Error ? error.message : 'Promocija nije rezervisana.')
+    } finally { setPromotionLoading(false) }
+  }
+
+  const createTicket = async () => {
+    if (ticketSubject.trim().length < 3 || ticketBody.trim().length < 5) {
+      showToast('Unesi naslov i poruku od najmanje 5 karaktera.', 'warning')
+      return
+    }
+    setTicketLoading(true)
+    try {
+      await api.createTicket({ subject: ticketSubject.trim(), body: ticketBody.trim(), category: 'Oglašivač' })
+      setTicketSubject('')
+      setTicketBody('')
+      await refreshDashboard()
+      showToast('Tiket je poslat podršci.', 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Tiket nije poslat.', 'error')
+    } finally { setTicketLoading(false) }
   }
 
   const advertiser = dashboard?.user
@@ -759,6 +820,11 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     <Input label="Link na koji vodi banner" placeholder="https://vas-sajt.rs/ponuda" value={bannerUrl} onChange={setBannerUrl} />
                     <Input label="URL slike banera (opciono)" placeholder="https://vas-sajt.rs/banner.jpg" value={bannerImageUrl} onChange={setBannerImageUrl} />
                   </div>
+                  <div className="mt-3 rounded-lg border border-frame bg-mint-50 p-3">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-ink-2">Otpremi sliku bannera</label>
+                    <input className="mt-2 block w-full text-sm text-ink-2" type="file" accept="image/jpeg,image/png,image/webp" disabled={bannerUploading} onChange={event => void uploadBanner(event.target.files?.[0])} />
+                    <p className="mt-1 text-xs text-ink-3">JPG, PNG ili WEBP, najviše 5 MB, najmanje 200×80 px. {bannerUploading ? 'Slika se šalje...' : 'Možeš koristiti i spoljašnji URL.'}</p>
+                  </div>
                   <div className="mt-3">
                     <Input label="Kratak opis (opciono)" placeholder="Jedna jasna poruka za posetioce" value={bannerBody} onChange={setBannerBody} />
                   </div>
@@ -814,7 +880,31 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     <Btn size="sm" variant="premium" className="mt-4" onClick={() => goTo('banneri')}>Pogledaj slotove</Btn>
                   </Card>
                 </div>
-                <Alert type="info">Istaknute kampanje i push obaveštenja još nisu pušteni u prodaju, zato ih ne možeš slučajno rezervisati ili platiti.</Alert>
+                <Card className="border-violet-200 p-5">
+                  <p className="text-xs font-bold uppercase tracking-wide text-violet-700">VIP promocija</p>
+                  <h3 className="mt-2 font-bold text-ink">Istaknuta kampanja ili prioritetni prikaz</h3>
+                  <p className="mt-2 text-sm leading-6 text-ink-2">Promocija važi 1–31 dan, najpre rezerviše budžet i objavljuje se tek posle admin odobrenja. Na listi zadataka uvek je vidljivo označena kao „Sponzorisano”.</p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <Select label="Aktivna kampanja" value={promotionTaskId} onChange={setPromotionTaskId} options={dashboard?.tasks.filter(task => task.status === 'aktivno' || task.status === 'active').map(task => ({ value: String(task.id), label: task.title })) ?? []} />
+                    <Select label="Tip promocije" value={promotionType} onChange={value => setPromotionType(value as 'featured' | 'priority')} options={[{ value: 'featured', label: 'Istaknuta kampanja — 1.200 RSD / 7 dana' }, { value: 'priority', label: 'Prioritetni prikaz — 700 RSD / 7 dana' }]} />
+                    <Input label="Trajanje u danima" type="number" min={1} max={31} step={1} value={promotionDays} onChange={value => setPromotionDays(String(Math.min(31, Math.max(1, Math.floor(Number(value) || 1)))))} />
+                  </div>
+                  {promotionError && <div className="mt-3"><Alert type="error">{promotionError}</Alert></div>}
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <Btn variant="premium" disabled={promotionLoading || !promotionTaskId} onClick={() => void reservePromotion()}>{promotionLoading ? 'Rezervacija...' : 'Pošalji VIP rezervaciju'}</Btn>
+                    <span className="text-xs text-ink-3">Istaknuta: 1.200 RSD / 7 dana. Prioritet: 700 RSD / 7 dana.</span>
+                  </div>
+                </Card>
+                {promotions.length > 0 && <Card>
+                  <Table headers={['Kampanja', 'Tip', 'Trajanje', 'Iznos', 'Status', 'Napomena']} rows={promotions.map(item => [
+                    <span className="font-semibold text-ink">{item.task_title}</span>,
+                    <span className="text-violet-700 text-xs font-semibold">{item.promotion_type === 'featured' ? 'Istaknuta' : 'Prioritetna'}</span>,
+                    <span>{item.days_count} dana</span>,
+                    <span className="font-mono text-xs">{new Intl.NumberFormat('sr-RS').format(item.price_rsd)} RSD</span>,
+                    <StatusBadge status={item.status} />,
+                    <span className="text-xs text-ink-3">{item.admin_note || '—'}</span>,
+                  ])} />
+                </Card>}
               </div>
             )}
 
@@ -835,12 +925,13 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
             {page === 'podrska' && (
               <div className="space-y-4">
-                <SectionHeader title="Podrška za oglašivače" />
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
-                  <p className="font-bold text-ink mb-1">💬 Kontakt za oglašivače</p>
-                  <p className="text-sm text-ink-2 mb-3">Podrška za kreiranje kampanja, cenovnik i tehničke integracije.</p>
-                  <Btn variant="secondary" size="sm">Pošalji poruku</Btn>
-                </div>
+                <SectionHeader title="Podrška za oglašivače" description="Pošalji zahtev, a odgovor administratora ostaje sačuvan u istoj prepisci." />
+                <Card className="p-5 space-y-3">
+                  <Input label="Naslov zahteva" placeholder="npr. Pitanje o kampanji" value={ticketSubject} onChange={setTicketSubject} />
+                  <div className="flex flex-col gap-1.5"><label className="text-xs font-semibold uppercase tracking-wide text-ink-2">Poruka</label><textarea className="min-h-28 rounded-lg border border-frame bg-white px-3 py-2 text-sm text-ink focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none" value={ticketBody} onChange={event => setTicketBody(event.target.value)} placeholder="Opiši pitanje ili problem što preciznije." /></div>
+                  <Btn disabled={ticketLoading} onClick={() => void createTicket()}>{ticketLoading ? 'Slanje...' : 'Pošalji tiket'}</Btn>
+                </Card>
+                {tickets.length === 0 ? <EmptyState icon="🎫" title="Nema tiketa" description="Kada pošalješ zahtev, ovde ćeš videti celu prepisku." /> : tickets.map(ticket => <Card key={ticket.id} className="p-5"><div className="flex items-start justify-between gap-3"><div><p className="font-bold text-ink">#{ticket.id} · {ticket.subject}</p><p className="text-xs text-ink-3 mt-1">{ticket.category}</p></div><StatusBadge status={ticket.status === 'closed' ? 'obustavljeno' : ticket.status === 'waiting' ? 'na_cekanju' : 'aktivno'} /></div><div className="mt-4 space-y-2">{ticket.messages.map(message => <div key={message.id} className={`rounded-lg p-3 text-sm ${message.from_support ? 'bg-blue-50 text-blue-900' : 'bg-mint-50 text-ink'}`}><p className="text-xs font-semibold">{message.from_support ? 'Podrška' : 'Ti'} · {message.created_at ? new Date(message.created_at).toLocaleString('sr-RS') : ''}</p><p className="mt-1 whitespace-pre-wrap">{message.body}</p></div>)}</div></Card>)}
               </div>
             )}
           </div>

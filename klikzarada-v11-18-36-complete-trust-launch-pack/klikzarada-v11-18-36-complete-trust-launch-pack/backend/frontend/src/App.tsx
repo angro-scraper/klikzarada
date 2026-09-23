@@ -5,6 +5,7 @@ import TasksPublic from './pages/TasksPublic'
 import UserDashboard from './pages/UserDashboard'
 import AdvertiserPanel from './pages/AdvertiserPanel'
 import AdminHub from './pages/AdminHub'
+import Legal from './pages/Legal'
 import { api } from './lib/api'
 
 type Route =
@@ -16,6 +17,7 @@ type Route =
   | 'dashboard'
   | 'advertiser'
   | 'admin'
+  | 'legal'
 
 const routePaths: Record<Route, string> = {
   home: '/',
@@ -28,6 +30,7 @@ const routePaths: Record<Route, string> = {
   dashboard: '/korisnik/panel',
   advertiser: '/oglasivac/panel',
   admin: '/admin',
+  legal: '/pravila',
 }
 
 function routeFromPath(pathname: string): Route {
@@ -35,6 +38,7 @@ function routeFromPath(pathname: string): Route {
   if (pathname.startsWith('/admin')) return 'admin'
   if (pathname.startsWith('/korisnik')) return 'dashboard'
   if (pathname.startsWith('/oglasivac/panel')) return 'advertiser'
+  if (pathname === '/pravila') return 'legal'
   if (pathname === '/login') return 'login'
   return (Object.entries(routePaths).find(([, path]) => path === pathname)?.[0] as Route | undefined) ?? 'home'
 }
@@ -98,6 +102,7 @@ export default function App() {
   if (route === 'dashboard')          return <UserDashboard onNavigate={go} />
   if (route === 'advertiser')         return <AdvertiserRoute onNavigate={go} />
   if (route === 'admin')              return <AdminRoute onNavigate={go} />
+  if (route === 'legal')              return <Legal onNavigate={go} />
 
   return <Landing onNavigate={go} />
 }
