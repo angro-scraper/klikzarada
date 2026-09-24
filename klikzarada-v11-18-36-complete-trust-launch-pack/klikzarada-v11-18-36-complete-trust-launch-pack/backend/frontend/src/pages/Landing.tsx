@@ -26,6 +26,12 @@ const faqs = [
   ['Kako oglašivač plaća?', 'Oglašivač dopunjuje budžet preko PayPal Checkout-a. Budžet se troši samo za odobrene rezultate, a banner i VIP zakup imaju jasno trajanje.'],
 ]
 
+const trustPoints = [
+  ['01', 'Precizan zadatak', 'Pre početka vidiš nagradu, procenjeno vreme i dokaz koji se očekuje.'],
+  ['02', 'Proverljiv proces', 'Aktivnost i vreme rada se proveravaju pre nego što rezultat ode na pregled.'],
+  ['03', 'Nagrada pod kontrolom', 'Oglašivač pregleda dokaz, a admin rešava sporove i sumnjive aktivnosti.'],
+]
+
 function BannerCard({ banner }: { banner: PaidBanner }) {
   const cardRef = useRef<HTMLAnchorElement>(null)
 
@@ -161,9 +167,9 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
       </nav>
 
       <main>
-        <section className="overflow-hidden border-b border-blue-100 bg-[radial-gradient(circle_at_top_right,_#dbeafe,_transparent_38%),linear-gradient(135deg,#f7fdf9_0%,#eff9f3_52%,#eef5ff_100%)]">
+        <section className="landing-dot-grid overflow-hidden border-b border-blue-100 bg-[radial-gradient(circle_at_top_right,_#dbeafe,_transparent_38%),linear-gradient(135deg,#f7fdf9_0%,#eff9f3_52%,#eef5ff_100%)]">
           <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:py-24 lg:grid-cols-[1.2fr_.8fr] lg:items-center">
-            <div>
+            <div className="landing-reveal">
               <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">Platforma za proverljive mikro-zadatke</span>
               <h1 className="mt-5 max-w-3xl text-4xl font-extrabold leading-[1.06] tracking-tight text-ink md:text-6xl">
                 Zaradi na stvarnom radu.<br /><span className="text-blue-600">Bez prečica i bez praznih obećanja.</span>
@@ -181,14 +187,19 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
                 <div className="rounded-xl border border-violet-200 bg-white/80 p-3"><p className="font-mono text-2xl font-bold text-violet-700">{loading ? '—' : overview?.approved_results ?? 0}</p><p className="mt-1 text-xs font-semibold text-ink-2">odobrenih rezultata</p></div>
               </div>
             </div>
-            <Card className="relative overflow-hidden border-blue-200 p-6 shadow-lg">
+            <Card className="landing-reveal landing-reveal-delay relative overflow-hidden border-blue-200 p-6 shadow-lg">
               <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-full bg-blue-100" />
               <p className="relative text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Ovako izgleda zadatak</p>
               {featuredTasks[0] ? <>
                 <div className="relative mt-4 flex items-start justify-between gap-3"><span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700">{featuredTasks[0].category}</span><span className="font-mono text-lg font-bold text-emerald-700">{formatRsd(featuredTasks[0].reward_rsd)}</span></div>
                 <h2 className="relative mt-4 text-xl font-extrabold text-ink">{featuredTasks[0].title}</h2>
                 <div className="relative mt-5 grid grid-cols-2 gap-3 text-sm"><div className="rounded-xl bg-mint-50 p-3"><p className="text-[10px] font-bold uppercase tracking-wide text-ink-3">Vreme</p><p className="mt-1 font-bold text-ink">oko {featuredTasks[0].estimated_minutes} min</p></div><div className="rounded-xl bg-mint-50 p-3"><p className="text-[10px] font-bold uppercase tracking-wide text-ink-3">Dokaz</p><p className="mt-1 font-bold text-ink">obavezan</p></div></div>
-                <button onClick={() => onNavigate('tasks-public')} className="relative mt-6 text-sm font-bold text-blue-700 hover:text-blue-800">Pogledaj detalje zadatka →</button>
+                <div className="relative mt-5 rounded-xl border border-blue-100 bg-blue-50/70 p-3">
+                  <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wide text-blue-800"><span>Put nagrade</span><span>proverljivo</span></div>
+                  <div className="mt-3 flex items-center gap-1.5"><span className="h-2 flex-1 rounded-full bg-blue-600" /><span className="h-2 flex-1 rounded-full bg-blue-400" /><span className="h-2 flex-1 rounded-full bg-emerald-400" /></div>
+                  <p className="mt-2 text-xs leading-5 text-ink-2">Aktivnost → dokaz oglašivaču → odobrena nagrada</p>
+                </div>
+                <button onClick={() => onNavigate('tasks-public')} className="relative mt-5 text-sm font-bold text-blue-700 hover:text-blue-800">Pogledaj detalje zadatka →</button>
               </> : <><h2 className="relative mt-3 text-2xl font-extrabold text-ink">Nagrada nikad ne ide na slepo.</h2><p className="relative mt-4 text-sm leading-6 text-ink-2">Čim se odobri prvi zadatak, ovde će se pojaviti stvaran primer sa nagradom, trajanjem i potrebnim dokazom.</p><button onClick={() => onNavigate('advertiser-register')} className="relative mt-6 text-sm font-bold text-blue-700 hover:text-blue-800">Objavi prvi zadatak →</button></>}
             </Card>
           </div>
@@ -212,6 +223,27 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
             <div><div className="flex items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-700">Ograničen broj mesta</p><h2 className="mt-2 text-2xl font-extrabold text-ink">Uskoro popunjeni</h2></div><button onClick={() => onNavigate('tasks-public')} className="text-sm font-bold text-blue-700">Pogledaj →</button></div><div className="mt-5 space-y-3">{closingTasks.length ? closingTasks.map(task => <button key={task.id} onClick={() => onNavigate('tasks-public')} className="flex w-full items-center justify-between gap-4 rounded-xl border border-orange-200 bg-orange-50/60 p-4 text-left transition-all hover:border-orange-300"><div className="min-w-0"><p className="truncate font-bold text-ink">{task.title}</p><p className="mt-1 text-xs text-ink-2">Preostalo {task.total_slots - task.used_slots} mesta</p></div><span className="shrink-0 font-mono text-sm font-bold text-emerald-700">{formatRsd(task.reward_rsd)}</span></button>) : <Card className="border-dashed p-5"><p className="font-bold text-ink">Nijedan aktivan zadatak nije pred popunjavanjem.</p><p className="mt-1 text-sm text-ink-2">Kada broj slobodnih mesta bude mali, biće prikazani ovde.</p></Card>}</div></div>
           </div>
         </section>}
+
+        <section className="landing-dot-grid overflow-hidden bg-white">
+          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-16 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Bez sivih zona</p>
+              <h2 className="mt-2 max-w-xl text-3xl font-extrabold text-ink">Nije klasičan sajt za klikove.</h2>
+              <p className="mt-4 max-w-xl leading-7 text-ink-2">KlikZarada je organizovana oko jasnog zadatka, merljivog rezultata i pregleda pre nagrade. Tako korisnik zna šta radi, a oglašivač šta plaća.</p>
+              <div className="mt-7 grid gap-3">{trustPoints.map(([number, title, description]) => <div key={number} className="flex gap-4 rounded-2xl border border-frame bg-mint-50/70 p-4"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 font-mono text-xs font-bold text-white">{number}</span><div><h3 className="font-bold text-ink">{title}</h3><p className="mt-1 text-sm leading-6 text-ink-2">{description}</p></div></div>)}</div>
+            </div>
+            <Card className="landing-float relative overflow-hidden border-emerald-200 bg-[linear-gradient(145deg,#effdf4_0%,#ffffff_58%,#eef6ff_100%)] p-6 shadow-md">
+              <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-emerald-100/80" />
+              <p className="relative text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Tok na platformi</p>
+              <h3 className="relative mt-2 text-2xl font-extrabold text-ink">Od jasnog cilja do salda.</h3>
+              <div className="relative mt-6 space-y-3">
+                {['Odaberi aktivan zadatak', 'Radi uz proveru vremena i aktivnosti', 'Pošalji dokaz oglašivaču', 'Prati odluku i stanje nagrade'].map((label, index) => <div key={label} className="flex items-center gap-3"><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${index === 3 ? 'bg-emerald-600 text-white' : 'bg-white text-blue-700 ring-1 ring-blue-200'}`}>{index + 1}</span><span className="text-sm font-semibold text-ink">{label}</span></div>)}
+              </div>
+              <div className="relative mt-7 grid grid-cols-2 gap-3 border-t border-emerald-100 pt-5"><div><p className="font-mono text-xl font-bold text-blue-700">{loading ? '—' : overview?.active_tasks ?? tasks.length}</p><p className="mt-1 text-xs text-ink-2">aktivnih zadataka</p></div><div><p className="font-mono text-xl font-bold text-emerald-700">{loading ? '—' : overview?.approved_results ?? 0}</p><p className="mt-1 text-xs text-ink-2">odobrenih rezultata</p></div></div>
+              <Btn onClick={() => onNavigate('tasks-public')} variant="secondary" className="relative mt-6 w-full justify-center">Istraži dostupne zadatke →</Btn>
+            </Card>
+          </div>
+        </section>
 
         <section className="bg-[linear-gradient(135deg,#f0fdf4_0%,#eff6ff_100%)]">
           <div className="mx-auto grid max-w-6xl gap-8 px-4 py-16 lg:grid-cols-[1fr_.9fr] lg:items-center">
