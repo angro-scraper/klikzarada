@@ -4,7 +4,7 @@ import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tab
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminWithdrawal, type AdminSetting, type BannerSlot, type FraudOverview, type PaidBanner, type PaidPromotion, type SupportTicket, type TaskSource } from '../lib/api'
+import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminWithdrawal, type AdminSetting, type BannerSlot, type FraudOverview, type PaidBanner, type PaidPromotion, type ProductionReadiness, type SupportTicket, type TaskSource } from '../lib/api'
 
 function adminNavigation(metrics: AdminMetrics | null, tickets: SupportTicket[]) {
   const pendingWithdrawals = metrics?.pending_withdrawals ?? 0
@@ -23,7 +23,7 @@ function adminNavigation(metrics: AdminMetrics | null, tickets: SupportTicket[])
   ]},
   { group: 'Kampanje i reklame', items: [
     { id: 'kam-kampanje', label: 'Kampanje', icon: '🎯', badge: pendingCampaigns || undefined },
-    { id: 'kam-dokazi', label: 'Moderacija dokaza', icon: '📎', badge: pendingSubmissions || undefined },
+    { id: 'kam-dokazi', label: 'Sporovi i fraud dokazi', icon: '📎', badge: pendingSubmissions || undefined },
     { id: 'kam-uvoz', label: 'Uvoz zadataka', icon: '🔄' },
     { id: 'kam-banneri', label: 'Banner slotovi', icon: '🖼️', badge: pendingBanners || undefined },
   ]},
@@ -74,7 +74,7 @@ const CRUMBS: Partial<Record<AdminPage, { label: string }[]>> = {
   'fin-uplate':    [{ label: 'Admin' }, { label: 'Finansije' }, { label: 'Uplate oglašivača' }],
   'fin-fakture':   [{ label: 'Admin' }, { label: 'Finansije' }, { label: 'Fakture' }],
   'kam-kampanje':  [{ label: 'Admin' }, { label: 'Kampanje' }],
-  'kam-dokazi':    [{ label: 'Admin' }, { label: 'Kampanje' }, { label: 'Moderacija dokaza' }],
+  'kam-dokazi':    [{ label: 'Admin' }, { label: 'Kampanje' }, { label: 'Sporovi i fraud dokazi' }],
   'kam-uvoz':      [{ label: 'Admin' }, { label: 'Kampanje' }, { label: 'Uvoz zadataka' }],
   'kam-banneri':   [{ label: 'Admin' }, { label: 'Kampanje' }, { label: 'Banner slotovi' }],
   'lj-korisnici':  [{ label: 'Admin' }, { label: 'Ljudi' }, { label: 'Korisnici' }],
@@ -145,6 +145,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [bannerSlots, setBannerSlots] = useState<BannerSlot[]>([])
   const [banners, setBanners] = useState<PaidBanner[]>([])
   const [promotions, setPromotions] = useState<PaidPromotion[]>([])
+  const [productionReadiness, setProductionReadiness] = useState<ProductionReadiness | null>(null)
   const [settingDrafts, setSettingDrafts] = useState<Record<string, string>>({})
   const [dataError, setDataError] = useState('')
   const [savingAction, setSavingAction] = useState(false)
@@ -156,8 +157,8 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
   const refreshAdmin = async () => {
     try {
-      const [dashboard, userData, campaignData, submissionData, withdrawalData, sourceData, ticketData, settingData, fraudData, bannerData, promotionData] = await Promise.all([
-        api.adminDashboard(), api.adminUsers(), api.adminCampaigns(), api.adminSubmissions(), api.adminWithdrawals(), api.adminTaskSources(), api.adminTickets(), api.adminSettings(), api.adminFraudOverview(), api.adminBanners(), api.adminPromotions(),
+      const [dashboard, userData, campaignData, submissionData, withdrawalData, sourceData, ticketData, settingData, fraudData, bannerData, promotionData, readinessData] = await Promise.all([
+        api.adminDashboard(), api.adminUsers(), api.adminCampaigns(), api.adminSubmissions(), api.adminWithdrawals(), api.adminTaskSources(), api.adminTickets(), api.adminSettings(), api.adminFraudOverview(), api.adminBanners(), api.adminPromotions(), api.adminProductionReadiness(),
       ])
       setMetrics(dashboard.metrics)
       setUsers(userData.users)
@@ -171,6 +172,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
       setBannerSlots(bannerData.slots)
       setBanners(bannerData.banners)
       setPromotions(promotionData.promotions)
+      setProductionReadiness(readinessData)
       setSettingDrafts(Object.fromEntries(settingData.settings.map(setting => [setting.key, setting.value])))
       setDataError('')
     } catch (error) {
@@ -426,17 +428,18 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <StatCard label="Ukupno korisnika" value={String(metrics?.users ?? 0)} icon="👥" accent="blue" />
                   <StatCard label="Aktivnih kampanja" value={String(metrics?.active_tasks ?? 0)} icon="🎯" accent="green" />
-                  <StatCard label="Dokazi na čekanju" value={String(metrics?.pending_submissions ?? 0)} icon="📎" accent="orange" />
+                  <StatCard label="Dokazi kod oglašivača" value={String(metrics?.pending_submissions ?? 0)} icon="📎" accent="orange" />
                   <StatCard label="Isplate na čekanju" value={String(metrics?.pending_withdrawals ?? 0)} icon="💸" accent="purple" />
                 </div>
                 <div className="space-y-2">
                   {(metrics?.pending_campaigns ?? 0) > 0 && <Alert type="warning"><strong>{metrics?.pending_campaigns} kampanja</strong> čeka moderaciju pre aktivacije.</Alert>}
                   {sources.some(source => source.status === 'error') && <Alert type="error">Najmanje jedan partner izvor je u grešci. Proveri API izvore pre sledećeg uvoza.</Alert>}
                 </div>
+                {productionReadiness && <Card className="p-5"><div className="flex items-start justify-between gap-4 mb-3"><div><h2 className="font-bold text-ink">Produkcijska spremnost</h2><p className="text-sm text-ink-2">Podešeno: {productionReadiness.ready_count}/{productionReadiness.total}. Vrednosti tajni se nikada ne prikazuju ovde.</p></div><Btn size="sm" variant="secondary" onClick={() => void refreshAdmin()}>Osveži</Btn></div><div className="grid gap-2 sm:grid-cols-2">{productionReadiness.checks.map(check => <div key={check.key} className={`rounded-lg border p-3 ${check.ready ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}><p className="text-sm font-bold text-ink">{check.ready ? 'Spremno' : 'Potrebno'} · {check.label}</p>{!check.ready && <p className="text-xs text-ink-2 mt-1">{check.action}</p>}</div>)}</div></Card>}
                 <div className="grid sm:grid-cols-3 gap-4">
                   {[
                     { label: 'Finansije', items: [`Isplate na čekanju: ${metrics?.pending_withdrawals ?? 0}`, `Rezervisan budžet: ${new Intl.NumberFormat('sr-RS').format(metrics?.reserved_budget_rsd ?? 0)} RSD`, 'Fakture: nema izdatih faktura'], page: 'fin-isplate' as AdminPage, color: 'bg-emerald-50 border-emerald-200' },
-                    { label: 'Kampanje', items: [`Na čekanju: ${metrics?.pending_campaigns ?? 0}`, `Aktivnih: ${metrics?.active_tasks ?? 0}`, `Moderacija dokaza: ${metrics?.pending_submissions ?? 0}`], page: 'kam-kampanje' as AdminPage, color: 'bg-blue-50 border-blue-200' },
+                    { label: 'Kampanje', items: [`Na čekanju: ${metrics?.pending_campaigns ?? 0}`, `Aktivnih: ${metrics?.active_tasks ?? 0}`, `Dokazi kod oglašivača: ${metrics?.pending_submissions ?? 0}`], page: 'kam-kampanje' as AdminPage, color: 'bg-blue-50 border-blue-200' },
                     { label: 'Korisnici', items: [`Korisnici: ${metrics?.users ?? 0}`, `Oglašivači: ${metrics?.advertisers ?? 0}`, `Otvoreni tiketi: ${tickets.filter(ticket => ticket.status !== 'closed').length}`], page: 'lj-korisnici' as AdminPage, color: 'bg-violet-50 border-violet-200' },
                   ].map(g => (
                     <div key={g.label} className={`border rounded-xl p-4 ${g.color}`}>

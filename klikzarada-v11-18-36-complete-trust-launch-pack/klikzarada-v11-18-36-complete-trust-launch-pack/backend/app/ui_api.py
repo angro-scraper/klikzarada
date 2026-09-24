@@ -14,8 +14,10 @@ import json
 import os
 import re
 import socket
+import smtplib
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from email.message import EmailMessage
 from io import BytesIO
 from pathlib import Path
 from typing import Literal
@@ -35,10 +37,13 @@ from .models import (
     AdvertiserBudgetTransaction,
     AntiFraudDeviceV1,
     AuditLog,
+    EmailOutboxV8,
+    EmailVerificationTokenV11,
     FraudSignalV11,
     HomeBannerSlotV111,
     LaunchWaitlist,
     Notification,
+    PasswordResetTokenV11,
     PayPalCheckout,
     PayPalPayoutAttempt,
     PaidAdBannerV111,
@@ -51,6 +56,7 @@ from .models import (
     TaskSubmission,
     TaskVerificationSessionV1,
     User,
+    UserConsentV11,
     WalletTransaction,
     Withdrawal,
 )
@@ -93,6 +99,7 @@ class Registration(Credentials):
     referral_code: str | None = Field(default=None, max_length=40)
     phone: str | None = Field(default=None, max_length=80)
     device_fingerprint: str | None = Field(default=None, max_length=300)
+    accept_terms: bool = False
 
 
 class ProofPayload(BaseModel):
@@ -141,6 +148,25 @@ class CampaignLifecyclePayload(BaseModel):
 
 class WaitlistPayload(BaseModel):
     email: str = Field(min_length=5, max_length=160)
+
+
+class PasswordResetRequestPayload(BaseModel):
+    email: str = Field(min_length=5, max_length=160)
+
+
+class PasswordResetConfirmPayload(BaseModel):
+    token: str = Field(min_length=20, max_length=160)
+    new_password: str = Field(min_length=8, max_length=200)
+
+
+class EmailVerificationPayload(BaseModel):
+    token: str = Field(min_length=20, max_length=160)
+
+
+class OnboardingPayload(BaseModel):
+    city: str | None = Field(default=None, max_length=100)
+    age_group: str = Field(min_length=2, max_length=40)
+    interests: list[str] = Field(default_factory=list, max_length=8)
 
 
 class CampaignPayload(BaseModel):
@@ -372,6 +398,10 @@ def _status(value: str | None) -> str:
 
 
 def _user_data(user: User) -> dict:
+    try:
+        interests = json.loads(user.interests or "[]")
+    except (TypeError, json.JSONDecodeError):
+        interests = []
     return {
         "id": user.id,
         "full_name": user.full_name,
@@ -383,7 +413,11 @@ def _user_data(user: User) -> dict:
         "pending_rsd": _money(user.pending_rsd),
         "lifetime_earned_rsd": _money(user.lifetime_earned_rsd),
         "phone": user.phone,
+        "email_verified": bool(user.email_verified),
+        "phone_verified": bool(user.phone_verified),
         "city": user.city,
+        "age_group": user.age_group,
+        "interests": interests if isinstance(interests, list) else [],
         "payment_method": user.payment_method,
         "payment_details": user.payment_details,
         "company_name": user.company_name,
@@ -713,6 +747,91 @@ def _audit(db: Session, admin: User, action: str, entity_type: str, entity_id: i
     db.add(AuditLog(admin_id=admin.id, action=action, entity_type=entity_type, entity_id=entity_id, reason=details))
 
 
+def _public_app_url() -> str:
+    return (os.getenv("PUBLIC_APP_URL") or "https://klikzarada.onrender.com").rstrip("/")
+
+
+def _queue_email(db: Session, recipient_email: str, subject: str, body: str) -> EmailOutboxV8:
+    item = EmailOutboxV8(
+        recipient_email=recipient_email,
+        subject=subject,
+        body=body,
+        status="queued",
+    )
+    db.add(item)
+    return item
+
+
+def _deliver_queued_email(db: Session, item_id: int) -> bool:
+    """Deliver one queued email only when explicit SMTP configuration exists.
+
+    Keeping the row queued without credentials makes deployment safe: no local
+    fallback sender or hidden external service is used.
+    """
+    host = (os.getenv("SMTP_HOST") or "").strip()
+    sender = (os.getenv("SMTP_SENDER") or os.getenv("SMTP_FROM") or "").strip()
+    if not host or not sender:
+        return False
+    item = db.query(EmailOutboxV8).filter(EmailOutboxV8.id == item_id, EmailOutboxV8.status == "queued").first()
+    if not item:
+        return False
+    try:
+        message = EmailMessage()
+        message["From"] = sender
+        message["To"] = item.recipient_email
+        message["Subject"] = item.subject
+        message.set_content(item.body)
+        port = int(os.getenv("SMTP_PORT") or "587")
+        username = os.getenv("SMTP_USERNAME") or os.getenv("SMTP_USER") or sender
+        password = os.getenv("SMTP_PASSWORD") or ""
+        with smtplib.SMTP(host, port, timeout=12) as client:
+            if (os.getenv("SMTP_USE_TLS") or "true").lower() not in {"0", "false", "no"}:
+                client.starttls()
+            if password:
+                client.login(username, password)
+            client.send_message(message)
+        item.status = "sent"
+        item.sent_at = datetime.utcnow()
+        db.commit()
+        return True
+    except (OSError, smtplib.SMTPException, ValueError):
+        # A scheduled worker or an admin retry can send the still-queued item.
+        db.rollback()
+        return False
+
+
+def _queue_email_verification(db: Session, user: User) -> EmailOutboxV8:
+    db.query(EmailVerificationTokenV11).filter(
+        EmailVerificationTokenV11.user_id == user.id,
+        EmailVerificationTokenV11.status == "pending",
+    ).update({"status": "expired"}, synchronize_session=False)
+    token = uuid4().hex + uuid4().hex
+    db.add(EmailVerificationTokenV11(user_id=user.id, token=token, status="pending"))
+    verify_url = f"{_public_app_url()}/prijava?verify={token}"
+    return _queue_email(
+        db,
+        user.email,
+        "Potvrdi email adresu za KlikZaradu",
+        f"Zdravo {user.full_name},\n\nPotvrdi email adresu preko ovog linka (važi 48 sati):\n{verify_url}\n\nAko nisi ti kreirao/la nalog, ignoriši ovu poruku.",
+    )
+
+
+def _queue_password_reset(db: Session, user: User) -> EmailOutboxV8:
+    db.query(PasswordResetTokenV11).filter(
+        PasswordResetTokenV11.user_id == user.id,
+        PasswordResetTokenV11.status == "pending",
+    ).update({"status": "expired"}, synchronize_session=False)
+    token = uuid4().hex + uuid4().hex
+    db.add(PasswordResetTokenV11(user_id=user.id, token=token, status="pending"))
+    reset_url = f"{_public_app_url()}/prijava?reset={token}"
+    return _queue_email(
+        db,
+        user.email,
+        "Reset lozinke za KlikZaradu",
+        f"Zdravo {user.full_name},\n\nZa postavljanje nove lozinke otvori link u narednih 60 minuta:\n{reset_url}\n\nAko nisi tražio/la reset, ignoriši ovu poruku.",
+    )
+
+
 @router.get("/health")
 def health() -> dict:
     return {"ok": True, "ui": "react"}
@@ -736,6 +855,8 @@ def login(payload: Credentials, request: Request, response: Response, db: Sessio
 @router.post("/auth/register", status_code=201)
 def register(payload: Registration, request: Request, response: Response, db: Session = Depends(get_db)) -> dict:
     email = payload.email.strip().lower()
+    if not payload.accept_terms:
+        raise HTTPException(400, "Moraš prihvatiti Uslove korišćenja i Politiku privatnosti.")
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(409, "Email adresa je već registrovana.")
     phone = "".join(character for character in (payload.phone or "") if character.isdigit() or character == "+")
@@ -761,6 +882,12 @@ def register(payload: Registration, request: Request, response: Response, db: Se
     )
     db.add(user)
     db.flush()
+    db.add(UserConsentV11(
+        user_id=user.id,
+        consent_type="terms_and_privacy",
+        version="1.0",
+        ip_address=_request_client_ip(request),
+    ))
     fingerprint_hash, network_hash, network_label = _record_fraud_device(db, user, request, payload.device_fingerprint)
     if fingerprint_hash:
         linked_users = db.query(AntiFraudDeviceV1.user_id).filter(
@@ -784,8 +911,16 @@ def register(payload: Registration, request: Request, response: Response, db: Se
                 "network": network_label,
                 "linked_accounts": network_users,
             })
+    verification_email = _queue_email_verification(db, user)
+    db.add(Notification(
+        user_id=user.id,
+        title="Dobrodošao/la na KlikZaradu",
+        body="Potvrdi email adresu i popuni kratak profil da bi dobijao/la relevantnije zadatke.",
+        status="unread",
+    ))
     db.commit()
     db.refresh(user)
+    _deliver_queued_email(db, verification_email.id)
     response.set_cookie("kz_session", create_session_token(user.id), httponly=True, samesite="lax", secure=_cookie_is_secure(request))
     return {"user": _user_data(user)}
 
@@ -794,6 +929,78 @@ def register(payload: Registration, request: Request, response: Response, db: Se
 def logout(response: Response) -> Response:
     response.delete_cookie("kz_session")
     return response
+
+
+@router.post("/auth/email-verification/confirm")
+def confirm_email_verification(payload: EmailVerificationPayload, db: Session = Depends(get_db)) -> dict:
+    item = db.query(EmailVerificationTokenV11).filter(
+        EmailVerificationTokenV11.token == payload.token,
+        EmailVerificationTokenV11.status == "pending",
+    ).first()
+    if not item or item.created_at < datetime.utcnow() - timedelta(hours=48):
+        if item:
+            item.status = "expired"
+            db.commit()
+        raise HTTPException(400, "Link za potvrdu emaila je nevažeći ili je istekao.")
+    item.status = "used"
+    item.used_at = datetime.utcnow()
+    item.user.email_verified = True
+    db.add(Notification(
+        user_id=item.user_id,
+        title="Email je potvrđen",
+        body="Tvoj nalog je spreman za bezbednije korišćenje KlikZarade.",
+        status="unread",
+    ))
+    db.commit()
+    return {"verified": True}
+
+
+@router.post("/auth/email-verification/resend")
+def resend_email_verification(request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db)
+    if user.email_verified:
+        return {"queued": False, "already_verified": True}
+    email = _queue_email_verification(db, user)
+    db.commit()
+    return {"queued": True, "delivered": _deliver_queued_email(db, email.id), "already_verified": False}
+
+
+@router.post("/auth/password-reset/request")
+def request_password_reset(payload: PasswordResetRequestPayload, db: Session = Depends(get_db)) -> dict:
+    # Deliberately generic so this endpoint cannot be used to discover accounts.
+    user = db.query(User).filter(User.email == payload.email.strip().lower(), User.status == "active").first()
+    if not user:
+        return {"accepted": True}
+    email = _queue_password_reset(db, user)
+    db.commit()
+    _deliver_queued_email(db, email.id)
+    return {"accepted": True}
+
+
+@router.post("/auth/password-reset/confirm")
+def confirm_password_reset(payload: PasswordResetConfirmPayload, db: Session = Depends(get_db)) -> dict:
+    item = db.query(PasswordResetTokenV11).filter(
+        PasswordResetTokenV11.token == payload.token,
+        PasswordResetTokenV11.status == "pending",
+    ).first()
+    if not item or item.created_at < datetime.utcnow() - timedelta(hours=1):
+        if item:
+            item.status = "expired"
+            db.commit()
+        raise HTTPException(400, "Link za reset lozinke je nevažeći ili je istekao.")
+    if verify_password(payload.new_password, item.user.password_hash):
+        raise HTTPException(400, "Nova lozinka mora biti različita od prethodne.")
+    item.user.password_hash = hash_password(payload.new_password)
+    item.status = "used"
+    item.used_at = datetime.utcnow()
+    db.add(Notification(
+        user_id=item.user_id,
+        title="Lozinka je promenjena",
+        body="Ako ovu promenu nisi ti napravio/la, odmah se javi podršci.",
+        status="unread",
+    ))
+    db.commit()
+    return {"reset": True}
 
 
 @router.get("/public/tasks")
@@ -923,6 +1130,63 @@ def save_user_profile(payload: ProfilePayload, request: Request, db: Session = D
         user.payment_details = _paypal_email(payload.payment_details)
     db.commit()
     return {"user": _user_data(user)}
+
+
+@router.post("/user/onboarding")
+def complete_user_onboarding(payload: OnboardingPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db, {"korisnik", "admin"})
+    allowed_age_groups = {"18-24", "25-34", "35-44", "45-54", "55+", "18+"}
+    age_group = payload.age_group.strip()
+    if age_group not in allowed_age_groups:
+        raise HTTPException(400, "Izaberi jednu od ponuđenih starosnih grupa.")
+    interests: list[str] = []
+    for value in payload.interests:
+        clean = re.sub(r"\s+", " ", value).strip()
+        if clean and clean not in interests:
+            interests.append(clean[:50])
+    if not interests:
+        raise HTTPException(400, "Izaberi najmanje jednu oblast interesovanja.")
+    user.city = (payload.city or "").strip()[:100] or None
+    user.age_group = age_group
+    user.interests = json.dumps(interests, ensure_ascii=False)
+    db.add(Notification(
+        user_id=user.id,
+        title="Profil je podešen",
+        body="Sada možemo da prikazujemo zadatke koji bolje odgovaraju tvom profilu.",
+        status="unread",
+    ))
+    db.commit()
+    return {"user": _user_data(user), "onboarding_complete": True}
+
+
+def _notification_data(item: Notification) -> dict:
+    return {
+        "id": item.id,
+        "title": item.title,
+        "body": item.body,
+        "status": _status(item.status),
+        "created_at": _iso(item.created_at),
+    }
+
+
+@router.get("/notifications")
+def my_notifications(request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db)
+    items = db.query(Notification).filter(
+        (Notification.user_id == user.id) | (Notification.role_target == user.role) | (Notification.role_target == "all"),
+    ).order_by(Notification.created_at.desc()).limit(100).all()
+    return {"notifications": [_notification_data(item) for item in items]}
+
+
+@router.patch("/notifications/{notification_id}/read")
+def mark_notification_read(notification_id: int, request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db)
+    item = db.query(Notification).filter(Notification.id == notification_id).first()
+    if not item or (item.user_id != user.id and item.role_target not in {user.role, "all"}):
+        raise HTTPException(404, "Obaveštenje nije pronađeno.")
+    item.status = "read"
+    db.commit()
+    return {"notification": _notification_data(item)}
 
 
 @router.put("/account/password")
@@ -1891,6 +2155,40 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
     return _admin_dashboard_data(db)
 
 
+@router.get("/admin/production-readiness")
+def admin_production_readiness(request: Request, db: Session = Depends(get_db)) -> dict:
+    """Report configuration facts without exposing any secret values."""
+    _require_user(request, db, {"admin"})
+    database_url = (os.getenv("DATABASE_URL") or "").strip().lower()
+    checks = [
+        {
+            "key": "database",
+            "label": "PostgreSQL baza",
+            "ready": database_url.startswith(("postgres://", "postgresql://")),
+            "action": "Podesi DATABASE_URL na Render Internal Database URL.",
+        },
+        {
+            "key": "email",
+            "label": "Transakcioni email",
+            "ready": bool((os.getenv("SMTP_HOST") or "").strip() and (os.getenv("SMTP_SENDER") or os.getenv("SMTP_FROM") or "").strip()),
+            "action": "Dodaj SMTP_HOST, SMTP_PORT, SMTP_SENDER, SMTP_USERNAME i SMTP_PASSWORD.",
+        },
+        {
+            "key": "backup",
+            "label": "Rezervne kopije baze",
+            "ready": bool((os.getenv("DATABASE_BACKUP_URL") or os.getenv("BACKUP_DESTINATION") or "").strip() or (os.getenv("RENDER_POSTGRES_BACKUP_ENABLED") or "").lower() == "true"),
+            "action": "U Renderu uključi PostgreSQL backup ili podesi DATABASE_BACKUP_URL ka bezbednoj destinaciji.",
+        },
+        {
+            "key": "monitoring",
+            "label": "Monitoring grešaka",
+            "ready": bool((os.getenv("SENTRY_DSN") or os.getenv("ERROR_MONITORING_DSN") or "").strip()),
+            "action": "Podesi SENTRY_DSN ili ERROR_MONITORING_DSN za spoljašnji monitoring.",
+        },
+    ]
+    return {"checks": checks, "ready_count": sum(1 for item in checks if item["ready"]), "total": len(checks)}
+
+
 @router.get("/admin/banners")
 def admin_banners(request: Request, db: Session = Depends(get_db)) -> dict:
     _require_user(request, db, {"admin"})
@@ -2082,6 +2380,22 @@ def _review_submission(submission_id: int, payload: AdminStatusPayload, actor: U
         user.balance_rsd = _money(user.balance_rsd + submission.reward_rsd)
         user.lifetime_earned_rsd = _money(user.lifetime_earned_rsd + submission.reward_rsd)
         db.add(WalletTransaction(user_id=user.id, amount_rsd=submission.reward_rsd, tx_type="task_reward", description=f"Odobren zadatak: {submission.task.title}"))
+        approved_count = db.query(TaskSubmission).filter(
+            TaskSubmission.user_id == user.id,
+            TaskSubmission.status == "approved",
+        ).count()
+        referrer = db.query(User).filter(User.id == user.referred_by_id, User.status == "active").first() if user.referred_by_id else None
+        if approved_count == 1 and referrer and _open_risk_score(db, user.id) < ANTI_FRAUD_HIGH_RISK_SCORE:
+            # Referral rewards unlock once, only after a real approved result.
+            user.balance_rsd = _money(user.balance_rsd + 50)
+            user.lifetime_earned_rsd = _money(user.lifetime_earned_rsd + 50)
+            referrer.balance_rsd = _money(referrer.balance_rsd + 100)
+            referrer.lifetime_earned_rsd = _money(referrer.lifetime_earned_rsd + 100)
+            db.add(WalletTransaction(user_id=user.id, amount_rsd=50, tx_type="referral_joiner_bonus", description="Referral bonus nakon prvog odobrenog zadatka"))
+            db.add(WalletTransaction(user_id=referrer.id, amount_rsd=100, tx_type="referral_inviter_bonus", description=f"Referral bonus za prvog odobrenog zadatka korisnika {user.full_name}"))
+            db.add(Notification(user_id=user.id, title="Referral bonus je dodat", body="Dobio/la si 50 RSD nakon prvog odobrenog zadatka.", status="unread"))
+            db.add(Notification(user_id=referrer.id, title="Referral bonus je dodat", body=f"Dobio/la si 100 RSD jer je {user.full_name} završio/la prvi odobreni zadatak.", status="unread"))
+        db.add(Notification(user_id=user.id, title="Zadatak je odobren", body=f"Nagrada od {submission.reward_rsd:.0f} RSD je prebačena u raspoloživi saldo.", status="unread"))
         task = submission.task
         advertiser = task.advertiser if task else None
         if advertiser:
@@ -2096,6 +2410,7 @@ def _review_submission(submission_id: int, payload: AdminStatusPayload, actor: U
             ))
     else:
         user.pending_rsd = _money(user.pending_rsd - submission.reward_rsd)
+        db.add(Notification(user_id=user.id, title="Zadatak nije odobren", body=(payload.note or "Oglašivač nije odobrio poslati dokaz."), status="unread"))
         if submission.task:
             submission.task.used_slots = max(0, int(submission.task.used_slots or 0) - 1)
     _audit(db, actor, "submission_review", "TaskSubmission", submission.id, payload.status)

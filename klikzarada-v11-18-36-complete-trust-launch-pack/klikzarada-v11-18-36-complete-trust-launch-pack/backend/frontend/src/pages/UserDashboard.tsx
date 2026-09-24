@@ -4,7 +4,7 @@ import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tab
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal, InfoModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { api, deviceFingerprint, type SessionUser, type SupportTicket, type Task, type TaskVerification, type UserDashboardData } from '../lib/api'
+import { api, deviceFingerprint, type NotificationItem, type SessionUser, type SupportTicket, type Task, type TaskVerification, type UserDashboardData } from '../lib/api'
 
 const navGroups = [
   { items: [
@@ -12,6 +12,7 @@ const navGroups = [
     { id: 'zadaci', label: 'Dostupni zadaci', icon: '📋' },
     { id: 'preporuke', label: 'Preporuke', icon: '✨' },
     { id: 'dokazi', label: 'Moji dokazi', icon: '✅', badge: 2 },
+    { id: 'obavestenja', label: 'Obaveštenja', icon: '🔔' },
   ]},
   { group: 'Zarada', items: [
     { id: 'novcanik', label: 'Novčanik', icon: '💰' },
@@ -29,12 +30,13 @@ const navGroups = [
   ]},
 ]
 
-type Page = 'pregled'|'zadaci'|'preporuke'|'dokazi'|'novcanik'|'isplate'|'podaci-isplata'|'nagrade'|'misije'|'referral'|'profil'|'podrska'|'zadatak-detalj'
+type Page = 'pregled'|'zadaci'|'preporuke'|'dokazi'|'obavestenja'|'novcanik'|'isplate'|'podaci-isplata'|'nagrade'|'misije'|'referral'|'profil'|'podrska'|'zadatak-detalj'
 
 const BACK: Partial<Record<Page, { label: string; to: Page }>> = {
   zadaci:          { label: 'Nazad na pregled', to: 'pregled' },
   preporuke:       { label: 'Nazad na pregled', to: 'pregled' },
   dokazi:          { label: 'Nazad na pregled', to: 'pregled' },
+  obavestenja:     { label: 'Nazad na pregled', to: 'pregled' },
   novcanik:        { label: 'Nazad na pregled', to: 'pregled' },
   isplate:         { label: 'Nazad na pregled', to: 'pregled' },
   'podaci-isplata':{ label: 'Nazad na isplate', to: 'isplate' },
@@ -50,6 +52,7 @@ const BREADCRUMBS: Partial<Record<Page, { label: string }[]>> = {
   zadaci:          [{ label: 'Korisnik' }, { label: 'Dostupni zadaci' }],
   preporuke:       [{ label: 'Korisnik' }, { label: 'Preporuke' }],
   dokazi:          [{ label: 'Korisnik' }, { label: 'Moji dokazi' }],
+  obavestenja:     [{ label: 'Korisnik' }, { label: 'Obaveštenja' }],
   novcanik:        [{ label: 'Korisnik' }, { label: 'Novčanik' }],
   isplate:         [{ label: 'Korisnik' }, { label: 'Isplate' }],
   'podaci-isplata':[{ label: 'Korisnik' }, { label: 'Isplate' }, { label: 'Podaci za isplatu' }],
@@ -107,6 +110,9 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
   const [repeatPassword, setRepeatPassword] = useState('')
   const [saving, setSaving] = useState(false)
   const [tickets, setTickets] = useState<SupportTicket[]>([])
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [onboardingAge, setOnboardingAge] = useState('')
+  const [onboardingInterests, setOnboardingInterests] = useState<string[]>([])
   const [ticketSubject, setTicketSubject] = useState('')
   const [ticketBody, setTicketBody] = useState('')
   const activityEvents = useRef(0)
@@ -115,14 +121,17 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
 
   const refreshDashboard = async () => {
     try {
-      const [data, ticketData] = await Promise.all([api.userDashboard(), api.tickets()])
+      const [data, ticketData, notificationData] = await Promise.all([api.userDashboard(), api.tickets(), api.notifications()])
       setDashboard(data)
       setTickets(ticketData.tickets)
+      setNotifications(notificationData.notifications)
       setPaymentMethod('PayPal')
       setPaymentDetails(data.user.payment_details || '')
       setProfileName(data.user.full_name)
       setProfilePhone(data.user.phone || '')
       setProfileCity(data.user.city || '')
+      setOnboardingAge(data.user.age_group || '')
+      setOnboardingInterests(data.user.interests || [])
       setDashboardError('')
     } catch (error) {
       setDashboardError(error instanceof Error ? error.message : 'Podaci trenutno nisu dostupni.')
@@ -293,7 +302,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                 {verification.active_seconds < verification.required_seconds ? (
                   <p className="text-xs text-blue-800">Ostani na zadatku i povremeno pomeri miš, skroluj ili koristi tastaturu. Timer računa samo serverom potvrđeno vreme.</p>
                 ) : (
-                  <p className="text-xs text-emerald-700 font-semibold">Provera vremena je završena. Sada možeš poslati dokaz na ručnu moderaciju.</p>
+                  <p className="text-xs text-emerald-700 font-semibold">Provera vremena je završena. Sada možeš poslati dokaz oglašivaču kampanje.</p>
                 )}
                 {verification.status === 'flagged' && <p className="text-xs text-amber-800">Ovaj zadatak će pre odobrenja proći dodatnu fraud proveru.</p>}
               </div>
@@ -301,8 +310,8 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
             {!verification && <Alert type="warning">Pokreni proveru zadatka pre slanja dokaza.</Alert>}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Link ili opis dokaza</label>
-              <textarea disabled={!verification || verification.active_seconds < verification.required_seconds} value={proofText} onChange={event => setProofText(event.target.value)} rows={4} placeholder="Nalepi javni link do screenshota ili napiši gde admin može da proveri izvršenje." className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-y disabled:bg-gray-100 disabled:text-ink-3" />
-              <p className="text-xs text-ink-3">Dokaz i nagrada prvo idu na čekanje. Admin odobrava tek posle provere.</p>
+              <textarea disabled={!verification || verification.active_seconds < verification.required_seconds} value={proofText} onChange={event => setProofText(event.target.value)} rows={4} placeholder="Nalepi javni link do screenshota ili napiši gde oglašivač može da proveri izvršenje." className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-y disabled:bg-gray-100 disabled:text-ink-3" />
+              <p className="text-xs text-ink-3">Dokaz i nagrada prvo idu na čekanje. Oglašivač kampanje odobrava rezultat, a admin rešava samo sporove i fraud slučajeve.</p>
             </div>
             <Btn
               variant="success"
@@ -387,6 +396,23 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                   <h1 className="text-xl font-extrabold text-ink">Dobrodošao/la, {user?.full_name || 'korisniče'}! 👋</h1>
                   <p className="text-sm text-ink-2 mt-0.5">Pregled stvarnog stanja tvog KlikZarada naloga.</p>
                 </div>
+                {user && (!user.age_group || user.interests.length === 0) && (
+                  <Card className="p-5 border-blue-200 bg-blue-50">
+                    <p className="font-bold text-ink">Završi kratak profil</p>
+                    <p className="text-sm text-ink-2 mt-1">Ovi podaci služe samo za relevantnije zadatke i ne prikazuju se oglašivačima kao lični podaci.</p>
+                    <div className="grid gap-3 mt-4 sm:grid-cols-2">
+                      <select value={onboardingAge} onChange={event => setOnboardingAge(event.target.value)} className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                        <option value="">Starosna grupa</option>
+                        {['18-24', '25-34', '35-44', '45-54', '55+'].map(age => <option key={age} value={age}>{age}</option>)}
+                      </select>
+                      <div className="flex flex-wrap gap-2">
+                        {['Kupovina', 'Tehnologija', 'Hrana', 'Putovanja', 'Finansije', 'Zabava'].map(interest => <button key={interest} type="button" onClick={() => setOnboardingInterests(current => current.includes(interest) ? current.filter(item => item !== interest) : [...current, interest])} className={`rounded-full border px-3 py-1 text-xs font-semibold ${onboardingInterests.includes(interest) ? 'border-blue-600 bg-blue-600 text-white' : 'border-blue-200 bg-white text-blue-700'}`}>{interest}</button>)}
+                      </div>
+                    </div>
+                    <Btn size="sm" className="mt-4" disabled={saving || !onboardingAge || onboardingInterests.length === 0} onClick={() => void (async () => { try { setSaving(true); await api.completeUserOnboarding({ city: profileCity || undefined, age_group: onboardingAge, interests: onboardingInterests }); await refreshDashboard(); showToast('Profil za preporuke je sačuvan.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Profil nije sačuvan.', 'error') } finally { setSaving(false) } })()}>Sačuvaj preporuke</Btn>
+                  </Card>
+                )}
+                {notifications.some(item => item.status === 'unread') && <Alert type="info">Imaš {notifications.filter(item => item.status === 'unread').length} novo obaveštenje. <button onClick={() => goTo('obavestenja')} className="font-bold underline">Otvori obaveštenja</button></Alert>}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <StatCard label="Ukupan balans" value={formatRsd(balance)} icon="💰" accent="green" />
                   <StatCard label="Na čekanju" value={formatRsd(user?.pending_rsd ?? 0)} icon="⏳" accent="teal" />
@@ -458,6 +484,14 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                   </div>
                   <Btn onClick={() => goTo('referral')} variant="premium" size="sm">Podeli link</Btn>
                 </div>
+              </div>
+            )}
+
+            {/* ── OBAVEŠTENJA ── */}
+            {page === 'obavestenja' && (
+              <div className="space-y-4">
+                <SectionHeader title="Obaveštenja" description="Promene statusa zadataka, tiketa i bezbednosne poruke." />
+                {notifications.length === 0 ? <EmptyState icon="🔔" title="Nema obaveštenja" description="Kad se nešto promeni na nalogu, videćeš to ovde." /> : notifications.map(item => <Card key={item.id} className={`p-4 ${item.status === 'unread' ? 'border-blue-200 bg-blue-50' : ''}`}><div className="flex items-start justify-between gap-4"><div><p className="font-bold text-ink">{item.title}</p><p className="text-sm text-ink-2 mt-1">{item.body}</p><p className="text-xs text-ink-3 mt-2">{formatDate(item.created_at)}</p></div>{item.status === 'unread' && <Btn size="sm" variant="secondary" onClick={() => void (async () => { try { await api.markNotificationRead(item.id); await refreshDashboard() } catch (error) { showToast(error instanceof Error ? error.message : 'Obaveštenje nije ažurirano.', 'error') } })()}>Pročitano</Btn>}</div></Card>)}
               </div>
             )}
 
@@ -755,6 +789,10 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                 </Card>
                 <Card className="p-5">
                   <h3 className="font-bold text-ink mb-3">Bezbednost</h3>
+                  <div className={`rounded-lg border p-3 mb-4 flex flex-wrap items-center justify-between gap-3 ${user?.email_verified ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+                    <div><p className="text-sm font-semibold text-ink">{user?.email_verified ? 'Email je potvrđen' : 'Email još nije potvrđen'}</p><p className="text-xs text-ink-2 mt-0.5">{user?.email_verified ? 'Potvrda pomaže pri zaštiti naloga i resetu lozinke.' : 'Pošalji novu poruku za potvrdu na svoju email adresu.'}</p></div>
+                    {!user?.email_verified && <Btn size="sm" variant="secondary" disabled={saving} onClick={() => void (async () => { try { setSaving(true); const result = await api.resendEmailVerification(); showToast(result.delivered ? 'Poruka za potvrdu je poslata.' : 'Link je stavljen u email red. SMTP treba da bude podešen na Renderu.', 'info') } catch (error) { showToast(error instanceof Error ? error.message : 'Poruka nije poslata.', 'error') } finally { setSaving(false) } })()}>Pošalji ponovo</Btn>}
+                  </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <input type="password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} placeholder="Trenutna lozinka" className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
                     <input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="Nova lozinka, najmanje 8 znakova" className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />

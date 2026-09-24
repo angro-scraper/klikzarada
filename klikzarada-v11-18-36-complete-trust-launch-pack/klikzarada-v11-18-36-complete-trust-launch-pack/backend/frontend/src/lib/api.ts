@@ -11,7 +11,11 @@ export type SessionUser = {
   pending_rsd: number
   lifetime_earned_rsd: number
   phone: string | null
+  email_verified: boolean
+  phone_verified: boolean
   city: string | null
+  age_group: string | null
+  interests: string[]
   payment_method: string | null
   payment_details: string | null
   company_name: string | null
@@ -97,6 +101,20 @@ export type UserDashboardData = {
   submissions: Submission[]
   withdrawals: Withdrawal[]
   transactions: WalletTransaction[]
+}
+
+export type NotificationItem = {
+  id: number
+  title: string
+  body: string
+  status: string
+  created_at: string | null
+}
+
+export type ProductionReadiness = {
+  checks: Array<{ key: string; label: string; ready: boolean; action: string }>
+  ready_count: number
+  total: number
 }
 
 export type AdvertiserDashboardData = {
@@ -284,10 +302,20 @@ export const api = {
   login: (email: string, password: string) => request<{ user: SessionUser }>('/auth/login', {
     method: 'POST', body: JSON.stringify({ email, password }),
   }),
-  register: (payload: { full_name: string; email: string; password: string; role: 'korisnik' | 'oglasivac'; advertiser_type?: 'business' | 'private'; referral_code?: string; phone?: string; device_fingerprint?: string }) => request<{ user: SessionUser }>('/auth/register', {
+  register: (payload: { full_name: string; email: string; password: string; role: 'korisnik' | 'oglasivac'; advertiser_type?: 'business' | 'private'; referral_code?: string; phone?: string; device_fingerprint?: string; accept_terms: boolean }) => request<{ user: SessionUser }>('/auth/register', {
     method: 'POST', body: JSON.stringify(payload),
   }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
+  verifyEmail: (token: string) => request<{ verified: boolean }>('/auth/email-verification/confirm', {
+    method: 'POST', body: JSON.stringify({ token }),
+  }),
+  resendEmailVerification: () => request<{ queued: boolean; delivered?: boolean; already_verified: boolean }>('/auth/email-verification/resend', { method: 'POST' }),
+  requestPasswordReset: (email: string) => request<{ accepted: boolean }>('/auth/password-reset/request', {
+    method: 'POST', body: JSON.stringify({ email }),
+  }),
+  confirmPasswordReset: (token: string, newPassword: string) => request<{ reset: boolean }>('/auth/password-reset/confirm', {
+    method: 'POST', body: JSON.stringify({ token, new_password: newPassword }),
+  }),
   publicTasks: () => request<{ tasks: Task[] }>('/public/tasks'),
   publicOverview: () => request<PublicOverview>('/public/overview'),
   publicBanners: () => request<{ banners: PaidBanner[] }>('/public/banners'),
@@ -296,6 +324,11 @@ export const api = {
   }),
   recordBannerImpression: (id: number) => request<void>(`/public/banners/${id}/impression`, { method: 'POST' }),
   userDashboard: () => request<UserDashboardData>('/user/dashboard'),
+  completeUserOnboarding: (payload: { city?: string; age_group: string; interests: string[] }) => request<{ user: SessionUser; onboarding_complete: boolean }>('/user/onboarding', {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
+  notifications: () => request<{ notifications: NotificationItem[] }>('/notifications'),
+  markNotificationRead: (id: number) => request<{ notification: NotificationItem }>(`/notifications/${id}/read`, { method: 'PATCH' }),
   startTaskVerification: (taskId: number, payload: { device_fingerprint: string; device_label?: string }) => request<{ session: TaskVerification; resumed: boolean }>(`/user/tasks/${taskId}/verification/start`, {
     method: 'POST', body: JSON.stringify(payload),
   }),
@@ -355,6 +388,7 @@ export const api = {
     method: 'POST',
   }),
   adminDashboard: () => request<{ metrics: AdminMetrics }>('/admin/dashboard'),
+  adminProductionReadiness: () => request<ProductionReadiness>('/admin/production-readiness'),
   adminBanners: () => request<{ slots: BannerSlot[]; banners: PaidBanner[]; pricing: AdvertisingPricing }>('/admin/banners'),
   adminPromotions: () => request<{ promotions: PaidPromotion[] }>('/admin/promotions'),
   reviewAdminPromotion: (id: number, status: 'active' | 'rejected', note?: string) => request<{ promotion: PaidPromotion }>(`/admin/promotions/${id}`, {

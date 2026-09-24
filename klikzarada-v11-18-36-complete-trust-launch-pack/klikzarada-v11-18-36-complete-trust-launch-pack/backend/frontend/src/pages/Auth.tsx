@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Btn, Input, Alert } from '../components/ui'
 import { api, deviceFingerprint } from '../lib/api'
 
@@ -18,12 +18,32 @@ export default function Auth({
   const [phone, setPhone] = useState('')
   const [advertiserType, setAdvertiserType] = useState<'business' | 'private'>('business')
   const [referral, setReferral] = useState('')
+  const [acceptTerms, setAcceptTerms] = useState(false)
+  const [forgotPassword, setForgotPassword] = useState(false)
+  const [resetToken, setResetToken] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
 
   const isAdvertiser = mode === 'advertiser-login' || mode === 'advertiser-register'
   const isRegister = mode === 'register' || mode === 'advertiser-register'
   const isAdmin = mode === 'admin-login'
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const verificationToken = params.get('verify')
+    const passwordToken = params.get('reset')
+    if (passwordToken) {
+      setResetToken(passwordToken)
+      setForgotPassword(false)
+      return
+    }
+    if (!verificationToken) return
+    void api.verifyEmail(verificationToken)
+      .then(() => setNotice('Email adresa je potvrđena. Sada možeš da se prijaviš.'))
+      .catch(caught => setError(caught instanceof Error ? caught.message : 'Email nije potvrđen.'))
+      .finally(() => window.history.replaceState({}, '', '/prijava'))
+  }, [])
 
   async function handleSubmit() {
     if (!email || !password || (isRegister && !name)) return
@@ -40,12 +60,44 @@ export default function Auth({
             referral_code: referral || undefined,
             phone: isAdvertiser ? undefined : phone,
             device_fingerprint: deviceFingerprint(),
+            accept_terms: acceptTerms,
           })
         : await api.login(email, password)
       if (result.user.role === 'admin') onNavigate('admin')
       else onNavigate(result.user.role === 'oglasivac' ? 'advertiser' : 'dashboard')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Prijava nije uspela.')
+    } finally {
+      setSubmitted(false)
+    }
+  }
+
+  async function handlePasswordReset() {
+    if (!password) return
+    setSubmitted(true)
+    setError('')
+    try {
+      await api.confirmPasswordReset(resetToken, password)
+      setResetToken('')
+      setNotice('Lozinka je promenjena. Sada se prijavi novom lozinkom.')
+      window.history.replaceState({}, '', '/prijava')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Lozinka nije promenjena.')
+    } finally {
+      setSubmitted(false)
+    }
+  }
+
+  async function requestReset() {
+    if (!email) return
+    setSubmitted(true)
+    setError('')
+    try {
+      await api.requestPasswordReset(email)
+      setNotice('Ako nalog postoji, poslat je link za postavljanje nove lozinke.')
+      setForgotPassword(false)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Zahtev nije poslat.')
     } finally {
       setSubmitted(false)
     }
@@ -91,20 +143,27 @@ export default function Auth({
 
           <div className="bg-surface-2 border border-border rounded-lg p-6">
             <h1 className="text-lg font-semibold text-slate-100 mb-1">
-              {isRegister
+              {resetToken
+                ? 'Postavi novu lozinku'
+                : forgotPassword ? 'Reset lozinke'
+                : isRegister
                 ? isAdvertiser ? 'Registracija oglašivača' : 'Kreiraj nalog'
                 : isAdmin ? 'Admin prijava' : isAdvertiser ? 'Prijava oglašivača' : 'Prijavi se'}
             </h1>
             <p className="text-sm text-slate-400 mb-5">
-              {isRegister
+              {resetToken
+                ? 'Unesi novu lozinku od najmanje 8 karaktera.'
+                : forgotPassword ? 'Unesi email adresu i poslaćemo bezbedan link ako nalog postoji.'
+                : isRegister
                 ? 'Registracija je besplatna i traje manje od 2 minuta.'
                 : isAdmin ? 'Pristup je dozvoljen samo ovlašćenom administratoru.' : 'Dobrodošao/la natrag.'}
             </p>
 
             {error && <Alert type="error">{error}</Alert>}
+            {notice && <Alert type="success">{notice}</Alert>}
 
             <div className="flex flex-col gap-4">
-              {isRegister && isAdvertiser && (
+              {!resetToken && !forgotPassword && isRegister && isAdvertiser && (
                 <div className="flex flex-col gap-1.5">
                   <span className="text-xs font-semibold text-ink-2 uppercase tracking-wide">Tip oglašivača</span>
                   <div className="grid grid-cols-2 gap-2">
@@ -114,7 +173,7 @@ export default function Auth({
                   <p className="text-xs text-ink-3">Privatno lice koristi svoje ime i prezime; firma koristi registrovani naziv.</p>
                 </div>
               )}
-              {isRegister && (
+              {!resetToken && !forgotPassword && isRegister && (
                 <Input
                   label={isAdvertiser ? advertiserType === 'business' ? 'Naziv firme' : 'Ime i prezime' : 'Ime i prezime'}
                   placeholder={isAdvertiser && advertiserType === 'business' ? 'Moja Firma d.o.o.' : 'Marko Marković'}
@@ -122,28 +181,37 @@ export default function Auth({
                   onChange={setName}
                 />
               )}
-              <Input label="Email adresa" type="email" placeholder="email@primer.rs" value={email} onChange={setEmail} />
-              {isRegister && !isAdvertiser && (
+              {!resetToken && <Input label="Email adresa" type="email" placeholder="email@primer.rs" value={email} onChange={setEmail} />}
+              {!resetToken && !forgotPassword && isRegister && !isAdvertiser && (
                 <Input label="Telefon za proveru naloga" type="tel" placeholder="npr. +381 60 123 4567" value={phone} onChange={setPhone} />
               )}
-              <Input label="Lozinka" type="password" placeholder="••••••••" value={password} onChange={setPassword} />
-              {isRegister && !isAdvertiser && (
+              {!forgotPassword && <Input label={resetToken ? 'Nova lozinka' : 'Lozinka'} type="password" placeholder="••••••••" value={password} onChange={setPassword} />}
+              {!resetToken && !forgotPassword && isRegister && !isAdvertiser && (
                 <Input label="Referral kod (opciono)" placeholder="npr. USER123" value={referral} onChange={setReferral} />
               )}
 
+              {!resetToken && !forgotPassword && isRegister && (
+                <label className="flex gap-2 items-start text-xs text-slate-400 cursor-pointer">
+                  <input type="checkbox" checked={acceptTerms} onChange={event => setAcceptTerms(event.target.checked)} className="mt-0.5" />
+                  <span>Prihvatam <button type="button" onClick={() => onNavigate('legal')} className="text-blue-400 hover:text-blue-300">Uslove korišćenja i Politiku privatnosti</button>.</span>
+                </label>
+              )}
+
               <Btn
-                onClick={handleSubmit}
-                disabled={submitted || (isRegister && !isAdvertiser && phone.trim().length < 7)}
+                onClick={resetToken ? handlePasswordReset : forgotPassword ? requestReset : handleSubmit}
+                disabled={submitted || (!resetToken && !forgotPassword && isRegister && (!acceptTerms || (!isAdvertiser && phone.trim().length < 7)))}
                 className="w-full justify-center"
               >
                 {submitted
                   ? '⏳ Učitavam...'
-                  : isRegister ? 'Kreiraj nalog' : 'Prijavi se'}
+                  : resetToken ? 'Sačuvaj novu lozinku' : forgotPassword ? 'Pošalji link za reset' : isRegister ? 'Kreiraj nalog' : 'Prijavi se'}
               </Btn>
             </div>
 
             <div className="mt-5 pt-5 border-t border-border text-center">
-              {isAdmin ? (
+              {resetToken || forgotPassword ? (
+                <button onClick={() => { setResetToken(''); setForgotPassword(false); setError('') }} className="text-sm text-blue-400 hover:text-blue-300 cursor-pointer">Nazad na prijavu</button>
+              ) : isAdmin ? (
                 <p className="text-sm text-slate-400">Admin nalog kreira vlasnik platforme kroz zaštićena Render podešavanja.</p>
               ) : isRegister ? (
                 <p className="text-sm text-slate-400">
@@ -166,6 +234,7 @@ export default function Auth({
                   </button>
                 </p>
               )}
+              {!isRegister && !isAdmin && <button onClick={() => { setForgotPassword(true); setNotice(''); setError('') }} className="mt-3 text-xs text-slate-500 hover:text-slate-300 cursor-pointer">Zaboravili ste lozinku?</button>}
             </div>
           </div>
 
