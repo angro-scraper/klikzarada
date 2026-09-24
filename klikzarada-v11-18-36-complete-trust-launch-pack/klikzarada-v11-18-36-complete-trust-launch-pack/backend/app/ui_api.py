@@ -37,6 +37,7 @@ from .models import (
     AuditLog,
     FraudSignalV11,
     HomeBannerSlotV111,
+    LaunchWaitlist,
     Notification,
     PayPalCheckout,
     PayPalPayoutAttempt,
@@ -136,6 +137,10 @@ class PasswordChangePayload(BaseModel):
 
 class CampaignLifecyclePayload(BaseModel):
     action: Literal["pause", "resume"]
+
+
+class WaitlistPayload(BaseModel):
+    email: str = Field(min_length=5, max_length=160)
 
 
 class CampaignPayload(BaseModel):
@@ -811,6 +816,42 @@ def public_tasks(db: Session = Depends(get_db)) -> dict:
         payload.append(data)
     payload.sort(key=lambda item: (0 if item.get("promotion_type") == "featured" else 1 if item.get("promotion_type") == "priority" else 2, -item["reward_rsd"]))
     return {"tasks": payload}
+
+
+@router.get("/public/overview")
+def public_overview(db: Session = Depends(get_db)) -> dict:
+    """Return only aggregate, live platform figures suitable for the homepage."""
+    active_tasks = db.query(Task).filter(Task.status == "active", Task.used_slots < Task.total_slots)
+    task_count = active_tasks.count()
+    categories_count = db.query(func.count(func.distinct(Task.category))).filter(
+        Task.status == "active", Task.used_slots < Task.total_slots,
+    ).scalar() or 0
+    advertiser_count = db.query(func.count(func.distinct(Task.advertiser_id))).filter(
+        Task.status == "active", Task.used_slots < Task.total_slots,
+    ).scalar() or 0
+    average_minutes = db.query(func.avg(Task.estimated_minutes)).filter(
+        Task.status == "active", Task.used_slots < Task.total_slots,
+    ).scalar()
+    approved_results = db.query(TaskSubmission).filter(TaskSubmission.status == "approved").count()
+    return {
+        "active_tasks": task_count,
+        "categories": int(categories_count),
+        "active_advertisers": int(advertiser_count),
+        "approved_results": approved_results,
+        "average_minutes": round(float(average_minutes or 0), 1),
+    }
+
+
+@router.post("/public/waitlist")
+def join_waitlist(payload: WaitlistPayload, db: Session = Depends(get_db)) -> dict:
+    email = payload.email.strip().lower()
+    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+        raise HTTPException(422, "Unesi ispravnu email adresu.")
+    if db.query(LaunchWaitlist).filter(LaunchWaitlist.email == email).first():
+        return {"saved": True, "already_registered": True}
+    db.add(LaunchWaitlist(email=email))
+    db.commit()
+    return {"saved": True, "already_registered": False}
 
 
 @router.get("/public/banners")

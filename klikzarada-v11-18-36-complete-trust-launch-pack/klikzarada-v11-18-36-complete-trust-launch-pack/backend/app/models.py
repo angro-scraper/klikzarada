@@ -45,6 +45,19 @@ class User(Base):
     transactions = relationship("WalletTransaction", back_populates="user")
     budget_transactions = relationship("AdvertiserBudgetTransaction", back_populates="advertiser")
 
+
+class LaunchWaitlist(Base):
+    """Email addresses collected from the public launch page.
+
+    Delivery remains opt-in infrastructure work; this table only records an
+    explicit request to be notified when relevant tasks become available.
+    """
+    __tablename__ = "launch_waitlist"
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(160), unique=True, index=True, nullable=False)
+    source = Column(String(80), default="homepage")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
 class Task(Base):
     __tablename__ = "tasks"
     id = Column(Integer, primary_key=True, index=True)

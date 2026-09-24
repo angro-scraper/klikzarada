@@ -53,6 +53,14 @@ export type Task = {
   created_at: string | null
 }
 
+export type PublicOverview = {
+  active_tasks: number
+  categories: number
+  active_advertisers: number
+  approved_results: number
+  average_minutes: number
+}
+
 export type Submission = {
   id: number
   task_id: number
@@ -281,7 +289,11 @@ export const api = {
   }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   publicTasks: () => request<{ tasks: Task[] }>('/public/tasks'),
+  publicOverview: () => request<PublicOverview>('/public/overview'),
   publicBanners: () => request<{ banners: PaidBanner[] }>('/public/banners'),
+  joinWaitlist: (email: string) => request<{ saved: boolean; already_registered: boolean }>('/public/waitlist', {
+    method: 'POST', body: JSON.stringify({ email }),
+  }),
   recordBannerImpression: (id: number) => request<void>(`/public/banners/${id}/impression`, { method: 'POST' }),
   userDashboard: () => request<UserDashboardData>('/user/dashboard'),
   startTaskVerification: (taskId: number, payload: { device_fingerprint: string; device_label?: string }) => request<{ session: TaskVerification; resumed: boolean }>(`/user/tasks/${taskId}/verification/start`, {

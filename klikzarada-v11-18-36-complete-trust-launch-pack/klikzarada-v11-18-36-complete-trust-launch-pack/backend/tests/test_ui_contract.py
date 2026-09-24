@@ -23,6 +23,8 @@ class UiContractTests(unittest.TestCase):
             "/api/ui/tickets/{ticket_id}/messages",
             "/api/ui/account/password",
             "/api/ui/advertiser/campaigns/{task_id}/lifecycle",
+            "/api/ui/public/overview",
+            "/api/ui/public/waitlist",
         }
         self.assertTrue(expected.issubset(paths))
 
