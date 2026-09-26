@@ -5,6 +5,7 @@ export type SessionUser = {
   full_name: string
   email: string
   role: 'korisnik' | 'oglasivac' | 'admin'
+  platform_publishing: boolean
   status: string
   level: string
   balance_rsd: number
@@ -43,6 +44,7 @@ export type Task = {
   estimated_minutes: number
   min_user_level: string
   featured: boolean
+  platform_sponsored?: boolean
   status: string
   moderation_note: string | null
   target_city: string | null

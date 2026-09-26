@@ -189,11 +189,12 @@ const TASK_FORM_FIELDS: Record<string, { title: string; intro: string; fields: T
   ] },
 }
 
-function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, categories, campaign }: { onCancel: () => void; onSuccess: () => void; onCreate: (payload: Parameters<typeof api.createCampaign>[0]) => Promise<void>; onRevise: (id: number, payload: Parameters<typeof api.createCampaign>[0]) => Promise<void>; feePercent: number; categories: string[]; campaign?: import('../lib/api').Task }) {
+function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, platformPublishing, categories, campaign }: { onCancel: () => void; onSuccess: () => void; onCreate: (payload: Parameters<typeof api.createCampaign>[0]) => Promise<void>; onRevise: (id: number, payload: Parameters<typeof api.createCampaign>[0]) => Promise<void>; feePercent: number; platformPublishing: boolean; categories: string[]; campaign?: import('../lib/api').Task }) {
   const [step, setStep] = useState(1)
   const [naziv, setNaziv] = useState(campaign?.title ?? '')
   const [reward, setReward] = useState(campaign ? String(campaign.reward_rsd) : '')
   const [budget, setBudget] = useState(campaign ? String(Math.ceil(campaign.reward_rsd * campaign.total_slots * (1 + feePercent / 100))) : '')
+  const [slots, setSlots] = useState(campaign ? String(campaign.total_slots) : '')
   const [description, setDescription] = useState(campaign?.description ?? '')
   const [taskUrl, setTaskUrl] = useState(campaign?.target_url ?? '')
   const [category, setCategory] = useState(campaign?.category ?? '')
@@ -205,7 +206,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, cat
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
-  const steps = ['Definicija', 'Nagrada i budžet', 'Publika i dokaz', 'Pregled']
+  const steps = ['Definicija', platformPublishing ? 'Nagrada i obim' : 'Nagrada i budžet', 'Publika i dokaz', 'Pregled']
   const taskForm = TASK_FORM_FIELDS[category]
   const hasCompleteBrief = Boolean(taskForm) && taskForm.fields.every(field => taskDetails[field.key]?.trim())
   const detailLines = taskForm?.fields.filter(field => taskDetails[field.key]?.trim()).map(field => `${field.label}: ${taskDetails[field.key].trim()}`) ?? []
@@ -270,16 +271,20 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, cat
         )}
         {step === 2 && (
           <div className="space-y-4">
-            <h3 className="font-bold text-ink">Nagrada i budžet</h3>
+            <h3 className="font-bold text-ink">{platformPublishing ? 'Nagrada i obim' : 'Nagrada i budžet'}</h3>
             <Input label="Nagrada po zadatku (RSD)" placeholder="npr. 80" value={reward} onChange={setReward} />
-            <Input label="Ukupni budžet (RSD)" placeholder="npr. 5000" value={budget} onChange={setBudget} />
+            {platformPublishing
+              ? <Input label="Broj korisnika / izvršenja" placeholder="npr. 50" type="number" min={1} step={1} value={slots} onChange={setSlots} />
+              : <Input label="Ukupni budžet (RSD)" placeholder="npr. 5000" value={budget} onChange={setBudget} />}
             <Select label="Trajanje" options={[{ value: '7', label: '7 dana' }, { value: '14', label: '14 dana' }, { value: '30', label: '30 dana' }]} />
-            {reward && budget && (
+            {platformPublishing && reward && slots ? (
+              <Alert type="info">Platformska objava je <strong>bez naknade</strong>. Odobrena nagrada od {reward} RSD po izvršenju ostaje stvarni trošak platforme.</Alert>
+            ) : reward && budget && (
               <Alert type="info">Procenjeno: <strong className="font-mono">{Math.floor(Number(budget) / (Number(reward) * (1 + feePercent / 100)))}</strong> izvršenih zadataka, uključujući platformsku naknadu od {feePercent}%.</Alert>
             )}
             <div className="flex gap-2">
               <Btn onClick={() => setStep(1)} variant="secondary">← Prethodni korak</Btn>
-              <Btn onClick={() => setStep(3)} disabled={!reward || !budget} className="flex-1 justify-center">Dalje →</Btn>
+              <Btn onClick={() => setStep(3)} disabled={!reward || !(platformPublishing ? slots : budget)} className="flex-1 justify-center">Dalje →</Btn>
             </div>
           </div>
         )}
@@ -315,17 +320,19 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, cat
                 <div className="flex justify-between gap-4"><span className="text-ink-2">Kategorija</span><span className="font-semibold text-ink text-right">{category}</span></div>
                 <div><span className="text-ink-2">Precizni detalji</span><ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-ink">{detailLines.map(line => <li key={line}>{line}</li>)}</ul></div>
                 <div className="flex justify-between"><span className="text-ink-2">Nagrada</span><span className="font-mono font-bold text-emerald-600">{reward} RSD</span></div>
-                <div className="flex justify-between"><span className="text-ink-2">Budžet</span><span className="font-mono font-bold text-blue-600">{budget} RSD</span></div>
+                {platformPublishing
+                  ? <><div className="flex justify-between"><span className="text-ink-2">Broj izvršenja</span><span className="font-mono font-bold text-blue-600">{slots}</span></div><div className="flex justify-between"><span className="text-ink-2">Naknada objave</span><span className="font-mono font-bold text-emerald-600">0 RSD</span></div></>
+                  : <div className="flex justify-between"><span className="text-ink-2">Budžet</span><span className="font-mono font-bold text-blue-600">{budget} RSD</span></div>}
             </div>
             {error && <Alert type="error">{error}</Alert>}
-            <Alert type="warning">Kampanja ide na moderaciju pre aktivacije. Budžet se rezerviše tek kada zahtev prođe proveru dostupnih sredstava.</Alert>
+            <Alert type="warning">{platformPublishing ? 'Platformska kampanja ide na moderaciju pre aktivacije. Nema PayPal naplate ni rezervacije budžeta.' : 'Kampanja ide na moderaciju pre aktivacije. Budžet se rezerviše tek kada zahtev prođe proveru dostupnih sredstava.'}</Alert>
             <div className="flex gap-2">
               <Btn onClick={() => setStep(3)} variant="secondary">← Izmeni prethodni korak</Btn>
               <Btn disabled={submitting} onClick={async () => {
                 const rewardRsd = Number(reward)
-                const totalSlots = Math.floor(Number(budget) / (rewardRsd * (1 + feePercent / 100)))
+                const totalSlots = platformPublishing ? Math.floor(Number(slots)) : Math.floor(Number(budget) / (rewardRsd * (1 + feePercent / 100)))
                 if (!Number.isFinite(rewardRsd) || rewardRsd <= 0 || totalSlots < 1) {
-                  setError('Unesi validnu nagradu i budžet dovoljan za najmanje jedan zadatak.')
+                  setError(platformPublishing ? 'Unesi validnu nagradu i broj izvršenja od najmanje jedan.' : 'Unesi validnu nagradu i budžet dovoljan za najmanje jedan zadatak.')
                   return
                 }
                 setSubmitting(true)
@@ -472,7 +479,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
       setBannerImageUrl('')
       setBannerUrl('')
       await refreshDashboard()
-      showToast(`Zakup je rezervisan: ${new Intl.NumberFormat('sr-RS').format(result.reserved_rsd)} RSD. Čeka odobrenje admina.`, 'success')
+      showToast(platformPublishing ? 'Platformski banner je poslat na moderaciju bez naknade.' : `Zakup je rezervisan: ${new Intl.NumberFormat('sr-RS').format(result.reserved_rsd)} RSD. Čeka odobrenje admina.`, 'success')
     } catch (error) {
       setBannerError(error instanceof Error ? error.message : 'Zakup banera nije uspeo.')
     } finally {
@@ -504,7 +511,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
     try {
       const result = await api.reserveAdvertiserPromotion({ task_id: Number(promotionTaskId), promotion_type: promotionType, days_count: daysCount })
       await refreshDashboard()
-      showToast(`Promocija je rezervisana: ${new Intl.NumberFormat('sr-RS').format(result.reserved_rsd)} RSD. Čeka odobrenje admina.`, 'success')
+      showToast(platformPublishing ? 'Platformska VIP promocija je poslata na moderaciju bez naknade.' : `Promocija je rezervisana: ${new Intl.NumberFormat('sr-RS').format(result.reserved_rsd)} RSD. Čeka odobrenje admina.`, 'success')
     } catch (error) {
       setPromotionError(error instanceof Error ? error.message : 'Promocija nije rezervisana.')
     } finally { setPromotionLoading(false) }
@@ -529,6 +536,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
   const advertiser = dashboard?.user
   const pricing = dashboard?.pricing
+  const platformPublishing = advertiser?.platform_publishing === true
   const feePercent = pricing?.platform_fee_percent ?? 20
   const feeMultiplier = 1 + feePercent / 100
   const selectedBannerSlot = bannerSlots.find(slot => slot.id === Number(bannerSlotId))
@@ -540,8 +548,8 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const campaigns = (dashboard?.tasks ?? []).map(task => ({
     task,
     naziv: task.title,
-    budžet: `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.total_slots * feeMultiplier)} RSD`,
-    potrošeno: `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.used_slots * feeMultiplier)} RSD`,
+    budžet: platformPublishing ? `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.total_slots)} RSD nagrada` : `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.total_slots * feeMultiplier)} RSD`,
+    potrošeno: platformPublishing ? `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.used_slots)} RSD nagrada` : `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.used_slots * feeMultiplier)} RSD`,
     dokazi: task.submission_total ?? 0,
     odobreno: task.submission_approved ?? 0,
     naProveri: task.submission_pending ?? 0,
@@ -655,7 +663,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                       <span>{p.zadatak}</span>,
                       <span className="font-mono text-xs">{p.poslato}</span>,
                       <StatusBadge status={proofStatus(p.id, p.status)} />,
-                      <span className="text-xs text-ink-3">Admin pregled</span>,
+                      <span className="text-xs text-ink-3">Pregledaj kao oglašivač</span>,
                     ])}
                   />
                 </Card>
@@ -670,6 +678,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                 onCreate={async payload => { await api.createCampaign(payload); await refreshDashboard(); showToast('Kampanja je poslata na moderaciju.', 'success') }}
                 onRevise={async (id, payload) => { await api.reviseCampaign(id, payload); await refreshDashboard(); showToast('Izmena kampanje je poslata na novu moderaciju.', 'success') }}
                 feePercent={feePercent}
+                platformPublishing={platformPublishing}
                 categories={pricing?.task_categories ?? []}
                 campaign={campaignToRevise ?? undefined}
               />
@@ -742,12 +751,16 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
             {page === 'budzet' && (
               <div className="space-y-4">
-                <SectionHeader title="Budžet i uplate" />
+                <SectionHeader title={platformPublishing ? 'Platformske objave' : 'Budžet i uplate'} description={platformPublishing ? 'Kao administrator objavljuješ kampanje, bannere i VIP pozicije bez PayPal naplate i bez rezervacije budžeta.' : undefined} />
                 <div className="grid grid-cols-2 gap-3">
-                  <StatCard label="Raspoloživi budžet" value={`${new Intl.NumberFormat('sr-RS').format(advertiser?.advertiser_budget_rsd ?? 0)} RSD`} accent="green" />
-                  <StatCard label="Rezervisan" value={`${new Intl.NumberFormat('sr-RS').format(advertiser?.advertiser_reserved_rsd ?? 0)} RSD`} accent="orange" />
+                  <StatCard label={platformPublishing ? 'Naknada za objave' : 'Raspoloživi budžet'} value={platformPublishing ? '0 RSD' : `${new Intl.NumberFormat('sr-RS').format(advertiser?.advertiser_budget_rsd ?? 0)} RSD`} accent="green" />
+                  <StatCard label={platformPublishing ? 'Status objava' : 'Rezervisan'} value={platformPublishing ? 'Bez naplate' : `${new Intl.NumberFormat('sr-RS').format(advertiser?.advertiser_reserved_rsd ?? 0)} RSD`} accent="orange" />
                 </div>
-                <Card className="p-5">
+                {platformPublishing ? <Card className="p-5">
+                  <h3 className="font-bold text-ink">Objavljivanje platforme je besplatno</h3>
+                  <p className="mt-2 text-sm leading-6 text-ink-2">Kampanje, banneri, prioritetni prikaz i istaknute kampanje koje kreiraš kao administrator ne koriste PayPal niti saldo oglašivača.</p>
+                  <div className="mt-4"><Alert type="warning">Kada odobriš dokaz korisnika na platformskoj kampanji, njegova nagrada postaje stvarna obaveza platforme za isplatu. Zato objavljuj samo zadatke za koje je nagrada stvarno planirana.</Alert></div>
+                </Card> : <Card className="p-5">
                   <div className="flex items-start justify-between gap-4 mb-4">
                     <div>
                       <h3 className="font-bold text-ink">Uplati sredstva</h3>
@@ -775,7 +788,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     </div>
                   </div>
                   <p className="text-xs text-ink-3 mt-3">Karticu obrađuje PayPal. Prikaz kartične opcije zavisi od PayPal odobrenja, zemlje i provere kupca; KlikZarada ne prima niti čuva podatke kartice.</p>
-                </Card>
+                </Card>}
               </div>
             )}
 
@@ -823,10 +836,10 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
             {page === 'banneri' && (
               <div className="space-y-5">
-                <SectionHeader title="Banner reklame" description="Rezerviši poziciju na početnoj stranici. Svaki zakup prolazi proveru administratora pre objave." />
+                <SectionHeader title="Banner reklame" description={platformPublishing ? 'Objavi banner platforme bez naplate. Sadržaj i dalje prolazi proveru pre prikaza na početnoj.' : 'Rezerviši poziciju na početnoj stranici. Svaki zakup prolazi proveru administratora pre objave.'} />
                 <Card className="p-5">
-                  <h2 className="font-bold text-ink">Novi zakup</h2>
-                  <p className="text-sm text-ink-3 mt-1">Iznos se samo rezerviše iz budžeta dok admin ne odobri sadržaj.</p>
+                  <h2 className="font-bold text-ink">{platformPublishing ? 'Novi platformski banner' : 'Novi zakup'}</h2>
+                  <p className="text-sm text-ink-3 mt-1">{platformPublishing ? 'Platformski banner ne koristi budžet niti PayPal. Objavljuje se posle moderacije.' : 'Iznos se samo rezerviše iz budžeta dok admin ne odobri sadržaj.'}</p>
                   <div className="grid sm:grid-cols-2 gap-3 mt-4">
                     <Select
                       label="Pozicija na početnoj"
@@ -834,7 +847,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                       onChange={setBannerSlotId}
                       options={bannerSlots.map(slot => ({
                         value: String(slot.id),
-                        label: `${slot.title} — ${new Intl.NumberFormat('sr-RS').format(slot.price_rsd)} RSD / 7 dana`,
+                        label: `${slot.title} — ${platformPublishing ? '0 RSD za platformu' : `${new Intl.NumberFormat('sr-RS').format(slot.price_rsd)} RSD / 7 dana`}`,
                       }))}
                     />
                     <Input label="Trajanje u danima" type="number" min={1} max={bannerMaxDays} step={1} value={String(normalizedBannerDays)} onChange={value => setBannerDays(String(Math.min(bannerMaxDays, Math.max(1, Math.floor(Number(value) || 1))))) } />
@@ -851,20 +864,20 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     <Input label="Kratak opis (opciono)" placeholder="Jedna jasna poruka za posetioce" value={bannerBody} onChange={setBannerBody} />
                   </div>
                   {selectedBannerSlot && <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-sm text-ink-2">
-                    <p><strong className="text-ink">Cena rezervacije:</strong> {new Intl.NumberFormat('sr-RS').format(Math.round(selectedBannerPrice))} RSD za {normalizedBannerDays} dana.</p>
+                    <p><strong className="text-ink">{platformPublishing ? 'Naknada platforme:' : 'Cena rezervacije:'}</strong> {platformPublishing ? '0 RSD' : `${new Intl.NumberFormat('sr-RS').format(Math.round(selectedBannerPrice))} RSD za ${normalizedBannerDays} dana`}.</p>
                     <p className="mt-1 text-xs">Format: {selectedBannerSlot.width_label}. Zauzeti termini se prikazuju pre rezervacije i admin proverava kreativni sadržaj.</p>
                     {selectedBannerSlot.schedule.length > 0 && <p className="mt-1 text-xs text-amber-700">Postojeće rezervacije: {selectedBannerSlot.schedule.map(item => item.title).join(', ')}.</p>}
                   </div>}
                   {bannerError && <div className="mt-3"><Alert type="error">{bannerError}</Alert></div>}
                   <div className="flex flex-wrap items-center gap-3 mt-4">
-                    <Btn disabled={bannerLoading || bannerSlots.length === 0} onClick={() => void reserveBanner()}>{bannerLoading ? 'Rezervacija...' : 'Rezerviši banner'}</Btn>
+                    <Btn disabled={bannerLoading || bannerSlots.length === 0} onClick={() => void reserveBanner()}>{bannerLoading ? 'Slanje...' : platformPublishing ? 'Pošalji banner na moderaciju' : 'Rezerviši banner'}</Btn>
                     <span className="text-xs text-ink-3">Objava je moguća samo posle admin odobrenja.</span>
                   </div>
                 </Card>
                 <div>
                   <SectionHeader title="Moji zakupi" />
                   {ownBanners.length === 0
-                    ? <EmptyState icon="🖼️" title="Još nemaš zakupljen banner" description="Izaberi slobodnu poziciju i pošalji rezervaciju na proveru." />
+                    ? <EmptyState icon="🖼️" title={platformPublishing ? 'Još nemaš platformski banner' : 'Još nemaš zakupljen banner'} description={platformPublishing ? 'Izaberi slobodnu poziciju i pošalji platformsku objavu na proveru.' : 'Izaberi slobodnu poziciju i pošalji rezervaciju na proveru.'} />
                     : <Card>
                       <Table
                         headers={['Reklama', 'Pozicija', 'Trajanje', 'Prikazi', 'Iznos', 'Status', 'Napomena']}
@@ -873,7 +886,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                           <span className="text-xs text-ink-2">{banner.slot_title}</span>,
                           <span>{banner.days_count} dana</span>,
                           <span className="font-mono text-xs">{banner.views_count}</span>,
-                          <span className="font-mono text-xs">{new Intl.NumberFormat('sr-RS').format(banner.price_rsd)} RSD</span>,
+                          <span className="font-mono text-xs">{platformPublishing ? '0 RSD' : `${new Intl.NumberFormat('sr-RS').format(banner.price_rsd)} RSD`}</span>,
                           <StatusBadge status={banner.status} />,
                           <span className="text-xs text-ink-3">{banner.admin_note || '—'}</span>,
                         ])}
@@ -891,30 +904,30 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Proizvod 01</p>
                     <h3 className="mt-2 font-bold text-ink">Kampanja sa dokazom</h3>
                     <p className="mt-2 text-sm leading-6 text-ink-2">Anketa, testiranje sajta, provera podataka ili feedback. Nagrada se isplaćuje tek nakon odobrenog dokaza.</p>
-                    <p className="mt-3 font-mono text-sm font-bold text-blue-700">Naknada: {feePercent}% na nagrade</p>
+                    <p className="mt-3 font-mono text-sm font-bold text-blue-700">{platformPublishing ? 'Platformska objava: 0 RSD naknada' : `Naknada: ${feePercent}% na nagrade`}</p>
                     <Btn size="sm" className="mt-4" onClick={() => goTo('nova')}>Kreiraj kampanju</Btn>
                   </Card>
                   <Card className="border-violet-200 p-5">
                     <p className="text-xs font-bold uppercase tracking-wide text-violet-700">Proizvod 02</p>
                     <h3 className="mt-2 font-bold text-ink">Zakup banner pozicije</h3>
                     <p className="mt-2 text-sm leading-6 text-ink-2">Pozicija na početnoj, izabran broj dana, URL odredišta i opciona slika. Admin odobrava sadržaj pre objave.</p>
-                    <p className="mt-3 font-mono text-sm font-bold text-violet-700">Od {new Intl.NumberFormat('sr-RS').format(bannerSlots.length > 0 ? Math.min(...bannerSlots.map(slot => slot.price_rsd)) : 0)} RSD / 7 dana</p>
+                    <p className="mt-3 font-mono text-sm font-bold text-violet-700">{platformPublishing ? 'Platformska objava: 0 RSD' : `Od ${new Intl.NumberFormat('sr-RS').format(bannerSlots.length > 0 ? Math.min(...bannerSlots.map(slot => slot.price_rsd)) : 0)} RSD / 7 dana`}</p>
                     <Btn size="sm" variant="premium" className="mt-4" onClick={() => goTo('banneri')}>Pogledaj slotove</Btn>
                   </Card>
                 </div>
                 <Card className="border-violet-200 p-5">
                   <p className="text-xs font-bold uppercase tracking-wide text-violet-700">VIP promocija</p>
                   <h3 className="mt-2 font-bold text-ink">Istaknuta kampanja ili prioritetni prikaz</h3>
-                  <p className="mt-2 text-sm leading-6 text-ink-2">Promocija važi 1–31 dan, najpre rezerviše budžet i objavljuje se tek posle admin odobrenja. Na listi zadataka uvek je vidljivo označena kao „Sponzorisano”.</p>
+                  <p className="mt-2 text-sm leading-6 text-ink-2">{platformPublishing ? 'Promocija platforme važi 1–31 dan, bez rezervacije budžeta, i objavljuje se tek posle moderacije. Na listi zadataka uvek je vidljivo označena kao „Sponzorisano”.' : 'Promocija važi 1–31 dan, najpre rezerviše budžet i objavljuje se tek posle admin odobrenja. Na listi zadataka uvek je vidljivo označena kao „Sponzorisano”.'}</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     <Select label="Aktivna kampanja" value={promotionTaskId} onChange={setPromotionTaskId} options={dashboard?.tasks.filter(task => task.status === 'aktivno' || task.status === 'active').map(task => ({ value: String(task.id), label: task.title })) ?? []} />
-                    <Select label="Tip promocije" value={promotionType} onChange={value => setPromotionType(value as 'featured' | 'priority')} options={[{ value: 'featured', label: 'Istaknuta kampanja — 1.200 RSD / 7 dana' }, { value: 'priority', label: 'Prioritetni prikaz — 700 RSD / 7 dana' }]} />
+                    <Select label="Tip promocije" value={promotionType} onChange={value => setPromotionType(value as 'featured' | 'priority')} options={[{ value: 'featured', label: platformPublishing ? 'Istaknuta kampanja — 0 RSD za platformu' : 'Istaknuta kampanja — 1.200 RSD / 7 dana' }, { value: 'priority', label: platformPublishing ? 'Prioritetni prikaz — 0 RSD za platformu' : 'Prioritetni prikaz — 700 RSD / 7 dana' }]} />
                     <Input label="Trajanje u danima" type="number" min={1} max={31} step={1} value={promotionDays} onChange={value => setPromotionDays(String(Math.min(31, Math.max(1, Math.floor(Number(value) || 1)))))} />
                   </div>
                   {promotionError && <div className="mt-3"><Alert type="error">{promotionError}</Alert></div>}
                   <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <Btn variant="premium" disabled={promotionLoading || !promotionTaskId} onClick={() => void reservePromotion()}>{promotionLoading ? 'Rezervacija...' : 'Pošalji VIP rezervaciju'}</Btn>
-                    <span className="text-xs text-ink-3">Istaknuta: 1.200 RSD / 7 dana. Prioritet: 700 RSD / 7 dana.</span>
+                    <Btn variant="premium" disabled={promotionLoading || !promotionTaskId} onClick={() => void reservePromotion()}>{promotionLoading ? 'Slanje...' : platformPublishing ? 'Pošalji VIP na moderaciju' : 'Pošalji VIP rezervaciju'}</Btn>
+                    <span className="text-xs text-ink-3">{platformPublishing ? 'Za administratora: 0 RSD. Trajanje je i dalje ograničeno na 1–31 dan.' : 'Istaknuta: 1.200 RSD / 7 dana. Prioritet: 700 RSD / 7 dana.'}</span>
                   </div>
                 </Card>
                 {promotions.length > 0 && <Card>
@@ -922,7 +935,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     <span className="font-semibold text-ink">{item.task_title}</span>,
                     <span className="text-violet-700 text-xs font-semibold">{item.promotion_type === 'featured' ? 'Istaknuta' : 'Prioritetna'}</span>,
                     <span>{item.days_count} dana</span>,
-                    <span className="font-mono text-xs">{new Intl.NumberFormat('sr-RS').format(item.price_rsd)} RSD</span>,
+                    <span className="font-mono text-xs">{platformPublishing ? '0 RSD' : `${new Intl.NumberFormat('sr-RS').format(item.price_rsd)} RSD`}</span>,
                     <StatusBadge status={item.status} />,
                     <span className="text-xs text-ink-3">{item.admin_note || '—'}</span>,
                   ])} />

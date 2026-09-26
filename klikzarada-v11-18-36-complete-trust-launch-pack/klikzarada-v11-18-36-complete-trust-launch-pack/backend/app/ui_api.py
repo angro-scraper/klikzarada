@@ -397,6 +397,11 @@ def _status(value: str | None) -> str:
     return (value or "").strip().lower().replace(" ", "_")
 
 
+def _is_platform_publisher(user: User | None) -> bool:
+    """Platform-owned advertising is free, but user rewards remain real costs."""
+    return bool(user and user.role == "admin")
+
+
 def _user_data(user: User) -> dict:
     try:
         interests = json.loads(user.interests or "[]")
@@ -407,6 +412,7 @@ def _user_data(user: User) -> dict:
         "full_name": user.full_name,
         "email": user.email,
         "role": user.role,
+        "platform_publishing": _is_platform_publisher(user),
         "status": user.status,
         "level": user.level or "Bronza",
         "balance_rsd": _money(user.balance_rsd),
@@ -447,6 +453,7 @@ def _task_data(task: Task) -> dict:
         "estimated_minutes": task.estimated_minutes,
         "min_user_level": task.min_user_level or "Bronza",
         "featured": bool(task.featured),
+        "platform_sponsored": _is_platform_publisher(task.advertiser),
         "status": _status(task.status),
         "moderation_note": task.moderation_note,
         "target_city": task.target_city,
@@ -561,6 +568,7 @@ def _banner_data(banner: PaidAdBannerV111) -> dict:
         "slot_title": banner.slot.title if banner.slot else "Banner slot",
         "slot_code": banner.slot.code if banner.slot else None,
         "advertiser_id": banner.advertiser_id,
+        "platform_sponsored": _is_platform_publisher(banner.advertiser),
         "advertiser_name": banner.advertiser.company_name or banner.advertiser.full_name if banner.advertiser else "Oglašivač",
         "title": banner.title,
         "body": banner.body,
@@ -638,6 +646,7 @@ def _promotion_data(item: PaidPromotionRequestV111) -> dict:
         "task_id": item.task_id,
         "task_title": item.task.title if item.task else item.title,
         "advertiser_id": item.advertiser_id,
+        "platform_sponsored": _is_platform_publisher(item.advertiser),
         "advertiser_name": item.advertiser.company_name or item.advertiser.full_name if item.advertiser else "Oglašivač",
         "promotion_type": item.promotion_type,
         "price_rsd": _money(item.price_rsd),
@@ -1597,11 +1606,13 @@ def reserve_advertiser_promotion(payload: PromotionPayload, request: Request, db
     ).first()
     if active_or_pending:
         raise HTTPException(409, "Za ovu kampanju već postoji aktivna ili poslata rezervacija iste promocije.")
-    price = _promotion_price(payload.promotion_type, payload.days_count)
+    platform_publishing = _is_platform_publisher(user)
+    price = 0.0 if platform_publishing else _promotion_price(payload.promotion_type, payload.days_count)
     if float(user.advertiser_budget_rsd or 0) < price:
         raise HTTPException(400, f"Nedovoljno budžeta. Za ovu promociju potrebno je {price:.0f} RSD.")
-    user.advertiser_budget_rsd = _money(float(user.advertiser_budget_rsd or 0) - price)
-    user.advertiser_reserved_rsd = _money(float(user.advertiser_reserved_rsd or 0) + price)
+    if not platform_publishing:
+        user.advertiser_budget_rsd = _money(float(user.advertiser_budget_rsd or 0) - price)
+        user.advertiser_reserved_rsd = _money(float(user.advertiser_reserved_rsd or 0) + price)
     item = PaidPromotionRequestV111(
         advertiser_id=user.id,
         task_id=task.id,
@@ -1610,12 +1621,17 @@ def reserve_advertiser_promotion(payload: PromotionPayload, request: Request, db
         price_rsd=price,
         days_count=payload.days_count,
         status="pending",
-        admin_note="Rezervacija čeka odobrenje administratora.",
+        admin_note="Platformska promocija čeka odobrenje." if platform_publishing else "Rezervacija čeka odobrenje administratora.",
         starts_at=now,
         ends_at=now + timedelta(days=payload.days_count),
     )
     db.add(item)
-    db.add(AdvertiserBudgetTransaction(advertiser_id=user.id, amount_rsd=-price, tx_type="reserve_promotion", description=f"Rezervisana promocija ({payload.promotion_type}): {task.title}"))
+    db.add(AdvertiserBudgetTransaction(
+        advertiser_id=user.id,
+        amount_rsd=-price if not platform_publishing else 0,
+        tx_type="platform_promotion_requested" if platform_publishing else "reserve_promotion",
+        description=f"Platformska promocija bez naknade: {task.title}" if platform_publishing else f"Rezervisana promocija ({payload.promotion_type}): {task.title}",
+    ))
     db.commit()
     db.refresh(item)
     return {"promotion": _promotion_data(item), "reserved_rsd": price}
@@ -1641,11 +1657,13 @@ def reserve_advertiser_banner(
         raise HTTPException(409, "Ovaj slot je već rezervisan za traženi period.")
     target_url = _validate_banner_target_url(payload.target_url)
     image_url = _validate_banner_image_url(payload.image_url) if payload.image_url and payload.image_url.strip() else None
-    price_rsd = _money(float(slot.price_rsd or 0) * payload.days_count / 7)
+    platform_publishing = _is_platform_publisher(user)
+    price_rsd = 0.0 if platform_publishing else _money(float(slot.price_rsd or 0) * payload.days_count / 7)
     if user.advertiser_budget_rsd < price_rsd:
         raise HTTPException(400, f"Nedovoljno budžeta. Za ovaj zakup potrebno je {price_rsd:.0f} RSD.")
-    user.advertiser_budget_rsd = _money(user.advertiser_budget_rsd - price_rsd)
-    user.advertiser_reserved_rsd = _money(user.advertiser_reserved_rsd + price_rsd)
+    if not platform_publishing:
+        user.advertiser_budget_rsd = _money(user.advertiser_budget_rsd - price_rsd)
+        user.advertiser_reserved_rsd = _money(user.advertiser_reserved_rsd + price_rsd)
     banner = PaidAdBannerV111(
         advertiser_id=user.id,
         slot_id=slot.id,
@@ -1656,16 +1674,16 @@ def reserve_advertiser_banner(
         price_rsd=price_rsd,
         days_count=payload.days_count,
         status="pending",
-        admin_note="Rezervacija čeka proveru administratora.",
+        admin_note="Platformski banner čeka proveru." if platform_publishing else "Rezervacija čeka proveru administratora.",
         starts_at=starts_at,
         ends_at=ends_at,
     )
     db.add(banner)
     db.add(AdvertiserBudgetTransaction(
         advertiser_id=user.id,
-        amount_rsd=-price_rsd,
-        tx_type="reserve_banner",
-        description=f"Rezervisan banner slot: {slot.title}",
+        amount_rsd=-price_rsd if not platform_publishing else 0,
+        tx_type="platform_banner_requested" if platform_publishing else "reserve_banner",
+        description=f"Platformski banner bez naknade: {slot.title}" if platform_publishing else f"Rezervisan banner slot: {slot.title}",
     ))
     db.commit()
     db.refresh(banner)
@@ -2042,14 +2060,21 @@ def create_campaign(payload: CampaignPayload, request: Request, db: Session = De
     category = payload.category.strip()
     if category not in _SAFE_CAMPAIGN_CATEGORIES:
         raise HTTPException(400, "Izaberi jednu od dozvoljenih kategorija zadatka.")
-    total = _money(payload.reward_rsd * payload.total_slots * (1 + PLATFORM_FEE_PERCENT / 100))
+    platform_publishing = _is_platform_publisher(user)
+    total = 0.0 if platform_publishing else _money(payload.reward_rsd * payload.total_slots * (1 + PLATFORM_FEE_PERCENT / 100))
     if user.advertiser_budget_rsd < total:
         raise HTTPException(400, f"Nedovoljno budžeta. Potrebno je {total:.0f} RSD.")
-    task = Task(advertiser_id=user.id, title=payload.title.strip(), category=category, task_type=payload.task_type.strip(), target_url=(payload.target_url or "").strip() or None, description=payload.description.strip(), instructions=payload.instructions.strip(), proof_required=payload.proof_required.strip(), reward_rsd=payload.reward_rsd, platform_fee_percent=PLATFORM_FEE_PERCENT, total_slots=payload.total_slots, target_city=payload.target_city, target_age_group=payload.target_age_group, target_interests=payload.target_interests, status="pending")
-    user.advertiser_budget_rsd = _money(user.advertiser_budget_rsd - total)
-    user.advertiser_reserved_rsd = _money(user.advertiser_reserved_rsd + total)
+    task = Task(advertiser_id=user.id, title=payload.title.strip(), category=category, task_type=payload.task_type.strip(), target_url=(payload.target_url or "").strip() or None, description=payload.description.strip(), instructions=payload.instructions.strip(), proof_required=payload.proof_required.strip(), reward_rsd=payload.reward_rsd, platform_fee_percent=0.0 if platform_publishing else PLATFORM_FEE_PERCENT, total_slots=payload.total_slots, target_city=payload.target_city, target_age_group=payload.target_age_group, target_interests=payload.target_interests, status="pending")
+    if not platform_publishing:
+        user.advertiser_budget_rsd = _money(user.advertiser_budget_rsd - total)
+        user.advertiser_reserved_rsd = _money(user.advertiser_reserved_rsd + total)
     db.add(task)
-    db.add(AdvertiserBudgetTransaction(advertiser_id=user.id, amount_rsd=-total, tx_type="reserve_campaign", description=f"Rezervisan budžet za kampanju: {task.title}"))
+    db.add(AdvertiserBudgetTransaction(
+        advertiser_id=user.id,
+        amount_rsd=-total if not platform_publishing else 0,
+        tx_type="platform_campaign_created" if platform_publishing else "reserve_campaign",
+        description=f"Platformska kampanja bez naknade: {task.title}" if platform_publishing else f"Rezervisan budžet za kampanju: {task.title}",
+    ))
     db.commit()
     db.refresh(task)
     return {"campaign": _task_data(task), "reserved_rsd": total}
@@ -2070,14 +2095,16 @@ def revise_campaign(task_id: int, payload: CampaignPayload, request: Request, db
     if payload.total_slots < int(task.used_slots or 0):
         raise HTTPException(400, "Broj mesta ne može biti manji od već odobrenih izvršenja.")
 
-    fee_percent = float(task.platform_fee_percent or PLATFORM_FEE_PERCENT)
-    old_total = _money(task.reward_rsd * task.total_slots * (1 + fee_percent / 100))
-    new_total = _money(payload.reward_rsd * payload.total_slots * (1 + fee_percent / 100))
+    platform_publishing = _is_platform_publisher(user)
+    fee_percent = 0.0 if platform_publishing else float(task.platform_fee_percent or PLATFORM_FEE_PERCENT)
+    old_total = 0.0 if platform_publishing else _money(task.reward_rsd * task.total_slots * (1 + fee_percent / 100))
+    new_total = 0.0 if platform_publishing else _money(payload.reward_rsd * payload.total_slots * (1 + fee_percent / 100))
     difference = _money(new_total - old_total)
     if difference > 0 and user.advertiser_budget_rsd < difference:
         raise HTTPException(400, f"Nedovoljno budžeta za izmenu. Potrebno je još {difference:.0f} RSD.")
-    user.advertiser_budget_rsd = _money(user.advertiser_budget_rsd - difference)
-    user.advertiser_reserved_rsd = _money(max(0, user.advertiser_reserved_rsd + difference))
+    if not platform_publishing:
+        user.advertiser_budget_rsd = _money(user.advertiser_budget_rsd - difference)
+        user.advertiser_reserved_rsd = _money(max(0, user.advertiser_reserved_rsd + difference))
     task.title = payload.title.strip()
     task.category = category
     task.task_type = payload.task_type.strip()
@@ -2086,13 +2113,16 @@ def revise_campaign(task_id: int, payload: CampaignPayload, request: Request, db
     task.instructions = payload.instructions.strip()
     task.proof_required = payload.proof_required.strip()
     task.reward_rsd = payload.reward_rsd
+    task.platform_fee_percent = fee_percent
     task.total_slots = payload.total_slots
     task.target_city = payload.target_city
     task.target_age_group = payload.target_age_group
     task.target_interests = payload.target_interests
     task.status = "pending"
     task.moderation_note = "Izmenjena kampanja ponovo čeka administrativnu proveru."
-    if difference:
+    if platform_publishing:
+        db.add(AdvertiserBudgetTransaction(advertiser_id=user.id, amount_rsd=0, tx_type="platform_campaign_revised", description=f"Izmenjena platformska kampanja bez naknade: {task.title}"))
+    elif difference:
         db.add(AdvertiserBudgetTransaction(
             advertiser_id=user.id,
             amount_rsd=-difference,
@@ -2337,7 +2367,7 @@ def update_campaign_status(task_id: int, payload: AdminStatusPayload, request: R
         raise HTTPException(400, "Nevažeći status kampanje.")
     if payload.status == "rejected" and task.status in {"pending", "needs_revision"} and task.advertiser_id:
         advertiser = db.query(User).filter(User.id == task.advertiser_id).with_for_update().first()
-        if advertiser:
+        if advertiser and not _is_platform_publisher(advertiser):
             held_amount = _money(task.reward_rsd * task.total_slots * (1 + (task.platform_fee_percent or PLATFORM_FEE_PERCENT) / 100))
             advertiser.advertiser_reserved_rsd = _money(max(0, advertiser.advertiser_reserved_rsd - held_amount))
             advertiser.advertiser_budget_rsd = _money(advertiser.advertiser_budget_rsd + held_amount)
@@ -2398,7 +2428,7 @@ def _review_submission(submission_id: int, payload: AdminStatusPayload, actor: U
         db.add(Notification(user_id=user.id, title="Zadatak je odobren", body=f"Nagrada od {submission.reward_rsd:.0f} RSD je prebačena u raspoloživi saldo.", status="unread"))
         task = submission.task
         advertiser = task.advertiser if task else None
-        if advertiser:
+        if advertiser and not _is_platform_publisher(advertiser):
             advertiser_cost = _money(submission.advertiser_cost_rsd)
             advertiser.advertiser_reserved_rsd = _money(max(0, advertiser.advertiser_reserved_rsd - advertiser_cost))
             advertiser.advertiser_spent_rsd = _money(advertiser.advertiser_spent_rsd + advertiser_cost)
@@ -2407,6 +2437,13 @@ def _review_submission(submission_id: int, payload: AdminStatusPayload, actor: U
                 amount_rsd=0,
                 tx_type="spend_campaign_result",
                 description=f"Odobren rezultat kampanje: {task.title}",
+            ))
+        elif advertiser:
+            db.add(AdvertiserBudgetTransaction(
+                advertiser_id=advertiser.id,
+                amount_rsd=0,
+                tx_type="platform_campaign_result_approved",
+                description=f"Odobrena nagrada korisniku za platformsku kampanju: {task.title}",
             ))
     else:
         user.pending_rsd = _money(user.pending_rsd - submission.reward_rsd)
