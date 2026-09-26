@@ -530,7 +530,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                       return [
                         <span className="font-semibold text-ink">{c.title}</span>,
                         <span className="text-sm text-ink-2">{c.advertiser_name}</span>,
-                        <span className="font-mono">{new Intl.NumberFormat('sr-RS').format(c.reward_rsd * c.total_slots * (1 + c.platform_fee_percent / 100))} RSD</span>,
+                        <span className="font-mono">{new Intl.NumberFormat('sr-RS').format(c.reward_rsd * c.total_slots * (1 + (c.platform_fee_percent ?? 0) / 100))} RSD</span>,
                         <StatusBadge status={st} />,
                         st === 'na_cekanju'
                           ? <div className="flex flex-wrap gap-1.5">
