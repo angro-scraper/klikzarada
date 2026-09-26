@@ -20,6 +20,8 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
   const [cat, setCat] = useState('')
   const [level, setLevel] = useState('')
   const [query, setQuery] = useState('')
+  // Banneri mogu voditi direktno na jedan objavljen zadatak.
+  const [selectedTaskId] = useState(() => Number(new URLSearchParams(window.location.search).get('task')) || 0)
   const [sort, setSort] = useState<'recommended' | 'reward' | 'time'>('recommended')
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -34,7 +36,9 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
     return () => { active = false }
   }, [])
 
+  const directTask = selectedTaskId ? tasks.find(task => task.id === selectedTaskId) : undefined
   const filtered = tasks.map(taskView).filter(t => {
+    if (selectedTaskId && t.id !== selectedTaskId) return false
     if (cat && t.cat !== cat) return false
     if (level && t.level !== level) return false
     const searchable = `${t.title} ${t.description} ${t.cat}`.toLocaleLowerCase('sr')
@@ -66,6 +70,8 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
           <h1 className="text-2xl font-extrabold text-ink">Aktivni zadaci</h1>
           <p className="text-ink-2 text-sm mt-1">Prijavi se da bi mogao/la da preuzimaš zadatke i zarađuješ.</p>
         </div>
+
+        {directTask && <div className="mb-5 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-900"><strong>Otvoren zadatak:</strong> {directTask.title}. Pročitaj uslove i registruj se pre preuzimanja.</div>}
 
         {/* Filters */}
           <div className="grid gap-3 mb-5 sm:grid-cols-2 lg:grid-cols-4">
