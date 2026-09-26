@@ -41,6 +41,11 @@ export type Task = {
   reward_rsd: number
   total_slots: number
   used_slots: number
+  campaign_duration_days: number
+  starts_at: string | null
+  ends_at: string | null
+  paused_at: string | null
+  stopped_at: string | null
   estimated_minutes: number
   min_user_level: string
   featured: boolean
@@ -201,6 +206,7 @@ export type CampaignPayload = {
   proof_required: string
   reward_rsd: number
   total_slots: number
+  campaign_duration_days?: number
   target_city?: string
   target_age_group?: string
   target_interests?: string
@@ -444,7 +450,7 @@ export const api = {
   reviseCampaign: (id: number, payload: CampaignPayload) => request<{ campaign: Task; reserved_rsd: number }>(`/advertiser/campaigns/${id}`, {
     method: 'PUT', body: JSON.stringify(payload),
   }),
-  updateCampaignLifecycle: (id: number, action: 'pause' | 'resume') => request<{ campaign: Task }>(`/advertiser/campaigns/${id}/lifecycle`, {
+  updateCampaignLifecycle: (id: number, action: 'pause' | 'resume' | 'stop') => request<{ campaign: Task }>(`/advertiser/campaigns/${id}/lifecycle`, {
     method: 'PATCH', body: JSON.stringify({ action }),
   }),
   reviewAdvertiserSubmission: (id: number, status: 'approved' | 'rejected', note?: string) => request<{ submission: Submission }>(`/advertiser/submissions/${id}`, {
@@ -481,7 +487,7 @@ export const api = {
     method: 'PATCH', body: JSON.stringify({ status, note }),
   }),
   adminCampaigns: () => request<{ campaigns: AdminCampaign[] }>('/admin/campaigns'),
-  updateAdminCampaign: (id: number, status: 'active' | 'rejected' | 'paused' | 'needs_revision', note?: string) => request<{ campaign: Task }>(`/admin/campaigns/${id}`, {
+  updateAdminCampaign: (id: number, status: 'active' | 'rejected' | 'paused' | 'needs_revision' | 'stopped', note?: string) => request<{ campaign: Task }>(`/admin/campaigns/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),
   }),
   adminSubmissions: () => request<{ submissions: AdminSubmission[] }>('/admin/submissions'),

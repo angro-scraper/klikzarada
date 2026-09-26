@@ -147,7 +147,7 @@ class PasswordChangePayload(BaseModel):
 
 
 class CampaignLifecyclePayload(BaseModel):
-    action: Literal["pause", "resume"]
+    action: Literal["pause", "resume", "stop"]
 
 
 class WaitlistPayload(BaseModel):
@@ -183,6 +183,7 @@ class CampaignPayload(BaseModel):
     proof_required: str = Field(min_length=2, max_length=5000)
     reward_rsd: float = Field(gt=0)
     total_slots: int = Field(gt=0, le=100000)
+    campaign_duration_days: int = Field(default=30, ge=1, le=365)
     target_city: str | None = Field(default="Srbija", max_length=100)
     target_age_group: str | None = Field(default="18+", max_length=40)
     target_interests: str | None = Field(default=None, max_length=2000)
@@ -476,6 +477,11 @@ def _task_data(task: Task) -> dict:
         "reward_rsd": _money(task.reward_rsd),
         "total_slots": task.total_slots,
         "used_slots": task.used_slots,
+        "campaign_duration_days": task.campaign_duration_days or 30,
+        "starts_at": _iso(task.starts_at),
+        "ends_at": _iso(task.ends_at),
+        "paused_at": _iso(task.paused_at),
+        "stopped_at": _iso(task.stopped_at),
         "estimated_minutes": task.estimated_minutes,
         "min_user_level": task.min_user_level or "Bronza",
         "featured": bool(task.featured),
@@ -492,6 +498,46 @@ def _task_data(task: Task) -> dict:
         "target_interests": task.target_interests,
         "created_at": _iso(task.created_at),
     }
+
+
+def _campaign_remaining_reservation(task: Task) -> float:
+    """Return only the still-held amount; pending/approved executions stay funded."""
+    remaining_slots = max(0, int(task.total_slots or 0) - int(task.used_slots or 0))
+    fee_percent = float(task.platform_fee_percent or PLATFORM_FEE_PERCENT)
+    return _money(float(task.reward_rsd or 0) * remaining_slots * (1 + fee_percent / 100))
+
+
+def _release_campaign_reservation(db: Session, task: Task, reason: str) -> float:
+    """Release unused advertiser budget once, keeping spent and pending results covered."""
+    advertiser = task.advertiser
+    if not advertiser or _is_platform_publisher(advertiser):
+        return 0.0
+    amount = _campaign_remaining_reservation(task)
+    if amount <= 0:
+        return 0.0
+    advertiser.advertiser_reserved_rsd = _money(max(0, float(advertiser.advertiser_reserved_rsd or 0) - amount))
+    advertiser.advertiser_budget_rsd = _money(float(advertiser.advertiser_budget_rsd or 0) + amount)
+    db.add(AdvertiserBudgetTransaction(
+        advertiser_id=advertiser.id,
+        amount_rsd=amount,
+        tx_type="release_campaign_reservation",
+        description=f"Vraćen neiskorišćen budžet ({reason}): {task.title}",
+    ))
+    return amount
+
+
+def _expire_campaigns(db: Session) -> None:
+    """Finish elapsed campaigns and return the portion that was never allocated."""
+    now = datetime.utcnow()
+    tasks = db.query(Task).filter(Task.status == "active", Task.ends_at.is_not(None), Task.ends_at <= now).with_for_update().all()
+    if not tasks:
+        return
+    for task in tasks:
+        released = _release_campaign_reservation(db, task, "istek kampanje")
+        task.status = "expired"
+        task.stopped_at = now
+        task.moderation_note = f"Kampanja je automatski završena po isteku. Vraćeno: {released:.0f} RSD."
+    db.commit()
 
 
 def _tester_enrollment_data(item: AppTesterEnrollment, include_email: bool = False) -> dict:
@@ -1100,6 +1146,7 @@ def confirm_password_reset(payload: PasswordResetConfirmPayload, db: Session = D
 @router.get("/public/tasks")
 def public_tasks(db: Session = Depends(get_db)) -> dict:
     _expire_promotions(db)
+    _expire_campaigns(db)
     now = datetime.utcnow()
     active_promotions = db.query(PaidPromotionRequestV111).filter(
         PaidPromotionRequestV111.status == "active",
@@ -1122,6 +1169,7 @@ def public_tasks(db: Session = Depends(get_db)) -> dict:
 @router.get("/public/overview")
 def public_overview(db: Session = Depends(get_db)) -> dict:
     """Return only aggregate, live platform figures suitable for the homepage."""
+    _expire_campaigns(db)
     active_tasks = db.query(Task).filter(Task.status == "active", Task.used_slots < Task.total_slots)
     task_count = active_tasks.count()
     categories_count = db.query(func.count(func.distinct(Task.category))).filter(
@@ -1447,6 +1495,7 @@ def _require_tester_daily_completion(db: Session, user: User, task: Task) -> Non
 @router.post("/user/tasks/{task_id}/tester-enrollments", status_code=201)
 def request_tester_enrollment(task_id: int, payload: TesterEnrollmentPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"korisnik", "admin"})
+    _expire_campaigns(db)
     task = db.query(Task).filter(Task.id == task_id, Task.status == "active").first()
     if not task or not task.requires_tester_enrollment:
         raise HTTPException(404, "Ovaj zadatak nema prijavu za zatvoreno testiranje.")
@@ -1485,6 +1534,7 @@ def request_tester_enrollment(task_id: int, payload: TesterEnrollmentPayload, re
 def create_tester_daily_checkin(task_id: int, payload: TesterDailyCheckinPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     """Record a daily test report. It is a user declaration, not third-party telemetry."""
     user = _require_user(request, db, {"korisnik", "admin"})
+    _expire_campaigns(db)
     task = db.query(Task).filter(Task.id == task_id, Task.status == "active").first()
     if not task or not task.requires_tester_enrollment:
         raise HTTPException(404, "Ovaj zadatak nema dnevnu evidenciju testiranja.")
@@ -1540,6 +1590,7 @@ def create_tester_daily_checkin(task_id: int, payload: TesterDailyCheckinPayload
 @router.post("/user/tasks/{task_id}/verification/start", status_code=201)
 def start_task_verification(task_id: int, payload: VerificationStartPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"korisnik", "admin"})
+    _expire_campaigns(db)
     task = db.query(Task).filter(Task.id == task_id, Task.status == "active", Task.used_slots < Task.total_slots).first()
     if not task:
         raise HTTPException(404, "Zadatak nije dostupan.")
@@ -1673,6 +1724,7 @@ def task_verification_heartbeat(payload: VerificationHeartbeatPayload, request: 
 @router.post("/user/tasks/{task_id}/proof", status_code=201)
 def submit_proof(task_id: int, payload: ProofPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"korisnik", "admin"})
+    _expire_campaigns(db)
     task = db.query(Task).filter(Task.id == task_id, Task.status == "active", Task.used_slots < Task.total_slots).first()
     if not task:
         raise HTTPException(404, "Zadatak nije dostupan.")
@@ -1736,6 +1788,7 @@ def request_withdrawal(payload: WithdrawalPayload, request: Request, db: Session
 @router.get("/advertiser/dashboard")
 def advertiser_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"oglasivac", "admin"})
+    _expire_campaigns(db)
     tasks = db.query(Task).filter(Task.advertiser_id == user.id).order_by(Task.created_at.desc()).limit(100).all()
     submissions = db.query(TaskSubmission).join(Task).filter(Task.advertiser_id == user.id).order_by(TaskSubmission.created_at.desc()).limit(100).all()
     enrollments = db.query(AppTesterEnrollment).join(Task).filter(Task.advertiser_id == user.id).order_by(AppTesterEnrollment.created_at.desc()).limit(300).all()
@@ -2470,7 +2523,7 @@ def create_campaign(payload: CampaignPayload, request: Request, db: Session = De
     total = 0.0 if platform_publishing else _money(payload.reward_rsd * payload.total_slots * (1 + PLATFORM_FEE_PERCENT / 100))
     if user.advertiser_budget_rsd < total:
         raise HTTPException(400, f"Nedovoljno budžeta. Potrebno je {total:.0f} RSD.")
-    task = Task(advertiser_id=user.id, title=payload.title.strip(), category=category, task_type=payload.task_type.strip(), target_url=(payload.target_url or "").strip() or None, description=payload.description.strip(), instructions=payload.instructions.strip(), proof_required=payload.proof_required.strip(), reward_rsd=payload.reward_rsd, platform_fee_percent=0.0 if platform_publishing else PLATFORM_FEE_PERCENT, total_slots=payload.total_slots, target_city=payload.target_city, target_age_group=payload.target_age_group, target_interests=payload.target_interests, requires_tester_enrollment=payload.requires_tester_enrollment, tester_required_count=payload.tester_required_count, tester_duration_days=payload.tester_duration_days, tester_daily_minutes=payload.tester_daily_minutes, tester_daily_reward_rsd=payload.tester_daily_reward_rsd, status="pending")
+    task = Task(advertiser_id=user.id, title=payload.title.strip(), category=category, task_type=payload.task_type.strip(), target_url=(payload.target_url or "").strip() or None, description=payload.description.strip(), instructions=payload.instructions.strip(), proof_required=payload.proof_required.strip(), reward_rsd=payload.reward_rsd, platform_fee_percent=0.0 if platform_publishing else PLATFORM_FEE_PERCENT, total_slots=payload.total_slots, campaign_duration_days=payload.campaign_duration_days, target_city=payload.target_city, target_age_group=payload.target_age_group, target_interests=payload.target_interests, requires_tester_enrollment=payload.requires_tester_enrollment, tester_required_count=payload.tester_required_count, tester_duration_days=payload.tester_duration_days, tester_daily_minutes=payload.tester_daily_minutes, tester_daily_reward_rsd=payload.tester_daily_reward_rsd, status="pending")
     if not platform_publishing:
         user.advertiser_budget_rsd = _money(user.advertiser_budget_rsd - total)
         user.advertiser_reserved_rsd = _money(user.advertiser_reserved_rsd + total)
@@ -2527,6 +2580,7 @@ def revise_campaign(task_id: int, payload: CampaignPayload, request: Request, db
     task.reward_rsd = payload.reward_rsd
     task.platform_fee_percent = fee_percent
     task.total_slots = payload.total_slots
+    task.campaign_duration_days = payload.campaign_duration_days
     task.target_city = payload.target_city
     task.target_age_group = payload.target_age_group
     task.target_interests = payload.target_interests
@@ -2553,22 +2607,40 @@ def revise_campaign(task_id: int, payload: CampaignPayload, request: Request, db
 
 @router.patch("/advertiser/campaigns/{task_id}/lifecycle")
 def update_campaign_lifecycle(task_id: int, payload: CampaignLifecyclePayload, request: Request, db: Session = Depends(get_db)) -> dict:
-    """Let an advertiser pause or continue an already approved campaign."""
+    """Let a campaign owner pause, resume, or finish an approved campaign."""
     user = _require_user(request, db, {"oglasivac", "admin"})
     task = db.query(Task).filter(Task.id == task_id, Task.advertiser_id == user.id).with_for_update().first()
     if not task:
         raise HTTPException(404, "Kampanja nije pronađena.")
     current_status = _status(task.status)
+    now = datetime.utcnow()
     if payload.action == "pause":
         if current_status != "active":
             raise HTTPException(409, "Možeš pauzirati samo aktivnu kampanju.")
+        if not task.starts_at:
+            task.starts_at = now
+            task.ends_at = now + timedelta(days=max(1, int(task.campaign_duration_days or 30)))
         task.status = "paused"
-    else:
+        task.paused_at = now
+        task.moderation_note = "Kampanju je pauzirao oglašivač. Rok se produžava za vreme pauze."
+    elif payload.action == "resume":
         if current_status != "paused":
             raise HTTPException(409, "Možeš nastaviti samo pauziranu kampanju.")
         if int(task.used_slots or 0) >= int(task.total_slots or 0):
             raise HTTPException(409, "Kampanja je već ispunila sve raspoložive pozicije.")
+        if task.paused_at and task.ends_at:
+            task.ends_at = task.ends_at + (now - task.paused_at)
+        task.paused_at = None
         task.status = "active"
+        task.moderation_note = "Kampanju je oglašivač ponovo aktivirao."
+    else:
+        if current_status not in {"active", "paused"}:
+            raise HTTPException(409, "Možeš završiti samo aktivnu ili pauziranu kampanju.")
+        released = _release_campaign_reservation(db, task, "ranije zaustavljanje oglašivača")
+        task.status = "stopped"
+        task.stopped_at = now
+        task.paused_at = None
+        task.moderation_note = f"Kampanju je oglašivač završio pre isteka. Vraćeno: {released:.0f} RSD."
     db.add(AuditLog(admin_id=user.id, action=f"advertiser_campaign_{payload.action}", entity_type="task", entity_id=task.id, reason=task.title))
     db.commit()
     db.refresh(task)
@@ -2599,6 +2671,7 @@ def _admin_dashboard_data(db: Session) -> dict:
 @router.get("/admin/dashboard")
 def admin_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
     _require_user(request, db, {"admin"})
+    _expire_campaigns(db)
     return _admin_dashboard_data(db)
 
 
@@ -2770,6 +2843,7 @@ def update_user_status(user_id: int, payload: AdminStatusPayload, request: Reque
 @router.get("/admin/campaigns")
 def admin_campaigns(request: Request, db: Session = Depends(get_db)) -> dict:
     _require_user(request, db, {"admin"})
+    _expire_campaigns(db)
     tasks = db.query(Task).order_by(Task.created_at.desc()).limit(300).all()
     return {"campaigns": [
         _task_data(task) | {
@@ -2786,7 +2860,7 @@ def update_campaign_status(task_id: int, payload: AdminStatusPayload, request: R
     task = db.query(Task).filter(Task.id == task_id).with_for_update().first()
     if not task:
         raise HTTPException(404, "Kampanja nije pronađena.")
-    if payload.status not in {"active", "rejected", "paused", "needs_revision"}:
+    if payload.status not in {"active", "rejected", "paused", "needs_revision", "stopped"}:
         raise HTTPException(400, "Nevažeći status kampanje.")
     if payload.status == "rejected" and task.status in {"pending", "needs_revision"} and task.advertiser_id:
         advertiser = db.query(User).filter(User.id == task.advertiser_id).with_for_update().first()
@@ -2800,6 +2874,28 @@ def update_campaign_status(task_id: int, payload: AdminStatusPayload, request: R
                 tx_type="release_campaign_reservation",
                 description=f"Vraćen budžet za odbijenu kampanju: {task.title}",
             ))
+    now = datetime.utcnow()
+    current_status = _status(task.status)
+    if payload.status == "active":
+        if current_status == "stopped":
+            raise HTTPException(409, "Ranije završena kampanja ne može se ponovo aktivirati.")
+        if current_status == "paused" and task.paused_at and task.ends_at:
+            task.ends_at = task.ends_at + (now - task.paused_at)
+        if not task.starts_at:
+            task.starts_at = now
+            task.ends_at = now + timedelta(days=max(1, int(task.campaign_duration_days or 30)))
+        task.paused_at = None
+    elif payload.status == "paused":
+        if current_status != "active":
+            raise HTTPException(409, "Pauza je moguća samo za aktivnu kampanju.")
+        task.paused_at = now
+    elif payload.status == "stopped":
+        if current_status not in {"active", "paused"}:
+            raise HTTPException(409, "Zaustavljanje je moguće samo za aktivnu ili pauziranu kampanju.")
+        released = _release_campaign_reservation(db, task, "ranije zaustavljanje administratora")
+        task.stopped_at = now
+        task.paused_at = None
+        payload.note = (payload.note or "").strip() or f"Kampanju je administrator zaustavio pre isteka. Vraćeno: {released:.0f} RSD."
     task.status = payload.status
     task.moderation_note = (payload.note or "").strip() or (
         "Administrator traži izmenu kampanje pre odobrenja." if payload.status == "needs_revision" else None

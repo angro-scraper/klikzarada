@@ -95,7 +95,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [blockUser, setBlockUser] = useState<{ id: number; ime: string; action: 'block' | 'unblock' } | null>(null)
   const [payoutAction, setPayoutAction] = useState<{ id: number; korisnik: string; iznos: string; type: 'approve' | 'reject' } | null>(null)
   const [paypalPayoutAction, setPaypalPayoutAction] = useState<{ id: number; korisnik: string; iznos: string } | null>(null)
-  const [campAction, setCampAction] = useState<{ id: number; naziv: string; type: 'approve' | 'reject' | 'revision' } | null>(null)
+  const [campAction, setCampAction] = useState<{ id: number; naziv: string; type: 'approve' | 'reject' | 'revision' | 'pause' | 'resume' | 'stop' } | null>(null)
   const [campaignDetails, setCampaignDetails] = useState<AdminCampaign | null>(null)
   const [bannerAction, setBannerAction] = useState<{ id: number; naslov: string; iznos: number; type: 'approve' | 'reject' } | null>(null)
   const [promotionAction, setPromotionAction] = useState<{ id: number; naslov: string; iznos: number; type: 'approve' | 'reject' } | null>(null)
@@ -165,7 +165,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   }
   function campStatus(id: number, orig: string) {
     const status = campStatuses[id] ?? orig
-    return status === 'pending' ? 'na_cekanju' : status === 'active' ? 'aktivno' : status === 'rejected' ? 'odbijeno' : status === 'paused' ? 'obustavljeno' : status === 'needs_revision' ? 'dorada' : status
+    return status === 'pending' ? 'na_cekanju' : status === 'active' ? 'aktivno' : status === 'rejected' ? 'odbijeno' : status === 'paused' ? 'obustavljeno' : status === 'stopped' ? 'zavrseno' : status === 'expired' ? 'isteklo' : status === 'needs_revision' ? 'dorada' : status
   }
   function sourceStatus(status: string) { return status === 'active' ? 'aktivno' : status === 'paused' ? 'obustavljeno' : status === 'error' ? 'greska' : status }
   function ticketStatus(status: string) { return status === 'open' ? 'otvoren' : status === 'waiting' ? 'na_cekanju' : status === 'closed' ? 'zatvoreno' : status }
@@ -286,22 +286,28 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
       <ConfirmModal
         open={campAction !== null}
-        title={campAction?.type === 'approve' ? 'Odobri kampanju?' : campAction?.type === 'revision' ? 'Vratiti kampanju na doradu?' : 'Odbij kampanju?'}
+        title={campAction?.type === 'approve' ? 'Odobri kampanju?' : campAction?.type === 'revision' ? 'Vratiti kampanju na doradu?' : campAction?.type === 'pause' ? 'Pauzirati kampanju?' : campAction?.type === 'resume' ? 'Ponovo aktivirati kampanju?' : campAction?.type === 'stop' ? 'Završiti kampanju pre isteka?' : 'Odbij kampanju?'}
         description={campAction?.type === 'approve'
           ? `Kampanja "${campAction?.naziv}" postaje aktivna i vidljiva korisnicima.`
           : campAction?.type === 'revision'
             ? `Oglašivač će dobiti zahtev da izmeni kampanju, bez gubitka trenutno rezervisanog budžeta.`
-            : `Kampanja "${campAction?.naziv}" je odbijena, a rezervisani budžet će se vratiti oglašivaču.`}
-        confirmLabel={campAction?.type === 'approve' ? 'Aktiviraj kampanju' : campAction?.type === 'revision' ? 'Vrati na doradu' : 'Odbij kampanju'}
+            : campAction?.type === 'pause'
+              ? `Kampanja "${campAction?.naziv}" prestaje da bude vidljiva korisnicima. Rok se produžava za vreme pauze.`
+              : campAction?.type === 'resume'
+                ? `Kampanja "${campAction?.naziv}" ponovo postaje aktivna za korisnike.`
+                : campAction?.type === 'stop'
+                  ? `Kampanja "${campAction?.naziv}" se trajno zaustavlja. Neiskorišćeni rezervisani budžet se vraća oglašivaču, a poslati dokazi ostaju pokriveni.`
+                  : `Kampanja "${campAction?.naziv}" je odbijena, a rezervisani budžet će se vratiti oglašivaču.`}
+        confirmLabel={campAction?.type === 'approve' ? 'Aktiviraj kampanju' : campAction?.type === 'revision' ? 'Vrati na doradu' : campAction?.type === 'pause' ? 'Pauziraj' : campAction?.type === 'resume' ? 'Aktiviraj' : campAction?.type === 'stop' ? 'Završi kampanju' : 'Odbij kampanju'}
         cancelLabel="Otkaži"
-        variant={campAction?.type === 'approve' ? 'success' : 'danger'}
+        variant={campAction?.type === 'approve' || campAction?.type === 'resume' ? 'success' : 'danger'}
         onConfirm={async () => {
           if (!campAction) return
           setSavingAction(true)
           try {
-            await api.updateAdminCampaign(campAction.id, campAction.type === 'approve' ? 'active' : campAction.type === 'revision' ? 'needs_revision' : 'rejected')
+            await api.updateAdminCampaign(campAction.id, campAction.type === 'approve' || campAction.type === 'resume' ? 'active' : campAction.type === 'revision' ? 'needs_revision' : campAction.type === 'pause' ? 'paused' : campAction.type === 'stop' ? 'stopped' : 'rejected')
             await refreshAdmin()
-            showToast(campAction.type === 'approve' ? 'Kampanja je aktivirana.' : campAction.type === 'revision' ? 'Kampanja je vraćena oglašivaču na doradu.' : 'Kampanja je odbijena, a budžet vraćen.', campAction.type === 'approve' ? 'success' : campAction.type === 'revision' ? 'warning' : 'error')
+            showToast(campAction.type === 'approve' || campAction.type === 'resume' ? 'Kampanja je aktivirana.' : campAction.type === 'pause' ? 'Kampanja je pauzirana.' : campAction.type === 'stop' ? 'Kampanja je završena, a neiskorišćeni budžet vraćen.' : campAction.type === 'revision' ? 'Kampanja je vraćena oglašivaču na doradu.' : 'Kampanja je odbijena, a budžet vraćen.', campAction.type === 'approve' || campAction.type === 'resume' ? 'success' : campAction.type === 'revision' || campAction.type === 'pause' || campAction.type === 'stop' ? 'warning' : 'error')
             setCampAction(null)
           } catch (error) {
             showToast(error instanceof Error ? error.message : 'Kampanja nije promenjena.', 'error')
@@ -322,6 +328,10 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
               <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Kategorija</p><p className="mt-1 font-semibold text-ink">{campaignDetails.category}</p></div>
               <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Nagrada po izvršenju</p><p className="mt-1 font-mono font-semibold text-ink">{new Intl.NumberFormat('sr-RS').format(campaignDetails.reward_rsd)} RSD</p></div>
               <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Broj mesta</p><p className="mt-1 font-semibold text-ink">{campaignDetails.total_slots}</p></div>
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Trajanje</p><p className="mt-1 font-semibold text-ink">{campaignDetails.campaign_duration_days} dana</p></div>
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Status</p><p className="mt-1 font-semibold text-ink">{campStatus(campaignDetails.id, campaignDetails.status)}</p></div>
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Početak</p><p className="mt-1 font-semibold text-ink">{campaignDetails.starts_at ? new Intl.DateTimeFormat('sr-RS', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(campaignDetails.starts_at)) : 'Po odobrenju'}</p></div>
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Planirani kraj</p><p className="mt-1 font-semibold text-ink">{campaignDetails.ends_at ? new Intl.DateTimeFormat('sr-RS', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(campaignDetails.ends_at)) : 'Još nije postavljen'}</p></div>
             </div>
             <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Opis i cilj</p><p className="mt-1 whitespace-pre-wrap text-ink">{campaignDetails.description}</p></div>
             <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Uputstvo za korisnika</p><p className="mt-1 whitespace-pre-wrap text-ink">{campaignDetails.instructions}</p></div>
@@ -524,12 +534,13 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                 <SectionHeader title="Kampanje" description="Moderacija novih kampanja pre aktivacije." />
                 <Card>
                   <Table
-                    headers={['Naziv', 'Oglašivač', 'Budžet', 'Status', 'Akcija']}
+                    headers={['Naziv', 'Oglašivač', 'Trajanje', 'Budžet', 'Status', 'Akcija']}
                     rows={campaigns.map(c => {
                       const st = campStatus(c.id, c.status)
                       return [
                         <span className="font-semibold text-ink">{c.title}</span>,
                         <span className="text-sm text-ink-2">{c.advertiser_name}</span>,
+                        <span className="text-xs text-ink-2">{c.starts_at && c.ends_at ? <>{new Intl.DateTimeFormat('sr-RS').format(new Date(c.starts_at))}<br />do {new Intl.DateTimeFormat('sr-RS').format(new Date(c.ends_at))}</> : `Po odobrenju · ${c.campaign_duration_days} dana`}</span>,
                         <span className="font-mono">{new Intl.NumberFormat('sr-RS').format(c.reward_rsd * c.total_slots * (1 + (c.platform_fee_percent ?? 0) / 100))} RSD</span>,
                         <StatusBadge status={st} />,
                         st === 'na_cekanju'
@@ -539,7 +550,11 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                               <Btn size="sm" variant="secondary" disabled={savingAction} onClick={() => setCampAction({ id: c.id, naziv: c.title, type: 'revision' })}>Doradi</Btn>
                               <Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setCampAction({ id: c.id, naziv: c.title, type: 'reject' })}>Odbij</Btn>
                             </div>
-                          : <Btn size="sm" variant="ghost" onClick={() => setCampaignDetails(c)}>Detalji</Btn>,
+                          : c.status === 'active'
+                            ? <div className="flex flex-wrap gap-1.5"><Btn size="sm" variant="ghost" onClick={() => setCampaignDetails(c)}>Detalji</Btn><Btn size="sm" variant="secondary" disabled={savingAction} onClick={() => setCampAction({ id: c.id, naziv: c.title, type: 'pause' })}>Pauziraj</Btn><Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setCampAction({ id: c.id, naziv: c.title, type: 'stop' })}>Završi</Btn></div>
+                            : c.status === 'paused'
+                              ? <div className="flex flex-wrap gap-1.5"><Btn size="sm" variant="ghost" onClick={() => setCampaignDetails(c)}>Detalji</Btn><Btn size="sm" variant="success" disabled={savingAction} onClick={() => setCampAction({ id: c.id, naziv: c.title, type: 'resume' })}>Nastavi</Btn><Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setCampAction({ id: c.id, naziv: c.title, type: 'stop' })}>Završi</Btn></div>
+                              : <Btn size="sm" variant="ghost" onClick={() => setCampaignDetails(c)}>Detalji</Btn>,
                       ]
                     })}
                   />

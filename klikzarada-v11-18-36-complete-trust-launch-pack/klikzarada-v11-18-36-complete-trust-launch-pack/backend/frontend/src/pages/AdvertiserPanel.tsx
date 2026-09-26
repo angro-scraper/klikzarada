@@ -195,6 +195,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
   const [reward, setReward] = useState(campaign ? String(campaign.reward_rsd) : '')
   const [budget, setBudget] = useState(campaign ? String(Math.ceil(campaign.reward_rsd * campaign.total_slots * (1 + feePercent / 100))) : '')
   const [slots, setSlots] = useState(campaign ? String(campaign.total_slots) : '')
+  const [campaignDurationDays, setCampaignDurationDays] = useState(String(campaign?.campaign_duration_days ?? 30))
   const [description, setDescription] = useState(campaign?.description ?? '')
   const [taskUrl, setTaskUrl] = useState(campaign?.target_url ?? '')
   const [category, setCategory] = useState(campaign?.category ?? '')
@@ -293,7 +294,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
             {platformPublishing
               ? <Input label="Broj korisnika / izvršenja" placeholder="npr. 50" type="number" min={1} step={1} value={slots} onChange={setSlots} />
               : <Input label="Ukupni budžet (RSD)" placeholder="npr. 5000" value={budget} onChange={setBudget} />}
-            <Select label="Trajanje" options={[{ value: '7', label: '7 dana' }, { value: '14', label: '14 dana' }, { value: '30', label: '30 dana' }]} />
+            <Input label="Trajanje kampanje (dani)" type="number" min={1} max={365} step={1} value={campaignDurationDays} onChange={value => setCampaignDurationDays(String(Math.min(365, Math.max(1, Math.floor(Number(value) || 1)))))} />
             {requiresTesterEnrollment && testerDailyReward && <Alert type="warning">Ukupna nagrada po testeru je <strong>{Number(testerDailyReward) * Number(testerDurationDays || 14)} RSD</strong>: {testerDailyReward} RSD dnevno tokom {testerDurationDays || 14} dana. Svaki dnevni izveštaj odobravaš posebno.</Alert>}
             {platformPublishing && (requiresTesterEnrollment ? testerDailyReward : reward) && slots ? (
               <Alert type="info">Platformska objava je <strong>bez naknade</strong>. Odobrene dnevne nagrade ostaju stvarni trošak platforme.</Alert>
@@ -336,6 +337,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
               <div className="bg-mint-50 border border-frame rounded-xl p-4 space-y-2 text-sm">
                 <div className="flex justify-between"><span className="text-ink-2">Naziv</span><span className="font-semibold text-ink">{naziv}</span></div>
                 <div className="flex justify-between gap-4"><span className="text-ink-2">Kategorija</span><span className="font-semibold text-ink text-right">{category}</span></div>
+                <div className="flex justify-between gap-4"><span className="text-ink-2">Trajanje kampanje</span><span className="font-semibold text-ink text-right">{campaignDurationDays} dana od odobrenja</span></div>
                 {requiresTesterEnrollment && <><div className="flex justify-between gap-4"><span className="text-ink-2">Pristup aplikaciji</span><span className="font-semibold text-amber-800 text-right">Ručno dodavanje testera</span></div><div className="flex justify-between gap-4"><span className="text-ink-2">Plan testiranja</span><span className="font-semibold text-amber-800 text-right">{testerRequiredCount} testera, {testerDurationDays} dana, min. {testerDailyMinutes} min/dan</span></div><div className="flex justify-between gap-4"><span className="text-ink-2">Dnevna nagrada</span><span className="font-mono font-bold text-emerald-600">{testerDailyReward || 0} RSD</span></div></>}
                 <div><span className="text-ink-2">Precizni detalji</span><ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-ink">{detailLines.map(line => <li key={line}>{line}</li>)}</ul></div>
                 <div className="flex justify-between"><span className="text-ink-2">Ukupno po testeru</span><span className="font-mono font-bold text-emerald-600">{requiresTesterEnrollment ? Number(testerDailyReward || 0) * Number(testerDurationDays || 14) : reward} RSD</span></div>
@@ -350,8 +352,9 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
               <Btn disabled={submitting} onClick={async () => {
                 const rewardRsd = requiresTesterEnrollment ? Number(testerDailyReward) * Number(testerDurationDays) : Number(reward)
                 const totalSlots = platformPublishing ? Math.floor(Number(slots)) : Math.floor(Number(budget) / (rewardRsd * (1 + feePercent / 100)))
+                const durationValid = Number.isInteger(Number(campaignDurationDays)) && Number(campaignDurationDays) >= 1 && Number(campaignDurationDays) <= 365
                 const testerConfigValid = !requiresTesterEnrollment || (Number(testerRequiredCount) >= 12 && Number(testerDurationDays) >= 14 && Number(testerDurationDays) <= 31 && Number(testerDailyMinutes) >= 1 && Number(testerDailyReward) > 0 && totalSlots >= Number(testerRequiredCount))
-                if (!Number.isFinite(rewardRsd) || rewardRsd <= 0 || totalSlots < 1 || !testerConfigValid) {
+                if (!Number.isFinite(rewardRsd) || rewardRsd <= 0 || totalSlots < 1 || !testerConfigValid || !durationValid) {
                   setError(platformPublishing ? 'Unesi validnu nagradu i broj izvršenja od najmanje jedan.' : 'Unesi validnu nagradu i budžet dovoljan za najmanje jedan zadatak.')
                   return
                 }
@@ -360,7 +363,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
                 try {
                   const fullDescription = `${description.trim()}\n\nSpecifikacija zadatka:\n${detailLines.map(line => `- ${line}`).join('\n')}`
                   const betaPlan = requiresTesterEnrollment ? `\n\nPlan zatvorenog beta testiranja:\n- Tester prvo šalje email za poziv u store tester listu.\n- Svaki tester ima ${testerDurationDays} dana od ručne potvrde pristupa.\n- Svakog dana testira najmanje ${testerDailyMinutes} minuta i šalje kratak izveštaj.\n- Dnevna nagrada: ${testerDailyReward} RSD, uz odobrenje oglašivača.` : ''
-                  const payload = { title: naziv, category, task_type: category, target_url: taskUrl || undefined, description: fullDescription + betaPlan, instructions: `Korisnik treba da prati specifikaciju zadatka i dostavi samo traženi dokaz.\n${detailLines.map(line => `- ${line}`).join('\n')}${betaPlan}`, proof_required: proofRequired, reward_rsd: rewardRsd, total_slots: totalSlots, target_city: targetCity || undefined, target_age_group: targetAgeGroup, target_interests: targetInterests || undefined, requires_tester_enrollment: requiresTesterEnrollment, tester_required_count: Number(testerRequiredCount), tester_duration_days: Number(testerDurationDays), tester_daily_minutes: Number(testerDailyMinutes), tester_daily_reward_rsd: requiresTesterEnrollment ? Number(testerDailyReward) : 0 }
+                  const payload = { title: naziv, category, task_type: category, target_url: taskUrl || undefined, description: fullDescription + betaPlan, instructions: `Korisnik treba da prati specifikaciju zadatka i dostavi samo traženi dokaz.\n${detailLines.map(line => `- ${line}`).join('\n')}${betaPlan}`, proof_required: proofRequired, reward_rsd: rewardRsd, total_slots: totalSlots, campaign_duration_days: Number(campaignDurationDays), target_city: targetCity || undefined, target_age_group: targetAgeGroup, target_interests: targetInterests || undefined, requires_tester_enrollment: requiresTesterEnrollment, tester_required_count: Number(testerRequiredCount), tester_duration_days: Number(testerDurationDays), tester_daily_minutes: Number(testerDailyMinutes), tester_daily_reward_rsd: requiresTesterEnrollment ? Number(testerDailyReward) : 0 }
                   if (campaign) await onRevise(campaign.id, payload)
                   else await onCreate(payload)
                   setSubmitted(true)
@@ -383,6 +386,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [mobileOpen, setMobileOpen] = useState(false)
   const [proofsTab, setProofsTab] = useState('svi')
   const [logoutConfirm, setLogoutConfirm] = useState(false)
+  const [campaignLifecycleAction, setCampaignLifecycleAction] = useState<{ id: number; title: string; action: 'pause' | 'resume' | 'stop' } | null>(null)
   const [dashboard, setDashboard] = useState<AdvertiserDashboardData | null>(null)
   const [campaignToRevise, setCampaignToRevise] = useState<import('../lib/api').Task | null>(null)
   const [dashboardError, setDashboardError] = useState('')
@@ -576,7 +580,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
     dokazi: task.requires_tester_enrollment ? (task.tester_checkin_total ?? 0) : (task.submission_total ?? 0),
     odobreno: task.submission_approved ?? 0,
     naProveri: task.submission_pending ?? 0,
-    status: task.status === 'active' ? 'aktivno' : task.status === 'pending' ? 'na_cekanju' : task.status === 'paused' ? 'obustavljeno' : task.status === 'rejected' ? 'odbijeno' : task.status === 'needs_revision' ? 'dorada' : task.status,
+    status: task.status === 'active' ? 'aktivno' : task.status === 'pending' ? 'na_cekanju' : task.status === 'paused' ? 'obustavljeno' : task.status === 'stopped' ? 'zavrseno' : task.status === 'expired' ? 'isteklo' : task.status === 'rejected' ? 'odbijeno' : task.status === 'needs_revision' ? 'dorada' : task.status,
   }))
   const proofs = (dashboard?.submissions ?? []).map(submission => ({
     submission,
@@ -625,6 +629,31 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
         variant="danger"
         onConfirm={async () => { try { await api.logout() } finally { onNavigate('home') } }}
         onCancel={() => setLogoutConfirm(false)}
+      />
+
+      <ConfirmModal
+        open={campaignLifecycleAction !== null}
+        title={campaignLifecycleAction?.action === 'pause' ? 'Pauzirati kampanju?' : campaignLifecycleAction?.action === 'resume' ? 'Ponovo aktivirati kampanju?' : 'Završiti kampanju pre isteka?'}
+        description={campaignLifecycleAction?.action === 'pause'
+          ? `Kampanja „${campaignLifecycleAction?.title}” neće biti dostupna korisnicima dok je ponovo ne aktiviraš. Kraj kampanje se produžava za vreme pauze.`
+          : campaignLifecycleAction?.action === 'resume'
+            ? `Kampanja „${campaignLifecycleAction?.title}” ponovo postaje dostupna korisnicima.`
+            : `Kampanja „${campaignLifecycleAction?.title}” se trajno zaustavlja. Neiskorišćeni rezervisani budžet vraća se na raspoloživi budžet, dok već poslati dokazi ostaju pokriveni.`}
+        confirmLabel={campaignLifecycleAction?.action === 'pause' ? 'Pauziraj' : campaignLifecycleAction?.action === 'resume' ? 'Aktiviraj' : 'Završi kampanju'}
+        cancelLabel="Otkaži"
+        variant={campaignLifecycleAction?.action === 'stop' ? 'danger' : campaignLifecycleAction?.action === 'resume' ? 'success' : 'danger'}
+        onConfirm={async () => {
+          if (!campaignLifecycleAction) return
+          try {
+            await api.updateCampaignLifecycle(campaignLifecycleAction.id, campaignLifecycleAction.action)
+            await refreshDashboard()
+            showToast(campaignLifecycleAction.action === 'pause' ? 'Kampanja je pauzirana.' : campaignLifecycleAction.action === 'resume' ? 'Kampanja je ponovo aktivna.' : 'Kampanja je završena, a neiskorišćeni budžet je vraćen.', campaignLifecycleAction.action === 'stop' ? 'warning' : 'success')
+            setCampaignLifecycleAction(null)
+          } catch (error) {
+            showToast(error instanceof Error ? error.message : 'Status kampanje nije promenjen.', 'error')
+          }
+        }}
+        onCancel={() => setCampaignLifecycleAction(null)}
       />
 
       {mobileOpen && <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />}
@@ -714,9 +743,10 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                 <SectionHeader title="Moje kampanje" action={<Btn onClick={() => { setCampaignToRevise(null); goTo('nova') }} size="sm">+ Nova kampanja</Btn>} />
                 <Card>
                   <Table
-                    headers={['Naziv', 'Budžet', 'Potrošeno', 'Dokazi', 'Status', 'Akcija']}
+                    headers={['Naziv', 'Trajanje', 'Budžet', 'Potrošeno', 'Dokazi', 'Status', 'Akcija']}
                     rows={campaigns.map(c => [
                       <span className="font-semibold text-ink">{c.naziv}</span>,
+                      <span className="text-xs text-ink-2">{c.task.starts_at && c.task.ends_at ? <>{new Intl.DateTimeFormat('sr-RS').format(new Date(c.task.starts_at))}<br />do {new Intl.DateTimeFormat('sr-RS').format(new Date(c.task.ends_at))}</> : `Po odobrenju · ${c.task.campaign_duration_days} dana`}</span>,
                       <span className="font-mono">{c.budžet}</span>,
                       <span className="font-mono text-amber-700">{c.potrošeno}</span>,
                       <span className="font-mono">{c.dokazi}</span>,
@@ -724,9 +754,9 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                        c.task.status === 'needs_revision'
                          ? <Btn size="sm" variant="secondary" onClick={() => { setCampaignToRevise(c.task); goTo('nova') }}>Doradi</Btn>
                          : c.task.status === 'active'
-                           ? <Btn size="sm" variant="secondary" onClick={() => void (async () => { try { await api.updateCampaignLifecycle(c.task.id, 'pause'); await refreshDashboard(); showToast('Kampanja je pauzirana. Budžet ostaje rezervisan.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Kampanja nije pauzirana.', 'error') } })()}>Pauziraj</Btn>
+                           ? <div className="flex flex-wrap gap-1.5"><Btn size="sm" variant="secondary" onClick={() => setCampaignLifecycleAction({ id: c.task.id, title: c.task.title, action: 'pause' })}>Pauziraj</Btn><Btn size="sm" variant="danger" onClick={() => setCampaignLifecycleAction({ id: c.task.id, title: c.task.title, action: 'stop' })}>Završi</Btn></div>
                            : c.task.status === 'paused'
-                             ? <Btn size="sm" variant="success" onClick={() => void (async () => { try { await api.updateCampaignLifecycle(c.task.id, 'resume'); await refreshDashboard(); showToast('Kampanja je ponovo aktivna.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Kampanja nije nastavljena.', 'error') } })()}>Nastavi</Btn>
+                             ? <div className="flex flex-wrap gap-1.5"><Btn size="sm" variant="success" onClick={() => setCampaignLifecycleAction({ id: c.task.id, title: c.task.title, action: 'resume' })}>Nastavi</Btn><Btn size="sm" variant="danger" onClick={() => setCampaignLifecycleAction({ id: c.task.id, title: c.task.title, action: 'stop' })}>Završi</Btn></div>
                              : <span className="text-xs text-ink-3">{c.task.moderation_note || 'Čeka proveru'}</span>,
                     ])}
                   />

@@ -1868,8 +1868,28 @@ def ensure_closed_tester_enrollment_schema():
         # temporarily unavailable during process boot.
         pass
 
+
+def ensure_campaign_schedule_schema():
+    """Add campaign lifecycle timestamps without replacing an existing database."""
+    try:
+        columns = {column["name"] for column in inspect(engine).get_columns("tasks")}
+        additions = {
+            "campaign_duration_days": "INTEGER DEFAULT 30",
+            "starts_at": "TIMESTAMP",
+            "ends_at": "TIMESTAMP",
+            "paused_at": "TIMESTAMP",
+            "stopped_at": "TIMESTAMP",
+        }
+        with engine.begin() as conn:
+            for name, definition in additions.items():
+                if name not in columns:
+                    conn.exec_driver_sql(f"ALTER TABLE tasks ADD COLUMN {name} {definition}")
+    except Exception:
+        # The application stays available while a database deployment catches up.
+        pass
+
 @app.on_event("startup")
-def startup(): seed(); ensure_task_source_api_key_column(); ensure_closed_tester_enrollment_schema(); seed_v4_growth(); seed_v5_scale(); seed_v6_enterprise(); seed_v7_ai_marketplace(); seed_v8_command(); seed_v9_launch_os(); seed_v10_automation_os(); seed_v11_real_launch_pack(); seed_v111_ui_ads_pricing(); v11815_startup_banner_slots()
+def startup(): seed(); ensure_task_source_api_key_column(); ensure_closed_tester_enrollment_schema(); ensure_campaign_schedule_schema(); seed_v4_growth(); seed_v5_scale(); seed_v6_enterprise(); seed_v7_ai_marketplace(); seed_v8_command(); seed_v9_launch_os(); seed_v10_automation_os(); seed_v11_real_launch_pack(); seed_v111_ui_ads_pricing(); v11815_startup_banner_slots()
 
 @app.get("/favicon.ico")
 def favicon(): return FileResponse("app/static/favicon.svg", media_type="image/svg+xml")

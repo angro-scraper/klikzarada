@@ -88,6 +88,13 @@ class Task(Base):
     tester_duration_days = Column(Integer, default=14)
     tester_daily_minutes = Column(Integer, default=5)
     tester_daily_reward_rsd = Column(Float, default=0)
+    # Campaign windows begin only after moderation approval. Pauses freeze the
+    # active window instead of silently consuming the advertiser's purchased time.
+    campaign_duration_days = Column(Integer, default=30)
+    starts_at = Column(DateTime, nullable=True)
+    ends_at = Column(DateTime, nullable=True)
+    paused_at = Column(DateTime, nullable=True)
+    stopped_at = Column(DateTime, nullable=True)
     featured = Column(Boolean, default=False)
     status = Column(String(30), default="pending")
     moderation_note = Column(Text, nullable=True)
