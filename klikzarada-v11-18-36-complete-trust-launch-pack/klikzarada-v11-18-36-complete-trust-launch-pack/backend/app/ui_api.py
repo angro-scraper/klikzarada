@@ -526,8 +526,26 @@ def _release_campaign_reservation(db: Session, task: Task, reason: str) -> float
     return amount
 
 
+def _ensure_campaign_schedules(db: Session) -> None:
+    """Backfill the window for campaigns created before scheduling existed."""
+    tasks = db.query(Task).filter(
+        Task.status.in_(("active", "paused")),
+        Task.starts_at.is_(None),
+    ).with_for_update().all()
+    if not tasks:
+        return
+    now = datetime.utcnow()
+    for task in tasks:
+        task.starts_at = task.created_at or now
+        task.ends_at = task.starts_at + timedelta(days=max(1, int(task.campaign_duration_days or 30)))
+        if task.status == "paused" and not task.paused_at:
+            task.paused_at = now
+    db.commit()
+
+
 def _expire_campaigns(db: Session) -> None:
     """Finish elapsed campaigns and return the portion that was never allocated."""
+    _ensure_campaign_schedules(db)
     now = datetime.utcnow()
     tasks = db.query(Task).filter(Task.status == "active", Task.ends_at.is_not(None), Task.ends_at <= now).with_for_update().all()
     if not tasks:
