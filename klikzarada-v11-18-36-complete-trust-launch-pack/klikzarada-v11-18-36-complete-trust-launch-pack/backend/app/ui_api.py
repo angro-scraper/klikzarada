@@ -682,6 +682,13 @@ _SAFE_CAMPAIGN_CATEGORIES = {
 
 
 def _ensure_banner_slots(db: Session) -> None:
+    # A short-lived `home_top` placeholder was superseded by the established
+    # `home_top_wide` code. Remove it only when it has never held a booking.
+    obsolete_slot = db.query(HomeBannerSlotV111).filter(HomeBannerSlotV111.code == "home_top").first()
+    if obsolete_slot and not db.query(PaidAdBannerV111.id).filter(PaidAdBannerV111.slot_id == obsolete_slot.id).first():
+        db.delete(obsolete_slot)
+        db.commit()
+
     existing_codes = {code for (code,) in db.query(HomeBannerSlotV111.code).all()}
     missing = [
         HomeBannerSlotV111(
