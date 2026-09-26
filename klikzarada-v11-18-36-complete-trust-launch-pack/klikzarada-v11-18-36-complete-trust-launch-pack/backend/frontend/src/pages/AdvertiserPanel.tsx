@@ -298,7 +298,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
             {platformPublishing && (requiresTesterEnrollment ? testerDailyReward : reward) && slots ? (
               <Alert type="info">Platformska objava je <strong>bez naknade</strong>. Odobrene dnevne nagrade ostaju stvarni trošak platforme.</Alert>
             ) : !requiresTesterEnrollment && reward && budget && (
-              <Alert type="info">Procenjeno: <strong className="font-mono">{Math.floor(Number(budget) / (Number(reward) * (1 + feePercent / 100)))}</strong> izvršenih zadataka, uključujući platformsku naknadu od {feePercent}%.</Alert>
+              <Alert type="info">Procenjeno: <strong className="font-mono">{Math.floor(Number(budget) / (Number(reward) * (1 + feePercent / 100)))}</strong> izvršenih zadataka u okviru unetog ukupnog budžeta.</Alert>
             )}
             <div className="flex gap-2">
               <Btn onClick={() => setStep(1)} variant="secondary">← Prethodni korak</Btn>
@@ -982,7 +982,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Proizvod 01</p>
                     <h3 className="mt-2 font-bold text-ink">Kampanja sa dokazom</h3>
                     <p className="mt-2 text-sm leading-6 text-ink-2">Anketa, testiranje sajta, provera podataka ili feedback. Nagrada se isplaćuje tek nakon odobrenog dokaza.</p>
-                    <p className="mt-3 font-mono text-sm font-bold text-blue-700">{platformPublishing ? 'Platformska objava: 0 RSD naknada' : `Naknada: ${feePercent}% na nagrade`}</p>
+                    <p className="mt-3 font-mono text-sm font-bold text-blue-700">{platformPublishing ? 'Platformska objava: 0 RSD naknada' : 'Konačan potreban budžet vidi se pre potvrde.'}</p>
                     <Btn size="sm" className="mt-4" onClick={() => goTo('nova')}>Kreiraj kampanju</Btn>
                   </Card>
                   <Card className="border-violet-200 p-5">

@@ -238,7 +238,7 @@ export type AdminMetrics = {
 }
 
 export type AdminUser = SessionUser & { created_at: string | null }
-export type AdminCampaign = Task & { advertiser_name: string }
+export type AdminCampaign = Task & { advertiser_name: string; platform_fee_percent: number }
 export type AdminSubmission = Submission & { user_name: string }
 export type AdminWithdrawal = Withdrawal & {
   user_name: string

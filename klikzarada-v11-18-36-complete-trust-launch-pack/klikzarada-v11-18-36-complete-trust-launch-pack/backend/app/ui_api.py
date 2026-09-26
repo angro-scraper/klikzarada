@@ -67,7 +67,9 @@ from .security import create_session_token, hash_password, make_referral_code, r
 
 router = APIRouter(prefix="/api/ui", tags=["KlikZarada UI"])
 
-PLATFORM_FEE_PERCENT = 20.0
+# Internal operating margin for new advertiser campaigns. The advertiser UI
+# presents the final required budget, not this internal allocation.
+PLATFORM_FEE_PERCENT = 40.0
 MIN_WITHDRAWAL_RSD = 1000.0
 ANTI_FRAUD_DAILY_TASK_LIMIT = 20
 ANTI_FRAUD_DAILY_EARNINGS_RSD = 2000.0
@@ -2769,7 +2771,13 @@ def update_user_status(user_id: int, payload: AdminStatusPayload, request: Reque
 def admin_campaigns(request: Request, db: Session = Depends(get_db)) -> dict:
     _require_user(request, db, {"admin"})
     tasks = db.query(Task).order_by(Task.created_at.desc()).limit(300).all()
-    return {"campaigns": [_task_data(task) | {"advertiser_name": task.advertiser.full_name if task.advertiser else "Platforma"} for task in tasks]}
+    return {"campaigns": [
+        _task_data(task) | {
+            "advertiser_name": task.advertiser.full_name if task.advertiser else "Platforma",
+            "platform_fee_percent": _money(task.platform_fee_percent or 0),
+        }
+        for task in tasks
+    ]}
 
 
 @router.patch("/admin/campaigns/{task_id}")
