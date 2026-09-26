@@ -180,7 +180,7 @@ export function Table({ headers, rows }: { headers: string[]; rows: ReactNode[][
 
 // ── Inputs ─────────────────────────────────────────────────────────────────────
 export function Input({ label, placeholder, type = 'text', value, onChange, min, max, step }: {
-  label?: string; placeholder?: string; type?: string; value?: string; onChange?: (v: string) => void; min?: number; max?: number; step?: number
+  label?: string; placeholder?: string; type?: string; value?: string; onChange?: (v: string) => void; min?: number | string; max?: number | string; step?: number
 }) {
   return (
     <div className="flex flex-col gap-1.5">

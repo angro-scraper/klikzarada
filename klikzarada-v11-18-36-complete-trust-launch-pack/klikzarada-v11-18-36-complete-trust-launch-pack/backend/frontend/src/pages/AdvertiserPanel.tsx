@@ -20,6 +20,18 @@ declare global {
   interface Window { paypal?: PayPalSdk }
 }
 
+function calendarDate(value: string | Date | null | undefined): string {
+  if (!value) return ''
+  const date = value instanceof Date ? value : new Date(value)
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10)
+}
+
+function displayDate(value: string | null | undefined): string {
+  if (!value) return 'nije određen'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? 'nije određen' : new Intl.DateTimeFormat('sr-RS', { dateStyle: 'medium' }).format(date)
+}
+
 function loadPayPalSdk(clientId: string): Promise<PayPalSdk> {
   if (window.paypal) return Promise.resolve(window.paypal)
   const scriptId = 'paypal-standard-checkout-sdk'
@@ -407,6 +419,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [bannerImageUrl, setBannerImageUrl] = useState('')
   const [bannerUrl, setBannerUrl] = useState('')
   const [bannerDays, setBannerDays] = useState('7')
+  const [bannerStartDate, setBannerStartDate] = useState(() => calendarDate(new Date()))
   const [bannerError, setBannerError] = useState('')
   const [bannerLoading, setBannerLoading] = useState(false)
   const [bannerUploading, setBannerUploading] = useState(false)
@@ -484,8 +497,8 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
   const reserveBanner = async () => {
     const daysCount = Number(bannerDays)
-    if (!bannerSlotId || !bannerTitle.trim() || !bannerUrl.trim() || !Number.isInteger(daysCount) || daysCount < 1 || daysCount > 31) {
-      setBannerError('Izaberi slot, unesi naslov i link, pa trajanje od 1 do 31 dana.')
+    if (!bannerSlotId || !bannerStartDate || !bannerTitle.trim() || !bannerUrl.trim() || !Number.isInteger(daysCount) || daysCount < 1 || daysCount > 31) {
+      setBannerError('Izaberi slot i datum početka, unesi naslov i link, pa trajanje od 1 do 31 dana.')
       return
     }
     setBannerLoading(true)
@@ -498,6 +511,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
         image_url: bannerImageUrl.trim() || undefined,
         target_url: bannerUrl.trim(),
         days_count: daysCount,
+        requested_start_at: `${bannerStartDate}T12:00:00`,
       })
       setBannerTitle('')
       setBannerBody('')
@@ -570,6 +584,12 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const selectedBannerPrice = selectedBannerSlot
     ? selectedBannerSlot.price_rsd * normalizedBannerDays / (pricing?.banner_price_basis_days ?? 7)
     : 0
+  const selectBannerSlot = (value: string) => {
+    setBannerSlotId(value)
+    const slot = bannerSlots.find(item => item.id === Number(value))
+    const earliest = calendarDate(slot?.next_available_at)
+    if (earliest && earliest > bannerStartDate) setBannerStartDate(earliest)
+  }
   const campaigns = (dashboard?.tasks ?? []).map(task => ({
     task,
     naziv: task.title,
@@ -952,13 +972,14 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     <Select
                       label="Pozicija na početnoj"
                       value={bannerSlotId}
-                      onChange={setBannerSlotId}
+                      onChange={selectBannerSlot}
                       options={bannerSlots.map(slot => ({
                         value: String(slot.id),
                         label: `${slot.title} — ${platformPublishing ? '0 RSD za platformu' : `${new Intl.NumberFormat('sr-RS').format(slot.price_rsd)} RSD / 7 dana`}`,
                       }))}
                     />
                     <Input label="Trajanje u danima" type="number" min={1} max={bannerMaxDays} step={1} value={String(normalizedBannerDays)} onChange={value => setBannerDays(String(Math.min(bannerMaxDays, Math.max(1, Math.floor(Number(value) || 1))))) } />
+                    <Input label="Željeni početak prikaza" type="date" min={calendarDate(new Date())} value={bannerStartDate} onChange={setBannerStartDate} />
                     <Input label="Naslov reklame" placeholder="npr. Jesenja ponuda" value={bannerTitle} onChange={setBannerTitle} />
                     <Input label="Link na koji vodi banner" placeholder="https://vas-sajt.rs/ponuda" value={bannerUrl} onChange={setBannerUrl} />
                     <Input label="URL slike banera (opciono)" placeholder="https://vas-sajt.rs/banner.jpg" value={bannerImageUrl} onChange={setBannerImageUrl} />
@@ -973,8 +994,12 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                   </div>
                   {selectedBannerSlot && <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-sm text-ink-2">
                     <p><strong className="text-ink">{platformPublishing ? 'Naknada platforme:' : 'Cena rezervacije:'}</strong> {platformPublishing ? '0 RSD' : `${new Intl.NumberFormat('sr-RS').format(Math.round(selectedBannerPrice))} RSD za ${normalizedBannerDays} dana`}.</p>
-                    <p className="mt-1 text-xs">Format: {selectedBannerSlot.width_label}. Zauzeti termini se prikazuju pre rezervacije i admin proverava kreativni sadržaj.</p>
-                    {selectedBannerSlot.schedule.length > 0 && <p className="mt-1 text-xs text-amber-700">Postojeće rezervacije: {selectedBannerSlot.schedule.map(item => item.title).join(', ')}.</p>}
+                    <p className="mt-1 text-xs">Format: {selectedBannerSlot.width_label}. Termin rezervišeš odmah, a admin proverava kreativni sadržaj.</p>
+                    <p className={`mt-2 text-xs font-semibold ${selectedBannerSlot.is_available_now ? 'text-emerald-700' : 'text-amber-700'}`}>
+                      {selectedBannerSlot.is_available_now ? 'Pozicija je slobodna danas.' : `Pozicija je zauzeta. Prvi slobodan termin je ${displayDate(selectedBannerSlot.next_available_at)}.`}
+                    </p>
+                    {!selectedBannerSlot.is_available_now && <button type="button" onClick={() => setBannerStartDate(calendarDate(selectedBannerSlot.next_available_at))} className="mt-2 text-xs font-bold text-blue-700 hover:text-blue-800">Postavi prvi slobodan termin →</button>}
+                    {selectedBannerSlot.schedule.length > 0 && <div className="mt-3 border-t border-blue-100 pt-3 text-xs text-ink-2"><p className="font-bold text-ink">Raspored pozicije</p><ul className="mt-1 space-y-1">{selectedBannerSlot.schedule.map(item => <li key={item.id}>{item.title}: {displayDate(item.starts_at)} – {displayDate(item.ends_at)} ({item.status.replace('_', ' ')})</li>)}</ul></div>}
                   </div>}
                   {bannerError && <div className="mt-3"><Alert type="error">{bannerError}</Alert></div>}
                   <div className="flex flex-wrap items-center gap-3 mt-4">

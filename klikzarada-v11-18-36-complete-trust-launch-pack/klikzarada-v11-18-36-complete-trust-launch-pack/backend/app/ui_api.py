@@ -218,6 +218,7 @@ class BannerReservationPayload(BaseModel):
     image_url: str | None = Field(default=None, max_length=500)
     target_url: str = Field(min_length=1, max_length=500)
     days_count: int = Field(default=7, ge=1, le=31)
+    requested_start_at: datetime | None = None
 
 
 class AdminBannerStatusPayload(BaseModel):
@@ -754,6 +755,12 @@ def _banner_slot_data(slot: HomeBannerSlotV111, banners: list[PaidAdBannerV111])
         if banner.status in {"active", "pending"}
         and (banner.ends_at is None or banner.ends_at > now)
     ]
+    next_available_at = now
+    for banner in schedule:
+        starts_at = banner.starts_at or banner.created_at or now
+        ends_at = banner.ends_at or starts_at + timedelta(days=max(1, banner.days_count or 7))
+        if starts_at <= next_available_at < ends_at:
+            next_available_at = ends_at
     return {
         "id": slot.id,
         "code": slot.code,
@@ -765,6 +772,11 @@ def _banner_slot_data(slot: HomeBannerSlotV111, banners: list[PaidAdBannerV111])
         "active_banner": _banner_data(active) if active else None,
         "pending_count": sum(1 for banner in slot_banners if banner.status == "pending"),
         "schedule": schedule,
+        "is_available_now": not any(
+            (banner.starts_at or banner.created_at or now) <= now < (banner.ends_at or (banner.starts_at or banner.created_at or now) + timedelta(days=max(1, banner.days_count or 7)))
+            for banner in schedule
+        ),
+        "next_available_at": _iso(next_available_at),
     }
 
 
@@ -2132,7 +2144,15 @@ def reserve_advertiser_banner(
     ).with_for_update().first()
     if not slot:
         raise HTTPException(404, "Banner slot nije dostupan.")
-    starts_at = datetime.utcnow()
+    now = datetime.utcnow()
+    starts_at = payload.requested_start_at or now
+    if starts_at.tzinfo is not None:
+        starts_at = starts_at.replace(tzinfo=None)
+    starts_at = starts_at.replace(second=0, microsecond=0)
+    if starts_at < now - timedelta(minutes=1):
+        raise HTTPException(400, "Početak zakupa ne može biti u prošlosti.")
+    if starts_at > now + timedelta(days=365):
+        raise HTTPException(400, "Banner možeš rezervisati najviše godinu dana unapred.")
     ends_at = starts_at + timedelta(days=payload.days_count)
     if _banner_slot_conflict(db, slot.id, starts_at, ends_at):
         raise HTTPException(409, "Ovaj slot je već rezervisan za traženi period.")
@@ -2771,10 +2791,17 @@ def review_admin_banner(
     if payload.status == "active":
         advertiser.advertiser_reserved_rsd = _money(max(0, advertiser.advertiser_reserved_rsd - amount))
         advertiser.advertiser_spent_rsd = _money(advertiser.advertiser_spent_rsd + amount)
+        now = datetime.utcnow()
+        planned_start = banner.starts_at or now
+        if planned_start <= now:
+            planned_start = now
         banner.status = "active"
-        banner.starts_at = datetime.utcnow()
-        banner.ends_at = banner.starts_at + timedelta(days=max(1, banner.days_count or 7))
-        banner.admin_note = (payload.note or "").strip() or "Zakup je odobren."
+        banner.starts_at = planned_start
+        banner.ends_at = planned_start + timedelta(days=max(1, banner.days_count or 7))
+        banner.admin_note = (payload.note or "").strip() or (
+            "Zakup je odobren; prikaz počinje po rezervisanom terminu."
+            if planned_start > now else "Zakup je odobren."
+        )
         db.add(AdvertiserBudgetTransaction(
             advertiser_id=advertiser.id,
             amount_rsd=0,
