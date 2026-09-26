@@ -32,7 +32,7 @@ const trustPoints = [
   ['03', 'Nagrada pod kontrolom', 'Oglašivač pregleda dokaz, a admin rešava sporove i sumnjive aktivnosti.'],
 ]
 
-function BannerCard({ banner }: { banner: PaidBanner }) {
+function BannerCard({ banner, variant = 'card' }: { banner: PaidBanner; variant?: 'hero' | 'card' }) {
   const cardRef = useRef<HTMLAnchorElement>(null)
 
   useEffect(() => {
@@ -50,24 +50,23 @@ function BannerCard({ banner }: { banner: PaidBanner }) {
     return () => observer.disconnect()
   }, [banner.id])
 
+  const isHero = variant === 'hero'
+
   return (
     <a
       ref={cardRef}
       href={banner.target_url || '#'}
       target="_blank"
       rel="noopener noreferrer sponsored"
-      className="group block rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-md"
+      className={`group relative block overflow-hidden rounded-2xl border border-blue-200 bg-slate-950 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-lg ${isHero ? 'min-h-[230px] md:min-h-[290px]' : 'min-h-[190px]'}`}
     >
-      <div className="flex items-start gap-3">
-        {banner.image_url
-          ? <img src={banner.image_url} alt="" className="h-12 w-12 shrink-0 rounded-xl border border-blue-100 object-cover" />
-          : <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-lg text-white">↗</span>}
-        <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-700">Sponzorisano</p>
-          <h3 className="mt-1 font-bold text-ink group-hover:text-blue-700">{banner.title}</h3>
-          {banner.body && <p className="mt-1 line-clamp-2 text-sm text-ink-2">{banner.body}</p>}
-          <p className="mt-3 text-xs font-bold text-blue-700">Otvori ponudu →</p>
-        </div>
+      {banner.image_url && <img src={banner.image_url} alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]" />}
+      <div className={`absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/35 to-transparent ${banner.image_url ? '' : 'bg-gradient-to-br from-blue-700 via-blue-600 to-violet-700'}`} />
+      <div className="relative flex h-full min-h-[inherit] flex-col justify-end p-5 text-white md:p-6">
+        <span className="w-fit rounded-full border border-white/30 bg-slate-950/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white backdrop-blur">Sponzorisano</span>
+        <h3 className={`mt-3 font-extrabold leading-tight ${isHero ? 'text-2xl md:text-3xl' : 'text-xl'}`}>{banner.title}</h3>
+        {banner.body && <p className="mt-2 max-w-2xl line-clamp-2 text-sm leading-6 text-white/90">{banner.body}</p>}
+        <p className="mt-4 text-xs font-bold text-emerald-200">Otvori ponudu →</p>
       </div>
     </a>
   )
@@ -105,7 +104,9 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
   }, [])
 
   const bannersFor = (...codes: string[]) => banners.filter(banner => banner.slot_code !== null && codes.includes(banner.slot_code))
+  const heroBanners = bannersFor('home_top')
   const topBanners = bannersFor('home_top_left', 'home_top_right')
+  const midBanners = bannersFor('home_mid_left', 'home_mid_right')
   const sponsorBanners = bannersFor('home_sponsor_1', 'home_sponsor_2', 'home_sponsor_3', 'home_sponsor_4')
   const dashboardBanners = bannersFor('home_dashboard_banner')
   const bottomBanners = bannersFor('home_bottom_1', 'home_bottom_2', 'home_bottom_3')
@@ -207,6 +208,8 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
           </div>
         </section>
 
+        {heroBanners.length > 0 && <section className="border-b border-frame bg-white"><div className="mx-auto max-w-6xl px-4 py-7"><p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-ink-3">Istaknuta ponuda</p><div className="grid gap-4">{heroBanners.map(banner => <BannerCard key={banner.id} banner={banner} variant="hero" />)}</div></div></section>}
+
         {topBanners.length > 0 && <section className="border-b border-frame bg-white"><div className="mx-auto max-w-6xl px-4 py-7"><p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-ink-3">Izdvojene ponude</p><div className="grid gap-4 md:grid-cols-2">{topBanners.map(banner => <BannerCard key={banner.id} banner={banner} />)}</div></div></section>}
 
         <section className="mx-auto max-w-6xl px-4 py-16">
@@ -218,6 +221,8 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
             <Card className="mt-7 border-dashed p-8 text-center"><p className="text-lg font-bold text-ink">Trenutno nema odobrenih zadataka.</p><p className="mt-2 text-sm text-ink-2">Oglašivači mogu prvi objaviti proverljiv zadatak, a korisnici će ga videti čim prođe moderaciju.</p><Btn onClick={() => onNavigate('advertiser-register')} className="mt-5">Objavi prvi zadatak</Btn></Card>
           ) : <div className="mt-7 grid gap-4 md:grid-cols-3">{featuredTasks.map(task => <Card key={task.id} className="flex flex-col p-5"><div className="flex items-center justify-between gap-3"><span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700">{task.category}</span><span className="font-mono text-lg font-bold text-emerald-700">{formatRsd(task.reward_rsd)}</span></div><h3 className="mt-4 text-lg font-bold text-ink">{task.title}</h3><p className="mt-2 line-clamp-2 text-sm leading-6 text-ink-2">{task.description}</p><div className="mt-5 flex items-center justify-between border-t border-frame pt-4 text-xs font-semibold text-ink-3"><span>oko {task.estimated_minutes} min</span><span>{task.total_slots - task.used_slots} slobodno</span></div><Btn onClick={() => onNavigate('tasks-public')} className="mt-4 justify-center">Detalji zadatka</Btn></Card>)}</div>}
         </section>
+
+        {midBanners.length > 0 && <section className="border-y border-frame bg-white"><div className="mx-auto max-w-6xl px-4 py-10"><div className="mb-5"><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700">Izdvojeno za testere</p><h2 className="mt-2 text-2xl font-extrabold text-ink">Aktuelne aplikacije za testiranje</h2></div><div className="grid gap-4 md:grid-cols-2">{midBanners.map(banner => <BannerCard key={banner.id} banner={banner} />)}</div></div></section>}
 
         {(newestTasks.length > 0 || closingTasks.length > 0) && <section className="border-y border-frame bg-white">
           <div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 lg:grid-cols-2">
