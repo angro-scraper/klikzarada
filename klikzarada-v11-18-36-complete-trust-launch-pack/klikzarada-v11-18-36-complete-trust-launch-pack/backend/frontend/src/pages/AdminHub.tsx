@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Sidebar, TopBar } from '../components/Sidebar'
 import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tabs, Alert } from '../components/ui'
 import { PageHeader } from '../components/PageHeader'
-import { ConfirmModal } from '../components/Modal'
+import { ConfirmModal, InfoModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminWithdrawal, type AdminSetting, type BannerSlot, type FraudOverview, type PaidBanner, type PaidPromotion, type ProductionReadiness, type SupportTicket, type TaskSource } from '../lib/api'
 
@@ -96,6 +96,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [payoutAction, setPayoutAction] = useState<{ id: number; korisnik: string; iznos: string; type: 'approve' | 'reject' } | null>(null)
   const [paypalPayoutAction, setPaypalPayoutAction] = useState<{ id: number; korisnik: string; iznos: string } | null>(null)
   const [campAction, setCampAction] = useState<{ id: number; naziv: string; type: 'approve' | 'reject' | 'revision' } | null>(null)
+  const [campaignDetails, setCampaignDetails] = useState<AdminCampaign | null>(null)
   const [bannerAction, setBannerAction] = useState<{ id: number; naslov: string; iznos: number; type: 'approve' | 'reject' } | null>(null)
   const [promotionAction, setPromotionAction] = useState<{ id: number; naslov: string; iznos: number; type: 'approve' | 'reject' } | null>(null)
   const [userStatuses, setUserStatuses] = useState<Record<number, string>>({})
@@ -309,6 +310,38 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
         onCancel={() => setCampAction(null)}
       />
 
+      <InfoModal
+        open={campaignDetails !== null}
+        title={campaignDetails ? `Pregled: ${campaignDetails.title}` : 'Pregled kampanje'}
+        onClose={() => setCampaignDetails(null)}
+      >
+        {campaignDetails && (
+          <div className="space-y-4 text-sm text-ink-2 max-h-[65vh] overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 gap-3">
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Oglašivač</p><p className="mt-1 font-semibold text-ink">{campaignDetails.advertiser_name}</p></div>
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Kategorija</p><p className="mt-1 font-semibold text-ink">{campaignDetails.category}</p></div>
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Nagrada po izvršenju</p><p className="mt-1 font-mono font-semibold text-ink">{new Intl.NumberFormat('sr-RS').format(campaignDetails.reward_rsd)} RSD</p></div>
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Broj mesta</p><p className="mt-1 font-semibold text-ink">{campaignDetails.total_slots}</p></div>
+            </div>
+            <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Opis i cilj</p><p className="mt-1 whitespace-pre-wrap text-ink">{campaignDetails.description}</p></div>
+            <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Uputstvo za korisnika</p><p className="mt-1 whitespace-pre-wrap text-ink">{campaignDetails.instructions}</p></div>
+            <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Traženi dokaz</p><p className="mt-1 whitespace-pre-wrap text-ink">{campaignDetails.proof_required}</p></div>
+            <div className="grid grid-cols-2 gap-3 rounded-lg bg-mint-50 border border-frame p-3">
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Publika</p><p className="mt-1 text-ink">{campaignDetails.target_city || 'Bez ograničenja'} · {campaignDetails.target_age_group || 'Sve godine'}</p></div>
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Interesovanja</p><p className="mt-1 text-ink">{campaignDetails.target_interests || 'Nisu zadana'}</p></div>
+            </div>
+            {campaignDetails.target_url && <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Ciljni link</p><a className="mt-1 block break-all text-blue-600 hover:underline" href={campaignDetails.target_url} target="_blank" rel="noreferrer">{campaignDetails.target_url}</a></div>}
+            {campaignDetails.requires_tester_enrollment && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <p className="font-semibold text-blue-800">Zatvoreno testiranje aplikacije</p>
+                <p className="mt-1 text-blue-800">{campaignDetails.tester_required_count} testera · {campaignDetails.tester_duration_days} dana · najmanje {campaignDetails.tester_daily_minutes} min dnevno · {campaignDetails.tester_daily_reward_rsd} RSD po odobrenom dnevnom izveštaju.</p>
+              </div>
+            )}
+            {campaignDetails.moderation_note && <Alert type="warning">Napomena za moderaciju: {campaignDetails.moderation_note}</Alert>}
+          </div>
+        )}
+      </InfoModal>
+
       <ConfirmModal
         open={bannerAction !== null}
         title={bannerAction?.type === 'approve' ? 'Odobri zakup banera?' : 'Odbij zakup banera?'}
@@ -501,11 +534,12 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                         <StatusBadge status={st} />,
                         st === 'na_cekanju'
                           ? <div className="flex flex-wrap gap-1.5">
+                              <Btn size="sm" variant="ghost" onClick={() => setCampaignDetails(c)}>Pregled</Btn>
                               <Btn size="sm" variant="success" disabled={savingAction} onClick={() => setCampAction({ id: c.id, naziv: c.title, type: 'approve' })}>Odobri</Btn>
                               <Btn size="sm" variant="secondary" disabled={savingAction} onClick={() => setCampAction({ id: c.id, naziv: c.title, type: 'revision' })}>Doradi</Btn>
                               <Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setCampAction({ id: c.id, naziv: c.title, type: 'reject' })}>Odbij</Btn>
                             </div>
-                          : <Btn size="sm" variant="ghost">Detalji</Btn>,
+                          : <Btn size="sm" variant="ghost" onClick={() => setCampaignDetails(c)}>Detalji</Btn>,
                       ]
                     })}
                   />
