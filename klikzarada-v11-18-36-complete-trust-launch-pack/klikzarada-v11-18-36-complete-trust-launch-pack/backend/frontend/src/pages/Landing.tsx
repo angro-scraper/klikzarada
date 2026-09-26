@@ -104,7 +104,7 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
   }, [])
 
   const bannersFor = (...codes: string[]) => banners.filter(banner => banner.slot_code !== null && codes.includes(banner.slot_code))
-  const heroBanners = bannersFor('home_top')
+  const heroBanners = bannersFor('home_top_wide')
   const topBanners = bannersFor('home_top_left', 'home_top_right')
   const midBanners = bannersFor('home_mid_left', 'home_mid_right')
   const sponsorBanners = bannersFor('home_sponsor_1', 'home_sponsor_2', 'home_sponsor_3', 'home_sponsor_4')

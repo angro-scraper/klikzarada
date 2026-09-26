@@ -654,7 +654,7 @@ def _paypal_email(value: str | None) -> str:
 
 
 _BANNER_SLOT_DEFAULTS = (
-    ("home_top", "Početna — veliki gornji banner", "home_top", "wide", 9500),
+    ("home_top_wide", "Početna — veliki gornji banner", "home_top", "wide", 9500),
     ("home_top_left", "Početna — gornji levi premium banner", "home_top", "half", 5000),
     ("home_top_right", "Početna — gornji desni premium banner", "home_top", "half", 5000),
     ("home_mid_left", "Početna — srednji levi banner", "home_mid", "half", 5500),
