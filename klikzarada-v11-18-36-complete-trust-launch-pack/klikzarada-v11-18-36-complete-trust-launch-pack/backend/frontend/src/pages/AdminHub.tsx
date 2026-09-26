@@ -87,38 +87,6 @@ const CRUMBS: Partial<Record<AdminPage, { label: string }[]>> = {
   'sys-settings':  [{ label: 'Admin' }, { label: 'Sistem' }, { label: 'Podešavanja' }],
 }
 
-const usersData = [
-  { id: 1, ime: 'Marko Marković', email: 'marko@primer.rs', tier: 'Explorer', zarada: '1.285 RSD', dokazi: 5, status: 'aktivno' },
-  { id: 2, ime: 'Jelena Jovanović', email: 'jelena@primer.rs', tier: 'Trusted', zarada: '3.420 RSD', dokazi: 21, status: 'aktivno' },
-  { id: 3, ime: 'Nikola Petrović', email: 'nikola@primer.rs', tier: 'Pro', zarada: '8.700 RSD', dokazi: 58, status: 'aktivno' },
-  { id: 4, ime: 'Ana Stanković', email: 'ana@primer.rs', tier: 'Explorer', zarada: '0 RSD', dokazi: 1, status: 'blokirano' },
-]
-
-const campaignModData = [
-  { id: 1, naziv: 'Google Play recenzije', oglasivac: 'Acme d.o.o.', budžet: '8.000 RSD', status: 'na_cekanju' },
-  { id: 2, naziv: 'TikTok follow kampanja', oglasivac: 'StartupXYZ', budžet: '2.500 RSD', status: 'na_cekanju' },
-  { id: 3, naziv: 'Instagram lajk — Jan', oglasivac: 'Acme d.o.o.', budžet: '5.000 RSD', status: 'aktivno' },
-]
-
-const proofsModData = [
-  { id: 1, korisnik: 'marko_m', zadatak: 'Instagram lajk', kampanja: 'Instagram lajk — Jan', flag: 'OK', flagColor: 'text-emerald-600' },
-  { id: 2, korisnik: 'jelena_j', zadatak: 'Instagram lajk', kampanja: 'Instagram lajk — Jan', flag: 'OK', flagColor: 'text-emerald-600' },
-  { id: 3, korisnik: 'petar_k', zadatak: 'Google Play rec.', kampanja: 'Google Play recenzije', flag: '⚠ Sumnjivo', flagColor: 'text-amber-700' },
-  { id: 4, korisnik: 'ana_s', zadatak: 'Instagram lajk', kampanja: 'Instagram lajk — Jan', flag: '⚠ Duplikat', flagColor: 'text-coral-700' },
-]
-
-const importSources = [
-  { naziv: 'Partner API 1', url: 'https://partner1.example.com/feed', status: 'aktivno', sync: '23.12. 14:30', novi: 12, preskoceni: 3 },
-  { naziv: 'Partner API 2', url: 'https://partner2.example.com/api', status: 'greska', sync: '22.12. 09:00', novi: 0, preskoceni: 0, greska: 'Endpoint ne vraća validan JSON' },
-  { naziv: 'Partner API 3', url: 'https://partner3.example.com/tasks', status: 'obustavljeno', sync: '18.12. 11:00', novi: 0, preskoceni: 0 },
-]
-
-const payoutsData = [
-  { id: 1, korisnik: 'Jelena J.', iznos: '2.500 RSD', metoda: 'Banka', trazeno: '23.12.2024', status: 'na_cekanju' },
-  { id: 2, korisnik: 'Nikola P.', iznos: '5.000 RSD', metoda: 'Banka', trazeno: '22.12.2024', status: 'na_cekanju' },
-  { id: 3, korisnik: 'Stefan K.', iznos: '1.800 RSD', metoda: 'Banka', trazeno: '20.12.2024', status: 'placeno' },
-]
-
 export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => void }) {
   const [page, setPage] = useState<AdminPage>('dashboard')
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -405,7 +373,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
           pageTitle="Operations Hub"
           badge="Admin"
           onNavigate={onNavigate}
-          actions={<span className="text-xs text-ink-3 font-mono hidden md:block">klikzarada.rs</span>}
+          actions={<div className="flex items-center gap-2"><span className="text-xs text-ink-3 font-mono hidden lg:block">klikzarada.rs</span><Btn size="sm" onClick={() => onNavigate('advertiser')}>Objavi sadržaj</Btn></div>}
         />
 
         <main className="flex-1 overflow-y-auto bg-mint-50">
@@ -425,6 +393,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                   <h1 className="text-xl font-extrabold text-ink">Operativni pregled</h1>
                   <p className="text-sm text-ink-2 mt-0.5">Pregled stvarnog operativnog stanja platforme.</p>
                 </div>
+                <Card className="border-blue-200 bg-blue-50 p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold text-ink">Objavi kao platforma</p><p className="mt-1 text-sm text-ink-2">Admin može otvoriti isti oglašivački panel za platformske zadatke, bannere i prioritetne pozicije. Sve objave ostaju povezane sa admin nalogom i vidljive su u evidenciji.</p></div><Btn onClick={() => onNavigate('advertiser')}>Otvori oglašivački panel</Btn></div></Card>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <StatCard label="Ukupno korisnika" value={String(metrics?.users ?? 0)} icon="👥" accent="blue" />
                   <StatCard label="Aktivnih kampanja" value={String(metrics?.active_tasks ?? 0)} icon="🎯" accent="green" />

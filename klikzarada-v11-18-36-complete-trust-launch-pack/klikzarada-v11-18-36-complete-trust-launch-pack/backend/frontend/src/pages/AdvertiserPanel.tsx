@@ -565,7 +565,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
       <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-white text-sm font-bold">{advertiser?.full_name?.slice(0, 1).toUpperCase() || 'O'}</div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-white truncate">{advertiser?.company_name || advertiser?.full_name || 'Učitavanje...'}</p>
-        <p className="text-xs" style={{ color: '#9AB1C8' }}>Oglašivač</p>
+        <p className="text-xs" style={{ color: '#9AB1C8' }}>{advertiser?.role === 'admin' ? 'Admin · objava platforme' : 'Oglašivač'}</p>
       </div>
       <button
         onClick={() => setLogoutConfirm(true)}
@@ -607,9 +607,10 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar
           onMenuClick={() => setMobileOpen(true)}
-          pageTitle="Oglašivački panel"
+          pageTitle={advertiser?.role === 'admin' ? 'Objave platforme' : 'Oglašivački panel'}
+          badge={advertiser?.role === 'admin' ? 'Admin' : undefined}
           onNavigate={onNavigate}
-          actions={<Btn onClick={() => goTo('nova')} size="sm">+ Nova kampanja</Btn>}
+          actions={<div className="flex gap-2">{advertiser?.role === 'admin' && <Btn onClick={() => onNavigate('admin')} variant="secondary" size="sm" className="hidden sm:inline-flex">Admin</Btn>}<Btn onClick={() => goTo('nova')} size="sm">+ Nova kampanja</Btn></div>}
         />
         <main className="flex-1 overflow-y-auto bg-mint-50">
           <div className="max-w-4xl mx-auto px-4 py-6">

@@ -150,6 +150,7 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
           <div className="hidden items-center gap-1 md:flex">
             <button onClick={() => onNavigate('tasks-public')} className="rounded-lg px-3 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-mint-100 hover:text-ink">Zadaci</button>
             <button onClick={() => onNavigate('advertiser-register')} className="rounded-lg px-3 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-mint-100 hover:text-ink">Oglašavanje</button>
+            <button onClick={() => onNavigate('help')} className="rounded-lg px-3 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-mint-100 hover:text-ink">Pomoć</button>
             <button onClick={() => onNavigate('login')} className="rounded-lg px-3 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-mint-100 hover:text-ink">Prijava</button>
             <Btn onClick={() => onNavigate('register')} size="sm">Pokreni zaradu</Btn>
           </div>
@@ -160,6 +161,7 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
             <div className="mx-auto flex max-w-6xl flex-col gap-2">
               <button onClick={() => { onNavigate('tasks-public'); setMobileMenuOpen(false) }} className="rounded-lg px-3 py-2 text-left font-semibold text-ink">Zadaci</button>
               <button onClick={() => { onNavigate('advertiser-register'); setMobileMenuOpen(false) }} className="rounded-lg px-3 py-2 text-left font-semibold text-ink">Oglašavanje</button>
+              <button onClick={() => { onNavigate('help'); setMobileMenuOpen(false) }} className="rounded-lg px-3 py-2 text-left font-semibold text-ink">Pomoć i pravila</button>
               <Btn onClick={() => onNavigate('register')} className="justify-center">Pokreni zaradu</Btn>
             </div>
           </div>

@@ -19,6 +19,8 @@ function taskView(task: Task) {
 export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) => void }) {
   const [cat, setCat] = useState('')
   const [level, setLevel] = useState('')
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<'recommended' | 'reward' | 'time'>('recommended')
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -35,7 +37,13 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
   const filtered = tasks.map(taskView).filter(t => {
     if (cat && t.cat !== cat) return false
     if (level && t.level !== level) return false
+    const searchable = `${t.title} ${t.description} ${t.cat}`.toLocaleLowerCase('sr')
+    if (query.trim() && !searchable.includes(query.trim().toLocaleLowerCase('sr'))) return false
     return true
+  }).sort((left, right) => {
+    if (sort === 'reward') return right.reward_rsd - left.reward_rsd
+    if (sort === 'time') return left.estimated_minutes - right.estimated_minutes
+    return Number(right.sponsored) - Number(left.sponsored) || Number(right.featured) - Number(left.featured) || right.reward_rsd - left.reward_rsd
   })
   const categories = [...new Set(tasks.map(task => task.category).filter(Boolean))].sort()
 
@@ -60,7 +68,9 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-3 mb-5">
+          <div className="grid gap-3 mb-5 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="sr-only" htmlFor="task-search">Pretraži zadatke</label>
+          <input id="task-search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Pretraži zadatke" className="w-full rounded-lg border border-frame bg-white px-3 py-2 text-sm text-ink outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
           <Select
             options={[
               { value: '', label: 'Sve kategorije' },
@@ -79,12 +89,13 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
             value={level}
             onChange={setLevel}
           />
-        </div>
+          <Select value={sort} onChange={value => setSort(value as typeof sort)} options={[{ value: 'recommended', label: 'Preporučeni redosled' }, { value: 'reward', label: 'Najveća nagrada' }, { value: 'time', label: 'Najkraće trajanje' }]} />
+          </div>
 
         {/* Guest notice */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <span className="text-blue-800 text-sm flex-1">
-            🔐 <strong>Prijavljivanje obavezno.</strong> Registruj se besplatno da bi mogao/la da preuzimaš zadatke i primaš isplate na račun.
+            🔐 <strong>Prijavljivanje obavezno.</strong> Registruj se besplatno da bi mogao/la da preuzimaš zadatke, pratiš dokaze i zatražiš isplatu na sačuvanu PayPal adresu.
           </span>
           <Btn onClick={() => onNavigate('register')} size="sm">Registruj se besplatno</Btn>
         </div>
@@ -116,6 +127,7 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
                     <div className="flex flex-wrap gap-4 mt-2">
                       <span className="text-xs text-ink-3">⏱ {task.time}</span>
                       <span className="text-xs text-ink-3">📎 {task.proof}</span>
+                      {task.target_city && <span className="text-xs text-ink-3">📍 {task.target_city}</span>}
                     </div>
                   </div>
                   <div className="text-right shrink-0">

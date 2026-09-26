@@ -135,3 +135,8 @@ body { margin: 0; min-height: 100vh; font-weight: 450; }
 @media (prefers-reduced-motion: reduce) {
   .landing-reveal, .landing-float { animation: none; }
 }
+
+@media (max-width: 640px) {
+  input, select, textarea { font-size: 16px; }
+  .table-scroll table { min-width: 640px; }
+}
