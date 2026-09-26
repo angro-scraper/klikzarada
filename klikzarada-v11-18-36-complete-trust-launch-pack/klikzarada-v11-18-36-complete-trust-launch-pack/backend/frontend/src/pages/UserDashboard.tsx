@@ -99,6 +99,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
   const [dashboardError, setDashboardError] = useState('')
   const [proofText, setProofText] = useState('')
   const [testerEmail, setTesterEmail] = useState('')
+  const [testerCheckinNote, setTesterCheckinNote] = useState('')
   const [verification, setVerification] = useState<TaskVerification | null>(null)
   const [payoutAmount, setPayoutAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('PayPal')
@@ -187,6 +188,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
   const minWithdrawal = dashboard?.min_withdrawal_rsd ?? 1000
   const payoutGap = Math.max(0, minWithdrawal - balance)
   const selectedTask = activeTasks.find(task => task.id === selectedTaskId || task.id === submitProofModal)
+  const selectedTesterProgress = selectedTask?.tester_progress
 
   function goTo(p: Page) { setPage(p) }
 
@@ -212,7 +214,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
 
   async function requestTesterAccess(task: Task) {
     if (!testerEmail.trim()) {
-      showToast('Unesi email Google naloga koji koristiš u Play prodavnici.', 'error')
+      showToast('Unesi email naloga koji koristiš za pristup testiranju.', 'error')
       return
     }
     setSaving(true)
@@ -222,6 +224,24 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
       showToast('Prijava je poslata oglašivaču. Dobićeš obaveštenje kada te doda u test.', 'success')
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Prijava za testiranje nije poslata.', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function submitTesterCheckin(task: Task) {
+    if (testerCheckinNote.trim().length < 3) {
+      showToast('Napiši kratko šta si danas testirao/la i da li si primetio/la problem.', 'error')
+      return
+    }
+    setSaving(true)
+    try {
+      await api.createTesterCheckin(task.id, testerCheckinNote)
+      setTesterCheckinNote('')
+      await refreshDashboard()
+      showToast('Dnevni izveštaj je poslat oglašivaču na odobrenje.', 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Dnevni izveštaj nije poslat.', 'error')
     } finally {
       setSaving(false)
     }
@@ -485,7 +505,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                           <p className="font-semibold text-ink text-sm truncate">{t.title}</p>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className="font-mono font-bold text-emerald-600">{formatRsd(t.reward_rsd)}</span>
+                          <span className="font-mono font-bold text-emerald-600">{t.requires_tester_enrollment ? `${formatRsd(t.tester_daily_reward_rsd)}/dan` : formatRsd(t.reward_rsd)}</span>
                           <Btn size="sm" onClick={() => { setSelectedTaskId(t.id); goTo('zadatak-detalj') }}>Detalji</Btn>
                         </div>
                       </Card>
@@ -531,7 +551,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                           <p className="text-xs text-ink-3 mt-1">⏱ {t.estimated_minutes} min · 📎 {t.proof_required || 'Dokaz potreban'}</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="font-mono font-bold text-emerald-600 text-lg">{formatRsd(t.reward_rsd)}</p>
+                          <p className="font-mono font-bold text-emerald-600 text-lg">{t.requires_tester_enrollment ? `${formatRsd(t.tester_daily_reward_rsd)}/dan` : formatRsd(t.reward_rsd)}</p>
                           <Btn size="sm" className="mt-2" onClick={() => { setSelectedTaskId(t.id); goTo('zadatak-detalj') }}>Detalji →</Btn>
                         </div>
                       </div>
@@ -553,12 +573,12 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                   <p className="text-sm text-ink-2">{selectedTask?.description || 'Izaberi dostupni zadatak sa liste.'}</p>
                   {selectedTask?.instructions && <Alert type="info">{selectedTask.instructions}</Alert>}
                   <div className="bg-mint-50 border border-frame rounded-lg p-3 text-sm space-y-1">
-                    <p><span className="text-ink-3 font-medium">Nagrada:</span> <span className="font-mono font-bold text-emerald-600">{formatRsd(selectedTask?.reward_rsd || 0)}</span></p>
+                    <p><span className="text-ink-3 font-medium">Nagrada:</span> <span className="font-mono font-bold text-emerald-600">{selectedTask?.requires_tester_enrollment ? `${formatRsd(selectedTask.tester_daily_reward_rsd)} dnevno` : formatRsd(selectedTask?.reward_rsd || 0)}</span></p>
                     <p><span className="text-ink-3 font-medium">Vreme:</span> oko {selectedTask?.estimated_minutes || 0} min</p>
                     <p><span className="text-ink-3 font-medium">Dokaz:</span> {selectedTask?.proof_required || '—'}</p>
                     <p><span className="text-ink-3 font-medium">Nivo:</span> {selectedTask?.min_user_level || 'Bronza'} i više</p>
                   </div>
-                  <Alert type="info">Pre dokaza pokreni proveru: server prati vreme, aktivnost i fokus taba. Nagrada prvo ide na čekanje, a admin je odobrava nakon kontrole.</Alert>
+                  <Alert type="info">Za standardne zadatke server prati vreme, aktivnost i fokus taba. Za zatvoreni beta test šalješ dnevni izveštaj; svaki dan posebno odobrava oglašivač.</Alert>
                   {selectedTask?.requires_tester_enrollment && selectedTask.tester_enrollment?.status !== 'invited' ? (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
                       <p className="font-bold text-amber-900">Prvo zatraži pristup zatvorenom testiranju</p>
@@ -571,6 +591,22 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                           <Btn disabled={saving} onClick={() => selectedTask && void requestTesterAccess(selectedTask)}>Pošalji email za pristup</Btn>
                         </>
                       )}
+                    </div>
+                  ) : selectedTask?.requires_tester_enrollment ? (
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-bold text-blue-950">Tvoj lični plan zatvorenog testa</p>
+                        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-blue-800">{selectedTesterProgress?.checkin_total || 0}/{selectedTask.tester_duration_days} dana prijavljeno</span>
+                      </div>
+                      <p className="text-sm leading-6 text-blue-900">Od trenutka poziva imaš {selectedTask.tester_duration_days} uzastopnih dana. Svakog dana testiraj aplikaciju najmanje {selectedTask.tester_daily_minutes} minuta, zatim pošalji kratak izveštaj. Dnevna nagrada od {formatRsd(selectedTask.tester_daily_reward_rsd)} čeka odobrenje oglašivača.</p>
+                      {selectedTesterProgress?.days_elapsed && selectedTesterProgress.days_elapsed > selectedTask.tester_duration_days && !selectedTesterProgress.complete && <Alert type="error">Rok od {selectedTask.tester_duration_days} dana je istekao pre nego što su poslati svi dnevni izveštaji. Obrati se oglašivaču kroz podršku.</Alert>}
+                      {selectedTask.target_url && <Btn onClick={() => window.open(selectedTask.target_url || '', '_blank', 'noopener,noreferrer')} variant="secondary">↗ Otvori aplikaciju / test link</Btn>}
+                      {selectedTesterProgress?.can_check_in ? <div className="space-y-2">
+                        <label className="block text-xs font-bold uppercase tracking-wide text-blue-900">Dnevni izveštaj, dan {selectedTesterProgress.current_day}</label>
+                        <textarea value={testerCheckinNote} onChange={event => setTesterCheckinNote(event.target.value)} rows={3} placeholder="Šta si danas testirao/la, koliko približno minuta i da li si primetio/la problem?" className="w-full resize-none rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-blue-500" />
+                        <Btn disabled={saving} onClick={() => selectedTask && void submitTesterCheckin(selectedTask)} variant="success">Pošalji dnevni izveštaj</Btn>
+                      </div> : <p className="text-sm font-medium text-blue-800">{selectedTesterProgress?.complete ? 'Poslao/la si sve potrebne dnevne izveštaje. Sačekaj odobrenja oglašivača.' : 'Današnji izveštaj je već poslat ili se otključava sledećeg dana.'}</p>}
+                      {(selectedTask.tester_checkins || []).length > 0 && <div className="border-t border-blue-200 pt-3 text-xs text-blue-900"><p className="mb-1 font-bold">Evidencija dana</p>{selectedTask.tester_checkins?.sort((a, b) => a.day_number - b.day_number).map(checkin => <p key={checkin.id}>Dan {checkin.day_number}: {checkin.status === 'approved' ? 'odobreno' : checkin.status === 'rejected' ? 'potrebna dorada' : 'čeka odobrenje'}</p>)}</div>}
                     </div>
                   ) : (
                     <div className="flex gap-2">
@@ -600,7 +636,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                           <p className="text-xs text-ink-3 mt-1">⏱ {t.estimated_minutes} min</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="font-mono font-bold text-emerald-600 text-lg">{formatRsd(t.reward_rsd)}</p>
+                          <p className="font-mono font-bold text-emerald-600 text-lg">{t.requires_tester_enrollment ? `${formatRsd(t.tester_daily_reward_rsd)}/dan` : formatRsd(t.reward_rsd)}</p>
                           <Btn size="sm" className="mt-2" onClick={() => { setSelectedTaskId(t.id); goTo('zadatak-detalj') }}>Detalji</Btn>
                         </div>
                       </div>

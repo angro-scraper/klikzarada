@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 
 from .database import get_db
 from .models import (
+    AppTesterDailyCheckin,
     AppTesterEnrollment,
     AdvertiserBudgetTransaction,
     AntiFraudDeviceV1,
@@ -184,6 +185,10 @@ class CampaignPayload(BaseModel):
     target_age_group: str | None = Field(default="18+", max_length=40)
     target_interests: str | None = Field(default=None, max_length=2000)
     requires_tester_enrollment: bool = False
+    tester_required_count: int = Field(default=12, ge=12, le=100000)
+    tester_duration_days: int = Field(default=14, ge=14, le=31)
+    tester_daily_minutes: int = Field(default=5, ge=1, le=60)
+    tester_daily_reward_rsd: float = Field(default=0, ge=0)
 
 
 class TesterEnrollmentPayload(BaseModel):
@@ -193,6 +198,10 @@ class TesterEnrollmentPayload(BaseModel):
 class TesterEnrollmentStatusPayload(BaseModel):
     status: Literal["invited", "declined"]
     note: str | None = Field(default=None, max_length=1000)
+
+
+class TesterDailyCheckinPayload(BaseModel):
+    note: str = Field(min_length=3, max_length=1000)
 
 
 class BannerReservationPayload(BaseModel):
@@ -465,6 +474,10 @@ def _task_data(task: Task) -> dict:
         "min_user_level": task.min_user_level or "Bronza",
         "featured": bool(task.featured),
         "requires_tester_enrollment": bool(task.requires_tester_enrollment),
+        "tester_required_count": task.tester_required_count or 12,
+        "tester_duration_days": task.tester_duration_days or 14,
+        "tester_daily_minutes": task.tester_daily_minutes or 5,
+        "tester_daily_reward_rsd": _money(task.tester_daily_reward_rsd or 0),
         "platform_sponsored": _is_platform_publisher(task.advertiser),
         "status": _status(task.status),
         "moderation_note": task.moderation_note,
@@ -481,6 +494,7 @@ def _tester_enrollment_data(item: AppTesterEnrollment, include_email: bool = Fal
         "task_id": item.task_id,
         "status": _status(item.status),
         "note": item.note,
+        "invited_at": _iso(item.invited_at),
         "created_at": _iso(item.created_at),
         "updated_at": _iso(item.updated_at),
     }
@@ -490,6 +504,41 @@ def _tester_enrollment_data(item: AppTesterEnrollment, include_email: bool = Fal
             "user_name": item.user.full_name if item.user else "Korisnik",
         }
     return data
+
+
+def _tester_checkin_data(item: AppTesterDailyCheckin) -> dict:
+    return {
+        "id": item.id,
+        "task_id": item.task_id,
+        "day_number": item.day_number,
+        "note": item.note,
+        "reward_rsd": _money(item.reward_rsd),
+        "status": _status(item.status),
+        "review_note": item.review_note,
+        "reviewed_at": _iso(item.reviewed_at),
+        "checked_in_at": _iso(item.checked_in_at),
+    }
+
+
+def _tester_window_progress(task: Task, enrollment: AppTesterEnrollment | None, checkins: list[AppTesterDailyCheckin] | None = None) -> dict:
+    """Expose user-declared progress without claiming visibility into app activity."""
+    duration = task.tester_duration_days or 14
+    started_at = enrollment.invited_at if enrollment and enrollment.status == "invited" else None
+    checked_days = sorted({item.day_number for item in (checkins or []) if item.status in {"pending", "approved"}})
+    current_day = 0
+    if started_at:
+        current_day = max(1, (datetime.utcnow().date() - started_at.date()).days + 1)
+    return {
+        "started": bool(started_at),
+        "started_at": _iso(started_at),
+        "current_day": min(current_day, duration),
+        "days_elapsed": current_day,
+        "duration_days": duration,
+        "checkin_total": len(checked_days),
+        "checked_days": checked_days,
+        "can_check_in": bool(started_at and 1 <= current_day <= duration and current_day not in checked_days),
+        "complete": len(checked_days) >= duration,
+    }
 
 
 def _submission_data(submission: TaskSubmission) -> dict:
@@ -1129,11 +1178,17 @@ def record_banner_impression(banner_id: int, db: Session = Depends(get_db)) -> R
 @router.get("/user/dashboard")
 def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"korisnik", "admin"})
-    tasks = db.query(Task).filter(Task.status == "active", Task.used_slots < Task.total_slots).order_by(Task.featured.desc(), Task.reward_rsd.desc()).limit(100).all()
     enrollment_by_task = {
         item.task_id: item
         for item in db.query(AppTesterEnrollment).filter(AppTesterEnrollment.user_id == user.id).all()
     }
+    tasks = [
+        task for task in db.query(Task).filter(Task.status == "active").order_by(Task.featured.desc(), Task.reward_rsd.desc()).limit(100).all()
+        if task.used_slots < task.total_slots or task.id in enrollment_by_task
+    ]
+    checkins_by_task: dict[int, list[AppTesterDailyCheckin]] = {}
+    for item in db.query(AppTesterDailyCheckin).filter(AppTesterDailyCheckin.user_id == user.id).all():
+        checkins_by_task.setdefault(item.task_id, []).append(item)
     submissions = db.query(TaskSubmission).filter(TaskSubmission.user_id == user.id).order_by(TaskSubmission.created_at.desc()).limit(100).all()
     withdrawals = db.query(Withdrawal).filter(Withdrawal.user_id == user.id).order_by(Withdrawal.created_at.desc()).limit(100).all()
     transactions = db.query(WalletTransaction).filter(WalletTransaction.user_id == user.id).order_by(WalletTransaction.created_at.desc()).limit(100).all()
@@ -1143,7 +1198,14 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
         "min_withdrawal_rsd": MIN_WITHDRAWAL_RSD,
         "referral_count": referrals,
         "tasks": [
-            _task_data(task) | ({"tester_enrollment": _tester_enrollment_data(enrollment_by_task[task.id])} if task.id in enrollment_by_task else {})
+            _task_data(task) | (
+                {
+                    "tester_enrollment": _tester_enrollment_data(enrollment_by_task[task.id]),
+                    "tester_checkins": [_tester_checkin_data(item) for item in checkins_by_task.get(task.id, [])],
+                    "tester_progress": _tester_window_progress(task, enrollment_by_task[task.id], checkins_by_task.get(task.id, [])),
+                }
+                if task.id in enrollment_by_task else {}
+            )
             for task in tasks
         ],
         "submissions": [_submission_data(submission) for submission in submissions],
@@ -1355,12 +1417,34 @@ def _require_tester_invitation(db: Session, user: User, task: Task) -> None:
         raise HTTPException(409, "Pristup testiranju još nije odobren. Sačekaj obaveštenje oglašivača.")
 
 
+def _require_tester_daily_completion(db: Session, user: User, task: Task) -> None:
+    if not task.requires_tester_enrollment:
+        return
+    enrollment = db.query(AppTesterEnrollment).filter(
+        AppTesterEnrollment.task_id == task.id,
+        AppTesterEnrollment.user_id == user.id,
+        AppTesterEnrollment.status == "invited",
+    ).first()
+    if not enrollment or not enrollment.invited_at:
+        raise HTTPException(409, "Sačekaj da oglašivač potvrdi tvoje mesto u testiranju.")
+    checkins = db.query(AppTesterDailyCheckin).filter(
+        AppTesterDailyCheckin.task_id == task.id,
+        AppTesterDailyCheckin.user_id == user.id,
+        AppTesterDailyCheckin.status.in_(("pending", "approved")),
+    ).all()
+    progress = _tester_window_progress(task, enrollment, checkins)
+    if not progress["complete"]:
+        raise HTTPException(409, f"Za ovaj test treba {task.tester_duration_days or 14} dnevnih prijava. Trenutno imaš {progress['checkin_total']}.")
+
+
 @router.post("/user/tasks/{task_id}/tester-enrollments", status_code=201)
 def request_tester_enrollment(task_id: int, payload: TesterEnrollmentPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"korisnik", "admin"})
     task = db.query(Task).filter(Task.id == task_id, Task.status == "active").first()
     if not task or not task.requires_tester_enrollment:
         raise HTTPException(404, "Ovaj zadatak nema prijavu za zatvoreno testiranje.")
+    if int(task.used_slots or 0) >= int(task.total_slots or 0):
+        raise HTTPException(409, "Sva mesta za testere su trenutno popunjena.")
     email = payload.testing_email.strip().lower()
     if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
         raise HTTPException(400, "Unesi važeću email adresu za pristup testiranju.")
@@ -1390,6 +1474,62 @@ def request_tester_enrollment(task_id: int, payload: TesterEnrollmentPayload, re
     return {"enrollment": _tester_enrollment_data(enrollment)}
 
 
+@router.post("/user/tasks/{task_id}/tester-checkins", status_code=201)
+def create_tester_daily_checkin(task_id: int, payload: TesterDailyCheckinPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    """Record a daily test report. It is a user declaration, not third-party telemetry."""
+    user = _require_user(request, db, {"korisnik", "admin"})
+    task = db.query(Task).filter(Task.id == task_id, Task.status == "active").first()
+    if not task or not task.requires_tester_enrollment:
+        raise HTTPException(404, "Ovaj zadatak nema dnevnu evidenciju testiranja.")
+    enrollment = db.query(AppTesterEnrollment).filter(
+        AppTesterEnrollment.task_id == task.id,
+        AppTesterEnrollment.user_id == user.id,
+        AppTesterEnrollment.status == "invited",
+    ).first()
+    if not enrollment or not enrollment.invited_at:
+        raise HTTPException(409, "Dnevna evidencija se otključava kada oglašivač potvrdi da si dodat/a u tester listu.")
+    progress = _tester_window_progress(task, enrollment, [])
+    if not progress["started"] or progress["current_day"] < 1:
+        raise HTTPException(409, "Tvoj period testiranja još nije počeo.")
+    if progress["days_elapsed"] > (task.tester_duration_days or 14):
+        raise HTTPException(409, "Tvoj rok za dnevne prijave je istekao.")
+    day_number = progress["current_day"]
+    checkin = db.query(AppTesterDailyCheckin).filter(
+        AppTesterDailyCheckin.task_id == task.id,
+        AppTesterDailyCheckin.user_id == user.id,
+        AppTesterDailyCheckin.day_number == day_number,
+    ).first()
+    if checkin and checkin.status != "rejected":
+        raise HTTPException(409, "Današnji test je već prijavljen.")
+    if checkin:
+        checkin.note = payload.note.strip()
+        checkin.reward_rsd = task.tester_daily_reward_rsd or 0
+        checkin.status = "pending"
+        checkin.review_note = None
+        checkin.reviewed_at = None
+        checkin.checked_in_at = datetime.utcnow()
+    else:
+        checkin = AppTesterDailyCheckin(
+            task_id=task.id,
+            user_id=user.id,
+            day_number=day_number,
+            note=payload.note.strip(),
+            reward_rsd=task.tester_daily_reward_rsd or 0,
+        )
+        db.add(checkin)
+    user.pending_rsd = _money(user.pending_rsd + (task.tester_daily_reward_rsd or 0))
+    if task.advertiser_id:
+        db.add(Notification(
+            user_id=task.advertiser_id,
+            title=f"Dnevni izveštaj, dan {day_number}",
+            body=f"{user.full_name} je poslao/la dnevni izveštaj za kampanju: {task.title}.",
+            status="unread",
+        ))
+    db.commit()
+    db.refresh(checkin)
+    return {"checkin": _tester_checkin_data(checkin)}
+
+
 @router.post("/user/tasks/{task_id}/verification/start", status_code=201)
 def start_task_verification(task_id: int, payload: VerificationStartPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"korisnik", "admin"})
@@ -1397,6 +1537,8 @@ def start_task_verification(task_id: int, payload: VerificationStartPayload, req
     if not task:
         raise HTTPException(404, "Zadatak nije dostupan.")
     _require_tester_invitation(db, user, task)
+    if task.requires_tester_enrollment:
+        raise HTTPException(409, "Za zatvoreno testiranje koristi dnevnu evidenciju. Nagrada se obračunava po odobrenom danu.")
     _verify_daily_limits(db, user, task)
     existing_submission = db.query(TaskSubmission).filter(
         TaskSubmission.user_id == user.id,
@@ -1528,6 +1670,8 @@ def submit_proof(task_id: int, payload: ProofPayload, request: Request, db: Sess
     if not task:
         raise HTTPException(404, "Zadatak nije dostupan.")
     _require_tester_invitation(db, user, task)
+    if task.requires_tester_enrollment:
+        raise HTTPException(409, "Za zatvoreno testiranje nagrade se obračunavaju po odobrenim dnevnim izveštajima.")
     existing = db.query(TaskSubmission).filter(TaskSubmission.user_id == user.id, TaskSubmission.task_id == task.id, TaskSubmission.status.in_(["pending", "approved"])).first()
     if existing:
         raise HTTPException(409, "Za ovaj zadatak je već poslat dokaz.")
@@ -1588,6 +1732,7 @@ def advertiser_dashboard(request: Request, db: Session = Depends(get_db)) -> dic
     tasks = db.query(Task).filter(Task.advertiser_id == user.id).order_by(Task.created_at.desc()).limit(100).all()
     submissions = db.query(TaskSubmission).join(Task).filter(Task.advertiser_id == user.id).order_by(TaskSubmission.created_at.desc()).limit(100).all()
     enrollments = db.query(AppTesterEnrollment).join(Task).filter(Task.advertiser_id == user.id).order_by(AppTesterEnrollment.created_at.desc()).limit(300).all()
+    tester_checkins = db.query(AppTesterDailyCheckin).join(Task).filter(Task.advertiser_id == user.id).order_by(AppTesterDailyCheckin.checked_in_at.desc()).limit(500).all()
     transactions = db.query(AdvertiserBudgetTransaction).filter(AdvertiserBudgetTransaction.advertiser_id == user.id).order_by(AdvertiserBudgetTransaction.created_at.desc()).limit(100).all()
     task_payload = []
     for task in tasks:
@@ -1601,12 +1746,17 @@ def advertiser_dashboard(request: Request, db: Session = Depends(get_db)) -> dic
         task_data["tester_enrollment_total"] = len(task_enrollments)
         task_data["tester_enrollment_requested"] = sum(1 for item in task_enrollments if item.status == "requested")
         task_data["tester_enrollment_invited"] = sum(1 for item in task_enrollments if item.status == "invited")
+        task_checkins = [item for item in tester_checkins if item.task_id == task.id]
+        task_data["tester_checkin_total"] = len(task_checkins)
+        task_data["tester_checkin_pending"] = sum(1 for item in task_checkins if item.status == "pending")
+        task_data["tester_checkin_approved"] = sum(1 for item in task_checkins if item.status == "approved")
         task_payload.append(task_data)
     return {
         "user": _user_data(user),
         "tasks": task_payload,
         "submissions": [_submission_data(submission) | {"user_name": submission.user.full_name if submission.user else "Korisnik"} for submission in submissions],
         "tester_enrollments": [_tester_enrollment_data(item, include_email=True) | {"task_title": item.task.title if item.task else "Zadatak"} for item in enrollments],
+        "tester_checkins": [_tester_checkin_data(item) | {"task_title": item.task.title if item.task else "Zadatak", "user_name": item.user.full_name if item.user else "Korisnik"} for item in tester_checkins],
         "transactions": [{"id": tx.id, "amount_rsd": _money(tx.amount_rsd), "tx_type": tx.tx_type, "description": tx.description, "created_at": _iso(tx.created_at)} for tx in transactions],
         "pricing": _pricing_data(),
     }
@@ -1624,11 +1774,25 @@ def update_tester_enrollment(enrollment_id: int, payload: TesterEnrollmentStatus
         raise HTTPException(404, "Prijava za testiranje nije pronađena.")
     if enrollment.status == "invited" and payload.status == "invited":
         raise HTTPException(409, "Korisnik je već označen kao pozvan u testiranje.")
+    task = enrollment.task
+    was_invited = enrollment.status == "invited"
+    if payload.status == "invited" and not was_invited:
+        occupied_slots = db.query(AppTesterEnrollment).filter(
+            AppTesterEnrollment.task_id == task.id,
+            AppTesterEnrollment.status == "invited",
+        ).count()
+        if occupied_slots >= int(task.total_slots or 0):
+            raise HTTPException(409, "Sva mesta za testere su već popunjena.")
+        enrollment.invited_at = datetime.utcnow()
+        task.used_slots = int(task.used_slots or 0) + 1
+    elif payload.status == "declined" and was_invited:
+        enrollment.invited_at = None
+        task.used_slots = max(0, int(task.used_slots or 0) - 1)
     enrollment.status = payload.status
     enrollment.note = (payload.note or "").strip() or None
     enrollment.updated_at = datetime.utcnow()
     if payload.status == "invited":
-        body = f"Dodat/a si u zatvoreno testiranje za: {enrollment.task.title}. Sada otvori link zadatka, instaliraj aplikaciju i završi test."
+        body = f"Dodat/a si u zatvoreno testiranje za: {task.title}. Tvojih {task.tester_duration_days or 14} dana počinje sada. Svakog dana testiraj najmanje {task.tester_daily_minutes or 5} min i pošalji kratak dnevni izveštaj."
         title = "Pristup testiranju je odobren"
     else:
         body = enrollment.note or f"Prijava za zatvoreno testiranje kampanje '{enrollment.task.title}' trenutno nije odobrena."
@@ -1638,6 +1802,51 @@ def update_tester_enrollment(enrollment_id: int, payload: TesterEnrollmentStatus
     db.commit()
     db.refresh(enrollment)
     return {"enrollment": _tester_enrollment_data(enrollment, include_email=True)}
+
+
+@router.patch("/advertiser/tester-checkins/{checkin_id}")
+def review_tester_daily_checkin(checkin_id: int, payload: AdminStatusPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    """The campaign owner approves each declared test day and its daily reward."""
+    advertiser = _require_user(request, db, {"oglasivac", "admin"})
+    if payload.status not in {"approved", "rejected"}:
+        raise HTTPException(400, "Dnevni izveštaj može biti odobren ili odbijen.")
+    checkin = db.query(AppTesterDailyCheckin).join(Task).filter(
+        AppTesterDailyCheckin.id == checkin_id,
+        Task.advertiser_id == advertiser.id,
+    ).first()
+    if not checkin:
+        raise HTTPException(404, "Dnevni izveštaj nije pronađen.")
+    if checkin.status != "pending":
+        raise HTTPException(409, "Ovaj dnevni izveštaj je već obrađen.")
+    checkin.status = payload.status
+    checkin.review_note = (payload.note or "").strip() or None
+    checkin.reviewed_at = datetime.utcnow()
+    user = checkin.user
+    task = checkin.task
+    user.pending_rsd = _money(max(0, user.pending_rsd - checkin.reward_rsd))
+    if payload.status == "approved":
+        user.balance_rsd = _money(user.balance_rsd + checkin.reward_rsd)
+        user.lifetime_earned_rsd = _money(user.lifetime_earned_rsd + checkin.reward_rsd)
+        db.add(WalletTransaction(
+            user_id=user.id,
+            amount_rsd=checkin.reward_rsd,
+            tx_type="app_test_daily_reward",
+            description=f"Odobren test aplikacije, dan {checkin.day_number}: {task.title}",
+        ))
+        if not _is_platform_publisher(advertiser):
+            advertiser_cost = _money(checkin.reward_rsd * (1 + float(task.platform_fee_percent or 0) / 100))
+            advertiser.advertiser_reserved_rsd = _money(max(0, advertiser.advertiser_reserved_rsd - advertiser_cost))
+            advertiser.advertiser_spent_rsd = _money(advertiser.advertiser_spent_rsd + advertiser_cost)
+        title = "Dnevno testiranje je odobreno"
+        body = f"Odobrena je nagrada od {checkin.reward_rsd:.0f} RSD za dan {checkin.day_number}."
+    else:
+        title = "Dnevno testiranje nije odobreno"
+        body = checkin.review_note or f"Izveštaj za dan {checkin.day_number} nije ispunio zahteve kampanje."
+    db.add(Notification(user_id=user.id, title=title, body=body, status="unread"))
+    _audit(db, advertiser, "tester_daily_checkin_review", "AppTesterDailyCheckin", checkin.id, payload.status)
+    db.commit()
+    db.refresh(checkin)
+    return {"checkin": _tester_checkin_data(checkin)}
 
 
 @router.get("/advertiser/banners")
@@ -2181,11 +2390,17 @@ def create_campaign(payload: CampaignPayload, request: Request, db: Session = De
     category = payload.category.strip()
     if category not in _SAFE_CAMPAIGN_CATEGORIES:
         raise HTTPException(400, "Izaberi jednu od dozvoljenih kategorija zadatka.")
+    if payload.requires_tester_enrollment:
+        if payload.total_slots < payload.tester_required_count:
+            raise HTTPException(400, "Broj mesta mora biti najmanje jednak broju obaveznih testera.")
+        expected_reward = _money(payload.tester_daily_reward_rsd * payload.tester_duration_days)
+        if payload.tester_daily_reward_rsd <= 0 or abs(float(payload.reward_rsd) - expected_reward) > 0.01:
+            raise HTTPException(400, "Za zatvoreni beta test ukupna nagrada po testeru mora odgovarati dnevnoj nagradi pomnoženoj brojem dana.")
     platform_publishing = _is_platform_publisher(user)
     total = 0.0 if platform_publishing else _money(payload.reward_rsd * payload.total_slots * (1 + PLATFORM_FEE_PERCENT / 100))
     if user.advertiser_budget_rsd < total:
         raise HTTPException(400, f"Nedovoljno budžeta. Potrebno je {total:.0f} RSD.")
-    task = Task(advertiser_id=user.id, title=payload.title.strip(), category=category, task_type=payload.task_type.strip(), target_url=(payload.target_url or "").strip() or None, description=payload.description.strip(), instructions=payload.instructions.strip(), proof_required=payload.proof_required.strip(), reward_rsd=payload.reward_rsd, platform_fee_percent=0.0 if platform_publishing else PLATFORM_FEE_PERCENT, total_slots=payload.total_slots, target_city=payload.target_city, target_age_group=payload.target_age_group, target_interests=payload.target_interests, requires_tester_enrollment=payload.requires_tester_enrollment, status="pending")
+    task = Task(advertiser_id=user.id, title=payload.title.strip(), category=category, task_type=payload.task_type.strip(), target_url=(payload.target_url or "").strip() or None, description=payload.description.strip(), instructions=payload.instructions.strip(), proof_required=payload.proof_required.strip(), reward_rsd=payload.reward_rsd, platform_fee_percent=0.0 if platform_publishing else PLATFORM_FEE_PERCENT, total_slots=payload.total_slots, target_city=payload.target_city, target_age_group=payload.target_age_group, target_interests=payload.target_interests, requires_tester_enrollment=payload.requires_tester_enrollment, tester_required_count=payload.tester_required_count, tester_duration_days=payload.tester_duration_days, tester_daily_minutes=payload.tester_daily_minutes, tester_daily_reward_rsd=payload.tester_daily_reward_rsd, status="pending")
     if not platform_publishing:
         user.advertiser_budget_rsd = _money(user.advertiser_budget_rsd - total)
         user.advertiser_reserved_rsd = _money(user.advertiser_reserved_rsd + total)
@@ -2215,6 +2430,12 @@ def revise_campaign(task_id: int, payload: CampaignPayload, request: Request, db
         raise HTTPException(400, "Izaberi jednu od dozvoljenih kategorija zadatka.")
     if payload.total_slots < int(task.used_slots or 0):
         raise HTTPException(400, "Broj mesta ne može biti manji od već odobrenih izvršenja.")
+    if payload.requires_tester_enrollment:
+        if payload.total_slots < payload.tester_required_count:
+            raise HTTPException(400, "Broj mesta mora biti najmanje jednak broju obaveznih testera.")
+        expected_reward = _money(payload.tester_daily_reward_rsd * payload.tester_duration_days)
+        if payload.tester_daily_reward_rsd <= 0 or abs(float(payload.reward_rsd) - expected_reward) > 0.01:
+            raise HTTPException(400, "Za zatvoreni beta test ukupna nagrada po testeru mora odgovarati dnevnoj nagradi pomnoženoj brojem dana.")
 
     platform_publishing = _is_platform_publisher(user)
     fee_percent = 0.0 if platform_publishing else float(task.platform_fee_percent or PLATFORM_FEE_PERCENT)
@@ -2240,6 +2461,10 @@ def revise_campaign(task_id: int, payload: CampaignPayload, request: Request, db
     task.target_age_group = payload.target_age_group
     task.target_interests = payload.target_interests
     task.requires_tester_enrollment = payload.requires_tester_enrollment
+    task.tester_required_count = payload.tester_required_count
+    task.tester_duration_days = payload.tester_duration_days
+    task.tester_daily_minutes = payload.tester_daily_minutes
+    task.tester_daily_reward_rsd = payload.tester_daily_reward_rsd
     task.status = "pending"
     task.moderation_note = "Izmenjena kampanja ponovo čeka administrativnu proveru."
     if platform_publishing:

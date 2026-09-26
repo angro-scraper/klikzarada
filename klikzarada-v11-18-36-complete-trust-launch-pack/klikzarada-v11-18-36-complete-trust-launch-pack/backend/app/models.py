@@ -82,8 +82,12 @@ class Task(Base):
     target_interests = Column(Text, nullable=True)
     min_user_level = Column(String(40), default="Bronza")
     proof_file_required = Column(Boolean, default=False)
-    # Closed beta campaigns need an explicit Play tester invitation before work starts.
+    # Closed beta campaigns use an invite-only, time-bound testing cohort.
     requires_tester_enrollment = Column(Boolean, default=False)
+    tester_required_count = Column(Integer, default=12)
+    tester_duration_days = Column(Integer, default=14)
+    tester_daily_minutes = Column(Integer, default=5)
+    tester_daily_reward_rsd = Column(Float, default=0)
     featured = Column(Boolean, default=False)
     status = Column(String(30), default="pending")
     moderation_note = Column(Text, nullable=True)
@@ -91,6 +95,7 @@ class Task(Base):
     advertiser = relationship("User", back_populates="tasks")
     submissions = relationship("TaskSubmission", back_populates="task")
     tester_enrollments = relationship("AppTesterEnrollment", back_populates="task")
+    tester_daily_checkins = relationship("AppTesterDailyCheckin", back_populates="task")
 
 class TaskSubmission(Base):
     __tablename__ = "task_submissions"
@@ -121,10 +126,31 @@ class AppTesterEnrollment(Base):
     testing_email = Column(String(160), nullable=False)
     status = Column(String(40), default="requested", nullable=False)  # requested, invited, declined
     note = Column(Text, nullable=True)
+    invited_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     task = relationship("Task", back_populates="tester_enrollments")
+    user = relationship("User")
+
+
+class AppTesterDailyCheckin(Base):
+    """One declared daily test session for a closed beta cohort member."""
+    __tablename__ = "app_tester_daily_checkins"
+    __table_args__ = (UniqueConstraint("task_id", "user_id", "day_number", name="uq_app_tester_daily_checkin"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    day_number = Column(Integer, nullable=False)
+    note = Column(Text, nullable=False)
+    reward_rsd = Column(Float, default=0, nullable=False)
+    status = Column(String(30), default="pending", nullable=False)
+    review_note = Column(Text, nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    checked_in_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    task = relationship("Task", back_populates="tester_daily_checkins")
     user = relationship("User")
 
 class WalletTransaction(Base):

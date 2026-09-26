@@ -45,10 +45,19 @@ export type Task = {
   min_user_level: string
   featured: boolean
   requires_tester_enrollment: boolean
+  tester_required_count: number
+  tester_duration_days: number
+  tester_daily_minutes: number
+  tester_daily_reward_rsd: number
   tester_enrollment?: TesterEnrollment
+  tester_checkins?: TesterDailyCheckin[]
+  tester_progress?: TesterProgress
   tester_enrollment_total?: number
   tester_enrollment_requested?: number
   tester_enrollment_invited?: number
+  tester_checkin_total?: number
+  tester_checkin_pending?: number
+  tester_checkin_approved?: number
   platform_sponsored?: boolean
   status: string
   moderation_note: string | null
@@ -72,8 +81,35 @@ export type TesterEnrollment = {
   testing_email?: string
   status: string
   note: string | null
+  invited_at: string | null
   created_at: string | null
   updated_at: string | null
+}
+
+export type TesterDailyCheckin = {
+  id: number
+  task_id: number
+  task_title?: string
+  user_name?: string
+  day_number: number
+  note: string
+  reward_rsd: number
+  status: string
+  review_note: string | null
+  reviewed_at: string | null
+  checked_in_at: string | null
+}
+
+export type TesterProgress = {
+  started: boolean
+  started_at: string | null
+  current_day: number
+  days_elapsed: number
+  duration_days: number
+  checkin_total: number
+  checked_days: number[]
+  can_check_in: boolean
+  complete: boolean
 }
 
 export type PublicOverview = {
@@ -141,6 +177,7 @@ export type AdvertiserDashboardData = {
   tasks: Task[]
   submissions: Submission[]
   tester_enrollments: TesterEnrollment[]
+  tester_checkins: TesterDailyCheckin[]
   transactions: WalletTransaction[]
   pricing: AdvertisingPricing
 }
@@ -166,6 +203,10 @@ export type CampaignPayload = {
   target_age_group?: string
   target_interests?: string
   requires_tester_enrollment?: boolean
+  tester_required_count?: number
+  tester_duration_days?: number
+  tester_daily_minutes?: number
+  tester_daily_reward_rsd?: number
 }
 
 export type PayPalOrder = {
@@ -362,6 +403,9 @@ export const api = {
   requestTesterEnrollment: (taskId: number, testingEmail: string) => request<{ enrollment: TesterEnrollment }>(`/user/tasks/${taskId}/tester-enrollments`, {
     method: 'POST', body: JSON.stringify({ testing_email: testingEmail }),
   }),
+  createTesterCheckin: (taskId: number, note: string) => request<{ checkin: TesterDailyCheckin }>(`/user/tasks/${taskId}/tester-checkins`, {
+    method: 'POST', body: JSON.stringify({ note }),
+  }),
   requestWithdrawal: (payload: { amount_rsd: number; payment_method: string; payment_details: string }) => request<{ withdrawal: Withdrawal }>('/user/withdrawals', {
     method: 'POST', body: JSON.stringify(payload),
   }),
@@ -405,6 +449,9 @@ export const api = {
     method: 'PATCH', body: JSON.stringify({ status, note }),
   }),
   updateTesterEnrollment: (id: number, status: 'invited' | 'declined', note?: string) => request<{ enrollment: TesterEnrollment }>(`/advertiser/tester-enrollments/${id}`, {
+    method: 'PATCH', body: JSON.stringify({ status, note }),
+  }),
+  reviewTesterCheckin: (id: number, status: 'approved' | 'rejected', note?: string) => request<{ checkin: TesterDailyCheckin }>(`/advertiser/tester-checkins/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),
   }),
   createPayPalOrder: (amount_rsd: number, checkout_flow: 'redirect' | 'smart_button' = 'redirect') => request<PayPalOrder>('/advertiser/paypal/orders', {

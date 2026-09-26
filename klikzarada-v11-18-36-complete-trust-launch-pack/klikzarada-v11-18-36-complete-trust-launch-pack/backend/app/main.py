@@ -1842,12 +1842,24 @@ def ensure_task_source_api_key_column():
 
 
 def ensure_closed_tester_enrollment_schema():
-    """Apply the small additive migration needed by closed beta campaigns."""
+    """Apply additive schema updates for invite-only, daily-tested app betas."""
     try:
         columns = {column["name"] for column in inspect(engine).get_columns("tasks")}
-        if "requires_tester_enrollment" not in columns:
-            with engine.begin() as conn:
+        with engine.begin() as conn:
+            if "requires_tester_enrollment" not in columns:
                 conn.exec_driver_sql("ALTER TABLE tasks ADD COLUMN requires_tester_enrollment BOOLEAN DEFAULT FALSE")
+            if "tester_required_count" not in columns:
+                conn.exec_driver_sql("ALTER TABLE tasks ADD COLUMN tester_required_count INTEGER DEFAULT 12")
+            if "tester_duration_days" not in columns:
+                conn.exec_driver_sql("ALTER TABLE tasks ADD COLUMN tester_duration_days INTEGER DEFAULT 14")
+            if "tester_daily_minutes" not in columns:
+                conn.exec_driver_sql("ALTER TABLE tasks ADD COLUMN tester_daily_minutes INTEGER DEFAULT 5")
+            if "tester_daily_reward_rsd" not in columns:
+                conn.exec_driver_sql("ALTER TABLE tasks ADD COLUMN tester_daily_reward_rsd FLOAT DEFAULT 0")
+        enrollment_columns = {column["name"] for column in inspect(engine).get_columns("app_tester_enrollments")}
+        if "invited_at" not in enrollment_columns:
+            with engine.begin() as conn:
+                conn.exec_driver_sql("ALTER TABLE app_tester_enrollments ADD COLUMN invited_at TIMESTAMP")
     except Exception:
         # Existing campaign delivery must remain available if a database is
         # temporarily unavailable during process boot.

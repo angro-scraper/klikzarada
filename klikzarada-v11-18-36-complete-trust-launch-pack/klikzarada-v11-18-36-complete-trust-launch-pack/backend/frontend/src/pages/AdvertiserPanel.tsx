@@ -203,6 +203,10 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
   const [targetAgeGroup, setTargetAgeGroup] = useState(campaign?.target_age_group ?? '18+')
   const [targetInterests, setTargetInterests] = useState(campaign?.target_interests ?? '')
   const [requiresTesterEnrollment, setRequiresTesterEnrollment] = useState(campaign?.requires_tester_enrollment ?? false)
+  const [testerRequiredCount, setTesterRequiredCount] = useState(String(campaign?.tester_required_count ?? 12))
+  const [testerDurationDays, setTesterDurationDays] = useState(String(campaign?.tester_duration_days ?? 14))
+  const [testerDailyMinutes, setTesterDailyMinutes] = useState(String(campaign?.tester_daily_minutes ?? 5))
+  const [testerDailyReward, setTesterDailyReward] = useState(campaign?.tester_daily_reward_rsd ? String(campaign.tester_daily_reward_rsd) : '')
   const [taskDetails, setTaskDetails] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -261,6 +265,12 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
               <input type="checkbox" checked={requiresTesterEnrollment} onChange={event => setRequiresTesterEnrollment(event.target.checked)} className="mt-0.5 h-4 w-4" />
               <span><strong>Zatvoreni beta test</strong><br /><span className="text-xs text-amber-800">Korisnik prvo šalje email za pristup testiranju. Tek kada ga ručno dodaš u odgovarajuću tester listu i označiš kao pozvanog, može da pokrene zadatak.</span></span>
             </label>}
+            {requiresTesterEnrollment && <div className="grid gap-3 rounded-xl border border-amber-200 bg-amber-50/50 p-4 sm:grid-cols-2">
+              <Input label="Obavezno aktivnih testera" type="number" min={12} value={testerRequiredCount} onChange={setTesterRequiredCount} />
+              <Input label="Trajanje po testeru (dani)" type="number" min={14} max={31} value={testerDurationDays} onChange={setTesterDurationDays} />
+              <Input label="Dnevni minimum (minuti)" type="number" min={1} max={60} value={testerDailyMinutes} onChange={setTesterDailyMinutes} />
+              <p className="self-end text-xs leading-5 text-amber-900">Svaki tester ima sopstvenih 14 dana od trenutka kada ga ručno označiš kao aktivnog. Google Play proverava ostanak u zatvorenom testu; KlikZarada vodi dnevne izveštaje.</p>
+            </div>}
             {taskForm && <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4 space-y-3">
               <div><h4 className="font-bold text-ink">{taskForm.title}</h4><p className="mt-1 text-xs leading-5 text-ink-2">{taskForm.intro}</p></div>
               {taskForm.fields.map(field => <div key={field.key} className="flex flex-col gap-1.5">
@@ -277,19 +287,22 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
         {step === 2 && (
           <div className="space-y-4">
             <h3 className="font-bold text-ink">{platformPublishing ? 'Nagrada i obim' : 'Nagrada i budžet'}</h3>
-            <Input label="Nagrada po zadatku (RSD)" placeholder="npr. 80" value={reward} onChange={setReward} />
+            {requiresTesterEnrollment
+              ? <Input label="Nagrada po danu testiranja (RSD)" placeholder="npr. 20" type="number" min={1} value={testerDailyReward} onChange={setTesterDailyReward} />
+              : <Input label="Nagrada po zadatku (RSD)" placeholder="npr. 80" value={reward} onChange={setReward} />}
             {platformPublishing
               ? <Input label="Broj korisnika / izvršenja" placeholder="npr. 50" type="number" min={1} step={1} value={slots} onChange={setSlots} />
               : <Input label="Ukupni budžet (RSD)" placeholder="npr. 5000" value={budget} onChange={setBudget} />}
             <Select label="Trajanje" options={[{ value: '7', label: '7 dana' }, { value: '14', label: '14 dana' }, { value: '30', label: '30 dana' }]} />
-            {platformPublishing && reward && slots ? (
-              <Alert type="info">Platformska objava je <strong>bez naknade</strong>. Odobrena nagrada od {reward} RSD po izvršenju ostaje stvarni trošak platforme.</Alert>
-            ) : reward && budget && (
+            {requiresTesterEnrollment && testerDailyReward && <Alert type="warning">Ukupna nagrada po testeru je <strong>{Number(testerDailyReward) * Number(testerDurationDays || 14)} RSD</strong>: {testerDailyReward} RSD dnevno tokom {testerDurationDays || 14} dana. Svaki dnevni izveštaj odobravaš posebno.</Alert>}
+            {platformPublishing && (requiresTesterEnrollment ? testerDailyReward : reward) && slots ? (
+              <Alert type="info">Platformska objava je <strong>bez naknade</strong>. Odobrene dnevne nagrade ostaju stvarni trošak platforme.</Alert>
+            ) : !requiresTesterEnrollment && reward && budget && (
               <Alert type="info">Procenjeno: <strong className="font-mono">{Math.floor(Number(budget) / (Number(reward) * (1 + feePercent / 100)))}</strong> izvršenih zadataka, uključujući platformsku naknadu od {feePercent}%.</Alert>
             )}
             <div className="flex gap-2">
               <Btn onClick={() => setStep(1)} variant="secondary">← Prethodni korak</Btn>
-              <Btn onClick={() => setStep(3)} disabled={!reward || !(platformPublishing ? slots : budget)} className="flex-1 justify-center">Dalje →</Btn>
+              <Btn onClick={() => setStep(3)} disabled={!(requiresTesterEnrollment ? testerDailyReward : reward) || !(platformPublishing ? slots : budget)} className="flex-1 justify-center">Dalje →</Btn>
             </div>
           </div>
         )}
@@ -323,9 +336,9 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
               <div className="bg-mint-50 border border-frame rounded-xl p-4 space-y-2 text-sm">
                 <div className="flex justify-between"><span className="text-ink-2">Naziv</span><span className="font-semibold text-ink">{naziv}</span></div>
                 <div className="flex justify-between gap-4"><span className="text-ink-2">Kategorija</span><span className="font-semibold text-ink text-right">{category}</span></div>
-                {requiresTesterEnrollment && <div className="flex justify-between gap-4"><span className="text-ink-2">Pristup aplikaciji</span><span className="font-semibold text-amber-800 text-right">Ručno dodavanje testera</span></div>}
+                {requiresTesterEnrollment && <><div className="flex justify-between gap-4"><span className="text-ink-2">Pristup aplikaciji</span><span className="font-semibold text-amber-800 text-right">Ručno dodavanje testera</span></div><div className="flex justify-between gap-4"><span className="text-ink-2">Plan testiranja</span><span className="font-semibold text-amber-800 text-right">{testerRequiredCount} testera, {testerDurationDays} dana, min. {testerDailyMinutes} min/dan</span></div><div className="flex justify-between gap-4"><span className="text-ink-2">Dnevna nagrada</span><span className="font-mono font-bold text-emerald-600">{testerDailyReward || 0} RSD</span></div></>}
                 <div><span className="text-ink-2">Precizni detalji</span><ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-ink">{detailLines.map(line => <li key={line}>{line}</li>)}</ul></div>
-                <div className="flex justify-between"><span className="text-ink-2">Nagrada</span><span className="font-mono font-bold text-emerald-600">{reward} RSD</span></div>
+                <div className="flex justify-between"><span className="text-ink-2">Ukupno po testeru</span><span className="font-mono font-bold text-emerald-600">{requiresTesterEnrollment ? Number(testerDailyReward || 0) * Number(testerDurationDays || 14) : reward} RSD</span></div>
                 {platformPublishing
                   ? <><div className="flex justify-between"><span className="text-ink-2">Broj izvršenja</span><span className="font-mono font-bold text-blue-600">{slots}</span></div><div className="flex justify-between"><span className="text-ink-2">Naknada objave</span><span className="font-mono font-bold text-emerald-600">0 RSD</span></div></>
                   : <div className="flex justify-between"><span className="text-ink-2">Budžet</span><span className="font-mono font-bold text-blue-600">{budget} RSD</span></div>}
@@ -335,9 +348,10 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
             <div className="flex gap-2">
               <Btn onClick={() => setStep(3)} variant="secondary">← Izmeni prethodni korak</Btn>
               <Btn disabled={submitting} onClick={async () => {
-                const rewardRsd = Number(reward)
+                const rewardRsd = requiresTesterEnrollment ? Number(testerDailyReward) * Number(testerDurationDays) : Number(reward)
                 const totalSlots = platformPublishing ? Math.floor(Number(slots)) : Math.floor(Number(budget) / (rewardRsd * (1 + feePercent / 100)))
-                if (!Number.isFinite(rewardRsd) || rewardRsd <= 0 || totalSlots < 1) {
+                const testerConfigValid = !requiresTesterEnrollment || (Number(testerRequiredCount) >= 12 && Number(testerDurationDays) >= 14 && Number(testerDurationDays) <= 31 && Number(testerDailyMinutes) >= 1 && Number(testerDailyReward) > 0 && totalSlots >= Number(testerRequiredCount))
+                if (!Number.isFinite(rewardRsd) || rewardRsd <= 0 || totalSlots < 1 || !testerConfigValid) {
                   setError(platformPublishing ? 'Unesi validnu nagradu i broj izvršenja od najmanje jedan.' : 'Unesi validnu nagradu i budžet dovoljan za najmanje jedan zadatak.')
                   return
                 }
@@ -345,7 +359,8 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
                 setError('')
                 try {
                   const fullDescription = `${description.trim()}\n\nSpecifikacija zadatka:\n${detailLines.map(line => `- ${line}`).join('\n')}`
-                  const payload = { title: naziv, category, task_type: category, target_url: taskUrl || undefined, description: fullDescription, instructions: `Korisnik treba da prati specifikaciju zadatka i dostavi samo traženi dokaz.\n${detailLines.map(line => `- ${line}`).join('\n')}`, proof_required: proofRequired, reward_rsd: rewardRsd, total_slots: totalSlots, target_city: targetCity || undefined, target_age_group: targetAgeGroup, target_interests: targetInterests || undefined, requires_tester_enrollment: requiresTesterEnrollment }
+                  const betaPlan = requiresTesterEnrollment ? `\n\nPlan zatvorenog beta testiranja:\n- Tester prvo šalje email za poziv u store tester listu.\n- Svaki tester ima ${testerDurationDays} dana od ručne potvrde pristupa.\n- Svakog dana testira najmanje ${testerDailyMinutes} minuta i šalje kratak izveštaj.\n- Dnevna nagrada: ${testerDailyReward} RSD, uz odobrenje oglašivača.` : ''
+                  const payload = { title: naziv, category, task_type: category, target_url: taskUrl || undefined, description: fullDescription + betaPlan, instructions: `Korisnik treba da prati specifikaciju zadatka i dostavi samo traženi dokaz.\n${detailLines.map(line => `- ${line}`).join('\n')}${betaPlan}`, proof_required: proofRequired, reward_rsd: rewardRsd, total_slots: totalSlots, target_city: targetCity || undefined, target_age_group: targetAgeGroup, target_interests: targetInterests || undefined, requires_tester_enrollment: requiresTesterEnrollment, tester_required_count: Number(testerRequiredCount), tester_duration_days: Number(testerDurationDays), tester_daily_minutes: Number(testerDailyMinutes), tester_daily_reward_rsd: requiresTesterEnrollment ? Number(testerDailyReward) : 0 }
                   if (campaign) await onRevise(campaign.id, payload)
                   else await onCreate(payload)
                   setSubmitted(true)
@@ -555,8 +570,10 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
     task,
     naziv: task.title,
     budžet: platformPublishing ? `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.total_slots)} RSD nagrada` : `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.total_slots * feeMultiplier)} RSD`,
-    potrošeno: platformPublishing ? `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.used_slots)} RSD nagrada` : `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.used_slots * feeMultiplier)} RSD`,
-    dokazi: task.submission_total ?? 0,
+    potrošeno: task.requires_tester_enrollment
+      ? `${new Intl.NumberFormat('sr-RS').format((task.tester_checkin_approved ?? 0) * task.tester_daily_reward_rsd * (platformPublishing ? 1 : feeMultiplier))} RSD`
+      : platformPublishing ? `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.used_slots)} RSD nagrada` : `${new Intl.NumberFormat('sr-RS').format(task.reward_rsd * task.used_slots * feeMultiplier)} RSD`,
+    dokazi: task.requires_tester_enrollment ? (task.tester_checkin_total ?? 0) : (task.submission_total ?? 0),
     odobreno: task.submission_approved ?? 0,
     naProveri: task.submission_pending ?? 0,
     status: task.status === 'active' ? 'aktivno' : task.status === 'pending' ? 'na_cekanju' : task.status === 'paused' ? 'obustavljeno' : task.status === 'rejected' ? 'odbijeno' : task.status === 'needs_revision' ? 'dorada' : task.status,
@@ -570,6 +587,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
     status: submission.status === 'pending' ? 'na_proveri' : submission.status === 'approved' ? 'odobreno' : submission.status === 'rejected' ? 'odbijeno' : submission.status,
   }))
   const testerEnrollments = dashboard?.tester_enrollments ?? []
+  const testerCheckins = dashboard?.tester_checkins ?? []
 
   function goTo(p: Page) { setPage(p) }
   const back = BACK[page]
@@ -720,7 +738,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
               <div>
                 <SectionHeader title="Dokazi korisnika" description="Ti odlučuješ o rezultatu svoje kampanje. Admin interveniše samo kod spora ili anti-fraud provere." />
                 {testerEnrollments.length > 0 && <div className="mb-5">
-                  <SectionHeader title="Prijave za zatvoreno testiranje" description="Kopiraj email za pristup, ručno dodaj korisnika u tester listu, pa klikni „Pozvan”. Email je vidljiv samo vlasniku kampanje." />
+                  <SectionHeader title="Prijave za zatvoreno testiranje" description="Kopiraj email za pristup, proveri da je tester zaista uključen u store test, pa klikni „Pozvan i aktivan”. Tada za tog korisnika kreće njegovih 14 dana." />
                   <Card>
                     <Table
                       headers={['Korisnik', 'Kampanja', 'Email za pristup', 'Status', 'Akcija']}
@@ -730,8 +748,27 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                         <span className="font-mono text-xs select-all">{item.testing_email || '—'}</span>,
                         <StatusBadge status={item.status === 'requested' ? 'na_cekanju' : item.status === 'invited' ? 'aktivno' : 'odbijeno'} />,
                         item.status === 'requested'
-                          ? <div className="flex gap-2"><Btn size="sm" variant="success" onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'invited'); await refreshDashboard(); showToast('Korisnik je označen kao pozvan i dobio je obaveštenje.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Status prijave nije ažuriran.', 'error') } })()}>Pozvan</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'declined', 'Trenutno nema slobodnih mesta u zatvorenom testiranju.'); await refreshDashboard(); showToast('Prijava je odbijena uz obaveštenje korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Status prijave nije ažuriran.', 'error') } })()}>Odbij</Btn></div>
-                          : <span className="text-xs text-ink-3">{item.note || (item.status === 'invited' ? 'Čeka izvršenje testa' : 'Obrađeno')}</span>,
+                          ? <div className="flex gap-2"><Btn size="sm" variant="success" onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'invited'); await refreshDashboard(); showToast('Tester je aktiviran. Njegov lični rok za dnevne izveštaje je počeo.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Status prijave nije ažuriran.', 'error') } })()}>Aktiviraj</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'declined', 'Trenutno nema slobodnih mesta u zatvorenom testiranju.'); await refreshDashboard(); showToast('Prijava je odbijena uz obaveštenje korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Status prijave nije ažuriran.', 'error') } })()}>Odbij</Btn></div>
+                          : <span className="text-xs text-ink-3">{item.note || (item.status === 'invited' ? `Aktivan od ${item.invited_at ? new Intl.DateTimeFormat('sr-RS').format(new Date(item.invited_at)) : 'danas'}` : 'Obrađeno')}</span>,
+                      ])}
+                    />
+                  </Card>
+                </div>}
+                {testerCheckins.length > 0 && <div className="mb-5">
+                  <SectionHeader title="Dnevni izveštaji testera" description="Odobri samo stvarno pregledane dnevne izveštaje. Svako odobrenje prebacuje dnevnu nagradu korisniku u raspoloživi saldo." />
+                  <Card>
+                    <Table
+                      headers={['Korisnik', 'Kampanja', 'Dan', 'Izveštaj', 'Nagrada', 'Status', 'Akcija']}
+                      rows={testerCheckins.map(item => [
+                        <span className="font-semibold text-ink">{item.user_name || 'Korisnik'}</span>,
+                        <span className="text-xs text-ink-2">{item.task_title || 'Zadatak'}</span>,
+                        <span className="font-mono font-bold">{item.day_number}</span>,
+                        <span className="max-w-[260px] text-xs text-ink-2">{item.note}</span>,
+                        <span className="font-mono text-emerald-600">{item.reward_rsd} RSD</span>,
+                        <StatusBadge status={item.status === 'pending' ? 'na_proveri' : item.status === 'approved' ? 'odobreno' : 'odbijeno'} />,
+                        item.status === 'pending'
+                          ? <div className="flex gap-2"><Btn size="sm" variant="success" onClick={() => void (async () => { try { await api.reviewTesterCheckin(item.id, 'approved'); await refreshDashboard(); showToast('Dnevni izveštaj je odobren, a nagrada prebačena korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dnevni izveštaj nije obrađen.', 'error') } })()}>Odobri dan</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.reviewTesterCheckin(item.id, 'rejected', 'Izveštaj nema dovoljno detalja za ovaj dan.'); await refreshDashboard(); showToast('Dnevni izveštaj je odbijen.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dnevni izveštaj nije obrađen.', 'error') } })()}>Odbij</Btn></div>
+                          : <span className="text-xs text-ink-3">{item.review_note || 'Obrađeno'}</span>,
                       ])}
                     />
                   </Card>
