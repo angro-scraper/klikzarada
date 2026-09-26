@@ -126,6 +126,8 @@ class AppTesterEnrollment(Base):
     testing_email = Column(String(160), nullable=False)
     status = Column(String(40), default="requested", nullable=False)  # requested, invited, declined
     note = Column(Text, nullable=True)
+    # Members activated together share a common, auditable testing start.
+    cohort_number = Column(Integer, nullable=True)
     invited_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)

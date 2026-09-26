@@ -1860,6 +1860,9 @@ def ensure_closed_tester_enrollment_schema():
         if "invited_at" not in enrollment_columns:
             with engine.begin() as conn:
                 conn.exec_driver_sql("ALTER TABLE app_tester_enrollments ADD COLUMN invited_at TIMESTAMP")
+        if "cohort_number" not in enrollment_columns:
+            with engine.begin() as conn:
+                conn.exec_driver_sql("ALTER TABLE app_tester_enrollments ADD COLUMN cohort_number INTEGER")
     except Exception:
         # Existing campaign delivery must remain available if a database is
         # temporarily unavailable during process boot.

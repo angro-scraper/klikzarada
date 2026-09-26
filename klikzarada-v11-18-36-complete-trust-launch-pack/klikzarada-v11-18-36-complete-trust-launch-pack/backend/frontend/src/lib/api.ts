@@ -55,6 +55,7 @@ export type Task = {
   tester_enrollment_total?: number
   tester_enrollment_requested?: number
   tester_enrollment_invited?: number
+  tester_cohort_count?: number
   tester_checkin_total?: number
   tester_checkin_pending?: number
   tester_checkin_approved?: number
@@ -81,6 +82,7 @@ export type TesterEnrollment = {
   testing_email?: string
   status: string
   note: string | null
+  cohort_number: number | null
   invited_at: string | null
   created_at: string | null
   updated_at: string | null
@@ -450,6 +452,9 @@ export const api = {
   }),
   updateTesterEnrollment: (id: number, status: 'invited' | 'declined', note?: string) => request<{ enrollment: TesterEnrollment }>(`/advertiser/tester-enrollments/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),
+  }),
+  startTesterCohort: (taskId: number, count?: number) => request<{ cohort_number: number, activated_count: number, started_at: string, enrollments: TesterEnrollment[] }>(`/advertiser/tasks/${taskId}/tester-cohorts/start`, {
+    method: 'POST', body: JSON.stringify(count ? { count } : {}),
   }),
   reviewTesterCheckin: (id: number, status: 'approved' | 'rejected', note?: string) => request<{ checkin: TesterDailyCheckin }>(`/advertiser/tester-checkins/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),

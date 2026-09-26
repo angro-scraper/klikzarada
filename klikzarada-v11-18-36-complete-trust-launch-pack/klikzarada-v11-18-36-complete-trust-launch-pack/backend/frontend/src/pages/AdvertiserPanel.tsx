@@ -738,7 +738,24 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
               <div>
                 <SectionHeader title="Dokazi korisnika" description="Ti odlučuješ o rezultatu svoje kampanje. Admin interveniše samo kod spora ili anti-fraud provere." />
                 {testerEnrollments.length > 0 && <div className="mb-5">
-                  <SectionHeader title="Prijave za zatvoreno testiranje" description="Kopiraj email za pristup, proveri da je tester zaista uključen u store test, pa klikni „Pozvan i aktivan”. Tada za tog korisnika kreće njegovih 14 dana." />
+                  <SectionHeader title="Prijave za zatvoreno testiranje" description="Početnu kohortu aktiviraj tek kada su svi testeri stvarno dodati u store listu. Prvih 12 tada dobija isti datum početka i zajedničkih 14 dana." />
+                  <div className="mb-4 grid gap-3">
+                    {(dashboard?.tasks ?? []).filter(task => task.requires_tester_enrollment).map(task => {
+                      const requested = testerEnrollments.filter(item => item.task_id === task.id && item.status === 'requested').length
+                      const initialCohort = !(task.tester_cohort_count ?? 0)
+                      const needed = task.tester_required_count
+                      const canStart = initialCohort ? requested >= needed : requested > 0
+                      return <Card key={task.id} className="flex flex-wrap items-center justify-between gap-3 border-amber-200 bg-amber-50/60">
+                        <div>
+                          <p className="font-bold text-ink">{task.title}</p>
+                          <p className="mt-1 text-xs text-amber-950">{initialCohort ? `Početna Google kohorta: ${requested}/${needed} spremnih prijava.` : `Sledeća kohorta: ${requested} prijava čeka aktivaciju.`} Aktivni testeri: {task.tester_enrollment_invited ?? 0}.</p>
+                        </div>
+                        <Btn size="sm" disabled={!canStart} variant="success" onClick={() => void (async () => { try { const result = await api.startTesterCohort(task.id, initialCohort ? needed : undefined); await refreshDashboard(); showToast(`Kohorta ${result.cohort_number} je aktivirana za ${result.activated_count} testera istog dana.`, 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Kohorta nije aktivirana.', 'error') } })()}>
+                          {initialCohort ? `Pokreni prvih ${needed} zajedno` : 'Pokreni sledeću grupu'}
+                        </Btn>
+                      </Card>
+                    })}
+                  </div>
                   <Card>
                     <Table
                       headers={['Korisnik', 'Kampanja', 'Email za pristup', 'Status', 'Akcija']}
@@ -748,8 +765,8 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                         <span className="font-mono text-xs select-all">{item.testing_email || '—'}</span>,
                         <StatusBadge status={item.status === 'requested' ? 'na_cekanju' : item.status === 'invited' ? 'aktivno' : 'odbijeno'} />,
                         item.status === 'requested'
-                          ? <div className="flex gap-2"><Btn size="sm" variant="success" onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'invited'); await refreshDashboard(); showToast('Tester je aktiviran. Njegov lični rok za dnevne izveštaje je počeo.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Status prijave nije ažuriran.', 'error') } })()}>Aktiviraj</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'declined', 'Trenutno nema slobodnih mesta u zatvorenom testiranju.'); await refreshDashboard(); showToast('Prijava je odbijena uz obaveštenje korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Status prijave nije ažuriran.', 'error') } })()}>Odbij</Btn></div>
-                          : <span className="text-xs text-ink-3">{item.note || (item.status === 'invited' ? `Aktivan od ${item.invited_at ? new Intl.DateTimeFormat('sr-RS').format(new Date(item.invited_at)) : 'danas'}` : 'Obrađeno')}</span>,
+                          ? <div className="flex items-center gap-2"><span className="text-xs text-ink-3">Čeka početak kohorte</span><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'declined', 'Trenutno nema slobodnih mesta u zatvorenom testiranju.'); await refreshDashboard(); showToast('Prijava je odbijena uz obaveštenje korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Status prijave nije ažuriran.', 'error') } })()}>Odbij</Btn></div>
+                          : <span className="text-xs text-ink-3">{item.note || (item.status === 'invited' ? `Kohorta ${item.cohort_number || 'ranija'}, aktivna od ${item.invited_at ? new Intl.DateTimeFormat('sr-RS').format(new Date(item.invited_at)) : 'danas'}` : 'Obrađeno')}</span>,
                       ])}
                     />
                   </Card>
