@@ -44,6 +44,11 @@ export type Task = {
   estimated_minutes: number
   min_user_level: string
   featured: boolean
+  requires_tester_enrollment: boolean
+  tester_enrollment?: TesterEnrollment
+  tester_enrollment_total?: number
+  tester_enrollment_requested?: number
+  tester_enrollment_invited?: number
   platform_sponsored?: boolean
   status: string
   moderation_note: string | null
@@ -57,6 +62,18 @@ export type Task = {
   submission_rejected?: number
   submission_pending?: number
   created_at: string | null
+}
+
+export type TesterEnrollment = {
+  id: number
+  task_id: number
+  task_title?: string
+  user_name?: string
+  testing_email?: string
+  status: string
+  note: string | null
+  created_at: string | null
+  updated_at: string | null
 }
 
 export type PublicOverview = {
@@ -123,6 +140,7 @@ export type AdvertiserDashboardData = {
   user: SessionUser
   tasks: Task[]
   submissions: Submission[]
+  tester_enrollments: TesterEnrollment[]
   transactions: WalletTransaction[]
   pricing: AdvertisingPricing
 }
@@ -147,6 +165,7 @@ export type CampaignPayload = {
   target_city?: string
   target_age_group?: string
   target_interests?: string
+  requires_tester_enrollment?: boolean
 }
 
 export type PayPalOrder = {
@@ -340,6 +359,9 @@ export const api = {
   submitProof: (taskId: number, proof: string, verificationToken: string) => request<{ submission: Submission }>(`/user/tasks/${taskId}/proof`, {
     method: 'POST', body: JSON.stringify({ proof, verification_token: verificationToken }),
   }),
+  requestTesterEnrollment: (taskId: number, testingEmail: string) => request<{ enrollment: TesterEnrollment }>(`/user/tasks/${taskId}/tester-enrollments`, {
+    method: 'POST', body: JSON.stringify({ testing_email: testingEmail }),
+  }),
   requestWithdrawal: (payload: { amount_rsd: number; payment_method: string; payment_details: string }) => request<{ withdrawal: Withdrawal }>('/user/withdrawals', {
     method: 'POST', body: JSON.stringify(payload),
   }),
@@ -380,6 +402,9 @@ export const api = {
     method: 'PATCH', body: JSON.stringify({ action }),
   }),
   reviewAdvertiserSubmission: (id: number, status: 'approved' | 'rejected', note?: string) => request<{ submission: Submission }>(`/advertiser/submissions/${id}`, {
+    method: 'PATCH', body: JSON.stringify({ status, note }),
+  }),
+  updateTesterEnrollment: (id: number, status: 'invited' | 'declined', note?: string) => request<{ enrollment: TesterEnrollment }>(`/advertiser/tester-enrollments/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),
   }),
   createPayPalOrder: (amount_rsd: number, checkout_flow: 'redirect' | 'smart_button' = 'redirect') => request<PayPalOrder>('/advertiser/paypal/orders', {

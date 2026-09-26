@@ -98,6 +98,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
   const [dashboard, setDashboard] = useState<UserDashboardData | null>(null)
   const [dashboardError, setDashboardError] = useState('')
   const [proofText, setProofText] = useState('')
+  const [testerEmail, setTesterEmail] = useState('')
   const [verification, setVerification] = useState<TaskVerification | null>(null)
   const [payoutAmount, setPayoutAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('PayPal')
@@ -204,6 +205,23 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
       showToast(result.resumed ? 'Nastavljena je postojeća provera zadatka.' : 'Provera zadatka je pokrenuta. Ostani aktivan/na dok se timer ne završi.', 'info')
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Provera zadatka nije pokrenuta.', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function requestTesterAccess(task: Task) {
+    if (!testerEmail.trim()) {
+      showToast('Unesi email Google naloga koji koristiš u Play prodavnici.', 'error')
+      return
+    }
+    setSaving(true)
+    try {
+      await api.requestTesterEnrollment(task.id, testerEmail)
+      await refreshDashboard()
+      showToast('Prijava je poslata oglašivaču. Dobićeš obaveštenje kada te doda u test.', 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Prijava za testiranje nije poslata.', 'error')
     } finally {
       setSaving(false)
     }
@@ -506,6 +524,7 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap gap-2 mb-2">
                             <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${categoryColor(t.category)}`}>{t.category}</span>
+                            {t.requires_tester_enrollment && <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Zatvoreni beta test</span>}
                             <StatusBadge status="aktivno" />
                           </div>
                           <h3 className="font-semibold text-ink">{t.title}</h3>
@@ -540,11 +559,26 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
                     <p><span className="text-ink-3 font-medium">Nivo:</span> {selectedTask?.min_user_level || 'Bronza'} i više</p>
                   </div>
                   <Alert type="info">Pre dokaza pokreni proveru: server prati vreme, aktivnost i fokus taba. Nagrada prvo ide na čekanje, a admin je odobrava nakon kontrole.</Alert>
-                  <div className="flex gap-2">
-                    {selectedTask?.target_url && <Btn onClick={() => window.open(selectedTask.target_url || '', '_blank', 'noopener,noreferrer')} variant="secondary">↗ Otvori zadatak</Btn>}
-                    <Btn disabled={saving} onClick={() => selectedTask && void beginTaskVerification(selectedTask)} variant="success">🛡️ Pokreni proveru</Btn>
-                    <Btn onClick={() => goTo('zadaci')} variant="secondary">Nazad na zadatke</Btn>
-                  </div>
+                  {selectedTask?.requires_tester_enrollment && selectedTask.tester_enrollment?.status !== 'invited' ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+                      <p className="font-bold text-amber-900">Prvo zatraži pristup zatvorenom testiranju</p>
+                      {selectedTask.tester_enrollment?.status === 'requested' ? (
+                        <p className="text-sm text-amber-800">Prijava je poslata. Sačekaj obaveštenje kada te oglašivač ručno doda u tester listu.</p>
+                      ) : (
+                        <>
+                          {selectedTask.tester_enrollment?.status === 'declined' && <p className="text-sm text-red-700">{selectedTask.tester_enrollment.note || 'Prijava nije odobrena. Proveri adresu i pošalji ponovo.'}</p>}
+                          <Input label="Email za pristup testiranju" placeholder="ime@gmail.com" value={testerEmail} onChange={setTesterEmail} />
+                          <Btn disabled={saving} onClick={() => selectedTask && void requestTesterAccess(selectedTask)}>Pošalji email za pristup</Btn>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      {selectedTask?.target_url && <Btn onClick={() => window.open(selectedTask.target_url || '', '_blank', 'noopener,noreferrer')} variant="secondary">↗ Otvori zadatak</Btn>}
+                      <Btn disabled={saving} onClick={() => selectedTask && void beginTaskVerification(selectedTask)} variant="success">🛡️ Pokreni proveru</Btn>
+                    </div>
+                  )}
+                  <Btn onClick={() => goTo('zadaci')} variant="secondary">Nazad na zadatke</Btn>
                 </Card>
               </div>
             )}

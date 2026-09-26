@@ -19,7 +19,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Upload
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, or_
+from sqlalchemy import func, inspect, or_
 from sqlalchemy.orm import Session
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from urllib.request import Request as UrlRequest, urlopen
@@ -1840,8 +1840,21 @@ def ensure_task_source_api_key_column():
     except Exception:
         pass
 
+
+def ensure_closed_tester_enrollment_schema():
+    """Apply the small additive migration needed by closed beta campaigns."""
+    try:
+        columns = {column["name"] for column in inspect(engine).get_columns("tasks")}
+        if "requires_tester_enrollment" not in columns:
+            with engine.begin() as conn:
+                conn.exec_driver_sql("ALTER TABLE tasks ADD COLUMN requires_tester_enrollment BOOLEAN DEFAULT FALSE")
+    except Exception:
+        # Existing campaign delivery must remain available if a database is
+        # temporarily unavailable during process boot.
+        pass
+
 @app.on_event("startup")
-def startup(): seed(); ensure_task_source_api_key_column(); seed_v4_growth(); seed_v5_scale(); seed_v6_enterprise(); seed_v7_ai_marketplace(); seed_v8_command(); seed_v9_launch_os(); seed_v10_automation_os(); seed_v11_real_launch_pack(); seed_v111_ui_ads_pricing(); v11815_startup_banner_slots()
+def startup(): seed(); ensure_task_source_api_key_column(); ensure_closed_tester_enrollment_schema(); seed_v4_growth(); seed_v5_scale(); seed_v6_enterprise(); seed_v7_ai_marketplace(); seed_v8_command(); seed_v9_launch_os(); seed_v10_automation_os(); seed_v11_real_launch_pack(); seed_v111_ui_ads_pricing(); v11815_startup_banner_slots()
 
 @app.get("/favicon.ico")
 def favicon(): return FileResponse("app/static/favicon.svg", media_type="image/svg+xml")

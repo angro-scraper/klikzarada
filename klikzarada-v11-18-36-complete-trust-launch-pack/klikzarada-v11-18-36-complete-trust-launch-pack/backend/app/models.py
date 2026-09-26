@@ -82,12 +82,15 @@ class Task(Base):
     target_interests = Column(Text, nullable=True)
     min_user_level = Column(String(40), default="Bronza")
     proof_file_required = Column(Boolean, default=False)
+    # Closed beta campaigns need an explicit Play tester invitation before work starts.
+    requires_tester_enrollment = Column(Boolean, default=False)
     featured = Column(Boolean, default=False)
     status = Column(String(30), default="pending")
     moderation_note = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     advertiser = relationship("User", back_populates="tasks")
     submissions = relationship("TaskSubmission", back_populates="task")
+    tester_enrollments = relationship("AppTesterEnrollment", back_populates="task")
 
 class TaskSubmission(Base):
     __tablename__ = "task_submissions"
@@ -105,6 +108,24 @@ class TaskSubmission(Base):
     reviewed_at = Column(DateTime, nullable=True)
     user = relationship("User", back_populates="submissions")
     task = relationship("Task", back_populates="submissions")
+
+
+class AppTesterEnrollment(Base):
+    """Private tester access request for a closed Android/iOS beta campaign."""
+    __tablename__ = "app_tester_enrollments"
+    __table_args__ = (UniqueConstraint("task_id", "user_id", name="uq_app_tester_enrollment_task_user"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    testing_email = Column(String(160), nullable=False)
+    status = Column(String(40), default="requested", nullable=False)  # requested, invited, declined
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    task = relationship("Task", back_populates="tester_enrollments")
+    user = relationship("User")
 
 class WalletTransaction(Base):
     __tablename__ = "wallet_transactions"

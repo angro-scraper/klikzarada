@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 
 from .database import get_db
 from .models import (
+    AppTesterEnrollment,
     AdvertiserBudgetTransaction,
     AntiFraudDeviceV1,
     AuditLog,
@@ -182,6 +183,16 @@ class CampaignPayload(BaseModel):
     target_city: str | None = Field(default="Srbija", max_length=100)
     target_age_group: str | None = Field(default="18+", max_length=40)
     target_interests: str | None = Field(default=None, max_length=2000)
+    requires_tester_enrollment: bool = False
+
+
+class TesterEnrollmentPayload(BaseModel):
+    testing_email: str = Field(min_length=5, max_length=160)
+
+
+class TesterEnrollmentStatusPayload(BaseModel):
+    status: Literal["invited", "declined"]
+    note: str | None = Field(default=None, max_length=1000)
 
 
 class BannerReservationPayload(BaseModel):
@@ -453,6 +464,7 @@ def _task_data(task: Task) -> dict:
         "estimated_minutes": task.estimated_minutes,
         "min_user_level": task.min_user_level or "Bronza",
         "featured": bool(task.featured),
+        "requires_tester_enrollment": bool(task.requires_tester_enrollment),
         "platform_sponsored": _is_platform_publisher(task.advertiser),
         "status": _status(task.status),
         "moderation_note": task.moderation_note,
@@ -461,6 +473,23 @@ def _task_data(task: Task) -> dict:
         "target_interests": task.target_interests,
         "created_at": _iso(task.created_at),
     }
+
+
+def _tester_enrollment_data(item: AppTesterEnrollment, include_email: bool = False) -> dict:
+    data = {
+        "id": item.id,
+        "task_id": item.task_id,
+        "status": _status(item.status),
+        "note": item.note,
+        "created_at": _iso(item.created_at),
+        "updated_at": _iso(item.updated_at),
+    }
+    if include_email:
+        data |= {
+            "testing_email": item.testing_email,
+            "user_name": item.user.full_name if item.user else "Korisnik",
+        }
+    return data
 
 
 def _submission_data(submission: TaskSubmission) -> dict:
@@ -1101,6 +1130,10 @@ def record_banner_impression(banner_id: int, db: Session = Depends(get_db)) -> R
 def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"korisnik", "admin"})
     tasks = db.query(Task).filter(Task.status == "active", Task.used_slots < Task.total_slots).order_by(Task.featured.desc(), Task.reward_rsd.desc()).limit(100).all()
+    enrollment_by_task = {
+        item.task_id: item
+        for item in db.query(AppTesterEnrollment).filter(AppTesterEnrollment.user_id == user.id).all()
+    }
     submissions = db.query(TaskSubmission).filter(TaskSubmission.user_id == user.id).order_by(TaskSubmission.created_at.desc()).limit(100).all()
     withdrawals = db.query(Withdrawal).filter(Withdrawal.user_id == user.id).order_by(Withdrawal.created_at.desc()).limit(100).all()
     transactions = db.query(WalletTransaction).filter(WalletTransaction.user_id == user.id).order_by(WalletTransaction.created_at.desc()).limit(100).all()
@@ -1109,7 +1142,10 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
         "user": _user_data(user),
         "min_withdrawal_rsd": MIN_WITHDRAWAL_RSD,
         "referral_count": referrals,
-        "tasks": [_task_data(task) for task in tasks],
+        "tasks": [
+            _task_data(task) | ({"tester_enrollment": _tester_enrollment_data(enrollment_by_task[task.id])} if task.id in enrollment_by_task else {})
+            for task in tasks
+        ],
         "submissions": [_submission_data(submission) for submission in submissions],
         "withdrawals": [{"id": item.id, "amount_rsd": _money(item.amount_rsd), "status": _status(item.status), "payment_method": item.payment_method, "created_at": _iso(item.created_at)} for item in withdrawals],
         "transactions": [{"id": item.id, "amount_rsd": _money(item.amount_rsd), "tx_type": item.tx_type, "description": item.description, "created_at": _iso(item.created_at)} for item in transactions],
@@ -1305,12 +1341,62 @@ def _verify_daily_limits(db: Session, user: User, task: Task) -> None:
         raise HTTPException(429, "Dnevni limit zarade je dostignut. Pokušaj ponovo sutra.")
 
 
+def _require_tester_invitation(db: Session, user: User, task: Task) -> None:
+    """Keep closed beta access separate from a paid task result."""
+    if not task.requires_tester_enrollment:
+        return
+    enrollment = db.query(AppTesterEnrollment).filter(
+        AppTesterEnrollment.task_id == task.id,
+        AppTesterEnrollment.user_id == user.id,
+    ).first()
+    if not enrollment:
+        raise HTTPException(409, "Prvo pošalji email za poziv u zatvoreno testiranje.")
+    if enrollment.status != "invited":
+        raise HTTPException(409, "Pristup testiranju još nije odobren. Sačekaj obaveštenje oglašivača.")
+
+
+@router.post("/user/tasks/{task_id}/tester-enrollments", status_code=201)
+def request_tester_enrollment(task_id: int, payload: TesterEnrollmentPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db, {"korisnik", "admin"})
+    task = db.query(Task).filter(Task.id == task_id, Task.status == "active").first()
+    if not task or not task.requires_tester_enrollment:
+        raise HTTPException(404, "Ovaj zadatak nema prijavu za zatvoreno testiranje.")
+    email = payload.testing_email.strip().lower()
+    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+        raise HTTPException(400, "Unesi važeću email adresu za pristup testiranju.")
+    enrollment = db.query(AppTesterEnrollment).filter(
+        AppTesterEnrollment.task_id == task.id,
+        AppTesterEnrollment.user_id == user.id,
+    ).first()
+    if enrollment and enrollment.status in {"requested", "invited"}:
+        raise HTTPException(409, "Prijava za testiranje je već poslata.")
+    if enrollment:
+        enrollment.testing_email = email
+        enrollment.status = "requested"
+        enrollment.note = None
+        enrollment.updated_at = datetime.utcnow()
+    else:
+        enrollment = AppTesterEnrollment(task_id=task.id, user_id=user.id, testing_email=email)
+        db.add(enrollment)
+    if task.advertiser_id:
+        db.add(Notification(
+            user_id=task.advertiser_id,
+            title="Nova prijava za zatvoreno testiranje",
+            body=f"{user.full_name} je poslao/la email za pristup testiranju kampanje: {task.title}.",
+            status="unread",
+        ))
+    db.commit()
+    db.refresh(enrollment)
+    return {"enrollment": _tester_enrollment_data(enrollment)}
+
+
 @router.post("/user/tasks/{task_id}/verification/start", status_code=201)
 def start_task_verification(task_id: int, payload: VerificationStartPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"korisnik", "admin"})
     task = db.query(Task).filter(Task.id == task_id, Task.status == "active", Task.used_slots < Task.total_slots).first()
     if not task:
         raise HTTPException(404, "Zadatak nije dostupan.")
+    _require_tester_invitation(db, user, task)
     _verify_daily_limits(db, user, task)
     existing_submission = db.query(TaskSubmission).filter(
         TaskSubmission.user_id == user.id,
@@ -1441,6 +1527,7 @@ def submit_proof(task_id: int, payload: ProofPayload, request: Request, db: Sess
     task = db.query(Task).filter(Task.id == task_id, Task.status == "active", Task.used_slots < Task.total_slots).first()
     if not task:
         raise HTTPException(404, "Zadatak nije dostupan.")
+    _require_tester_invitation(db, user, task)
     existing = db.query(TaskSubmission).filter(TaskSubmission.user_id == user.id, TaskSubmission.task_id == task.id, TaskSubmission.status.in_(["pending", "approved"])).first()
     if existing:
         raise HTTPException(409, "Za ovaj zadatak je već poslat dokaz.")
@@ -1500,6 +1587,7 @@ def advertiser_dashboard(request: Request, db: Session = Depends(get_db)) -> dic
     user = _require_user(request, db, {"oglasivac", "admin"})
     tasks = db.query(Task).filter(Task.advertiser_id == user.id).order_by(Task.created_at.desc()).limit(100).all()
     submissions = db.query(TaskSubmission).join(Task).filter(Task.advertiser_id == user.id).order_by(TaskSubmission.created_at.desc()).limit(100).all()
+    enrollments = db.query(AppTesterEnrollment).join(Task).filter(Task.advertiser_id == user.id).order_by(AppTesterEnrollment.created_at.desc()).limit(300).all()
     transactions = db.query(AdvertiserBudgetTransaction).filter(AdvertiserBudgetTransaction.advertiser_id == user.id).order_by(AdvertiserBudgetTransaction.created_at.desc()).limit(100).all()
     task_payload = []
     for task in tasks:
@@ -1509,14 +1597,47 @@ def advertiser_dashboard(request: Request, db: Session = Depends(get_db)) -> dic
         task_data["submission_approved"] = sum(1 for submission in task_submissions if _status(submission.status) == "approved")
         task_data["submission_rejected"] = sum(1 for submission in task_submissions if _status(submission.status) == "rejected")
         task_data["submission_pending"] = sum(1 for submission in task_submissions if _status(submission.status) in {"pending", "submitted"})
+        task_enrollments = [item for item in enrollments if item.task_id == task.id]
+        task_data["tester_enrollment_total"] = len(task_enrollments)
+        task_data["tester_enrollment_requested"] = sum(1 for item in task_enrollments if item.status == "requested")
+        task_data["tester_enrollment_invited"] = sum(1 for item in task_enrollments if item.status == "invited")
         task_payload.append(task_data)
     return {
         "user": _user_data(user),
         "tasks": task_payload,
         "submissions": [_submission_data(submission) | {"user_name": submission.user.full_name if submission.user else "Korisnik"} for submission in submissions],
+        "tester_enrollments": [_tester_enrollment_data(item, include_email=True) | {"task_title": item.task.title if item.task else "Zadatak"} for item in enrollments],
         "transactions": [{"id": tx.id, "amount_rsd": _money(tx.amount_rsd), "tx_type": tx.tx_type, "description": tx.description, "created_at": _iso(tx.created_at)} for tx in transactions],
         "pricing": _pricing_data(),
     }
+
+
+@router.patch("/advertiser/tester-enrollments/{enrollment_id}")
+def update_tester_enrollment(enrollment_id: int, payload: TesterEnrollmentStatusPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    """The advertiser manually controls who gets access to a closed beta."""
+    advertiser = _require_user(request, db, {"oglasivac", "admin"})
+    enrollment = db.query(AppTesterEnrollment).join(Task).filter(
+        AppTesterEnrollment.id == enrollment_id,
+        Task.advertiser_id == advertiser.id,
+    ).first()
+    if not enrollment:
+        raise HTTPException(404, "Prijava za testiranje nije pronađena.")
+    if enrollment.status == "invited" and payload.status == "invited":
+        raise HTTPException(409, "Korisnik je već označen kao pozvan u testiranje.")
+    enrollment.status = payload.status
+    enrollment.note = (payload.note or "").strip() or None
+    enrollment.updated_at = datetime.utcnow()
+    if payload.status == "invited":
+        body = f"Dodat/a si u zatvoreno testiranje za: {enrollment.task.title}. Sada otvori link zadatka, instaliraj aplikaciju i završi test."
+        title = "Pristup testiranju je odobren"
+    else:
+        body = enrollment.note or f"Prijava za zatvoreno testiranje kampanje '{enrollment.task.title}' trenutno nije odobrena."
+        title = "Prijava za testiranje nije odobrena"
+    db.add(Notification(user_id=enrollment.user_id, title=title, body=body, status="unread"))
+    _audit(db, advertiser, "tester_enrollment_status", "AppTesterEnrollment", enrollment.id, payload.status)
+    db.commit()
+    db.refresh(enrollment)
+    return {"enrollment": _tester_enrollment_data(enrollment, include_email=True)}
 
 
 @router.get("/advertiser/banners")
@@ -2064,7 +2185,7 @@ def create_campaign(payload: CampaignPayload, request: Request, db: Session = De
     total = 0.0 if platform_publishing else _money(payload.reward_rsd * payload.total_slots * (1 + PLATFORM_FEE_PERCENT / 100))
     if user.advertiser_budget_rsd < total:
         raise HTTPException(400, f"Nedovoljno budžeta. Potrebno je {total:.0f} RSD.")
-    task = Task(advertiser_id=user.id, title=payload.title.strip(), category=category, task_type=payload.task_type.strip(), target_url=(payload.target_url or "").strip() or None, description=payload.description.strip(), instructions=payload.instructions.strip(), proof_required=payload.proof_required.strip(), reward_rsd=payload.reward_rsd, platform_fee_percent=0.0 if platform_publishing else PLATFORM_FEE_PERCENT, total_slots=payload.total_slots, target_city=payload.target_city, target_age_group=payload.target_age_group, target_interests=payload.target_interests, status="pending")
+    task = Task(advertiser_id=user.id, title=payload.title.strip(), category=category, task_type=payload.task_type.strip(), target_url=(payload.target_url or "").strip() or None, description=payload.description.strip(), instructions=payload.instructions.strip(), proof_required=payload.proof_required.strip(), reward_rsd=payload.reward_rsd, platform_fee_percent=0.0 if platform_publishing else PLATFORM_FEE_PERCENT, total_slots=payload.total_slots, target_city=payload.target_city, target_age_group=payload.target_age_group, target_interests=payload.target_interests, requires_tester_enrollment=payload.requires_tester_enrollment, status="pending")
     if not platform_publishing:
         user.advertiser_budget_rsd = _money(user.advertiser_budget_rsd - total)
         user.advertiser_reserved_rsd = _money(user.advertiser_reserved_rsd + total)
@@ -2118,6 +2239,7 @@ def revise_campaign(task_id: int, payload: CampaignPayload, request: Request, db
     task.target_city = payload.target_city
     task.target_age_group = payload.target_age_group
     task.target_interests = payload.target_interests
+    task.requires_tester_enrollment = payload.requires_tester_enrollment
     task.status = "pending"
     task.moderation_note = "Izmenjena kampanja ponovo čeka administrativnu proveru."
     if platform_publishing:
