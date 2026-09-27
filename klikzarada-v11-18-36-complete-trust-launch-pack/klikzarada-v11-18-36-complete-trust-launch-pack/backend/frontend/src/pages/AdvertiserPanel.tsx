@@ -788,25 +788,45 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
               <div>
                 <SectionHeader title="Dokazi korisnika" description="Ti odlučuješ o rezultatu svoje kampanje. Admin interveniše samo kod spora ili anti-fraud provere." />
                 {testerEnrollments.length > 0 && <div className="mb-5">
-                  <SectionHeader title="Prijave za zatvoreno testiranje" description="Početnu kohortu aktiviraj tek kada su svi testeri stvarno dodati u store listu. Prvih 12 tada dobija isti datum početka i zajedničkih 14 dana." />
-                  <div className="mb-4 grid gap-3">
+                  <div className="mb-4 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-emerald-50 p-5 shadow-sm">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700">Kontrola zatvorenog testiranja</p>
+                    <h2 className="mt-1 text-xl font-extrabold text-ink">Prijave za zatvoreno testiranje</h2>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">Pokreni kohortu tek kada su prijavljeni testeri zaista dodati u Google Play listu. Svi testeri iz iste kohorte dobijaju isti datum početka i punih 14 dana testiranja.</p>
+                  </div>
+                  <div className="mb-5 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
                     {(dashboard?.tasks ?? []).filter(task => task.requires_tester_enrollment).map(task => {
                       const requested = testerEnrollments.filter(item => item.task_id === task.id && item.status === 'requested').length
                       const initialCohort = !(task.tester_cohort_count ?? 0)
                       const needed = task.tester_required_count
                       const canStart = initialCohort ? requested >= needed : requested > 0
-                      return <Card key={task.id} className="flex flex-wrap items-center justify-between gap-3 border-amber-200 bg-amber-50/60">
-                        <div>
-                          <p className="font-bold text-ink">{task.title}</p>
-                          <p className="mt-1 text-xs text-amber-950">{initialCohort ? `Početna Google kohorta: ${requested}/${needed} spremnih prijava.` : `Sledeća kohorta: ${requested} prijava čeka aktivaciju.`} Aktivni testeri: {task.tester_enrollment_invited ?? 0}.</p>
+                      const remaining = Math.max(0, needed - requested)
+                      return <Card key={task.id} className="group relative overflow-hidden border-violet-200 bg-white p-5 shadow-md transition-shadow hover:shadow-lg">
+                        <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-violet-100/70 transition-transform group-hover:scale-125" />
+                        <div className="relative">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-xl shadow-sm">📱</div>
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-700">{initialCohort ? 'Početna kohorta' : 'Sledeća kohorta'}</p>
+                                <h3 className="truncate text-base font-extrabold text-ink" title={task.title}>{task.title}</h3>
+                              </div>
+                            </div>
+                            <StatusBadge status={canStart ? 'aktivno' : 'na_cekanju'} />
+                          </div>
+                          <div className="mt-5 grid grid-cols-3 divide-x divide-violet-100 rounded-xl border border-violet-100 bg-violet-50/70 py-3 text-center">
+                            <div><p className="font-mono text-lg font-extrabold text-violet-700">{requested}</p><p className="text-[10px] font-semibold uppercase tracking-wide text-ink-3">prijava</p></div>
+                            <div><p className="font-mono text-lg font-extrabold text-emerald-700">{needed}</p><p className="text-[10px] font-semibold uppercase tracking-wide text-ink-3">potrebno</p></div>
+                            <div><p className="font-mono text-lg font-extrabold text-blue-700">{task.tester_enrollment_invited ?? 0}</p><p className="text-[10px] font-semibold uppercase tracking-wide text-ink-3">aktivno</p></div>
+                          </div>
+                          <p className="mt-4 min-h-10 text-xs leading-5 text-ink-2">{initialCohort ? (canStart ? `Spremno je ${requested}/${needed} prijava. Aktiviraj ih zajedno kada su dodati u store listu.` : `Potrebno je još ${remaining} prijava da bi početna kohorta mogla da počne.`) : `${requested} prijava čeka aktivaciju u sledećoj kohorti.`}</p>
+                          <Btn size="sm" className="mt-4 w-full justify-center" disabled={!canStart} variant="success" onClick={() => void (async () => { try { const result = await api.startTesterCohort(task.id, initialCohort ? needed : undefined); await refreshDashboard(); showToast(`Kohorta ${result.cohort_number} je aktivirana za ${result.activated_count} testera istog dana.`, 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Kohorta nije aktivirana.', 'error') } })()}>
+                            {initialCohort ? `Pokreni prvih ${needed} zajedno` : 'Pokreni sledeću grupu'}
+                          </Btn>
                         </div>
-                        <Btn size="sm" disabled={!canStart} variant="success" onClick={() => void (async () => { try { const result = await api.startTesterCohort(task.id, initialCohort ? needed : undefined); await refreshDashboard(); showToast(`Kohorta ${result.cohort_number} je aktivirana za ${result.activated_count} testera istog dana.`, 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Kohorta nije aktivirana.', 'error') } })()}>
-                          {initialCohort ? `Pokreni prvih ${needed} zajedno` : 'Pokreni sledeću grupu'}
-                        </Btn>
                       </Card>
                     })}
                   </div>
-                  <Card>
+                  <Card className="overflow-hidden border-violet-100 shadow-md">
                     <Table
                       headers={['Korisnik', 'Kampanja', 'Email za pristup', 'Status', 'Akcija']}
                       rows={testerEnrollments.map(item => [

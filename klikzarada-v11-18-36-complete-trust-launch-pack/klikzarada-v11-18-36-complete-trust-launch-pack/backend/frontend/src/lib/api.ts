@@ -499,7 +499,7 @@ export const api = {
     method: 'POST',
   }),
   adminDashboard: () => request<{ metrics: AdminMetrics }>('/admin/dashboard'),
-  resetAdminAnalytics: () => request<{ deleted: number; started_at: string }>('/admin/analytics/reset', { method: 'POST' }),
+  resetAdminAnalytics: () => request<{ deleted: number; started_at: string; preserved_today: boolean }>('/admin/analytics/reset', { method: 'POST' }),
   adminProductionReadiness: () => request<ProductionReadiness>('/admin/production-readiness'),
   adminBanners: () => request<{ slots: BannerSlot[]; banners: PaidBanner[]; pricing: AdvertisingPricing }>('/admin/banners'),
   adminPromotions: () => request<{ promotions: PaidPromotion[] }>('/admin/promotions'),

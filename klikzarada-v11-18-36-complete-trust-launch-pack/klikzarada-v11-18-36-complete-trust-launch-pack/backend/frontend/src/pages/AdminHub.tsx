@@ -246,8 +246,8 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
       <ConfirmModal
         open={resetAnalyticsConfirm}
-        title="Započeti čisto merenje?"
-        description="Brišu se samo dosadašnji analitički zapisi prikaza stranica. Korisnici, kampanje, novac i ostali podaci ostaju netaknuti. Novi brojevi će obuhvatati samo stvarne browser prikaze."
+        title="Obrisati stare prikaze?"
+        description="Brišu se samo prikazi stariji od današnjeg početka. Današnji broj, korisnici, kampanje, novac i ostali podaci ostaju netaknuti."
         confirmLabel="Obriši stare prikaze"
         cancelLabel="Otkaži"
         variant="danger"
@@ -256,7 +256,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
           try {
             const result = await api.resetAdminAnalytics()
             await refreshAdmin()
-            showToast(`Čisto merenje je počelo. Uklonjeno je ${result.deleted} starih zapisa.`, 'success')
+            showToast(`Uklonjeno je ${result.deleted} starih zapisa. Današnji prikazi su sačuvani.`, 'success')
             setResetAnalyticsConfirm(false)
           } catch (error) {
             showToast(error instanceof Error ? error.message : 'Analitika nije resetovana.', 'error')

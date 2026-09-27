@@ -57,6 +57,12 @@ class UiContractTests(unittest.TestCase):
         self.assertIn('user_agent.lower().startswith("mozilla/")', source)
         self.assertIn('is_document and not is_prefetch', source)
 
+    def test_analytics_reset_preserves_today(self):
+        """A clean analytics start must retain the current day's page views."""
+        source = (BACKEND_DIR / "app" / "ui_api.py").read_text(encoding="utf-8")
+        self.assertIn("PlatformVisitV117.created_at < today_start", source)
+        self.assertIn('"preserved_today": True', source)
+
     def test_operational_screens_use_the_available_workspace_width(self):
         """Dashboards must not leave a narrow fixed-width column beside the sidebar."""
         pages = ("AdvertiserPanel.tsx", "UserDashboard.tsx", "AdminHub.tsx", "TasksPublic.tsx")
