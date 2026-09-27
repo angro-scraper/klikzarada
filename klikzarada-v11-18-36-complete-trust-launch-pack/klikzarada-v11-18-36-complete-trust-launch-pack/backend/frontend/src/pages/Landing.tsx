@@ -32,6 +32,13 @@ const trustPoints = [
   ['03', 'Nagrada pod kontrolom', 'Oglašivač pregleda dokaz, a admin rešava sporove i sumnjive aktivnosti.'],
 ]
 
+function optimizedBannerImageUrl(imageUrl: string): string {
+  // Platform creatives have a compressed WebP twin; uploaded advertiser files keep their original URL.
+  return imageUrl.includes('/app-ui/banner-creatives/') && imageUrl.endsWith('.png')
+    ? `${imageUrl.slice(0, -4)}.webp`
+    : imageUrl
+}
+
 function BannerCard({ banner, variant = 'card' }: { banner: PaidBanner; variant?: 'hero' | 'card' }) {
   const cardRef = useRef<HTMLAnchorElement>(null)
 
@@ -51,6 +58,7 @@ function BannerCard({ banner, variant = 'card' }: { banner: PaidBanner; variant?
   }, [banner.id])
 
   const isHero = variant === 'hero'
+  const imageUrl = banner.image_url ? optimizedBannerImageUrl(banner.image_url) : ''
 
   return (
     <a
@@ -60,8 +68,8 @@ function BannerCard({ banner, variant = 'card' }: { banner: PaidBanner; variant?
       rel="noopener noreferrer sponsored"
       className={`group relative block overflow-hidden rounded-2xl border border-blue-200 bg-slate-950 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-lg ${isHero ? 'min-h-[230px] md:min-h-[290px]' : 'min-h-[190px]'}`}
     >
-      {banner.image_url && <img src={banner.image_url} alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]" />}
-      <div className={`absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/35 to-transparent ${banner.image_url ? '' : 'bg-gradient-to-br from-blue-700 via-blue-600 to-violet-700'}`} />
+      {imageUrl && <img src={imageUrl} alt="" loading={isHero ? 'eager' : 'lazy'} fetchPriority={isHero ? 'high' : 'low'} decoding="async" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]" />}
+      <div className={`absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-slate-950/5 ${imageUrl ? '' : 'bg-gradient-to-br from-blue-700 via-blue-600 to-violet-700'}`} />
       <div className="relative flex h-full min-h-[inherit] flex-col justify-end p-5 text-white md:p-6">
         <span className="w-fit rounded-full border border-white/30 bg-slate-950/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white backdrop-blur">Sponzorisano</span>
         <h3 className={`mt-3 font-extrabold leading-tight ${isHero ? 'text-2xl md:text-3xl' : 'text-xl'}`}>{banner.title}</h3>

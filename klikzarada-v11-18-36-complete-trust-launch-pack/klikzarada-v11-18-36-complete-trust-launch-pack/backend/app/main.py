@@ -56,6 +56,9 @@ class AppUiStaticFiles(StaticFiles):
         elif path.startswith("assets/"):
             # Vite names every production asset with a content hash.
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        elif path.startswith("banner-creatives/"):
+            # Reuse platform creatives without locking a future same-name replacement forever.
+            response.headers["Cache-Control"] = "public, max-age=86400"
         return response
 
 
