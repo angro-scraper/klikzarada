@@ -749,14 +749,15 @@ def _banner_slot_data(slot: HomeBannerSlotV111, banners: list[PaidAdBannerV111])
     slot_banners = [banner for banner in banners if banner.slot_id == slot.id]
     active = next((banner for banner in slot_banners if banner.status == "active"), None)
     now = datetime.utcnow()
-    schedule = [
-        _banner_data(banner)
+    scheduled_banners = [
+        banner
         for banner in sorted(slot_banners, key=lambda item: item.starts_at or item.created_at or now)
         if banner.status in {"active", "pending"}
         and (banner.ends_at is None or banner.ends_at > now)
     ]
+    schedule = [_banner_data(banner) for banner in scheduled_banners]
     next_available_at = now
-    for banner in schedule:
+    for banner in scheduled_banners:
         starts_at = banner.starts_at or banner.created_at or now
         ends_at = banner.ends_at or starts_at + timedelta(days=max(1, banner.days_count or 7))
         if starts_at <= next_available_at < ends_at:
@@ -774,7 +775,7 @@ def _banner_slot_data(slot: HomeBannerSlotV111, banners: list[PaidAdBannerV111])
         "schedule": schedule,
         "is_available_now": not any(
             (banner.starts_at or banner.created_at or now) <= now < (banner.ends_at or (banner.starts_at or banner.created_at or now) + timedelta(days=max(1, banner.days_count or 7)))
-            for banner in schedule
+            for banner in scheduled_banners
         ),
         "next_available_at": _iso(next_available_at),
     }
