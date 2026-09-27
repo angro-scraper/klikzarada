@@ -47,9 +47,11 @@ class UiContractTests(unittest.TestCase):
         self.assertIn("class AppUiStaticFiles", main_source)
 
     def test_public_entry_does_not_ship_private_workspaces(self):
-        """Landing visitors must load authenticated screens only after navigation."""
+        """Public navigation remains instant without shipping private workspaces."""
         app_source = (BACKEND_DIR / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
         main_source = (BACKEND_DIR / "app" / "main.py").read_text(encoding="utf-8")
+        self.assertIn("import Auth from './pages/Auth'", app_source)
+        self.assertIn("import TasksPublic from './pages/TasksPublic'", app_source)
         self.assertIn("const AdminHub = lazy(() => import('./pages/AdminHub'))", app_source)
         self.assertIn("const AdvertiserPanel = lazy(() => import('./pages/AdvertiserPanel'))", app_source)
         self.assertIn("const UserDashboard = lazy(() => import('./pages/UserDashboard'))", app_source)

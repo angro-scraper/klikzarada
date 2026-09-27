@@ -1,11 +1,12 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import Landing from './pages/Landing'
+import Auth from './pages/Auth'
+import TasksPublic from './pages/TasksPublic'
 import { api } from './lib/api'
 import { userDashboardPageFromPath } from './lib/userDashboardRoutes'
 
 // Public visitors should not download the three authenticated workspaces.
-const Auth = lazy(() => import('./pages/Auth'))
-const TasksPublic = lazy(() => import('./pages/TasksPublic'))
+// Their own registration and task pages stay instant on refresh and navigation.
 const UserDashboard = lazy(() => import('./pages/UserDashboard'))
 const AdvertiserPanel = lazy(() => import('./pages/AdvertiserPanel'))
 const AdminHub = lazy(() => import('./pages/AdminHub'))
