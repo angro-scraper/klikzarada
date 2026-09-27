@@ -166,44 +166,68 @@ const CRUMBS: Partial<Record<Page, { label: string }[]>> = {
 }
 
 type TaskDetailField = { key: string; label: string; placeholder: string }
+type CampaignTemplate = {
+  id: string
+  label: string
+  category: string
+  taskType: string
+  subjectLabel: string
+  subjectPlaceholder: string
+  title: (subject: string) => string
+  description: string
+  instructionLead: string
+  proof: string
+  requiresTesterEnrollment?: boolean
+  fields: TaskDetailField[]
+}
 
-// Each approved work type has its own mandatory brief, rather than one vague description.
-const TASK_FORM_FIELDS: Record<string, { title: string; intro: string; fields: TaskDetailField[] }> = {
-  'Ankete i testiranja': { title: 'Brief za anketu', intro: 'Definiši koga pitaš, pitanja i prihvatljiv odgovor.', fields: [
+// Templates define the actual work and evidence for a campaign. They prevent
+// unrelated campaigns from being published with the same vague instructions.
+const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
+  { id: 'survey', label: 'Anketa korisnika', category: 'Ankete i testiranja', taskType: 'Anketa korisnika', subjectLabel: 'Naziv proizvoda, usluge ili teme', subjectPlaceholder: 'npr. aplikacija za dostavu hrane', title: subject => `Anketa korisnika: ${subject || 'nova tema'}`, description: 'Prikupi strukturirano mišljenje od jasno definisane publike pre poslovne odluke.', instructionLead: 'Popuni sva navedena pitanja iskreno i bez deljenja ličnih podataka. Odgovaraj samo ako pripadaš traženoj publici.', proof: 'Odgovori na sva pitanja u predviđenom formatu', fields: [
     { key: 'audience', label: 'Ko treba da odgovara', placeholder: 'npr. osobe koje kupuju online najmanje jednom mesečno' },
     { key: 'questions', label: 'Pitanja i odgovori', placeholder: 'Navedi pitanja redom i minimalnu dužinu otvorenog odgovora.' },
     { key: 'completion', label: 'Kriterijum završetka', placeholder: 'npr. odgovoriti na svih 8 pitanja bez ličnih podataka' },
   ] },
-  'Testiranje sajta ili aplikacije': { title: 'Brief za UX test', intro: 'Traži konkretne scenarije, ne samo posetu stranici.', fields: [
+  { id: 'website-ux', label: 'UX test sajta', category: 'Testiranje sajta ili aplikacije', taskType: 'UX test sajta', subjectLabel: 'Naziv sajta ili proizvoda', subjectPlaceholder: 'npr. web prodavnica Moj Brend', title: subject => `UX test sajta: ${subject || 'novi sajt'}`, description: 'Proveri da li korisnik može bez pomoći da završi ključan tok na sajtu.', instructionLead: 'Otvori zadati link na navedenom uređaju, prođi kroz sve scenarije redom i prijavi samo stvarno uočene prepreke.', proof: 'Kratak izveštaj sa koracima + screenshot greške ako postoji', fields: [
     { key: 'device', label: 'Uređaj i pregledač', placeholder: 'npr. Android telefon, Chrome; ili desktop, Firefox' },
     { key: 'scenarios', label: 'Scenariji testiranja', placeholder: '1. Pronađi proizvod. 2. Dodaj u korpu. 3. Opiši gde je nastao problem.' },
     { key: 'report', label: 'Format izveštaja', placeholder: 'Očekivano/stvarno ponašanje, koraci i screenshot ako postoji greška.' },
   ] },
-  'Provera podataka': { title: 'Brief za proveru podataka', intro: 'Odredi izvor, polja koja se proveravaju i format predaje.', fields: [
+  { id: 'closed-beta', label: 'Zatvoreni beta test aplikacije', category: 'Testiranje sajta ili aplikacije', taskType: 'Zatvoreni beta test aplikacije', subjectLabel: 'Naziv aplikacije', subjectPlaceholder: 'npr. Stock Radar', title: subject => `${subject || 'Nova aplikacija'}: zatvoreno beta testiranje`, description: 'Okupi testere za zatvoreni beta kanal i prikupi iskrene dnevne izveštaje tokom testiranja.', instructionLead: 'Najpre pošalji Google Play email za poziv. Nakon ručnog dodavanja u tester listu, koristi aplikaciju svakog dana po zadatom planu i pošalji istinit dnevni izveštaj.', proof: 'Dnevni izveštaj o korišćenju; screenshot samo kada prijavljuješ grešku', requiresTesterEnrollment: true, fields: [
+    { key: 'store', label: 'Google Play aplikacija ili pristupni link', placeholder: 'Nalepi Play Store link ili interni link za testere.' },
+    { key: 'device', label: 'Uređaj za testiranje', placeholder: 'npr. Android 13+, telefon; navedi posebne uslove ako postoje.' },
+    { key: 'daily_scenarios', label: 'Šta tester radi svakog dana', placeholder: 'npr. otvori listu akcija, pretraži akciju, sačuvaj je i proveri obaveštenje.' },
+    { key: 'report', label: 'Šta mora da sadrži dnevni izveštaj', placeholder: 'npr. datum, korišćene funkcije, trajanje i svaka uočena greška.' },
+  ] },
+  { id: 'data-check', label: 'Provera podataka', category: 'Provera podataka', taskType: 'Provera informacija', subjectLabel: 'Naziv baze, brenda ili liste', subjectPlaceholder: 'npr. spisak restorana u Beogradu', title: subject => `Provera podataka: ${subject || 'nova lista'}`, description: 'Proveri unapred određena javno dostupna polja i predaj rezultat u traženom formatu.', instructionLead: 'Koristi samo navedene javne izvore. Ne unosi, ne prikupljaj i ne deli privatne podatke.', proof: 'Popunjena provera u propisanom formatu sa javnim izvorom', fields: [
     { key: 'source', label: 'Izvor podataka', placeholder: 'Link, tabela ili opis izvora koji korisnik proverava.' },
     { key: 'fields', label: 'Polja za proveru', placeholder: 'npr. naziv, adresa, telefon, radno vreme i pravilo za svako polje' },
     { key: 'output', label: 'Format rezultata', placeholder: 'npr. Naziv | proverena vrednost | izvor | napomena' },
   ] },
-  'Kratak feedback': { title: 'Brief za feedback', intro: 'Traži iskreno mišljenje o materijalu, nikada lažnu javnu recenziju ili ocenu.', fields: [
+  { id: 'feedback', label: 'Kratak feedback', category: 'Kratak feedback', taskType: 'Korisnički feedback', subjectLabel: 'Naziv materijala ili proizvoda', subjectPlaceholder: 'npr. nova početna stranica', title: subject => `Feedback korisnika: ${subject || 'novi materijal'}`, description: 'Prikupi privatno, iskreno mišljenje o materijalu, proizvodu ili komunikaciji.', instructionLead: 'Daj konkretan privatni feedback. Ne tražimo javne ocene, lažne recenzije, praćenja niti plaćene klikove.', proof: 'Tekstualni odgovor koji pokriva sva pitanja', fields: [
     { key: 'material', label: 'Materijal za pregled', placeholder: 'Link ka stranici, prototipu, tekstu ili slici.' },
     { key: 'angles', label: 'Pitanja za feedback', placeholder: 'npr. šta je jasno, šta zbunjuje i šta bi promenio/la' },
     { key: 'minimum', label: 'Minimalni sadržaj odgovora', placeholder: 'npr. najmanje 3 odgovora od po 2 rečenice' },
   ] },
-  'Lokalna provera': { title: 'Brief za lokalnu proveru', intro: 'Dozvoljene su samo bezbedne provere javno dostupnih informacija i mesta.', fields: [
+  { id: 'local-check', label: 'Lokalna provera', category: 'Lokalna provera', taskType: 'Lokalna provera', subjectLabel: 'Naziv lokacije ili usluge', subjectPlaceholder: 'npr. poslovnica u centru Novog Sada', title: subject => `Lokalna provera: ${subject || 'nova lokacija'}`, description: 'Proveri bezbedno i diskretno javno dostupne informacije o mestu ili usluzi.', instructionLead: 'Proveravaj samo javno dostupne informacije i prostore. Ne snimaj ljude, privatne prostore ili podatke bez dozvole.', proof: 'Kratak opis provere i samo dozvoljen javni dokaz', fields: [
     { key: 'place', label: 'Javno mesto ili područje', placeholder: 'npr. centar Novog Sada ili javno dostupna poslovnica' },
     { key: 'observations', label: 'Šta se proverava', placeholder: 'npr. radno vreme, dostupnost usluge i vidljivost izloga' },
     { key: 'safety', label: 'Ograničenja i dokaz', placeholder: 'Bez snimanja ljudi i privatnih prostora; navedi prihvatljiv dokaz.' },
   ] },
-  'Označavanje podataka': { title: 'Brief za označavanje podataka', intro: 'Objasni skup podataka, oznake i granične slučajeve kroz primer.', fields: [
+  { id: 'data-labeling', label: 'Označavanje podataka', category: 'Označavanje podataka', taskType: 'Označavanje podataka', subjectLabel: 'Naziv skupa podataka', subjectPlaceholder: 'npr. fotografije proizvoda', title: subject => `Označavanje podataka: ${subject || 'novi skup'}`, description: 'Označi unapred pripremljen skup podataka prema jasnim pravilima kvaliteta.', instructionLead: 'Primeni zadate oznake dosledno i označi granični slučaj kada pravilo nije dovoljno jasno.', proof: 'Popunjene oznake u traženom formatu', fields: [
     { key: 'dataset', label: 'Skup podataka', placeholder: 'Šta korisnik označava i koliko stavki obrađuje.' },
     { key: 'labels', label: 'Oznake i pravila', placeholder: 'npr. relevantno / nije relevantno, sa jasnim kriterijumima.' },
     { key: 'examples', label: 'Primeri i kontrola kvaliteta', placeholder: 'Navedi makar jedan dobar i jedan loš primer odgovora.' },
   ] },
-}
+]
 
 function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, platformPublishing, categories, campaign }: { onCancel: () => void; onSuccess: () => void; onCreate: (payload: Parameters<typeof api.createCampaign>[0]) => Promise<void>; onRevise: (id: number, payload: Parameters<typeof api.createCampaign>[0]) => Promise<void>; feePercent: number; platformPublishing: boolean; categories: string[]; campaign?: import('../lib/api').Task }) {
+  const initialTemplate = campaign ? CAMPAIGN_TEMPLATES.find(template => template.category === campaign.category && template.taskType === campaign.task_type)?.id ?? 'legacy' : ''
   const [step, setStep] = useState(1)
   const [naziv, setNaziv] = useState(campaign?.title ?? '')
+  const [templateId, setTemplateId] = useState(initialTemplate)
+  const [subject, setSubject] = useState(campaign?.title ?? '')
   const [reward, setReward] = useState(campaign ? String(campaign.reward_rsd) : '')
   const [budget, setBudget] = useState(campaign ? String(Math.ceil(campaign.reward_rsd * campaign.total_slots * (1 + feePercent / 100))) : '')
   const [slots, setSlots] = useState(campaign ? String(campaign.total_slots) : '')
@@ -229,9 +253,27 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
   const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const steps = ['Definicija', platformPublishing ? 'Nagrada i obim' : 'Nagrada i budžet', 'Publika i dokaz', 'Pregled']
-  const taskForm = TASK_FORM_FIELDS[category]
-  const hasCompleteBrief = Boolean(taskForm) && taskForm.fields.every(field => taskDetails[field.key]?.trim())
+  const taskForm = CAMPAIGN_TEMPLATES.find(template => template.id === templateId)
+  const keepsExistingBrief = Boolean(campaign) && templateId === 'legacy'
+  const hasCompleteBrief = Boolean(campaign) || (Boolean(taskForm) && Boolean(subject.trim()) && taskForm.fields.every(field => taskDetails[field.key]?.trim()))
   const detailLines = taskForm?.fields.filter(field => taskDetails[field.key]?.trim()).map(field => `${field.label}: ${taskDetails[field.key].trim()}`) ?? []
+
+  const selectTemplate = (id: string) => {
+    const template = CAMPAIGN_TEMPLATES.find(item => item.id === id)
+    setTemplateId(id)
+    setTaskDetails({})
+    if (!template) return
+    setCategory(template.category)
+    setProofRequired(template.proof)
+    setDescription(template.description)
+    setRequiresTesterEnrollment(Boolean(template.requiresTesterEnrollment))
+    setNaziv(template.title(subject.trim()))
+  }
+
+  const updateSubject = (value: string) => {
+    setSubject(value)
+    if (!campaign && taskForm) setNaziv(taskForm.title(value.trim()))
+  }
 
   if (submitted) {
     return (
@@ -267,18 +309,28 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
       <Card className="p-6 max-w-lg">
         {step === 1 && (
           <div className="space-y-4">
-            <h3 className="font-bold text-ink">Definicija zadatka</h3>
-            <Input label="Naziv kampanje" placeholder="npr. Test poručivanja na sajtu — oktobar" value={naziv} onChange={setNaziv} />
-            <Select label="Vrsta zadatka" options={[
-              { value: '', label: 'Odaberi vrstu zadatka' },
-              ...categories.map(value => ({ value, label: value })),
-            ]} value={category} onChange={value => { setCategory(value); setTaskDetails({}) }} />
+            <h3 className="font-bold text-ink">Izaberi šablon kampanje</h3>
+            <p className="text-sm leading-6 text-ink-2">Šablon određuje stvarni tip posla, obavezne korake i dokaz. Tako anketu, UX test i beta test ne mogu imati iste uslove.</p>
+            <Select label="Šta tačno želiš da uradi korisnik?" options={[
+              { value: '', label: 'Odaberi šablon kampanje' },
+              ...(campaign ? [{ value: 'legacy', label: 'Zadrži postojeći brief kampanje' }] : []),
+              ...CAMPAIGN_TEMPLATES.filter(template => categories.includes(template.category)).map(template => ({ value: template.id, label: template.label })),
+            ]} value={templateId} onChange={selectTemplate} />
+            {taskForm && <>
+              <div className="rounded-xl border border-violet-200 bg-violet-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-violet-700">Tip zadatka</p><p className="mt-1 font-bold text-ink">{taskForm.taskType}</p><p className="mt-1 text-xs leading-5 text-ink-2">Traženi dokaz: {taskForm.proof}</p></div>
+              <Input label={taskForm.subjectLabel} placeholder={taskForm.subjectPlaceholder} value={subject} onChange={updateSubject} />
+              <Input label="Naziv kampanje" placeholder="Naziv se predlaže iz šablona" value={naziv} onChange={setNaziv} />
+            </>}
+            {keepsExistingBrief && <>
+              <Input label="Naziv kampanje" value={naziv} onChange={setNaziv} />
+              <Alert type="info">Ova ranije kreirana kampanja nema novi šablon. Njene postojeće instrukcije i tip dokaza ostaju sačuvani dok ne izabereš novi šablon.</Alert>
+            </>}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">Cilj zadatka</label>
               <textarea value={description} onChange={event => setDescription(event.target.value)} rows={3} placeholder="Koju poslovnu odluku ili problem ovaj zadatak pomaže da se proveri?" className="bg-white border border-frame text-ink placeholder-ink-4 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none" />
             </div>
             <Input label="Link za zadatak (opciono)" placeholder="https://vas-sajt.rs/test" value={taskUrl} onChange={setTaskUrl} />
-            {category === 'Testiranje sajta ili aplikacije' && <label className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 cursor-pointer">
+            {taskForm?.id === 'website-ux' && <label className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 cursor-pointer">
               <input type="checkbox" checked={requiresTesterEnrollment} onChange={event => setRequiresTesterEnrollment(event.target.checked)} className="mt-0.5 h-4 w-4" />
               <span><strong>Zatvoreni beta test</strong><br /><span className="text-xs text-amber-800">Korisnik prvo šalje email za pristup testiranju. Tek kada ga ručno dodaš u odgovarajuću tester listu i označiš kao pozvanog, može da pokrene zadatak.</span></span>
             </label>}
@@ -289,7 +341,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
               <p className="self-end text-xs leading-5 text-amber-900">Svaki tester ima sopstvenih 14 dana od trenutka kada ga ručno označiš kao aktivnog. Google Play proverava ostanak u zatvorenom testu; KlikZarada vodi dnevne izveštaje.</p>
             </div>}
             {taskForm && <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4 space-y-3">
-              <div><h4 className="font-bold text-ink">{taskForm.title}</h4><p className="mt-1 text-xs leading-5 text-ink-2">{taskForm.intro}</p></div>
+              <div><h4 className="font-bold text-ink">Obavezni detalji za: {taskForm.label}</h4><p className="mt-1 text-xs leading-5 text-ink-2">Ovi detalji postaju jasne instrukcije za korisnika i deo su moderacije kampanje.</p></div>
               {taskForm.fields.map(field => <div key={field.key} className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-ink-2 uppercase tracking-wide">{field.label}</label>
                 <textarea value={taskDetails[field.key] ?? ''} onChange={event => setTaskDetails(current => ({ ...current, [field.key]: event.target.value }))} rows={2} placeholder={field.placeholder} className="bg-white border border-frame text-ink placeholder-ink-4 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none" />
@@ -297,7 +349,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
             </div>}
             <div className="flex gap-2">
               <Btn variant="ghost" onClick={onCancel} size="sm">Otkaži</Btn>
-              <Btn onClick={() => setStep(2)} disabled={!naziv || !description || !category || !hasCompleteBrief} className="flex-1 justify-center">Dalje →</Btn>
+              <Btn onClick={() => setStep(2)} disabled={!naziv || !description || !category || (!taskForm && !keepsExistingBrief) || !hasCompleteBrief} className="flex-1 justify-center">Dalje →</Btn>
             </div>
           </div>
         )}
@@ -390,7 +442,9 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
                 try {
                   const fullDescription = `${description.trim()}\n\nSpecifikacija zadatka:\n${detailLines.map(line => `- ${line}`).join('\n')}`
                   const betaPlan = requiresTesterEnrollment ? `\n\nPlan zatvorenog beta testiranja:\n- Tester prvo šalje email za poziv u store tester listu.\n- Svaki tester ima ${testerDurationDays} dana od ručne potvrde pristupa.\n- Svakog dana testira najmanje ${testerDailyMinutes} minuta i šalje kratak izveštaj.\n- Dnevna nagrada: ${testerDailyReward} RSD, uz odobrenje oglašivača.` : ''
-                  const payload = { title: naziv, category, task_type: category, target_url: taskUrl || undefined, description: fullDescription + betaPlan, instructions: `Korisnik treba da prati specifikaciju zadatka i dostavi samo traženi dokaz.\n${detailLines.map(line => `- ${line}`).join('\n')}${betaPlan}`, proof_required: proofRequired, reward_rsd: rewardRsd, total_slots: totalSlots, campaign_duration_days: Number(campaignDurationDays), target_city: targetCity || undefined, target_age_group: targetAgeGroup, target_interests: targetInterests || undefined, requires_tester_enrollment: requiresTesterEnrollment, tester_required_count: Number(testerRequiredCount), tester_duration_days: Number(testerDurationDays), tester_daily_minutes: Number(testerDailyMinutes), tester_daily_reward_rsd: requiresTesterEnrollment ? Number(testerDailyReward) : 0, repeat_interval_hours: requiresTesterEnrollment ? 0 : Number(repeatIntervalHours), submission_deadline_hours: Number(revisionDeadlineHours), max_proof_revisions: Number(maxProofRevisions), min_quality_score: Number(minQualityScore) }
+                  const instructionLead = taskForm?.instructionLead ?? 'Korisnik treba da prati specifikaciju zadatka i dostavi samo traženi dokaz.'
+                  const preservesCurrentContent = Boolean(campaign) && detailLines.length === 0
+                  const payload = { title: naziv, category, task_type: taskForm?.taskType ?? campaign?.task_type ?? category, target_url: taskUrl || undefined, description: preservesCurrentContent ? description.trim() : fullDescription + betaPlan, instructions: preservesCurrentContent ? campaign?.instructions ?? instructionLead : `${instructionLead}\n\nKoraci i pravila:\n${detailLines.map(line => `- ${line}`).join('\n')}${betaPlan}`, proof_required: proofRequired, reward_rsd: rewardRsd, total_slots: totalSlots, campaign_duration_days: Number(campaignDurationDays), target_city: targetCity || undefined, target_age_group: targetAgeGroup, target_interests: targetInterests || undefined, requires_tester_enrollment: requiresTesterEnrollment, tester_required_count: Number(testerRequiredCount), tester_duration_days: Number(testerDurationDays), tester_daily_minutes: Number(testerDailyMinutes), tester_daily_reward_rsd: requiresTesterEnrollment ? Number(testerDailyReward) : 0, repeat_interval_hours: requiresTesterEnrollment ? 0 : Number(repeatIntervalHours), submission_deadline_hours: Number(revisionDeadlineHours), max_proof_revisions: Number(maxProofRevisions), min_quality_score: Number(minQualityScore) }
                   if (campaign) await onRevise(campaign.id, payload)
                   else await onCreate(payload)
                   setSubmitted(true)
