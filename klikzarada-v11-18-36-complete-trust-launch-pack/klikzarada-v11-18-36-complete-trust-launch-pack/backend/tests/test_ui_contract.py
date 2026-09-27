@@ -79,6 +79,8 @@ class UiContractTests(unittest.TestCase):
         from app.analytics import is_public_pageview_path
         self.assertTrue(is_public_pageview_path("/registracija"))
         self.assertTrue(is_public_pageview_path("/zadaci"))
+        self.assertTrue(is_public_pageview_path("/zadaci/42"))
+        self.assertTrue(is_public_pageview_path("/za-korisnike"))
         self.assertFalse(is_public_pageview_path("/korisnik/zadaci"))
         self.assertFalse(is_public_pageview_path("/oglasivac/panel"))
 
@@ -87,7 +89,7 @@ class UiContractTests(unittest.TestCase):
         source = (BACKEND_DIR / "app" / "ui_api.py").read_text(encoding="utf-8")
         self.assertIn("start_clean_pageview_measurement(db, datetime.utcnow(), force=True)", source)
         self.assertIn('"legacy_measurements_hidden": True', source)
-        self.assertIn("PlatformVisitV117.path.in_(PUBLIC_PAGEVIEW_PATHS)", source)
+        self.assertIn("PlatformVisitV117.path.like(\"/zadaci/%\")", source)
 
     def test_utm_registration_funnel_is_privacy_preserving_and_complete(self):
         """Paid traffic should be attributable without storing raw visitor data."""

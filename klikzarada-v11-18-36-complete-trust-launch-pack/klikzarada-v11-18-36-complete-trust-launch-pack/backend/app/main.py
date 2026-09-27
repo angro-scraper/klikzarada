@@ -10135,7 +10135,10 @@ def kz117_visit_stats(db: Session):
     month_start = today_start - timedelta(days=29)
     active_start = now - timedelta(minutes=15)
     visits = db.query(PlatformVisitV117).filter(
-        PlatformVisitV117.path.in_(PUBLIC_PAGEVIEW_PATHS),
+        or_(
+            PlatformVisitV117.path.in_(PUBLIC_PAGEVIEW_PATHS),
+            PlatformVisitV117.path.like("/zadaci/%"),
+        ),
         PlatformVisitV117.created_at >= tracking_start,
     )
     total_visits = visits.count()

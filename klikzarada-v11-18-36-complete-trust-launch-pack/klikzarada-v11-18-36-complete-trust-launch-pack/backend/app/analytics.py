@@ -1,5 +1,6 @@
 """Privacy-preserving rules for the public page-view dashboard."""
 
+import re
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -12,7 +13,14 @@ from .models import SystemSetting
 PUBLIC_PAGEVIEW_PATHS = frozenset({
     "/",
     "/zadaci",
+    "/za-korisnike",
+    "/za-oglasivace",
+    "/cenovnik",
+    "/kontakt",
+    "/blog",
+    "/faq",
     "/registracija",
+    "/login",
     "/prijava",
     "/oglasivac/prijava",
     "/oglasivac/registracija",
@@ -26,7 +34,7 @@ ANALYTICS_STARTED_AT_KEY = "analytics_pageviews_started_at"
 
 
 def is_public_pageview_path(path: str) -> bool:
-    return path in PUBLIC_PAGEVIEW_PATHS
+    return path in PUBLIC_PAGEVIEW_PATHS or bool(re.fullmatch(r"/zadaci/\d+", path))
 
 
 def start_clean_pageview_measurement(

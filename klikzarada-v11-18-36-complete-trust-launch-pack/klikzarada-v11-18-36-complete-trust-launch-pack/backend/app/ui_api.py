@@ -29,7 +29,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, 
 from fastapi.responses import FileResponse, RedirectResponse
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from .database import get_db
@@ -2989,7 +2989,10 @@ def _admin_dashboard_data(db: Session) -> dict:
     week_start = today_start - timedelta(days=6)
     active_start = now - timedelta(minutes=15)
     public_visits = db.query(PlatformVisitV117).filter(
-        PlatformVisitV117.path.in_(PUBLIC_PAGEVIEW_PATHS),
+        or_(
+            PlatformVisitV117.path.in_(PUBLIC_PAGEVIEW_PATHS),
+            PlatformVisitV117.path.like("/zadaci/%"),
+        ),
         PlatformVisitV117.created_at >= tracking_start,
     )
     today_visits = public_visits.filter(PlatformVisitV117.created_at >= today_start)
