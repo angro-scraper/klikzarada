@@ -37,18 +37,15 @@ class AppUiStaticFiles(StaticFiles):
     """Keep an open browser usable when a deploy replaces a hashed Vite bundle."""
 
     async def get_response(self, path: str, scope):
-        response = await super().get_response(path, scope)
-        if response.status_code != 404 or not re.fullmatch(r"assets/index-[A-Za-z0-9_-]+\.js", path):
-            return response
-
-        index = SPA_DIR / "index.html"
-        if not index.exists():
-            return response
-        match = re.search(r'src="/app-ui/(assets/index-[^"]+\.js)"', index.read_text(encoding="utf-8"))
-        if not match:
-            return response
-        current_bundle = SPA_DIR / match.group(1)
-        return FileResponse(current_bundle, media_type="text/javascript") if current_bundle.exists() else response
+        if re.fullmatch(r"assets/index-[A-Za-z0-9_-]+\.js", path):
+            index = SPA_DIR / "index.html"
+            if index.exists():
+                match = re.search(r'src="/app-ui/(assets/index-[^"]+\.js)"', index.read_text(encoding="utf-8"))
+                if match:
+                    current_bundle = SPA_DIR / match.group(1)
+                    if current_bundle.exists() and path != match.group(1):
+                        return FileResponse(current_bundle, media_type="text/javascript")
+        return await super().get_response(path, scope)
 
 
 if SPA_DIR.exists():
