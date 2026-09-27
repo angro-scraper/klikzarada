@@ -10049,11 +10049,22 @@ async def kz117_visit_tracking_middleware(request: Request, call_next):
         fetch_destination = request.headers.get("sec-fetch-dest", "").lower()
         fetch_mode = request.headers.get("sec-fetch-mode", "").lower()
         fetch_user = request.headers.get("sec-fetch-user", "").lower()
-        is_user_navigation = (
+        fetch_site = request.headers.get("sec-fetch-site", "").lower()
+        is_explicit_navigation = (
             fetch_destination == "document"
             and fetch_mode == "navigate"
             and fetch_user == "?1"
         )
+        # Some Meta mobile webviews omit Sec-Fetch-User. Keep their tagged ad
+        # landings, but only when the browser still identifies a cross-site
+        # document navigation; generic browser-looking requests stay excluded.
+        is_tagged_ad_navigation = (
+            bool(request.query_params.get("utm_source"))
+            and fetch_destination == "document"
+            and fetch_mode == "navigate"
+            and fetch_site in {"cross-site", "none"}
+        )
+        is_user_navigation = is_explicit_navigation or is_tagged_ad_navigation
         is_prefetch = "prefetch" in request.headers.get("purpose", "").lower() or "prefetch" in request.headers.get("sec-purpose", "").lower()
         if request.method == "GET" and accepts_html and is_public_page and is_browser and is_user_navigation and not is_prefetch and response.status_code < 400:
             db = SessionLocal()

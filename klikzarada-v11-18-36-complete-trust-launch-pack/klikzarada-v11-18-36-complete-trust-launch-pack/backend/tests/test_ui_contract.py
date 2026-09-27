@@ -73,6 +73,7 @@ class UiContractTests(unittest.TestCase):
         self.assertIn('user_agent.lower().startswith("mozilla/")', source)
         self.assertIn('fetch_mode == "navigate"', source)
         self.assertIn('fetch_user == "?1"', source)
+        self.assertIn('fetch_site in {"cross-site", "none"}', source)
         self.assertIn('timedelta(minutes=20)', source)
         self.assertIn('is_public_pageview_path(path)', source)
 
