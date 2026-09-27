@@ -303,6 +303,7 @@ export type AdminMetrics = {
     landings: number
     opened: number
     submitted: number
+    failed: number
     completed: number
     conversion_rate: number
     sources: Array<{
@@ -312,6 +313,7 @@ export type AdminMetrics = {
       landings: number
       opened: number
       submitted: number
+      failed: number
       completed: number
     }>
   }
@@ -562,7 +564,7 @@ export const api = {
   capturePayPalOrder: (orderId: string) => request<{ credited: boolean; advertiser_budget_rsd: number }>(`/advertiser/paypal/orders/${encodeURIComponent(orderId)}/capture`, {
     method: 'POST',
   }),
-  trackPublicFunnel: (eventType: 'registration_opened' | 'registration_submitted') => request<{ recorded: boolean }>('/analytics/funnel', {
+  trackPublicFunnel: (eventType: 'registration_opened' | 'registration_submitted' | 'registration_failed') => request<{ recorded: boolean }>('/analytics/funnel', {
     method: 'POST', body: JSON.stringify({ event_type: eventType }),
   }),
   adminDashboard: () => request<{ metrics: AdminMetrics }>('/admin/dashboard'),

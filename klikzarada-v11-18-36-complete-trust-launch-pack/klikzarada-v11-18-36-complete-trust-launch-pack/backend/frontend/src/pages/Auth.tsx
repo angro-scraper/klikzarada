@@ -52,7 +52,21 @@ export default function Auth({
   }, [isRegister])
 
   async function handleSubmit() {
-    if (!email || !password || (isRegister && !name)) return
+    if (!email.trim() || !password) {
+      setError('Unesi email adresu i lozinku.')
+      return
+    }
+    if (isRegister) {
+      const missing = [
+        !name.trim() && 'ime i prezime',
+        !isAdvertiser && phone.trim().replace(/[^0-9]/g, '').length < 7 && 'telefon',
+        !acceptTerms && 'prihvatanje uslova korišćenja',
+      ].filter(Boolean)
+      if (missing.length) {
+        setError(`Za registraciju još nedostaje: ${missing.join(', ')}.`)
+        return
+      }
+    }
     setSubmitted(true)
     setError('')
     try {
@@ -73,6 +87,7 @@ export default function Auth({
       if (result.user.role === 'admin') onNavigate('admin')
       else onNavigate(result.user.role === 'oglasivac' ? 'advertiser' : 'dashboard')
     } catch (caught) {
+      if (isRegister) void api.trackPublicFunnel('registration_failed').catch(() => undefined)
       setError(caught instanceof Error ? caught.message : 'Prijava nije uspela.')
     } finally {
       setSubmitted(false)
@@ -206,7 +221,7 @@ export default function Auth({
 
               <Btn
                 onClick={resetToken ? handlePasswordReset : forgotPassword ? requestReset : handleSubmit}
-                disabled={submitted || (!resetToken && !forgotPassword && isRegister && (!acceptTerms || (!isAdvertiser && phone.trim().length < 7)))}
+                disabled={submitted}
                 className="w-full justify-center"
               >
                 {submitted

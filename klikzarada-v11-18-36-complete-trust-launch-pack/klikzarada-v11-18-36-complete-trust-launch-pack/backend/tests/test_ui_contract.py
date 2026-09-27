@@ -76,6 +76,14 @@ class UiContractTests(unittest.TestCase):
         self.assertIn('/analytics/funnel', api_source)
         self.assertIn("trackPublicFunnel('registration_opened')", auth_source)
         self.assertIn("trackPublicFunnel('registration_submitted')", auth_source)
+        self.assertIn("registration_failed", api_source)
+        self.assertIn("trackPublicFunnel('registration_failed')", auth_source)
+
+    def test_registration_explains_missing_required_fields(self):
+        """Ad visitors must never get a silent no-op when the form is incomplete."""
+        source = (BACKEND_DIR / "frontend" / "src" / "pages" / "Auth.tsx").read_text(encoding="utf-8")
+        self.assertIn('Za registraciju još nedostaje:', source)
+        self.assertIn("disabled={submitted}", source)
 
     def test_operational_screens_use_the_available_workspace_width(self):
         """Dashboards must not leave a narrow fixed-width column beside the sidebar."""

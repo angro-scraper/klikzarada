@@ -118,7 +118,7 @@ class Registration(Credentials):
 
 
 class PublicFunnelEventPayload(BaseModel):
-    event_type: Literal["registration_opened", "registration_submitted"]
+    event_type: Literal["registration_opened", "registration_submitted", "registration_failed"]
 
 
 class ProofPayload(BaseModel):
@@ -3080,6 +3080,7 @@ def _admin_dashboard_data(db: Session) -> dict:
                 "landings": len(paid_landings),
                 "opened": len(funnel_visitors("registration_opened")),
                 "submitted": len(funnel_visitors("registration_submitted")),
+                "failed": len(funnel_visitors("registration_failed")),
                 "completed": len(paid_completed),
                 "conversion_rate": round((len(paid_completed) / len(paid_landings) * 100) if paid_landings else 0, 1),
                 "sources": funnel_sources[:8],
