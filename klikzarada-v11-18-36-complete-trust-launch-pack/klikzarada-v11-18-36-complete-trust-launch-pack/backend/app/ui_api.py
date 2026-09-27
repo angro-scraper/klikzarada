@@ -51,6 +51,7 @@ from .models import (
     PaidAdBannerV111,
     PaidPromotionRequestV111,
     PlatformVisitV117,
+    SystemErrorLogV11,
     SystemSetting,
     SupportMessage,
     SupportTicket,
@@ -272,6 +273,14 @@ class AdminPromotionStatusPayload(BaseModel):
 
 class SettingPayload(BaseModel):
     value: str = Field(default="", max_length=5000)
+
+
+class ClientErrorPayload(BaseModel):
+    """Small, sanitized browser error report used to repair live user flows."""
+
+    path: str = Field(min_length=1, max_length=300)
+    message: str = Field(min_length=1, max_length=1000)
+    stack: str | None = Field(default=None, max_length=4000)
 
 
 def _money(value: float | None) -> float:
@@ -1269,6 +1278,20 @@ def record_banner_impression(banner_id: int, db: Session = Depends(get_db)) -> R
     if banner and not _is_legacy_demo_banner(banner):
         banner.views_count = int(banner.views_count or 0) + 1
         db.commit()
+    return Response(status_code=204)
+
+
+@router.post("/client-errors", status_code=204)
+def record_client_error(payload: ClientErrorPayload, db: Session = Depends(get_db)) -> Response:
+    """Keep production browser failures visible without storing form or account data."""
+    path = " ".join(payload.path.split())[:300]
+    message = " ".join(payload.message.split())[:1000]
+    stack = " ".join((payload.stack or "").split())[:2000]
+    details = f"path={path}; message={message}"
+    if stack:
+        details = f"{details}; stack={stack}"
+    db.add(SystemErrorLogV11(level="error", source="browser", message=details, status="open"))
+    db.commit()
     return Response(status_code=204)
 
 

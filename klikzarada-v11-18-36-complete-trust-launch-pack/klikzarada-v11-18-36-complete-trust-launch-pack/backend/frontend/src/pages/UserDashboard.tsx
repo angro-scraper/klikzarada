@@ -95,6 +95,52 @@ const categoryColor = (category: string) => {
 const formatRsd = (amount: number) => `${new Intl.NumberFormat('sr-RS', { maximumFractionDigits: 2 }).format(amount)} RSD`
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('sr-RS').format(new Date(value)) : '—'
 
+const textValue = (value: unknown, fallback = '') => typeof value === 'string' ? value : fallback
+const numberValue = (value: unknown, fallback = 0) => typeof value === 'number' && Number.isFinite(value) ? value : fallback
+
+function normalizeDashboard(data: UserDashboardData): UserDashboardData {
+  const raw = (data && typeof data === 'object' ? data : {}) as Partial<UserDashboardData>
+  const rawUser = (raw.user && typeof raw.user === 'object' ? raw.user : {}) as Partial<SessionUser>
+  const tasks = Array.isArray(raw.tasks) ? raw.tasks.filter(Boolean).map((item) => {
+    const task = item as Task
+    return {
+      ...task,
+      id: numberValue(task.id),
+      title: textValue(task.title, 'Zadatak'),
+      category: textValue(task.category, 'Ostalo'),
+      task_type: textValue(task.task_type, 'zadatak'),
+      description: textValue(task.description),
+      instructions: textValue(task.instructions),
+      proof_required: textValue(task.proof_required, 'Dokaz potreban'),
+      reward_rsd: numberValue(task.reward_rsd),
+      estimated_minutes: numberValue(task.estimated_minutes),
+      tester_daily_reward_rsd: numberValue(task.tester_daily_reward_rsd),
+      requires_tester_enrollment: Boolean(task.requires_tester_enrollment),
+    }
+  }) : []
+
+  return {
+    ...raw,
+    user: {
+      ...rawUser,
+      full_name: textValue(rawUser.full_name, 'Korisnik'),
+      email: textValue(rawUser.email),
+      role: rawUser.role || 'korisnik',
+      level: textValue(rawUser.level, 'Bronza'),
+      balance_rsd: numberValue(rawUser.balance_rsd),
+      pending_rsd: numberValue(rawUser.pending_rsd),
+      lifetime_earned_rsd: numberValue(rawUser.lifetime_earned_rsd),
+      interests: Array.isArray(rawUser.interests) ? rawUser.interests.filter((item): item is string => typeof item === 'string') : [],
+    } as SessionUser,
+    min_withdrawal_rsd: numberValue(raw.min_withdrawal_rsd, 1000),
+    referral_count: numberValue(raw.referral_count),
+    tasks,
+    submissions: Array.isArray(raw.submissions) ? raw.submissions : [],
+    withdrawals: Array.isArray(raw.withdrawals) ? raw.withdrawals : [],
+    transactions: Array.isArray(raw.transactions) ? raw.transactions : [],
+  }
+}
+
 const badges = [
   { icon: '🚀', name: 'Starter', desc: 'Prvih 5 zadataka', unlocked: true },
   { icon: '🔥', name: 'Streak 7', desc: '7 dana zaredom', unlocked: true },
@@ -146,16 +192,17 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const refreshDashboard = async () => {
     try {
       const [data, ticketData, notificationData] = await Promise.all([api.userDashboard(), api.tickets(), api.notifications()])
-      setDashboard(data)
-      setTickets(ticketData.tickets)
-      setNotifications(notificationData.notifications)
+      const safeDashboard = normalizeDashboard(data)
+      setDashboard(safeDashboard)
+      setTickets(Array.isArray(ticketData?.tickets) ? ticketData.tickets : [])
+      setNotifications(Array.isArray(notificationData?.notifications) ? notificationData.notifications : [])
       setPaymentMethod('PayPal')
-      setPaymentDetails(data.user.payment_details || '')
-      setProfileName(data.user.full_name)
-      setProfilePhone(data.user.phone || '')
-      setProfileCity(data.user.city || '')
-      setOnboardingAge(data.user.age_group || '')
-      setOnboardingInterests(data.user.interests || [])
+      setPaymentDetails(safeDashboard.user.payment_details || '')
+      setProfileName(safeDashboard.user.full_name)
+      setProfilePhone(safeDashboard.user.phone || '')
+      setProfileCity(safeDashboard.user.city || '')
+      setOnboardingAge(safeDashboard.user.age_group || '')
+      setOnboardingInterests(safeDashboard.user.interests || [])
       setDashboardError('')
     } catch (error) {
       setDashboardError(error instanceof Error ? error.message : 'Podaci trenutno nisu dostupni.')

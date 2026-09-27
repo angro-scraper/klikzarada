@@ -28,6 +28,7 @@ class UiContractTests(unittest.TestCase):
             "/api/ui/advertiser/campaigns/{task_id}/lifecycle",
             "/api/ui/public/overview",
             "/api/ui/public/waitlist",
+            "/api/ui/client-errors",
             "/admin/analitika-v117",
         }
         self.assertTrue(expected.issubset(paths))
