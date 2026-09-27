@@ -14,17 +14,29 @@
 </section>
 
 <section class="premium-stat-grid analytics">
-  <article class="blue"><small>Posete ukupno</small><strong>{{ stats.total_visits }}</strong><span>sve vreme</span></article>
-  <article class="green"><small>Posete danas</small><strong>{{ stats.today_visits }}</strong><span>danas</span></article>
-  <article class="purple"><small>Jedinstveni posetioci</small><strong>{{ stats.unique_total }}</strong><span>visitor ID</span></article>
-  <article class="orange"><small>Jedinstveni danas</small><strong>{{ stats.unique_today }}</strong><span>danas</span></article>
+  <article class="blue"><small>Pregledi ukupno</small><strong>{{ stats.total_visits }}</strong><span>javne stranice</span></article>
+  <article class="green"><small>Pregledi danas</small><strong>{{ stats.today_visits }}</strong><span>bez admin i API zahteva</span></article>
+  <article class="purple"><small>Jedinstveni danas</small><strong>{{ stats.unique_today }}</strong><span>anonimni visitor ID</span></article>
+  <article class="orange"><small>Aktivni sada</small><strong>{{ stats.active_now }}</strong><span>poslednjih 15 min</span></article>
 </section>
 
 <section class="premium-stat-grid analytics">
-  <article class="green"><small>Registrovani korisnici</small><strong>{{ stats.registered_users }}</strong><span>posebna baza</span></article>
-  <article class="blue"><small>Registrovani oglašivači</small><strong>{{ stats.registered_advertisers }}</strong><span>posebna baza</span></article>
-  <article class="purple"><small>Admin nalozi</small><strong>{{ stats.admins }}</strong><span>kontrola</span></article>
-  <article class="orange"><small>Odnos</small><strong>{{ stats.registered_users }} / {{ stats.registered_advertisers }}</strong><span>korisnici / oglašivači</span></article>
+  <article class="green"><small>Jedinstveni 7 dana</small><strong>{{ stats.unique_week }}</strong><span>{{ stats.week_visits }} pregleda</span></article>
+  <article class="blue"><small>Jedinstveni 30 dana</small><strong>{{ stats.unique_month }}</strong><span>{{ stats.month_visits }} pregleda</span></article>
+  <article class="purple"><small>Registrovani korisnici</small><strong>{{ stats.registered_users }}</strong><span>posebna baza</span></article>
+  <article class="orange"><small>Registrovani oglašivači</small><strong>{{ stats.registered_advertisers }}</strong><span>posebna baza</span></article>
+</section>
+
+<section class="premium-card">
+  <div class="premium-card-head"><h2>Trend poseta - poslednjih 30 dana</h2><span>{{ stats.month_visits }} pregleda</span></div>
+  <div class="analytics-trend" aria-label="Dnevni trend poseta">
+    {% for day in stats.daily_series %}
+      <div class="analytics-trend-bar" title="{{ day.date }}: {{ day.views }} pregleda, {{ day.visitors }} jedinstvenih">
+        <span style="height: {{ ((day.views / stats.max_daily_views * 100) if stats.max_daily_views else 0)|round(0) }}%"></span>
+        <small>{{ day.label }}</small>
+      </div>
+    {% endfor %}
+  </div>
 </section>
 
 <div class="premium-dashboard-grid">
@@ -46,6 +58,17 @@
       <article><strong>{{ count }}</strong><span>{{ role }}</span></article>
       {% else %}
       <div class="premium-empty"><h3>Nema podataka</h3></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="premium-card">
+    <div class="premium-card-head"><h2>Izvori saobraćaja</h2><span>30 dana</span></div>
+    <div class="analytics-route-list">
+      {% for source,count in stats.traffic_sources %}
+      <article><b>{{ source }}</b><span>{{ count }} poseta</span></article>
+      {% else %}
+      <div class="premium-empty"><h3>Još nema spoljnjih izvora</h3><p>Kada neko dođe preko Facebooka, Google-a ili drugog sajta, ovde se prikazuje samo domen izvora.</p></div>
       {% endfor %}
     </div>
   </section>

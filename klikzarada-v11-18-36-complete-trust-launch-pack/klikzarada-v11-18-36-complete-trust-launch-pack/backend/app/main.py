@@ -9653,6 +9653,7 @@ def admin_v11_premium_dashboard_v116(request: Request, db: Session = Depends(get
         "high_risk_campaigns": sum(1 for item in fraud_campaigns if item.get("risk_score", 0) >= 70),
         "medium_risk_campaigns": sum(1 for item in fraud_campaigns if 40 <= item.get("risk_score", 0) < 70),
     }
+    visit_stats = kz117_visit_stats(db)
     groups = {
         "Pregled": [
             {"title":"Dashboard","url":"/admin/v11","desc":"Glavni komadni centar i prvi pregled."},
@@ -9708,6 +9709,9 @@ def admin_v11_premium_dashboard_v116(request: Request, db: Session = Depends(get
             "total_budget": advertiser_budget_total,
             "reserved_budget": reserved_budget_total,
             "spent_budget": spent_budget_total,
+            "site_views_today": visit_stats["today_visits"],
+            "site_unique_today": visit_stats["unique_today"],
+            "site_active_now": visit_stats["active_now"],
         },
         "latest_tasks": tasks,
         "latest_submissions": submissions_latest,
@@ -9963,26 +9967,41 @@ async def kz117_visit_tracking_middleware(request: Request, call_next):
             db.close()
     response = await call_next(request)
     try:
-        # Do not track static assets and favicon noise.
-        if not (path.startswith("/static") or path in ["/favicon.ico", "/sw.js", "/robots.txt", "/sitemap.xml"]):
+        # Count only successful browser pages. API, assets, and administrator work
+        # must not inflate the public traffic numbers shown to the team.
+        ignored_prefixes = ("/api/", "/admin", "/static/", "/app-ui/", "/uploads/")
+        ignored_paths = {"/favicon.ico", "/sw.js", "/robots.txt", "/sitemap.xml", "/openapi.json"}
+        accepts_html = "text/html" in request.headers.get("accept", "")
+        is_public_page = not path.startswith(ignored_prefixes) and path not in ignored_paths
+        if request.method == "GET" and accepts_html and is_public_page and response.status_code < 400:
             db = SessionLocal()
             try:
                 u = current_user(request, db)
                 visitor_id = request.cookies.get("kz_visitor_id") or ""
-                if not visitor_id:
-                    raw = f"{request.client.host if request.client else ''}|{request.headers.get('user-agent','')}|{datetime.utcnow().date()}"
-                    visitor_id = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
-                    response.set_cookie("kz_visitor_id", visitor_id, max_age=60*60*24*365, httponly=False, samesite="lax")
+                if not re.fullmatch(r"[A-Za-z0-9_-]{20,128}", visitor_id):
+                    visitor_id = secrets.token_urlsafe(24)
+                    response.set_cookie(
+                        "kz_visitor_id",
+                        visitor_id,
+                        max_age=60 * 60 * 24 * 365,
+                        httponly=True,
+                        secure=request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https",
+                        samesite="lax",
+                    )
+
+                # Store only the traffic-source domain. The analytics table does
+                # not retain IP addresses, full referrer URLs, or user agents.
+                referrer = urlparse(request.headers.get("referer", "")).netloc.lower()[:255]
                 visit = PlatformVisitV117(
                     visitor_id=visitor_id,
                     user_id=(u.id if u else None),
                     role=(u.role if u else "guest"),
-                    path=path,
+                    path=path[:500],
                     method=request.method,
                     status_code=response.status_code,
-                    referrer=request.headers.get("referer", "")[:700],
-                    user_agent=request.headers.get("user-agent", "")[:2000],
-                    ip_hash=kz117_hash_ip(request.client.host if request.client else ""),
+                    referrer=referrer,
+                    user_agent="",
+                    ip_hash="",
                     duration_ms=round((time.time() - start) * 1000, 2),
                     created_at=datetime.utcnow(),
                 )
@@ -9997,26 +10016,80 @@ async def kz117_visit_tracking_middleware(request: Request, call_next):
 def kz117_visit_stats(db: Session):
     now = datetime.utcnow()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    total_visits = db.query(PlatformVisitV117).count()
-    today_visits = db.query(PlatformVisitV117).filter(PlatformVisitV117.created_at >= today_start).count()
-    unique_total = db.query(PlatformVisitV117.visitor_id).distinct().count()
-    unique_today = db.query(PlatformVisitV117.visitor_id).filter(PlatformVisitV117.created_at >= today_start).distinct().count()
+    week_start = today_start - timedelta(days=6)
+    month_start = today_start - timedelta(days=29)
+    active_start = now - timedelta(minutes=15)
+    # Older versions recorded admin screens too; filter them out here as well so
+    # historical totals remain useful after the tracking rules were tightened.
+    visits = db.query(PlatformVisitV117).filter(~PlatformVisitV117.path.like("/admin%"))
+    total_visits = visits.count()
+    today_visits = visits.filter(PlatformVisitV117.created_at >= today_start).count()
+    week_visits = visits.filter(PlatformVisitV117.created_at >= week_start).count()
+    month_visits = visits.filter(PlatformVisitV117.created_at >= month_start).count()
+    unique_total = visits.with_entities(PlatformVisitV117.visitor_id).distinct().count()
+    unique_today = visits.filter(PlatformVisitV117.created_at >= today_start).with_entities(PlatformVisitV117.visitor_id).distinct().count()
+    unique_week = visits.filter(PlatformVisitV117.created_at >= week_start).with_entities(PlatformVisitV117.visitor_id).distinct().count()
+    unique_month = visits.filter(PlatformVisitV117.created_at >= month_start).with_entities(PlatformVisitV117.visitor_id).distinct().count()
+    active_now = visits.filter(PlatformVisitV117.created_at >= active_start).with_entities(PlatformVisitV117.visitor_id).distinct().count()
     registered_users = db.query(User).filter(User.role == "korisnik").count()
     registered_advertisers = db.query(User).filter(User.role == "oglasivac").count()
     admins = db.query(User).filter(User.role == "admin").count()
-    top_routes = db.query(PlatformVisitV117.path, func.count(PlatformVisitV117.id).label("cnt")).group_by(PlatformVisitV117.path).order_by(func.count(PlatformVisitV117.id).desc()).limit(12).all()
-    role_visits = db.query(PlatformVisitV117.role, func.count(PlatformVisitV117.id).label("cnt")).group_by(PlatformVisitV117.role).order_by(func.count(PlatformVisitV117.id).desc()).all()
-    recent = db.query(PlatformVisitV117).order_by(PlatformVisitV117.created_at.desc()).limit(50).all()
+    top_routes = visits.filter(PlatformVisitV117.created_at >= month_start).with_entities(
+        PlatformVisitV117.path, func.count(PlatformVisitV117.id).label("cnt")
+    ).group_by(PlatformVisitV117.path).order_by(func.count(PlatformVisitV117.id).desc()).limit(12).all()
+    role_visits = visits.filter(PlatformVisitV117.created_at >= month_start).with_entities(
+        PlatformVisitV117.role, func.count(PlatformVisitV117.id).label("cnt")
+    ).group_by(PlatformVisitV117.role).order_by(func.count(PlatformVisitV117.id).desc()).all()
+    source_rows_raw = visits.filter(
+        PlatformVisitV117.created_at >= month_start,
+        PlatformVisitV117.referrer != "",
+    ).with_entities(PlatformVisitV117.referrer, func.count(PlatformVisitV117.id).label("cnt")).group_by(
+        PlatformVisitV117.referrer
+    ).order_by(func.count(PlatformVisitV117.id).desc()).limit(200).all()
+    source_counts = {}
+    for referrer, count in source_rows_raw:
+        # Historical rows may contain a full URL. Normalize them before returning
+        # the result so the interface never exposes query strings or page paths.
+        source = urlparse(referrer or "").netloc.lower() or (referrer or "").split("/")[0].lower()
+        if source:
+            source_counts[source] = source_counts.get(source, 0) + int(count or 0)
+    traffic_sources = sorted(source_counts.items(), key=lambda item: item[1], reverse=True)[:8]
+    daily_rows = visits.filter(PlatformVisitV117.created_at >= month_start).with_entities(
+        func.date(PlatformVisitV117.created_at).label("day"),
+        func.count(PlatformVisitV117.id).label("views"),
+        func.count(func.distinct(PlatformVisitV117.visitor_id)).label("visitors"),
+    ).group_by(func.date(PlatformVisitV117.created_at)).all()
+    daily_by_day = {str(row.day): {"views": int(row.views or 0), "visitors": int(row.visitors or 0)} for row in daily_rows}
+    daily_series = []
+    for offset in range(29, -1, -1):
+        day = (today_start - timedelta(days=offset)).date()
+        values = daily_by_day.get(day.isoformat(), {"views": 0, "visitors": 0})
+        daily_series.append({
+            "date": day.isoformat(),
+            "label": day.strftime("%d.%m."),
+            "views": values["views"],
+            "visitors": values["visitors"],
+        })
+    max_daily_views = max((item["views"] for item in daily_series), default=0)
+    recent = visits.order_by(PlatformVisitV117.created_at.desc()).limit(50).all()
     return {
         "total_visits": total_visits,
         "today_visits": today_visits,
+        "week_visits": week_visits,
+        "month_visits": month_visits,
         "unique_total": unique_total,
         "unique_today": unique_today,
+        "unique_week": unique_week,
+        "unique_month": unique_month,
+        "active_now": active_now,
         "registered_users": registered_users,
         "registered_advertisers": registered_advertisers,
         "admins": admins,
         "top_routes": top_routes,
         "role_visits": role_visits,
+        "traffic_sources": traffic_sources,
+        "daily_series": daily_series,
+        "max_daily_views": max_daily_views,
         "recent": recent,
     }
 

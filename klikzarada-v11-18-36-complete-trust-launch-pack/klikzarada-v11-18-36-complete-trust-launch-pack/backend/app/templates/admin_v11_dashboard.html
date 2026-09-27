@@ -77,6 +77,36 @@
       </article>
     </section>
 
+    <section class="import-doc-card" aria-labelledby="traffic-heading">
+      <div class="import-doc-section-head">
+        <div>
+          <span>Saobraćaj sajta</span>
+          <h3 id="traffic-heading">Javne posete bez admin i API zahteva</h3>
+        </div>
+        <a href="/admin/analitika-v117">Otvori analitiku</a>
+      </div>
+      <div class="import-doc-mini-grid">
+        <div>
+          <small>Pregledi danas</small>
+          <strong>{{ stats.site_views_today }}</strong>
+        </div>
+        <div>
+          <small>Jedinstveni danas</small>
+          <strong>{{ stats.site_unique_today }}</strong>
+        </div>
+        <div>
+          <small>Aktivni sada</small>
+          <strong>{{ stats.site_active_now }}</strong>
+          <span>poslednjih 15 min</span>
+        </div>
+        <div>
+          <small>Detaljan pregled</small>
+          <strong><a href="/admin/analitika-v117">7 / 30 dana</a></strong>
+          <span>rute i izvori</span>
+        </div>
+      </div>
+    </section>
+
     <section class="import-doc-card" id="commands">
       <div class="import-doc-section-head">
         <div>
@@ -119,7 +149,7 @@
             <a href="/admin/referral">Referral</a>
             <a href="/admin/growth">Growth</a>
             <a href="/admin/planovi">Planovi</a>
-            <a href="/admin/analitika">Analitika</a>
+            <a href="/admin/analitika-v117">Analitika</a>
           </div>
         </article>
         <article class="premium-command-card">
