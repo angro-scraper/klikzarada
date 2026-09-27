@@ -93,7 +93,11 @@ class UiContractTests(unittest.TestCase):
     def test_registration_explains_missing_required_fields(self):
         """Ad visitors must never get a silent no-op when the form is incomplete."""
         source = (BACKEND_DIR / "frontend" / "src" / "pages" / "Auth.tsx").read_text(encoding="utf-8")
+        api_source = (BACKEND_DIR / "app" / "ui_api.py").read_text(encoding="utf-8")
         self.assertIn('Za registraciju još nedostaje:', source)
+        self.assertIn('label="Telefon (opciono)"', source)
+        self.assertNotIn("&& 'telefon'", source)
+        self.assertIn('if phone and len(phone.replace("+", "")) < 7:', api_source)
         self.assertIn("disabled={submitted}", source)
 
     def test_operational_screens_use_the_available_workspace_width(self):

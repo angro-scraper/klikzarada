@@ -1155,8 +1155,8 @@ def register(payload: Registration, request: Request, response: Response, db: Se
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(409, "Email adresa je već registrovana.")
     phone = "".join(character for character in (payload.phone or "") if character.isdigit() or character == "+")
-    if payload.role == "korisnik" and len(phone.replace("+", "")) < 7:
-        raise HTTPException(400, "Unesi broj telefona za proveru jedinstvenosti naloga.")
+    if phone and len(phone.replace("+", "")) < 7:
+        raise HTTPException(400, "Ako unosiš telefon, broj mora imati najmanje 7 cifara.")
     if phone and db.query(User).filter(User.phone == phone).first():
         raise HTTPException(409, "Ovaj broj telefona je već povezan sa drugim nalogom.")
     referrer = None

@@ -59,7 +59,6 @@ export default function Auth({
     if (isRegister) {
       const missing = [
         !name.trim() && 'ime i prezime',
-        !isAdvertiser && phone.trim().replace(/[^0-9]/g, '').length < 7 && 'telefon',
         !acceptTerms && 'prihvatanje uslova korišćenja',
       ].filter(Boolean)
       if (missing.length) {
@@ -205,7 +204,7 @@ export default function Auth({
               )}
               {!resetToken && <Input label="Email adresa" type="email" placeholder="email@primer.rs" value={email} onChange={setEmail} />}
               {!resetToken && !forgotPassword && isRegister && !isAdvertiser && (
-                <Input label="Telefon za proveru naloga" type="tel" placeholder="npr. +381 60 123 4567" value={phone} onChange={setPhone} />
+                <Input label="Telefon (opciono)" type="tel" placeholder="npr. +381 60 123 4567" value={phone} onChange={setPhone} />
               )}
               {!forgotPassword && <Input label={resetToken ? 'Nova lozinka' : 'Lozinka'} type="password" placeholder="••••••••" value={password} onChange={setPassword} />}
               {!resetToken && !forgotPassword && isRegister && !isAdvertiser && (
