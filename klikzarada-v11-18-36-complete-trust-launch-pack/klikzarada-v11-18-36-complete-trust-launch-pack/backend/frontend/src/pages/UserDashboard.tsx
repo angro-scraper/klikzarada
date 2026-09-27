@@ -475,7 +475,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
         </div>
       )}
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         <TopBar
           onMenuClick={() => setMobileOpen(true)}
           pageTitle="Zarada centar"
@@ -492,7 +492,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
         />
 
         <main className="flex-1 overflow-y-auto bg-mint-50">
-          <div className="max-w-4xl mx-auto px-4 py-6">
+          <div className="w-full max-w-none px-4 py-6 sm:px-6 xl:px-8 2xl:px-10">
             {dashboardError && <div className="mb-4"><Alert type="error">{dashboardError}</Alert></div>}
             {/* Back + breadcrumb */}
             {page !== 'pregled' && (back || crumbs) && (

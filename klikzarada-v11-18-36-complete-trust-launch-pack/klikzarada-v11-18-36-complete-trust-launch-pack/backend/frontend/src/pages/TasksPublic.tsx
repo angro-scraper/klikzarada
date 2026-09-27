@@ -54,7 +54,7 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
   return (
     <div className="min-h-screen bg-mint-50 text-ink">
       <header className="bg-white border-b border-frame sticky top-0 z-40 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center gap-3">
+        <div className="w-full max-w-none px-4 sm:px-6 xl:px-8 2xl:px-10 h-14 flex items-center gap-3">
           <button onClick={() => onNavigate('home')} className="flex items-center gap-2 cursor-pointer">
             <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-xs shadow-sm">K</div>
             <span className="font-bold text-ink text-sm">KlikZarada</span>
@@ -65,7 +65,7 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="w-full max-w-none px-4 py-8 sm:px-6 xl:px-8 2xl:px-10">
         <div className="mb-6">
           <h1 className="text-2xl font-extrabold text-ink">Aktivni zadaci</h1>
           <p className="text-ink-2 text-sm mt-1">Prijavi se da bi mogao/la da preuzimaš zadatke i zarađuješ.</p>

@@ -57,6 +57,15 @@ class UiContractTests(unittest.TestCase):
         self.assertIn('user_agent.lower().startswith("mozilla/")', source)
         self.assertIn('is_document and not is_prefetch', source)
 
+    def test_operational_screens_use_the_available_workspace_width(self):
+        """Dashboards must not leave a narrow fixed-width column beside the sidebar."""
+        pages = ("AdvertiserPanel.tsx", "UserDashboard.tsx", "AdminHub.tsx", "TasksPublic.tsx")
+        for page in pages:
+            source = (BACKEND_DIR / "frontend" / "src" / "pages" / page).read_text(encoding="utf-8")
+            self.assertIn("w-full max-w-none", source, page)
+            self.assertNotIn("max-w-4xl mx-auto", source, page)
+            self.assertNotIn("max-w-5xl mx-auto", source, page)
+
 
 if __name__ == "__main__":
     unittest.main()
