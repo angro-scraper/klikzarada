@@ -43,6 +43,12 @@ class UiContractTests(unittest.TestCase):
         self.assertIn('Cache-Control"] = "no-store, max-age=0, must-revalidate"', main_source)
         self.assertIn("class AppUiStaticFiles", main_source)
 
+    def test_user_beta_task_detail_has_its_input_component(self):
+        """Opening a closed-beta task must not fail because its form component is missing."""
+        source = (BACKEND_DIR / "frontend" / "src" / "pages" / "UserDashboard.tsx").read_text(encoding="utf-8")
+        self.assertIn("Alert, Input } from '../components/ui'", source)
+        self.assertIn('<Input label="Email za pristup testiranju"', source)
+
 
 if __name__ == "__main__":
     unittest.main()

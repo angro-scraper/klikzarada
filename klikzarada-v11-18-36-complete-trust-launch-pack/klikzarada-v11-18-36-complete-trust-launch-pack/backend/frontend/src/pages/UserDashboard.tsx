@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Sidebar, TopBar } from '../components/Sidebar'
-import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tabs, Alert } from '../components/ui'
+import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tabs, Alert, Input } from '../components/ui'
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal, InfoModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
