@@ -547,6 +547,24 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                     </div>
                   </div>
                 </Card>
+                <Card className="border-violet-200 bg-violet-50 p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <h2 className="font-bold text-ink">Facebook i registracioni levak</h2>
+                      <p className="mt-0.5 text-sm text-ink-2">Samo posete sa UTM oznakom. Meri dolazak, otvaranje registracije, slanje forme i uspešno kreiran nalog.</p>
+                    </div>
+                    <p className="rounded-full bg-white px-3 py-1 text-sm font-bold text-violet-700">{metrics?.acquisition_funnel?.conversion_rate ?? 0}% registracija</p>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                    {[
+                      ['UTM dolasci', metrics?.acquisition_funnel?.landings ?? 0],
+                      ['Otvorena registracija', metrics?.acquisition_funnel?.opened ?? 0],
+                      ['Poslate forme', metrics?.acquisition_funnel?.submitted ?? 0],
+                      ['Kreirani nalozi', metrics?.acquisition_funnel?.completed ?? 0],
+                    ].map(([label, value]) => <div key={String(label)} className="rounded-lg border border-violet-100 bg-white/80 px-3 py-3"><p className="text-lg font-extrabold text-ink">{value}</p><p className="text-xs text-ink-2">{label}</p></div>)}
+                  </div>
+                  {(metrics?.acquisition_funnel?.sources?.length ?? 0) > 0 && <div className="mt-4 overflow-x-auto rounded-lg border border-violet-100 bg-white/80"><table className="w-full min-w-[620px] text-left text-xs"><thead className="border-b border-violet-100 text-ink-2"><tr><th className="px-3 py-2">Izvor / kampanja</th><th className="px-3 py-2">Dolasci</th><th className="px-3 py-2">Otvoreno</th><th className="px-3 py-2">Poslato</th><th className="px-3 py-2">Nalozi</th></tr></thead><tbody>{metrics?.acquisition_funnel.sources.map(source => <tr key={`${source.source}-${source.medium}-${source.campaign}`} className="border-b border-violet-50 last:border-0"><td className="px-3 py-2 font-medium text-ink">{source.source}{source.medium ? ` / ${source.medium}` : ''}{source.campaign ? ` / ${source.campaign}` : ''}</td><td className="px-3 py-2">{source.landings}</td><td className="px-3 py-2">{source.opened}</td><td className="px-3 py-2">{source.submitted}</td><td className="px-3 py-2 font-bold text-emerald-700">{source.completed}</td></tr>)}</tbody></table></div>}
+                </Card>
                 <div className="space-y-2">
                   {(metrics?.pending_campaigns ?? 0) > 0 && <Alert type="warning"><strong>{metrics?.pending_campaigns} kampanja</strong> čeka moderaciju pre aktivacije.</Alert>}
                   {sources.some(source => source.status === 'error') && <Alert type="error">Najmanje jedan partner izvor je u grešci. Proveri API izvore pre sledećeg uvoza.</Alert>}

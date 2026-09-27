@@ -2036,6 +2036,23 @@ class PlatformVisitV117(Base):
     user = relationship("User")
 
 
+class PublicFunnelEventV12(Base):
+    """Privacy-preserving registration funnel event for tagged public traffic."""
+
+    __tablename__ = "public_funnel_events_v12"
+    id = Column(Integer, primary_key=True, index=True)
+    visitor_id = Column(String(120), index=True, default="")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    event_type = Column(String(50), index=True, nullable=False)
+    source = Column(String(80), index=True, default="direct")
+    medium = Column(String(80), default="")
+    campaign = Column(String(160), index=True, default="")
+    landing_path = Column(String(500), default="")
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User")
+
+
 class UserDirectoryV117(Base):
     __tablename__ = "user_directory_v117"
     id = Column(Integer, primary_key=True, index=True)

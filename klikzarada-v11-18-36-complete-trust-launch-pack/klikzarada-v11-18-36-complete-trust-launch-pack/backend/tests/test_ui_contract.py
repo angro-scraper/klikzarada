@@ -30,6 +30,7 @@ class UiContractTests(unittest.TestCase):
             "/api/ui/public/waitlist",
             "/api/ui/client-errors",
             "/api/ui/admin/analytics/reset",
+            "/api/ui/analytics/funnel",
             "/api/ui/user/program/rewards/{reward_key}",
             "/admin/analitika-v117",
         }
@@ -63,6 +64,18 @@ class UiContractTests(unittest.TestCase):
         source = (BACKEND_DIR / "app" / "ui_api.py").read_text(encoding="utf-8")
         self.assertIn("PlatformVisitV117.created_at < today_start", source)
         self.assertIn('"preserved_today": True', source)
+
+    def test_utm_registration_funnel_is_privacy_preserving_and_complete(self):
+        """Paid traffic should be attributable without storing raw visitor data."""
+        main_source = (BACKEND_DIR / "app" / "main.py").read_text(encoding="utf-8")
+        api_source = (BACKEND_DIR / "app" / "ui_api.py").read_text(encoding="utf-8")
+        auth_source = (BACKEND_DIR / "frontend" / "src" / "pages" / "Auth.tsx").read_text(encoding="utf-8")
+        self.assertIn('event_type="ad_landing"', main_source)
+        self.assertIn('class PublicFunnelEventV12', (BACKEND_DIR / "app" / "models.py").read_text(encoding="utf-8"))
+        self.assertIn('"registration_completed"', api_source)
+        self.assertIn('/analytics/funnel', api_source)
+        self.assertIn("trackPublicFunnel('registration_opened')", auth_source)
+        self.assertIn("trackPublicFunnel('registration_submitted')", auth_source)
 
     def test_operational_screens_use_the_available_workspace_width(self):
         """Dashboards must not leave a narrow fixed-width column beside the sidebar."""

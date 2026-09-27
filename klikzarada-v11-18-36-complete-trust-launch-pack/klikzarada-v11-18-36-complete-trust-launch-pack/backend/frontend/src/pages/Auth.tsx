@@ -45,11 +45,18 @@ export default function Auth({
       .finally(() => window.history.replaceState({}, '', '/prijava'))
   }, [])
 
+  useEffect(() => {
+    if (!isRegister) return
+    // This is intentionally non-blocking: an analytics outage must never stop registration.
+    void api.trackPublicFunnel('registration_opened').catch(() => undefined)
+  }, [isRegister])
+
   async function handleSubmit() {
     if (!email || !password || (isRegister && !name)) return
     setSubmitted(true)
     setError('')
     try {
+      if (isRegister) void api.trackPublicFunnel('registration_submitted').catch(() => undefined)
       const result = isRegister
         ? await api.register({
             full_name: name,

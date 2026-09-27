@@ -299,6 +299,22 @@ export type AdminMetrics = {
     views: number
     unique_visitors: number
   }>
+  acquisition_funnel: {
+    landings: number
+    opened: number
+    submitted: number
+    completed: number
+    conversion_rate: number
+    sources: Array<{
+      source: string
+      medium: string
+      campaign: string
+      landings: number
+      opened: number
+      submitted: number
+      completed: number
+    }>
+  }
 }
 
 export type AdminUser = SessionUser & { created_at: string | null }
@@ -545,6 +561,9 @@ export const api = {
   paypalCheckoutConfig: () => request<PayPalCheckoutConfig>('/advertiser/paypal/checkout-config'),
   capturePayPalOrder: (orderId: string) => request<{ credited: boolean; advertiser_budget_rsd: number }>(`/advertiser/paypal/orders/${encodeURIComponent(orderId)}/capture`, {
     method: 'POST',
+  }),
+  trackPublicFunnel: (eventType: 'registration_opened' | 'registration_submitted') => request<{ recorded: boolean }>('/analytics/funnel', {
+    method: 'POST', body: JSON.stringify({ event_type: eventType }),
   }),
   adminDashboard: () => request<{ metrics: AdminMetrics }>('/admin/dashboard'),
   resetAdminAnalytics: () => request<{ deleted: number; started_at: string; preserved_today: boolean }>('/admin/analytics/reset', { method: 'POST' }),

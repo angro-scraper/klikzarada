@@ -9,7 +9,7 @@ import time
 import hashlib
 from app.models import AutoEngineLogV114, AutoNotificationQueueV114, TaskViewSessionV114
 from app.models import TaskReservationV115, UserScoreV115, UserBadgeV115, DailyRewardV115, UserMissionV115, AdvertiserSuggestionV115, AdminDailyReportV115
-from app.models import PlatformVisitV117, UserDirectoryV117, AdvertiserDirectoryV117
+from app.models import PlatformVisitV117, PublicFunnelEventV12, UserDirectoryV117, AdvertiserDirectoryV117
 import secrets
 import csv, io, uuid
 from datetime import datetime, timedelta, date
@@ -9944,6 +9944,11 @@ def kz117_sync_directories(db: Session):
     db.commit()
     return {"users": len(users), "advertisers": len(advertisers)}
 
+def _clean_utm_value(value: str | None, limit: int) -> str:
+    """Keep only a compact campaign label, never a raw query string."""
+    return re.sub(r"[^A-Za-z0-9_.-]+", "", (value or "").strip())[:limit].lower()
+
+
 @app.middleware("http")
 async def kz117_visit_tracking_middleware(request: Request, call_next):
     start = time.time()
@@ -10065,6 +10070,31 @@ async def kz117_visit_tracking_middleware(request: Request, call_next):
                     created_at=datetime.utcnow(),
                 )
                 db.add(visit)
+                utm_source = _clean_utm_value(request.query_params.get("utm_source"), 80)
+                utm_medium = _clean_utm_value(request.query_params.get("utm_medium"), 80)
+                utm_campaign = _clean_utm_value(request.query_params.get("utm_campaign"), 160)
+                if utm_source:
+                    # A refreshed landing page should remain one acquisition
+                    # event per visitor and campaign each day.
+                    duplicate_landing = db.query(PublicFunnelEventV12.id).filter(
+                        PublicFunnelEventV12.visitor_id == visitor_id,
+                        PublicFunnelEventV12.event_type == "ad_landing",
+                        PublicFunnelEventV12.source == utm_source,
+                        PublicFunnelEventV12.medium == utm_medium,
+                        PublicFunnelEventV12.campaign == utm_campaign,
+                        PublicFunnelEventV12.created_at >= datetime.utcnow() - timedelta(days=1),
+                    ).first()
+                    if not duplicate_landing:
+                        db.add(PublicFunnelEventV12(
+                            visitor_id=visitor_id,
+                            user_id=(u.id if u else None),
+                            event_type="ad_landing",
+                            source=utm_source,
+                            medium=utm_medium,
+                            campaign=utm_campaign,
+                            landing_path=path[:500],
+                            created_at=datetime.utcnow(),
+                        ))
                 db.commit()
             finally:
                 db.close()

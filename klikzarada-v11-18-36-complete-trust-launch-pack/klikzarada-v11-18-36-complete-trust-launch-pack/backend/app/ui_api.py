@@ -50,6 +50,7 @@ from .models import (
     PayPalPayoutAttempt,
     PaidAdBannerV111,
     PaidPromotionRequestV111,
+    PublicFunnelEventV12,
     PlatformVisitV117,
     SystemErrorLogV11,
     SystemSetting,
@@ -114,6 +115,10 @@ class Registration(Credentials):
     phone: str | None = Field(default=None, max_length=80)
     device_fingerprint: str | None = Field(default=None, max_length=300)
     accept_terms: bool = False
+
+
+class PublicFunnelEventPayload(BaseModel):
+    event_type: Literal["registration_opened", "registration_submitted"]
 
 
 class ProofPayload(BaseModel):
@@ -975,6 +980,47 @@ def _current_user(request: Request, db: Session) -> User | None:
     return user if user and user.status == "active" else None
 
 
+def _valid_visitor_id(request: Request) -> str:
+    visitor_id = request.cookies.get("kz_visitor_id") or ""
+    return visitor_id if re.fullmatch(r"[A-Za-z0-9_-]{20,128}", visitor_id) else ""
+
+
+def _record_public_funnel_event(
+    db: Session,
+    request: Request,
+    event_type: str,
+    user_id: int | None = None,
+) -> bool:
+    """Record a deduplicated browser funnel event without retaining PII."""
+    visitor_id = _valid_visitor_id(request)
+    if not visitor_id:
+        return False
+    now = datetime.utcnow()
+    duplicate = db.query(PublicFunnelEventV12.id).filter(
+        PublicFunnelEventV12.visitor_id == visitor_id,
+        PublicFunnelEventV12.event_type == event_type,
+        PublicFunnelEventV12.created_at >= now - timedelta(minutes=30),
+    ).first()
+    if duplicate:
+        return False
+    latest_landing = db.query(PublicFunnelEventV12).filter(
+        PublicFunnelEventV12.visitor_id == visitor_id,
+        PublicFunnelEventV12.event_type == "ad_landing",
+        PublicFunnelEventV12.created_at >= now - timedelta(days=30),
+    ).order_by(PublicFunnelEventV12.created_at.desc()).first()
+    db.add(PublicFunnelEventV12(
+        visitor_id=visitor_id,
+        user_id=user_id,
+        event_type=event_type,
+        source=latest_landing.source if latest_landing else "direct",
+        medium=latest_landing.medium if latest_landing else "",
+        campaign=latest_landing.campaign if latest_landing else "",
+        landing_path=latest_landing.landing_path if latest_landing else "",
+        created_at=now,
+    ))
+    return True
+
+
 def _require_user(request: Request, db: Session, roles: set[str] | None = None) -> User:
     user = _current_user(request, db)
     if not user:
@@ -1084,6 +1130,14 @@ def session(request: Request, db: Session = Depends(get_db)) -> dict:
     return {"authenticated": bool(user), "user": _user_data(user) if user else None}
 
 
+@router.post("/analytics/funnel")
+def track_public_funnel_event(payload: PublicFunnelEventPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    recorded = _record_public_funnel_event(db, request, payload.event_type)
+    if recorded:
+        db.commit()
+    return {"recorded": recorded}
+
+
 @router.post("/auth/login")
 def login(payload: Credentials, request: Request, response: Response, db: Session = Depends(get_db)) -> dict:
     user = db.query(User).filter(User.email == payload.email.strip().lower()).first()
@@ -1159,6 +1213,7 @@ def register(payload: Registration, request: Request, response: Response, db: Se
         body="Potvrdi email adresu i popuni kratak profil da bi dobijao/la relevantnije zadatke.",
         status="unread",
     ))
+    _record_public_funnel_event(db, request, "registration_completed", user.id)
     db.commit()
     db.refresh(user)
     _deliver_queued_email(db, verification_email.id)
@@ -2968,6 +3023,37 @@ def _admin_dashboard_data(db: Session) -> dict:
     analytics_start_setting = db.query(SystemSetting).filter(
         SystemSetting.key == "analytics_pageviews_started_at"
     ).first()
+    funnel_events = db.query(PublicFunnelEventV12).all()
+    paid_funnel_events = [event for event in funnel_events if event.source and event.source != "direct"]
+
+    def funnel_visitors(event_type: str, events: list[PublicFunnelEventV12] | None = None) -> set[str]:
+        return {
+            event.visitor_id for event in (events if events is not None else paid_funnel_events)
+            if event.event_type == event_type and event.visitor_id
+        }
+
+    source_keys = sorted({
+        (event.source, event.medium, event.campaign)
+        for event in paid_funnel_events if event.event_type == "ad_landing"
+    })
+    funnel_sources = []
+    for source, medium, campaign in source_keys:
+        source_events = [event for event in paid_funnel_events if (
+            event.source, event.medium, event.campaign
+        ) == (source, medium, campaign)]
+        landings = funnel_visitors("ad_landing", source_events)
+        funnel_sources.append({
+            "source": source,
+            "medium": medium,
+            "campaign": campaign,
+            "landings": len(landings),
+            "opened": len(funnel_visitors("registration_opened", source_events)),
+            "submitted": len(funnel_visitors("registration_submitted", source_events)),
+            "completed": len(funnel_visitors("registration_completed", source_events)),
+        })
+    funnel_sources.sort(key=lambda item: item["landings"], reverse=True)
+    paid_landings = funnel_visitors("ad_landing")
+    paid_completed = funnel_visitors("registration_completed")
     return {
         "metrics": {
             "users": db.query(User).filter(User.role == "korisnik").count(),
@@ -2990,6 +3076,14 @@ def _admin_dashboard_data(db: Session) -> dict:
             ).with_entities(PlatformVisitV117.visitor_id).distinct().count(),
             "site_daily": site_daily,
             "site_tracking_started_at": analytics_start_setting.value if analytics_start_setting else None,
+            "acquisition_funnel": {
+                "landings": len(paid_landings),
+                "opened": len(funnel_visitors("registration_opened")),
+                "submitted": len(funnel_visitors("registration_submitted")),
+                "completed": len(paid_completed),
+                "conversion_rate": round((len(paid_completed) / len(paid_landings) * 100) if paid_landings else 0, 1),
+                "sources": funnel_sources[:8],
+            },
         }
     }
 
