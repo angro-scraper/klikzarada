@@ -30,7 +30,29 @@ const navGroups = [
   ]},
 ]
 
-type Page = 'pregled'|'zadaci'|'preporuke'|'dokazi'|'obavestenja'|'novcanik'|'isplate'|'podaci-isplata'|'nagrade'|'misije'|'referral'|'profil'|'podrska'|'zadatak-detalj'
+export type UserDashboardPage = 'pregled'|'zadaci'|'preporuke'|'dokazi'|'obavestenja'|'novcanik'|'isplate'|'podaci-isplata'|'nagrade'|'misije'|'referral'|'profil'|'podrska'|'zadatak-detalj'
+type Page = UserDashboardPage
+
+const USER_PAGE_PATHS: Partial<Record<Page, string>> = {
+  pregled: '/korisnik/panel',
+  zadaci: '/korisnik/zadaci',
+  preporuke: '/korisnik/preporuke',
+  dokazi: '/korisnik/dokazi',
+  obavestenja: '/korisnik/notifikacije',
+  novcanik: '/korisnik/wallet',
+  isplate: '/korisnik/isplate',
+  'podaci-isplata': '/korisnik/payout-profile-v11',
+  nagrade: '/korisnik/motivacija-v115',
+  misije: '/korisnik/bedzevi',
+  referral: '/korisnik/referral',
+  profil: '/korisnik/profil',
+  podrska: '/korisnik/tiketi',
+}
+
+export function userDashboardPageFromPath(pathname: string): UserDashboardPage {
+  const matched = (Object.entries(USER_PAGE_PATHS) as Array<[Page, string]>).find(([, path]) => pathname.startsWith(path))
+  return matched?.[0] ?? 'pregled'
+}
 
 const BACK: Partial<Record<Page, { label: string; to: Page }>> = {
   zadaci:          { label: 'Nazad na pregled', to: 'pregled' },
@@ -87,8 +109,8 @@ const missions = [
   { title: 'Pozovi prvog prijatelja', progress: 0, total: 1, reward: '200 RSD', accent: 'bg-violet-500' },
 ]
 
-export default function UserDashboard({ onNavigate }: { onNavigate: (id: string) => void }) {
-  const [page, setPage] = useState<Page>('pregled')
+export default function UserDashboard({ initialPage = 'pregled', onNavigate }: { initialPage?: UserDashboardPage; onNavigate: (id: string) => void }) {
+  const [page, setPage] = useState<Page>(initialPage)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [proofTab, setProofTab] = useState('svi')
   const [confirmPayout, setConfirmPayout] = useState(false)
@@ -142,6 +164,8 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
 
   useEffect(() => { void refreshDashboard() }, [])
 
+  useEffect(() => { setPage(initialPage) }, [initialPage])
+
   useEffect(() => {
     if (!verification || submitProofModal === null || verification.active_seconds >= verification.required_seconds) return
     const countActivity = () => { activityEvents.current += 1 }
@@ -190,7 +214,12 @@ export default function UserDashboard({ onNavigate }: { onNavigate: (id: string)
   const selectedTask = activeTasks.find(task => task.id === selectedTaskId || task.id === submitProofModal)
   const selectedTesterProgress = selectedTask?.tester_progress
 
-  function goTo(p: Page) { setPage(p) }
+  function goTo(p: Page) {
+    setPage(p)
+    const path = USER_PAGE_PATHS[p]
+    if (path && window.location.pathname !== path) window.history.pushState({}, '', path)
+    window.scrollTo(0, 0)
+  }
 
   async function beginTaskVerification(task: Task) {
     setSaving(true)

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Landing from './pages/Landing'
 import Auth from './pages/Auth'
 import TasksPublic from './pages/TasksPublic'
-import UserDashboard from './pages/UserDashboard'
+import UserDashboard, { userDashboardPageFromPath } from './pages/UserDashboard'
 import AdvertiserPanel from './pages/AdvertiserPanel'
 import AdminHub from './pages/AdminHub'
 import Legal from './pages/Legal'
@@ -80,18 +80,20 @@ function AdvertiserRoute({ onNavigate }: { onNavigate: (id: string) => void }) {
 }
 
 export default function App() {
-  const [route, setRoute] = useState<Route>(() => routeFromPath(window.location.pathname))
+  const [pathname, setPathname] = useState(() => window.location.pathname)
+  const route = routeFromPath(pathname)
 
   function go(id: string) {
     const nextRoute = id as Route
     if (!routePaths[nextRoute]) return
-    window.history.pushState({}, '', routePaths[nextRoute])
-    setRoute(nextRoute)
+    const nextPath = routePaths[nextRoute]
+    window.history.pushState({}, '', nextPath)
+    setPathname(nextPath)
     window.scrollTo(0, 0)
   }
 
   useEffect(() => {
-    const onPopState = () => setRoute(routeFromPath(window.location.pathname))
+    const onPopState = () => setPathname(window.location.pathname)
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
@@ -103,7 +105,7 @@ export default function App() {
   if (route === 'advertiser-login')   return <Auth initialMode="advertiser-login" onNavigate={go} />
   if (route === 'advertiser-register')return <Auth initialMode="advertiser-register" onNavigate={go} />
   if (route === 'admin-login')         return <Auth initialMode="admin-login" onNavigate={go} />
-  if (route === 'dashboard')          return <UserDashboard onNavigate={go} />
+  if (route === 'dashboard')          return <UserDashboard initialPage={userDashboardPageFromPath(pathname)} onNavigate={go} />
   if (route === 'advertiser')         return <AdvertiserRoute onNavigate={go} />
   if (route === 'admin')              return <AdminRoute onNavigate={go} />
   if (route === 'legal')              return <Legal onNavigate={go} />
