@@ -244,6 +244,17 @@ export type AdminMetrics = {
 }
 
 export type AdminUser = SessionUser & { created_at: string | null }
+export type AdminUserProfile = {
+  user: AdminUser
+  activity: {
+    submissions_total: number
+    submissions_pending: number
+    submissions_approved: number
+    submissions_rejected: number
+    withdrawals_total: number
+    withdrawals_pending: number
+  }
+}
 export type AdminCampaign = Task & { advertiser_name: string; platform_fee_percent: number }
 export type AdminSubmission = Submission & { user_name: string }
 export type AdminWithdrawal = Withdrawal & {
@@ -485,6 +496,7 @@ export const api = {
     method: 'PATCH', body: JSON.stringify({ status, note }),
   }),
   adminUsers: () => request<{ users: AdminUser[] }>('/admin/users'),
+  adminUserProfile: (id: number) => request<AdminUserProfile>(`/admin/users/${id}/profile`),
   updateAdminUser: (id: number, status: 'active' | 'blocked' | 'suspended', note?: string) => request<{ user: SessionUser }>(`/admin/users/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),
   }),

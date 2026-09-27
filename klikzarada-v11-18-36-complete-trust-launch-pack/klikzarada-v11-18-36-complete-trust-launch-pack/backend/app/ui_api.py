@@ -2881,6 +2881,36 @@ def admin_users(request: Request, db: Session = Depends(get_db)) -> dict:
     return {"users": [_user_data(user) | {"created_at": _iso(user.created_at)} for user in users]}
 
 
+@router.get("/admin/users/{user_id}/profile")
+def admin_user_profile(user_id: int, request: Request, db: Session = Depends(get_db)) -> dict:
+    """Return the operational profile an admin needs without exposing payout credentials."""
+    _require_user(request, db, {"admin"})
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "Korisnik nije pronađen.")
+
+    submission_rows = db.query(TaskSubmission.status, func.count(TaskSubmission.id)).filter(
+        TaskSubmission.user_id == user.id,
+    ).group_by(TaskSubmission.status).all()
+    withdrawal_rows = db.query(Withdrawal.status, func.count(Withdrawal.id)).filter(
+        Withdrawal.user_id == user.id,
+    ).group_by(Withdrawal.status).all()
+    submissions = {str(status or "unknown").lower(): count for status, count in submission_rows}
+    withdrawals = {str(status or "unknown").lower(): count for status, count in withdrawal_rows}
+
+    return {
+        "user": _user_data(user) | {"created_at": _iso(user.created_at)},
+        "activity": {
+            "submissions_total": sum(submissions.values()),
+            "submissions_pending": submissions.get("pending", 0),
+            "submissions_approved": submissions.get("approved", 0),
+            "submissions_rejected": submissions.get("rejected", 0),
+            "withdrawals_total": sum(withdrawals.values()),
+            "withdrawals_pending": withdrawals.get("pending", 0),
+        },
+    }
+
+
 @router.patch("/admin/users/{user_id}")
 def update_user_status(user_id: int, payload: AdminStatusPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     admin = _require_user(request, db, {"admin"})

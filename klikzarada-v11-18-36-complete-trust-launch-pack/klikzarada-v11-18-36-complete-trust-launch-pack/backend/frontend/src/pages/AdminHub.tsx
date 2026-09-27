@@ -4,7 +4,7 @@ import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tab
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal, InfoModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminWithdrawal, type AdminSetting, type BannerSlot, type FraudOverview, type PaidBanner, type PaidPromotion, type ProductionReadiness, type SupportTicket, type TaskSource } from '../lib/api'
+import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminUserProfile, type AdminWithdrawal, type AdminSetting, type BannerSlot, type FraudOverview, type PaidBanner, type PaidPromotion, type ProductionReadiness, type SupportTicket, type TaskSource } from '../lib/api'
 
 function adminNavigation(metrics: AdminMetrics | null, tickets: SupportTicket[]) {
   const pendingWithdrawals = metrics?.pending_withdrawals ?? 0
@@ -97,6 +97,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [paypalPayoutAction, setPaypalPayoutAction] = useState<{ id: number; korisnik: string; iznos: string } | null>(null)
   const [campAction, setCampAction] = useState<{ id: number; naziv: string; type: 'approve' | 'reject' | 'revision' | 'pause' | 'resume' | 'stop' } | null>(null)
   const [campaignDetails, setCampaignDetails] = useState<AdminCampaign | null>(null)
+  const [userDetails, setUserDetails] = useState<AdminUserProfile | null>(null)
   const [bannerAction, setBannerAction] = useState<{ id: number; naslov: string; iznos: number; type: 'approve' | 'reject' } | null>(null)
   const [promotionAction, setPromotionAction] = useState<{ id: number; naslov: string; iznos: number; type: 'approve' | 'reject' } | null>(null)
   const [userStatuses, setUserStatuses] = useState<Record<number, string>>({})
@@ -190,6 +191,14 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   }
   function sourceStatus(status: string) { return status === 'active' ? 'aktivno' : status === 'paused' ? 'obustavljeno' : status === 'error' ? 'greska' : status }
   function ticketStatus(status: string) { return status === 'open' ? 'otvoren' : status === 'waiting' ? 'na_cekanju' : status === 'closed' ? 'zatvoreno' : status }
+
+  async function openUserDetails(userId: number) {
+    try {
+      setUserDetails(await api.adminUserProfile(userId))
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Profil korisnika nije dostupan.', 'error')
+    }
+  }
 
   async function saveSetting(setting: AdminSetting) {
     setSavingAction(true)
@@ -369,6 +378,35 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
               </div>
             )}
             {campaignDetails.moderation_note && <Alert type="warning">Napomena za moderaciju: {campaignDetails.moderation_note}</Alert>}
+          </div>
+        )}
+      </InfoModal>
+
+      <InfoModal
+        open={userDetails !== null}
+        title={userDetails ? `Profil: ${userDetails.user.full_name}` : 'Profil korisnika'}
+        onClose={() => setUserDetails(null)}
+      >
+        {userDetails && (
+          <div className="space-y-4 text-sm text-ink-2 max-h-[65vh] overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 gap-3">
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Email</p><p className="mt-1 break-all font-semibold text-ink">{userDetails.user.email}</p></div>
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Telefon</p><p className="mt-1 font-semibold text-ink">{userDetails.user.phone || 'Nije unet'}</p></div>
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Grad</p><p className="mt-1 font-semibold text-ink">{userDetails.user.city || 'Nije unet'}</p></div>
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Registrovan</p><p className="mt-1 font-semibold text-ink">{userDetails.user.created_at ? new Intl.DateTimeFormat('sr-RS', { dateStyle: 'medium' }).format(new Date(userDetails.user.created_at)) : '—'}</p></div>
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Status / nivo</p><p className="mt-1 font-semibold text-ink">{userStatus(userDetails.user.id, userDetails.user.status)} · {userDetails.user.level}</p></div>
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Verifikacija</p><p className="mt-1 font-semibold text-ink">Email {userDetails.user.email_verified ? 'potvrđen' : 'nije potvrđen'} · telefon {userDetails.user.phone_verified ? 'potvrđen' : 'nije potvrđen'}</p></div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 rounded-lg border border-frame bg-mint-50 p-3">
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Saldo</p><p className="mt-1 font-mono font-semibold text-ink">{new Intl.NumberFormat('sr-RS').format(userDetails.user.balance_rsd)} RSD</p></div>
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Na čekanju</p><p className="mt-1 font-mono font-semibold text-ink">{new Intl.NumberFormat('sr-RS').format(userDetails.user.pending_rsd)} RSD</p></div>
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Ukupno</p><p className="mt-1 font-mono font-semibold text-ink">{new Intl.NumberFormat('sr-RS').format(userDetails.user.lifetime_earned_rsd)} RSD</p></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 rounded-lg border border-frame bg-white p-3">
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Dokazi</p><p className="mt-1 font-semibold text-ink">Ukupno {userDetails.activity.submissions_total} · odobreno {userDetails.activity.submissions_approved}</p><p className="text-xs text-ink-2">Na čekanju {userDetails.activity.submissions_pending} · odbijeno {userDetails.activity.submissions_rejected}</p></div>
+              <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Isplate</p><p className="mt-1 font-semibold text-ink">Ukupno zahteva {userDetails.activity.withdrawals_total}</p><p className="text-xs text-ink-2">Na čekanju {userDetails.activity.withdrawals_pending} · metod {userDetails.user.payment_method || 'nije unet'}</p></div>
+            </div>
+            <div><p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Interesovanja / referral</p><p className="mt-1 text-ink">{userDetails.user.interests.length ? userDetails.user.interests.join(', ') : 'Nisu uneta'} · kod {userDetails.user.referral_code || '—'}</p></div>
           </div>
         )}
       </InfoModal>
@@ -732,7 +770,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                         <span className="font-mono text-xs">—</span>,
                         <StatusBadge status={st} />,
                         <div className="flex gap-1.5">
-                          <Btn size="sm" variant="ghost">Profil</Btn>
+                          <Btn size="sm" variant="ghost" onClick={() => void openUserDetails(u.id)}>Profil</Btn>
                           {st !== 'blokirano'
                             ? <Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setBlockUser({ id: u.id, ime: u.full_name, action: 'block' })}>Blokiraj</Btn>
                             : <Btn size="sm" variant="success" disabled={savingAction} onClick={() => setBlockUser({ id: u.id, ime: u.full_name, action: 'unblock' })}>Odblokiraj</Btn>
