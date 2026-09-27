@@ -36,6 +36,12 @@ class UiContractTests(unittest.TestCase):
         """Registration and password reset must be able to create email links."""
         self.assertEqual(len(signature(_public_app_url).parameters), 0)
 
+    def test_react_shell_is_not_cached_between_deployments(self):
+        """A stale HTML shell must not reference a bundle removed by a deploy."""
+        main_source = (BACKEND_DIR / "app" / "main.py").read_text(encoding="utf-8")
+        self.assertIn('Cache-Control"] = "no-store, max-age=0, must-revalidate"', main_source)
+        self.assertIn("class AppUiStaticFiles", main_source)
+
 
 if __name__ == "__main__":
     unittest.main()

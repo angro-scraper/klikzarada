@@ -31,8 +31,28 @@ from .ui_api import router as ui_api_router
 app = FastAPI(title="KlikZarada V11.18.36 Complete Trust Launch Pack", version="11.18.36")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 SPA_DIR = Path("app/static/app-ui")
+
+
+class AppUiStaticFiles(StaticFiles):
+    """Keep an open browser usable when a deploy replaces a hashed Vite bundle."""
+
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code != 404 or not re.fullmatch(r"assets/index-[A-Za-z0-9_-]+\.js", path):
+            return response
+
+        index = SPA_DIR / "index.html"
+        if not index.exists():
+            return response
+        match = re.search(r'src="/app-ui/(assets/index-[^"]+\.js)"', index.read_text(encoding="utf-8"))
+        if not match:
+            return response
+        current_bundle = SPA_DIR / match.group(1)
+        return FileResponse(current_bundle, media_type="text/javascript") if current_bundle.exists() else response
+
+
 if SPA_DIR.exists():
-    app.mount("/app-ui", StaticFiles(directory=SPA_DIR), name="app-ui")
+    app.mount("/app-ui", AppUiStaticFiles(directory=SPA_DIR), name="app-ui")
 app.include_router(ui_api_router)
 templates = Jinja2Templates(directory="app/templates")
 UPLOAD_DIR = Path("app/static/uploads")
@@ -47,6 +67,8 @@ async def serve_react_application(request: Request, call_next):
     wants_html = "text/html" in request.headers.get("accept", "")
     if request.method == "GET" and wants_html and index.exists() and not path.startswith(excluded):
         response = FileResponse(index, media_type="text/html")
+        # The document must always point to the current hashed JavaScript bundle.
+        response.headers["Cache-Control"] = "no-store, max-age=0, must-revalidate"
     else:
         response = await call_next(request)
 
