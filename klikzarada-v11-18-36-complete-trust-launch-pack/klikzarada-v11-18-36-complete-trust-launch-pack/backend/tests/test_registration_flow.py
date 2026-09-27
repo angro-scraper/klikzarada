@@ -18,6 +18,7 @@ os.chdir(BACKEND_DIR)
 sys.path.insert(0, str(BACKEND_DIR))
 
 from app.database import Base  # noqa: E402
+from app.models import EmailOutboxV8, EmailVerificationTokenV11, User, UserConsentV11  # noqa: E402
 from app.ui_api import Registration, register  # noqa: E402
 
 
@@ -57,9 +58,13 @@ class RegistrationFlowTests(unittest.TestCase):
 
     def test_user_can_register_without_phone(self):
         result = self._register()
+        user = self.db.query(User).filter(User.email == "test@example.com").one()
 
         self.assertEqual(result["user"]["email"], "test@example.com")
         self.assertIsNone(result["user"]["phone"])
+        self.assertEqual(self.db.query(UserConsentV11).filter(UserConsentV11.user_id == user.id).count(), 1)
+        self.assertEqual(self.db.query(EmailVerificationTokenV11).filter(EmailVerificationTokenV11.user_id == user.id).count(), 1)
+        self.assertEqual(self.db.query(EmailOutboxV8).filter(EmailOutboxV8.recipient_email == user.email).count(), 1)
 
     def test_registration_preserves_required_and_safety_checks(self):
         self._register()
