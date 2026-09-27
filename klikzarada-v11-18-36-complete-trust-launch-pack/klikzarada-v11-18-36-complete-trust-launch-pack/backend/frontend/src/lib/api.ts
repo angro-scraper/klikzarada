@@ -47,6 +47,10 @@ export type Task = {
   paused_at: string | null
   stopped_at: string | null
   estimated_minutes: number
+  repeat_interval_hours: number
+  submission_deadline_hours: number
+  max_proof_revisions: number
+  min_quality_score: number
   min_user_level: string
   featured: boolean
   requires_tester_enrollment: boolean
@@ -76,6 +80,7 @@ export type Task = {
   submission_approved?: number
   submission_rejected?: number
   submission_pending?: number
+  submission_needs_revision?: number
   created_at: string | null
 }
 
@@ -103,6 +108,8 @@ export type TesterDailyCheckin = {
   reward_rsd: number
   status: string
   review_note: string | null
+  revision_count: number
+  revision_due_at: string | null
   reviewed_at: string | null
   checked_in_at: string | null
 }
@@ -249,6 +256,10 @@ export type CampaignPayload = {
   tester_duration_days?: number
   tester_daily_minutes?: number
   tester_daily_reward_rsd?: number
+  repeat_interval_hours?: number
+  submission_deadline_hours?: number
+  max_proof_revisions?: number
+  min_quality_score?: number
 }
 
 export type PayPalOrder = {
@@ -516,7 +527,7 @@ export const api = {
   updateCampaignLifecycle: (id: number, action: 'pause' | 'resume' | 'stop') => request<{ campaign: Task }>(`/advertiser/campaigns/${id}/lifecycle`, {
     method: 'PATCH', body: JSON.stringify({ action }),
   }),
-  reviewAdvertiserSubmission: (id: number, status: 'approved' | 'rejected', note?: string) => request<{ submission: Submission }>(`/advertiser/submissions/${id}`, {
+  reviewAdvertiserSubmission: (id: number, status: 'approved' | 'rejected' | 'needs_revision', note?: string) => request<{ submission: Submission }>(`/advertiser/submissions/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),
   }),
   updateTesterEnrollment: (id: number, status: 'invited' | 'declined', note?: string) => request<{ enrollment: TesterEnrollment }>(`/advertiser/tester-enrollments/${id}`, {

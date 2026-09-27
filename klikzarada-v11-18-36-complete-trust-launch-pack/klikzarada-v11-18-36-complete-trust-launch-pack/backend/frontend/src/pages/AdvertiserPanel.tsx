@@ -212,6 +212,10 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
   const [taskUrl, setTaskUrl] = useState(campaign?.target_url ?? '')
   const [category, setCategory] = useState(campaign?.category ?? '')
   const [proofRequired, setProofRequired] = useState(campaign?.proof_required ?? 'screenshot')
+  const [repeatIntervalHours, setRepeatIntervalHours] = useState(String(campaign?.repeat_interval_hours ?? 0))
+  const [revisionDeadlineHours, setRevisionDeadlineHours] = useState(String(campaign?.submission_deadline_hours ?? 24))
+  const [maxProofRevisions, setMaxProofRevisions] = useState(String(campaign?.max_proof_revisions ?? 1))
+  const [minQualityScore, setMinQualityScore] = useState(String(campaign?.min_quality_score ?? 0))
   const [targetCity, setTargetCity] = useState(campaign?.target_city ?? 'Srbija')
   const [targetAgeGroup, setTargetAgeGroup] = useState(campaign?.target_age_group ?? '18+')
   const [targetInterests, setTargetInterests] = useState(campaign?.target_interests ?? '')
@@ -337,6 +341,15 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
               { value: 'video', label: 'Video snimak' },
               { value: 'kod', label: 'Kod potvrde' },
             ]} value={proofRequired} onChange={setProofRequired} />
+            {!requiresTesterEnrollment && <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-4 space-y-3">
+              <div><p className="font-bold text-ink">Pravila izvršavanja</p><p className="mt-1 text-xs leading-5 text-ink-2">Postavi jasna pravila koja korisnik vidi pre početka. Ponavljanje se računa tek posle odobrenog dokaza.</p></div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Select label="Ponavljanje zadatka" options={[{ value: '0', label: 'Samo jednom' }, { value: '12', label: 'Na 12 sati' }, { value: '24', label: 'Jednom dnevno' }, { value: '168', label: 'Jednom nedeljno' }]} value={repeatIntervalHours} onChange={setRepeatIntervalHours} />
+                <Select label="Minimalni kvalitet izvršioca" options={[{ value: '0', label: 'Bez ograničenja' }, { value: '80', label: 'Najmanje 80%' }, { value: '90', label: 'Najmanje 90%' }]} value={minQualityScore} onChange={setMinQualityScore} />
+                <Input label="Rok za doradu dokaza (sati)" type="number" min={1} max={336} value={revisionDeadlineHours} onChange={setRevisionDeadlineHours} />
+                <Select label="Dopuštene dorade dokaza" options={[{ value: '0', label: 'Bez dorade' }, { value: '1', label: 'Jedna dorada' }, { value: '2', label: 'Dve dorade' }, { value: '3', label: 'Tri dorade' }]} value={maxProofRevisions} onChange={setMaxProofRevisions} />
+              </div>
+            </div>}
             <div className="flex gap-2">
               <Btn onClick={() => setStep(2)} variant="secondary">← Prethodni korak</Btn>
               <Btn onClick={() => setStep(4)} className="flex-1 justify-center">Pregled →</Btn>
@@ -350,6 +363,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
                 <div className="flex justify-between"><span className="text-ink-2">Naziv</span><span className="font-semibold text-ink">{naziv}</span></div>
                 <div className="flex justify-between gap-4"><span className="text-ink-2">Kategorija</span><span className="font-semibold text-ink text-right">{category}</span></div>
                 <div className="flex justify-between gap-4"><span className="text-ink-2">Trajanje kampanje</span><span className="font-semibold text-ink text-right">{campaignDurationDays} dana od odobrenja</span></div>
+                {!requiresTesterEnrollment && <><div className="flex justify-between gap-4"><span className="text-ink-2">Ponavljanje</span><span className="font-semibold text-ink text-right">{Number(repeatIntervalHours) ? `na ${repeatIntervalHours} h` : 'samo jednom'}</span></div><div className="flex justify-between gap-4"><span className="text-ink-2">Dorada dokaza</span><span className="font-semibold text-ink text-right">do {maxProofRevisions} puta, rok {revisionDeadlineHours} h</span></div><div className="flex justify-between gap-4"><span className="text-ink-2">Kvalitet izvršioca</span><span className="font-semibold text-ink text-right">{Number(minQualityScore) ? `najmanje ${minQualityScore}%` : 'bez ograničenja'}</span></div></>}
                 {requiresTesterEnrollment && <><div className="flex justify-between gap-4"><span className="text-ink-2">Pristup aplikaciji</span><span className="font-semibold text-amber-800 text-right">Ručno dodavanje testera</span></div><div className="flex justify-between gap-4"><span className="text-ink-2">Plan testiranja</span><span className="font-semibold text-amber-800 text-right">{testerRequiredCount} testera, {testerDurationDays} dana, min. {testerDailyMinutes} min/dan</span></div><div className="flex justify-between gap-4"><span className="text-ink-2">Dnevna nagrada</span><span className="font-mono font-bold text-emerald-600">{testerDailyReward || 0} RSD</span></div></>}
                 <div><span className="text-ink-2">Precizni detalji</span><ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-ink">{detailLines.map(line => <li key={line}>{line}</li>)}</ul></div>
                 <div className="flex justify-between"><span className="text-ink-2">Ukupno po testeru</span><span className="font-mono font-bold text-emerald-600">{requiresTesterEnrollment ? Number(testerDailyReward || 0) * Number(testerDurationDays || 14) : reward} RSD</span></div>
@@ -366,7 +380,8 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
                 const totalSlots = platformPublishing ? Math.floor(Number(slots)) : Math.floor(Number(budget) / (rewardRsd * (1 + feePercent / 100)))
                 const durationValid = Number.isInteger(Number(campaignDurationDays)) && Number(campaignDurationDays) >= 1 && Number(campaignDurationDays) <= 365
                 const testerConfigValid = !requiresTesterEnrollment || (Number(testerRequiredCount) >= 12 && Number(testerDurationDays) >= 14 && Number(testerDurationDays) <= 31 && Number(testerDailyMinutes) >= 1 && Number(testerDailyReward) > 0 && totalSlots >= Number(testerRequiredCount))
-                if (!Number.isFinite(rewardRsd) || rewardRsd <= 0 || totalSlots < 1 || !testerConfigValid || !durationValid) {
+                const deliveryConfigValid = requiresTesterEnrollment || (Number(repeatIntervalHours) >= 0 && Number(repeatIntervalHours) <= 720 && Number(revisionDeadlineHours) >= 1 && Number(revisionDeadlineHours) <= 336 && Number(maxProofRevisions) >= 0 && Number(maxProofRevisions) <= 3 && Number(minQualityScore) >= 0 && Number(minQualityScore) <= 100)
+                if (!Number.isFinite(rewardRsd) || rewardRsd <= 0 || totalSlots < 1 || !testerConfigValid || !durationValid || !deliveryConfigValid) {
                   setError(platformPublishing ? 'Unesi validnu nagradu i broj izvršenja od najmanje jedan.' : 'Unesi validnu nagradu i budžet dovoljan za najmanje jedan zadatak.')
                   return
                 }
@@ -375,7 +390,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
                 try {
                   const fullDescription = `${description.trim()}\n\nSpecifikacija zadatka:\n${detailLines.map(line => `- ${line}`).join('\n')}`
                   const betaPlan = requiresTesterEnrollment ? `\n\nPlan zatvorenog beta testiranja:\n- Tester prvo šalje email za poziv u store tester listu.\n- Svaki tester ima ${testerDurationDays} dana od ručne potvrde pristupa.\n- Svakog dana testira najmanje ${testerDailyMinutes} minuta i šalje kratak izveštaj.\n- Dnevna nagrada: ${testerDailyReward} RSD, uz odobrenje oglašivača.` : ''
-                  const payload = { title: naziv, category, task_type: category, target_url: taskUrl || undefined, description: fullDescription + betaPlan, instructions: `Korisnik treba da prati specifikaciju zadatka i dostavi samo traženi dokaz.\n${detailLines.map(line => `- ${line}`).join('\n')}${betaPlan}`, proof_required: proofRequired, reward_rsd: rewardRsd, total_slots: totalSlots, campaign_duration_days: Number(campaignDurationDays), target_city: targetCity || undefined, target_age_group: targetAgeGroup, target_interests: targetInterests || undefined, requires_tester_enrollment: requiresTesterEnrollment, tester_required_count: Number(testerRequiredCount), tester_duration_days: Number(testerDurationDays), tester_daily_minutes: Number(testerDailyMinutes), tester_daily_reward_rsd: requiresTesterEnrollment ? Number(testerDailyReward) : 0 }
+                  const payload = { title: naziv, category, task_type: category, target_url: taskUrl || undefined, description: fullDescription + betaPlan, instructions: `Korisnik treba da prati specifikaciju zadatka i dostavi samo traženi dokaz.\n${detailLines.map(line => `- ${line}`).join('\n')}${betaPlan}`, proof_required: proofRequired, reward_rsd: rewardRsd, total_slots: totalSlots, campaign_duration_days: Number(campaignDurationDays), target_city: targetCity || undefined, target_age_group: targetAgeGroup, target_interests: targetInterests || undefined, requires_tester_enrollment: requiresTesterEnrollment, tester_required_count: Number(testerRequiredCount), tester_duration_days: Number(testerDurationDays), tester_daily_minutes: Number(testerDailyMinutes), tester_daily_reward_rsd: requiresTesterEnrollment ? Number(testerDailyReward) : 0, repeat_interval_hours: requiresTesterEnrollment ? 0 : Number(repeatIntervalHours), submission_deadline_hours: Number(revisionDeadlineHours), max_proof_revisions: Number(maxProofRevisions), min_quality_score: Number(minQualityScore) }
                   if (campaign) await onRevise(campaign.id, payload)
                   else await onCreate(payload)
                   setSubmitted(true)
@@ -868,7 +883,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                   </Card>
                 </div>}
                 <Tabs
-                  tabs={[{ id: 'svi', label: 'Svi' }, { id: 'na_proveri', label: 'Na proveri' }, { id: 'odobreno', label: 'Odobreno' }, { id: 'odbijeno', label: 'Odbijeno' }]}
+                  tabs={[{ id: 'svi', label: 'Svi' }, { id: 'na_proveri', label: 'Na proveri' }, { id: 'needs_revision', label: 'Na doradi' }, { id: 'odobreno', label: 'Odobreno' }, { id: 'odbijeno', label: 'Odbijeno' }]}
                   active={proofsTab}
                   onChange={setProofsTab}
                 />
@@ -883,7 +898,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                         <span className="font-mono text-xs">{p.poslato}</span>,
                         <StatusBadge status={st} />,
                         st === 'na_proveri'
-                          ? <div className="flex gap-2"><Btn size="sm" variant="success" onClick={() => void (async () => { try { await api.reviewAdvertiserSubmission(p.id, 'approved'); await refreshDashboard(); showToast('Dokaz je odobren, a nagrada prebačena korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dokaz nije obrađen.', 'error') } })()}>Odobri</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.reviewAdvertiserSubmission(p.id, 'rejected', 'Dokaz ne ispunjava zahteve kampanje.'); await refreshDashboard(); showToast('Dokaz je vraćen korisniku kao odbijen.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dokaz nije obrađen.', 'error') } })()}>Odbij</Btn></div>
+                          ? <div className="flex flex-wrap gap-2"><Btn size="sm" variant="success" onClick={() => void (async () => { try { await api.reviewAdvertiserSubmission(p.id, 'approved'); await refreshDashboard(); showToast('Dokaz je odobren, a nagrada prebačena korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dokaz nije obrađen.', 'error') } })()}>Odobri</Btn><Btn size="sm" variant="secondary" onClick={() => void (async () => { try { await api.reviewAdvertiserSubmission(p.id, 'needs_revision', 'Dopuni dokaz jasnim linkom ili snimkom ekrana i odgovori na zahteve iz specifikacije zadatka.'); await refreshDashboard(); showToast('Korisnik je obavešten da dopuni dokaz.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dorada dokaza nije poslata.', 'error') } })()}>Traži doradu</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.reviewAdvertiserSubmission(p.id, 'rejected', 'Dokaz ne ispunjava zahteve kampanje.'); await refreshDashboard(); showToast('Dokaz je vraćen korisniku kao odbijen.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dokaz nije obrađen.', 'error') } })()}>Odbij</Btn></div>
                           : <span className="text-xs text-ink-3">{p.submission.review_note || 'Obrađeno'}</span>,
                       ]
                     })}

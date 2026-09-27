@@ -114,6 +114,10 @@ function normalizeDashboard(data: UserDashboardData): UserDashboardData {
       proof_required: textValue(task.proof_required, 'Dokaz potreban'),
       reward_rsd: numberValue(task.reward_rsd),
       estimated_minutes: numberValue(task.estimated_minutes),
+      repeat_interval_hours: numberValue(task.repeat_interval_hours),
+      submission_deadline_hours: numberValue(task.submission_deadline_hours, 24),
+      max_proof_revisions: numberValue(task.max_proof_revisions, 1),
+      min_quality_score: numberValue(task.min_quality_score),
       tester_daily_reward_rsd: numberValue(task.tester_daily_reward_rsd),
       requires_tester_enrollment: Boolean(task.requires_tester_enrollment),
     }
@@ -257,6 +261,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const payoutGap = Math.max(0, minWithdrawal - balance)
   const selectedTask = activeTasks.find(task => task.id === selectedTaskId || task.id === submitProofModal)
   const selectedTesterProgress = selectedTask?.tester_progress
+  const selectedTaskRevision = selectedTask ? (dashboard?.submissions ?? []).find(submission => submission.task_id === selectedTask.id && submission.status === 'needs_revision') : undefined
 
   async function claimProgramReward(rewardKey: string) {
     setSaving(true)
@@ -414,6 +419,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
         {submitProofModal !== null && (
           <div className="space-y-3">
             <p className="text-sm text-ink-2">{selectedTask ? `Dokaz za: ${selectedTask.title}` : 'Pošalji dokaz izvršenja zadatka.'}</p>
+            {selectedTaskRevision && <Alert type="warning"><strong>Potrebna je dorada:</strong> {selectedTaskRevision.review_note || 'Dopuni dokaz prema zahtevu oglašivača.'}{selectedTaskRevision.revision_due_at ? ` Rok: ${formatDate(selectedTaskRevision.revision_due_at)}.` : ''}</Alert>}
             {verification && (
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-2">
                 <div className="flex items-center justify-between gap-3">
@@ -458,7 +464,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                 }
               }}
             >
-              {saving ? 'Slanje...' : verification && verification.active_seconds < verification.required_seconds ? 'Sačekaj proveru vremena' : 'Pošalji dokaz na proveru'}
+              {saving ? 'Slanje...' : verification && verification.active_seconds < verification.required_seconds ? 'Sačekaj proveru vremena' : selectedTaskRevision ? 'Pošalji dopunjen dokaz' : 'Pošalji dokaz na proveru'}
             </Btn>
           </div>
         )}
@@ -665,6 +671,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                     <p><span className="text-ink-3 font-medium">Vreme:</span> oko {selectedTask?.estimated_minutes || 0} min</p>
                     <p><span className="text-ink-3 font-medium">Dokaz:</span> {selectedTask?.proof_required || '—'}</p>
                     <p><span className="text-ink-3 font-medium">Nivo:</span> {selectedTask?.min_user_level || 'Bronza'} i više</p>
+                    {!selectedTask?.requires_tester_enrollment && <><p><span className="text-ink-3 font-medium">Ponavljanje:</span> {selectedTask?.repeat_interval_hours ? `na svakih ${selectedTask.repeat_interval_hours} h nakon odobrenja` : 'samo jednom'}</p><p><span className="text-ink-3 font-medium">Kvalitet:</span> {selectedTask?.min_quality_score ? `najmanje ${selectedTask.min_quality_score}%` : 'bez dodatnog uslova'}</p></>}
                   </div>
                   <Alert type="info">Za standardne zadatke server prati vreme, aktivnost i fokus taba. Za zatvoreni beta test šalješ dnevni izveštaj; svaki dan posebno odobrava oglašivač.</Alert>
                   {selectedTask?.requires_tester_enrollment && selectedTask.tester_enrollment?.status !== 'invited' ? (
@@ -699,7 +706,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                   ) : (
                     <div className="flex gap-2">
                       {selectedTask?.target_url && <Btn onClick={() => window.open(selectedTask.target_url || '', '_blank', 'noopener,noreferrer')} variant="secondary">↗ Otvori zadatak</Btn>}
-                      <Btn disabled={saving} onClick={() => selectedTask && void beginTaskVerification(selectedTask)} variant="success">🛡️ Pokreni proveru</Btn>
+                      <Btn disabled={saving} onClick={() => selectedTask && void beginTaskVerification(selectedTask)} variant="success">🛡️ {selectedTaskRevision ? 'Pokreni doradu dokaza' : 'Pokreni proveru'}</Btn>
                     </div>
                   )}
                   <Btn onClick={() => goTo('zadaci')} variant="secondary">Nazad na zadatke</Btn>
@@ -739,19 +746,20 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
               <div>
                 <SectionHeader title="Moji dokazi" description="Status svakog poslatog dokaza." />
                 <Tabs
-                  tabs={[{ id: 'svi', label: 'Svi' }, { id: 'na_cekanju', label: 'Na čekanju' }, { id: 'odobreno', label: 'Odobreno' }, { id: 'odbijeno', label: 'Odbijeno' }]}
+                  tabs={[{ id: 'svi', label: 'Svi' }, { id: 'pending', label: 'Na čekanju' }, { id: 'needs_revision', label: 'Na doradi' }, { id: 'approved', label: 'Odobreno' }, { id: 'rejected', label: 'Odbijeno' }]}
                   active={proofTab}
                   onChange={setProofTab}
                 />
                 <Card>
                   {visibleProofs.length > 0 ? (
                     <Table
-                      headers={['Zadatak', 'Poslato', 'Nagrada', 'Status']}
+                      headers={['Zadatak', 'Poslato', 'Nagrada', 'Status', 'Napomena']}
                       rows={visibleProofs.map(p => [
                         <span className="font-medium text-ink">{p.task_title}</span>,
                         <span className="font-mono text-xs text-ink-2">{formatDate(p.created_at)}</span>,
                         <span className="font-mono font-semibold text-emerald-600">{formatRsd(p.reward_rsd)}</span>,
                         <StatusBadge status={p.status} />,
+                        <span className="max-w-[280px] text-xs text-ink-2">{p.review_note || (p.status === 'needs_revision' ? 'Otvori zadatak i pošalji dopunjen dokaz.' : '—')}</span>,
                       ])}
                     />
                   ) : (

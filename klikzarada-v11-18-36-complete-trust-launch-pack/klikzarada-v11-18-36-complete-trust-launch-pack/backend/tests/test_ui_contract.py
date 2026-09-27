@@ -94,6 +94,17 @@ class UiContractTests(unittest.TestCase):
         self.assertIn("Dnevna nagrada se otključava nakon prvog stvarno poslatog dokaza", api_source)
         self.assertIn("class UserProgramRewardClaim", model_source)
 
+    def test_campaign_delivery_controls_have_a_real_proof_revision_flow(self):
+        """A revision must reuse the held task slot instead of creating a second reward."""
+        api_source = (BACKEND_DIR / "app" / "ui_api.py").read_text(encoding="utf-8")
+        advertiser_source = (BACKEND_DIR / "frontend" / "src" / "pages" / "AdvertiserPanel.tsx").read_text(encoding="utf-8")
+        user_source = (BACKEND_DIR / "frontend" / "src" / "pages" / "UserDashboard.tsx").read_text(encoding="utf-8")
+        self.assertIn('payload.status not in {"approved", "rejected", "needs_revision"}', api_source)
+        self.assertIn('if is_revision:', api_source)
+        self.assertIn('submission.revision_count = int(submission.revision_count or 0) + 1', api_source)
+        self.assertIn("Traži doradu", advertiser_source)
+        self.assertIn("Pokreni doradu dokaza", user_source)
+
 
 if __name__ == "__main__":
     unittest.main()

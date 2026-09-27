@@ -202,6 +202,10 @@ class CampaignPayload(BaseModel):
     tester_duration_days: int = Field(default=14, ge=14, le=31)
     tester_daily_minutes: int = Field(default=5, ge=1, le=60)
     tester_daily_reward_rsd: float = Field(default=0, ge=0)
+    repeat_interval_hours: int = Field(default=0, ge=0, le=24 * 30)
+    submission_deadline_hours: int = Field(default=24, ge=1, le=24 * 14)
+    max_proof_revisions: int = Field(default=1, ge=0, le=3)
+    min_quality_score: float = Field(default=0, ge=0, le=100)
 
 
 class TesterEnrollmentPayload(BaseModel):
@@ -502,6 +506,10 @@ def _task_data(task: Task) -> dict:
         "paused_at": _iso(task.paused_at),
         "stopped_at": _iso(task.stopped_at),
         "estimated_minutes": task.estimated_minutes,
+        "repeat_interval_hours": max(0, int(task.repeat_interval_hours or 0)),
+        "submission_deadline_hours": max(1, int(task.submission_deadline_hours or 24)),
+        "max_proof_revisions": max(0, int(task.max_proof_revisions or 0)),
+        "min_quality_score": _money(task.min_quality_score or 0),
         "min_user_level": task.min_user_level or "Bronza",
         "featured": bool(task.featured),
         "requires_tester_enrollment": bool(task.requires_tester_enrollment),
@@ -640,8 +648,42 @@ def _submission_data(submission: TaskSubmission) -> dict:
         "status": _status(submission.status),
         "reward_rsd": _money(submission.reward_rsd),
         "review_note": submission.review_note,
+        "revision_count": int(submission.revision_count or 0),
+        "revision_due_at": _iso(submission.revision_due_at),
         "created_at": _iso(submission.created_at),
     }
+
+
+def _latest_task_submission(db: Session, user_id: int, task_id: int) -> TaskSubmission | None:
+    return db.query(TaskSubmission).filter(
+        TaskSubmission.user_id == user_id,
+        TaskSubmission.task_id == task_id,
+    ).order_by(TaskSubmission.created_at.desc()).first()
+
+
+def _task_access_error(task: Task, user: User, latest: TaskSubmission | None, now: datetime | None = None) -> str | None:
+    """Return a user-safe reason when a task cannot be started again yet."""
+    now = now or datetime.utcnow()
+    if float(user.quality_score or 0) < float(task.min_quality_score or 0):
+        return f"Za ovaj zadatak potreban je kvalitet izvršioca od najmanje {task.min_quality_score:.0f}%."
+    if latest and latest.status == "needs_revision":
+        if latest.revision_due_at and latest.revision_due_at < now:
+            return "Rok za doradu dokaza je istekao."
+        if int(latest.revision_count or 0) >= int(task.max_proof_revisions or 0):
+            return "Iskorišćen je dozvoljeni broj dorada dokaza."
+        return None
+    if latest and latest.status == "pending":
+        return "Dokaz za ovaj zadatak već čeka pregled."
+    if latest and latest.status == "approved":
+        repeat_hours = max(0, int(task.repeat_interval_hours or 0))
+        if not repeat_hours:
+            return "Ovaj zadatak možeš izvršiti samo jednom."
+        available_at = (latest.reviewed_at or latest.created_at) + timedelta(hours=repeat_hours)
+        if available_at > now:
+            return f"Ovaj zadatak možeš ponovo izvršiti nakon {available_at.strftime('%d.%m. u %H:%M')}."
+    if int(task.used_slots or 0) >= int(task.total_slots or 0):
+        return "Sva mesta na ovom zadatku su već popunjena."
+    return None
 
 
 def _ticket_data(ticket: SupportTicket) -> dict:
@@ -1414,14 +1456,18 @@ def _claimable_program_reward(db: Session, user: User, reward_key: str) -> tuple
 @router.get("/user/dashboard")
 def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"korisnik", "admin"})
+    now = datetime.utcnow()
     enrollment_by_task = {
         item.task_id: item
         for item in db.query(AppTesterEnrollment).filter(AppTesterEnrollment.user_id == user.id).all()
     }
-    tasks = [
-        task for task in db.query(Task).filter(Task.status == "active").order_by(Task.featured.desc(), Task.reward_rsd.desc()).limit(100).all()
-        if task.used_slots < task.total_slots or task.id in enrollment_by_task
-    ]
+    tasks = []
+    for task in db.query(Task).filter(Task.status == "active").order_by(Task.featured.desc(), Task.reward_rsd.desc()).limit(100).all():
+        latest = _latest_task_submission(db, user.id, task.id)
+        # A task returned for proof revision stays visible even when its last
+        # available slot has already been reserved by this user.
+        if task.id in enrollment_by_task or _task_access_error(task, user, latest, now) is None:
+            tasks.append(task)
     checkins_by_task: dict[int, list[AppTesterDailyCheckin]] = {}
     for item in db.query(AppTesterDailyCheckin).filter(AppTesterDailyCheckin.user_id == user.id).all():
         checkins_by_task.setdefault(item.task_id, []).append(item)
@@ -1793,20 +1839,19 @@ def create_tester_daily_checkin(task_id: int, payload: TesterDailyCheckinPayload
 def start_task_verification(task_id: int, payload: VerificationStartPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"korisnik", "admin"})
     _expire_campaigns(db)
-    task = db.query(Task).filter(Task.id == task_id, Task.status == "active", Task.used_slots < Task.total_slots).first()
+    task = db.query(Task).filter(Task.id == task_id, Task.status == "active").first()
     if not task:
         raise HTTPException(404, "Zadatak nije dostupan.")
     _require_tester_invitation(db, user, task)
     if task.requires_tester_enrollment:
         raise HTTPException(409, "Za zatvoreno testiranje koristi dnevnu evidenciju. Nagrada se obračunava po odobrenom danu.")
-    _verify_daily_limits(db, user, task)
-    existing_submission = db.query(TaskSubmission).filter(
-        TaskSubmission.user_id == user.id,
-        TaskSubmission.task_id == task.id,
-        TaskSubmission.status.in_(["pending", "approved"]),
-    ).first()
-    if existing_submission:
-        raise HTTPException(409, "Za ovaj zadatak je već poslat dokaz.")
+    latest_submission = _latest_task_submission(db, user.id, task.id)
+    access_error = _task_access_error(task, user, latest_submission)
+    if access_error:
+        raise HTTPException(409, access_error)
+    # A proof revision does not consume a new slot or reserve a new reward.
+    if not latest_submission or latest_submission.status != "needs_revision":
+        _verify_daily_limits(db, user, task)
 
     now = datetime.utcnow()
     active_session = db.query(TaskVerificationSessionV1).filter(
@@ -1927,15 +1972,16 @@ def task_verification_heartbeat(payload: VerificationHeartbeatPayload, request: 
 def submit_proof(task_id: int, payload: ProofPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"korisnik", "admin"})
     _expire_campaigns(db)
-    task = db.query(Task).filter(Task.id == task_id, Task.status == "active", Task.used_slots < Task.total_slots).first()
+    task = db.query(Task).filter(Task.id == task_id, Task.status == "active").first()
     if not task:
         raise HTTPException(404, "Zadatak nije dostupan.")
     _require_tester_invitation(db, user, task)
     if task.requires_tester_enrollment:
         raise HTTPException(409, "Za zatvoreno testiranje nagrade se obračunavaju po odobrenim dnevnim izveštajima.")
-    existing = db.query(TaskSubmission).filter(TaskSubmission.user_id == user.id, TaskSubmission.task_id == task.id, TaskSubmission.status.in_(["pending", "approved"])).first()
-    if existing:
-        raise HTTPException(409, "Za ovaj zadatak je već poslat dokaz.")
+    existing = _latest_task_submission(db, user.id, task.id)
+    access_error = _task_access_error(task, user, existing)
+    if access_error:
+        raise HTTPException(409, access_error)
     verification = db.query(TaskVerificationSessionV1).filter(
         TaskVerificationSessionV1.token == payload.verification_token,
         TaskVerificationSessionV1.user_id == user.id,
@@ -1945,11 +1991,29 @@ def submit_proof(task_id: int, payload: ProofPayload, request: Request, db: Sess
     minimum_events = int(_limit_from_env("ANTI_FRAUD_MIN_ACTIVITY_EVENTS", ANTI_FRAUD_MIN_ACTIVITY_EVENTS))
     if not verification or verification.active_seconds < verification.required_seconds or verification.activity_events < minimum_events:
         raise HTTPException(409, "Pre slanja dokaza završi proveru vremena i aktivnosti zadatka.")
-    fee = _money(task.reward_rsd * (task.platform_fee_percent or PLATFORM_FEE_PERCENT) / 100)
-    submission = TaskSubmission(user_id=user.id, task_id=task.id, proof=payload.proof.strip(), reward_rsd=task.reward_rsd, platform_fee_rsd=fee, advertiser_cost_rsd=_money(task.reward_rsd + fee), status="pending")
-    task.used_slots += 1
-    user.pending_rsd = _money(user.pending_rsd + task.reward_rsd)
-    db.add(submission)
+    is_revision = bool(existing and existing.status == "needs_revision")
+    if is_revision:
+        submission = existing
+        submission.proof = payload.proof.strip()
+        submission.status = "pending"
+        submission.review_note = None
+        submission.reviewed_at = None
+        submission.revision_due_at = None
+        submission.revision_count = int(submission.revision_count or 0) + 1
+    else:
+        fee = _money(task.reward_rsd * (task.platform_fee_percent or PLATFORM_FEE_PERCENT) / 100)
+        submission = TaskSubmission(
+            user_id=user.id,
+            task_id=task.id,
+            proof=payload.proof.strip(),
+            reward_rsd=task.reward_rsd,
+            platform_fee_rsd=fee,
+            advertiser_cost_rsd=_money(task.reward_rsd + fee),
+            status="pending",
+        )
+        task.used_slots += 1
+        user.pending_rsd = _money(user.pending_rsd + task.reward_rsd)
+        db.add(submission)
     db.flush()
     verification.status = "submitted"
     verification.submission_id = submission.id
@@ -2004,6 +2068,7 @@ def advertiser_dashboard(request: Request, db: Session = Depends(get_db)) -> dic
         task_data["submission_approved"] = sum(1 for submission in task_submissions if _status(submission.status) == "approved")
         task_data["submission_rejected"] = sum(1 for submission in task_submissions if _status(submission.status) == "rejected")
         task_data["submission_pending"] = sum(1 for submission in task_submissions if _status(submission.status) in {"pending", "submitted"})
+        task_data["submission_needs_revision"] = sum(1 for submission in task_submissions if _status(submission.status) == "needs_revision")
         task_enrollments = [item for item in enrollments if item.task_id == task.id]
         task_data["tester_enrollment_total"] = len(task_enrollments)
         task_data["tester_enrollment_requested"] = sum(1 for item in task_enrollments if item.status == "requested")
@@ -2733,7 +2798,7 @@ def create_campaign(payload: CampaignPayload, request: Request, db: Session = De
     total = 0.0 if platform_publishing else _money(payload.reward_rsd * payload.total_slots * (1 + PLATFORM_FEE_PERCENT / 100))
     if user.advertiser_budget_rsd < total:
         raise HTTPException(400, f"Nedovoljno budžeta. Potrebno je {total:.0f} RSD.")
-    task = Task(advertiser_id=user.id, title=payload.title.strip(), category=category, task_type=payload.task_type.strip(), target_url=(payload.target_url or "").strip() or None, description=payload.description.strip(), instructions=payload.instructions.strip(), proof_required=payload.proof_required.strip(), reward_rsd=payload.reward_rsd, platform_fee_percent=0.0 if platform_publishing else PLATFORM_FEE_PERCENT, total_slots=payload.total_slots, campaign_duration_days=payload.campaign_duration_days, target_city=payload.target_city, target_age_group=payload.target_age_group, target_interests=payload.target_interests, requires_tester_enrollment=payload.requires_tester_enrollment, tester_required_count=payload.tester_required_count, tester_duration_days=payload.tester_duration_days, tester_daily_minutes=payload.tester_daily_minutes, tester_daily_reward_rsd=payload.tester_daily_reward_rsd, status="pending")
+    task = Task(advertiser_id=user.id, title=payload.title.strip(), category=category, task_type=payload.task_type.strip(), target_url=(payload.target_url or "").strip() or None, description=payload.description.strip(), instructions=payload.instructions.strip(), proof_required=payload.proof_required.strip(), reward_rsd=payload.reward_rsd, platform_fee_percent=0.0 if platform_publishing else PLATFORM_FEE_PERCENT, total_slots=payload.total_slots, campaign_duration_days=payload.campaign_duration_days, repeat_interval_hours=0 if payload.requires_tester_enrollment else payload.repeat_interval_hours, submission_deadline_hours=payload.submission_deadline_hours, max_proof_revisions=payload.max_proof_revisions, min_quality_score=payload.min_quality_score, target_city=payload.target_city, target_age_group=payload.target_age_group, target_interests=payload.target_interests, requires_tester_enrollment=payload.requires_tester_enrollment, tester_required_count=payload.tester_required_count, tester_duration_days=payload.tester_duration_days, tester_daily_minutes=payload.tester_daily_minutes, tester_daily_reward_rsd=payload.tester_daily_reward_rsd, status="pending")
     if not platform_publishing:
         user.advertiser_budget_rsd = _money(user.advertiser_budget_rsd - total)
         user.advertiser_reserved_rsd = _money(user.advertiser_reserved_rsd + total)
@@ -2791,6 +2856,10 @@ def revise_campaign(task_id: int, payload: CampaignPayload, request: Request, db
     task.platform_fee_percent = fee_percent
     task.total_slots = payload.total_slots
     task.campaign_duration_days = payload.campaign_duration_days
+    task.repeat_interval_hours = 0 if payload.requires_tester_enrollment else payload.repeat_interval_hours
+    task.submission_deadline_hours = payload.submission_deadline_hours
+    task.max_proof_revisions = payload.max_proof_revisions
+    task.min_quality_score = payload.min_quality_score
     task.target_city = payload.target_city
     task.target_age_group = payload.target_age_group
     task.target_interests = payload.target_interests
@@ -3243,14 +3312,34 @@ def _review_submission(submission_id: int, payload: AdminStatusPayload, actor: U
     submission = db.query(TaskSubmission).filter(TaskSubmission.id == submission_id).first()
     if not submission:
         raise HTTPException(404, "Dokaz nije pronađen.")
-    if payload.status not in {"approved", "rejected"}:
-        raise HTTPException(400, "Status dokaza mora biti approved ili rejected.")
+    if payload.status not in {"approved", "rejected", "needs_revision"}:
+        raise HTTPException(400, "Status dokaza mora biti approved, rejected ili needs_revision.")
     if submission.status != "pending":
         raise HTTPException(409, "Ovaj dokaz je već obrađen.")
+    user = submission.user
+    task = submission.task
+    now = datetime.utcnow()
+    if payload.status == "needs_revision":
+        max_revisions = int(task.max_proof_revisions or 0) if task else 0
+        if max_revisions <= int(submission.revision_count or 0):
+            raise HTTPException(409, "Za ovaj dokaz više nije dozvoljena dorada.")
+        submission.status = "needs_revision"
+        submission.review_note = (payload.note or "Dopuni dokaz traženim informacijama i pošalji ga ponovo.").strip()
+        submission.reviewed_at = now
+        submission.revision_due_at = now + timedelta(hours=max(1, int(task.submission_deadline_hours or 24)))
+        db.add(Notification(
+            user_id=user.id,
+            title="Potrebna je dopuna dokaza",
+            body=f"Oglašivač je vratio dokaz na doradu za zadatak: {task.title if task else 'zadatak'}. Rok za ponovni dokaz je {submission.revision_due_at.strftime('%d.%m. u %H:%M')}.",
+            status="unread",
+        ))
+        _audit(db, actor, "submission_revision_requested", "TaskSubmission", submission.id, payload.status)
+        db.commit()
+        return {"submission": _submission_data(submission)}
+
     submission.status = payload.status
     submission.review_note = payload.note
-    submission.reviewed_at = datetime.utcnow()
-    user = submission.user
+    submission.reviewed_at = now
     if payload.status == "approved":
         user.pending_rsd = _money(user.pending_rsd - submission.reward_rsd)
         user.balance_rsd = _money(user.balance_rsd + submission.reward_rsd)
@@ -3272,7 +3361,6 @@ def _review_submission(submission_id: int, payload: AdminStatusPayload, actor: U
             db.add(Notification(user_id=user.id, title="Referral bonus je dodat", body="Dobio/la si 50 RSD nakon prvog odobrenog zadatka.", status="unread"))
             db.add(Notification(user_id=referrer.id, title="Referral bonus je dodat", body=f"Dobio/la si 100 RSD jer je {user.full_name} završio/la prvi odobreni zadatak.", status="unread"))
         db.add(Notification(user_id=user.id, title="Zadatak je odobren", body=f"Nagrada od {submission.reward_rsd:.0f} RSD je prebačena u raspoloživi saldo.", status="unread"))
-        task = submission.task
         advertiser = task.advertiser if task else None
         if advertiser and not _is_platform_publisher(advertiser):
             advertiser_cost = _money(submission.advertiser_cost_rsd)

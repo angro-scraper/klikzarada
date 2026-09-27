@@ -77,6 +77,12 @@ class Task(Base):
     reserved_slots = Column(Integer, default=0)
     estimated_minutes = Column(Integer, default=5)
     deadline_text = Column(String(120), nullable=True)
+    # New campaigns can be repeated only after this cooldown. A zero value
+    # keeps the original one-time task behavior.
+    repeat_interval_hours = Column(Integer, default=0)
+    submission_deadline_hours = Column(Integer, default=24)
+    max_proof_revisions = Column(Integer, default=1)
+    min_quality_score = Column(Float, default=0)
     target_city = Column(String(100), nullable=True)
     target_age_group = Column(String(40), nullable=True)
     target_interests = Column(Text, nullable=True)
@@ -116,6 +122,8 @@ class TaskSubmission(Base):
     platform_fee_rsd = Column(Float, default=0)
     advertiser_cost_rsd = Column(Float, default=0)
     review_note = Column(Text, nullable=True)
+    revision_count = Column(Integer, default=0)
+    revision_due_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     reviewed_at = Column(DateTime, nullable=True)
     user = relationship("User", back_populates="submissions")
