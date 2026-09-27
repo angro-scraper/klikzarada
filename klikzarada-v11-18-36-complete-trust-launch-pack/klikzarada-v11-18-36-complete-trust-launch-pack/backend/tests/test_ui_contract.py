@@ -22,6 +22,7 @@ class UiContractTests(unittest.TestCase):
             "/api/ui/advertiser/banners/upload",
             "/api/ui/advertiser/promotions",
             "/api/ui/admin/promotions",
+            "/api/ui/admin/dashboard",
             "/api/ui/tickets/{ticket_id}/messages",
             "/api/ui/account/password",
             "/api/ui/advertiser/campaigns/{task_id}/lifecycle",

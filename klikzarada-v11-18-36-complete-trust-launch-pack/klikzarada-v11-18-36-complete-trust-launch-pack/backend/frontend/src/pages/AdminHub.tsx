@@ -503,15 +503,22 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                   <StatCard label="Isplate na čekanju" value={String(metrics?.pending_withdrawals ?? 0)} icon="💸" accent="purple" />
                 </div>
                 <Card className="border-sky-200 bg-sky-50 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <h2 className="font-bold text-ink">Posete sajta danas</h2>
+                      <h2 className="font-bold text-ink">Posete sajta</h2>
                       <p className="mt-0.5 text-sm text-ink-2">Računaju se samo javne stranice, bez admina, API-ja i fajlova.</p>
                     </div>
-                    <div className="grid grid-cols-3 gap-4 text-center sm:min-w-96">
-                      <div><p className="text-xl font-extrabold text-ink">{metrics?.site_views_today ?? 0}</p><p className="text-xs text-ink-2">prikaza</p></div>
-                      <div><p className="text-xl font-extrabold text-ink">{metrics?.site_unique_today ?? 0}</p><p className="text-xs text-ink-2">jedinstvenih</p></div>
+                    <div className="grid grid-cols-2 gap-x-5 gap-y-3 text-center sm:grid-cols-4 sm:min-w-[30rem]">
+                      <div><p className="text-xl font-extrabold text-ink">{metrics?.site_views_today ?? 0}</p><p className="text-xs text-ink-2">danas</p></div>
+                      <div><p className="text-xl font-extrabold text-ink">{metrics?.site_views_7d ?? 0}</p><p className="text-xs text-ink-2">7 dana</p></div>
+                      <div><p className="text-xl font-extrabold text-ink">{metrics?.site_views_total ?? 0}</p><p className="text-xs text-ink-2">ukupno</p></div>
                       <div><p className="text-xl font-extrabold text-ink">{metrics?.site_active_now ?? 0}</p><p className="text-xs text-ink-2">aktivnih sada</p></div>
+                    </div>
+                  </div>
+                  <div className="mt-4 border-t border-sky-200 pt-3">
+                    <div className="mb-2 flex items-center justify-between gap-3"><p className="text-xs font-bold uppercase tracking-wide text-ink-2">Dnevni pregled, poslednjih 7 dana</p><p className="text-xs text-ink-2">{metrics?.site_unique_total ?? 0} jedinstvenih od početka</p></div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+                      {(metrics?.site_daily ?? []).map(day => <div key={day.date} className="rounded-lg border border-sky-100 bg-white/80 px-2 py-2 text-center"><p className="text-xs font-semibold text-ink-2">{new Intl.DateTimeFormat('sr-RS', { day: 'numeric', month: 'short' }).format(new Date(`${day.date}T00:00:00`))}</p><p className="mt-1 text-base font-extrabold text-ink">{day.views}</p><p className="text-[11px] text-ink-2">{day.unique_visitors} jedinstvenih</p></div>)}
                     </div>
                   </div>
                 </Card>

@@ -2700,6 +2700,7 @@ def update_campaign_lifecycle(task_id: int, payload: CampaignLifecyclePayload, r
 def _admin_dashboard_data(db: Session) -> dict:
     now = datetime.utcnow()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=6)
     active_start = now - timedelta(minutes=15)
     # The visit table contains only anonymous identifiers. Exclude older
     # back-office/API entries so the dashboard reports public site traffic.
@@ -2711,6 +2712,25 @@ def _admin_dashboard_data(db: Session) -> dict:
         ~PlatformVisitV117.path.like("/uploads/%"),
     )
     today_visits = public_visits.filter(PlatformVisitV117.created_at >= today_start)
+    week_visits = public_visits.filter(PlatformVisitV117.created_at >= week_start)
+    daily_visit_rows = (
+        week_visits.with_entities(
+            func.date(PlatformVisitV117.created_at).label("day"),
+            func.count(PlatformVisitV117.id).label("views"),
+            func.count(func.distinct(PlatformVisitV117.visitor_id)).label("unique_visitors"),
+        )
+        .group_by(func.date(PlatformVisitV117.created_at))
+        .all()
+    )
+    daily_visits = {
+        str(row.day): {"views": int(row.views or 0), "unique_visitors": int(row.unique_visitors or 0)}
+        for row in daily_visit_rows
+    }
+    site_daily = []
+    for offset in range(6, -1, -1):
+        day = (today_start - timedelta(days=offset)).date().isoformat()
+        counts = daily_visits.get(day, {"views": 0, "unique_visitors": 0})
+        site_daily.append({"date": day, **counts})
     pending_submissions = db.query(TaskSubmission).filter(TaskSubmission.status == "pending").count()
     pending_withdrawals = db.query(Withdrawal).filter(Withdrawal.status == "pending").count()
     pending_campaigns = db.query(Task).filter(Task.status == "pending").count()
@@ -2729,9 +2749,14 @@ def _admin_dashboard_data(db: Session) -> dict:
             "reserved_budget_rsd": _money(db.query(func.coalesce(func.sum(User.advertiser_reserved_rsd), 0)).scalar()),
             "site_views_today": today_visits.count(),
             "site_unique_today": today_visits.with_entities(PlatformVisitV117.visitor_id).distinct().count(),
+            "site_views_7d": week_visits.count(),
+            "site_unique_7d": week_visits.with_entities(PlatformVisitV117.visitor_id).distinct().count(),
+            "site_views_total": public_visits.count(),
+            "site_unique_total": public_visits.with_entities(PlatformVisitV117.visitor_id).distinct().count(),
             "site_active_now": public_visits.filter(
                 PlatformVisitV117.created_at >= active_start
             ).with_entities(PlatformVisitV117.visitor_id).distinct().count(),
+            "site_daily": site_daily,
         }
     }
 

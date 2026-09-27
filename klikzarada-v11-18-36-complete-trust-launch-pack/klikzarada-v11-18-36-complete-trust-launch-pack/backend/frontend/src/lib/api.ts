@@ -243,7 +243,16 @@ export type AdminMetrics = {
   reserved_budget_rsd: number
   site_views_today: number
   site_unique_today: number
+  site_views_7d: number
+  site_unique_7d: number
+  site_views_total: number
+  site_unique_total: number
   site_active_now: number
+  site_daily: Array<{
+    date: string
+    views: number
+    unique_visitors: number
+  }>
 }
 
 export type AdminUser = SessionUser & { created_at: string | null }
