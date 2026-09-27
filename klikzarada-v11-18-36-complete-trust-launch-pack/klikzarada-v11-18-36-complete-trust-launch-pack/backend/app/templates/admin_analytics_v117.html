@@ -4,8 +4,8 @@
 <section class="premium-panel-hero admin">
   <div>
     <span>ANALITIKA PLATFORME</span>
-    <h1>Posete, registracije i aktivnost</h1>
-    <p>Admin sada vidi koliko ljudi posećuje platformu, koliko ima korisnika, koliko ima oglašivača i koje stranice se najviše koriste.</p>
+    <h1>Prikazi stranica, registracije i aktivnost</h1>
+    <p>Admin sada vidi browser prikaze javnih stranica, registracije i stranice koje se najviše koriste. Tehničke provere i botovi se ne računaju.</p>
   </div>
   <div class="premium-panel-actions">
     <a class="premium-btn blue" href="/admin/korisnici-baza-v117">Baza korisnika</a>
@@ -44,15 +44,15 @@
     <div class="premium-card-head"><h2>Najposećenije stranice</h2><span>{{ stats.top_routes|length }}</span></div>
     <div class="analytics-route-list">
       {% for path,count in stats.top_routes %}
-      <article><b>{{ path }}</b><span>{{ count }} poseta</span></article>
+      <article><b>{{ path }}</b><span>{{ count }} prikaza</span></article>
       {% else %}
-      <div class="premium-empty"><h3>Nema poseta</h3><p>Kada se otvore stranice, podaci se automatski upisuju.</p></div>
+      <div class="premium-empty"><h3>Nema prikaza</h3><p>Kada se javne stranice otvore u browseru, podaci se automatski upisuju.</p></div>
       {% endfor %}
     </div>
   </section>
 
   <section class="premium-card">
-    <div class="premium-card-head"><h2>Posete po ulozi</h2><span>{{ stats.role_visits|length }}</span></div>
+    <div class="premium-card-head"><h2>Prikazi po ulozi</h2><span>{{ stats.role_visits|length }}</span></div>
     <div class="analytics-role-grid">
       {% for role,count in stats.role_visits %}
       <article><strong>{{ count }}</strong><span>{{ role }}</span></article>
@@ -66,7 +66,7 @@
     <div class="premium-card-head"><h2>Izvori saobraćaja</h2><span>30 dana</span></div>
     <div class="analytics-route-list">
       {% for source,count in stats.traffic_sources %}
-      <article><b>{{ source }}</b><span>{{ count }} poseta</span></article>
+      <article><b>{{ source }}</b><span>{{ count }} prikaza</span></article>
       {% else %}
       <div class="premium-empty"><h3>Još nema spoljnjih izvora</h3><p>Kada neko dođe preko Facebooka, Google-a ili drugog sajta, ovde se prikazuje samo domen izvora.</p></div>
       {% endfor %}
@@ -75,7 +75,7 @@
 </div>
 
 <section class="premium-card">
-  <div class="premium-card-head"><h2>Poslednje posete</h2><span>{{ stats.recent|length }}</span></div>
+  <div class="premium-card-head"><h2>Poslednji prikazi</h2><span>{{ stats.recent|length }}</span></div>
   <div class="premium-table-wrap">
     <table>
       <thead><tr><th>Vreme</th><th>Uloga</th><th>Putanja</th><th>Status</th><th>Trajanje</th><th>Referrer</th></tr></thead>
@@ -83,7 +83,7 @@
       {% for v in stats.recent %}
       <tr><td>{{ v.created_at }}</td><td>{{ v.role }}</td><td>{{ v.path }}</td><td>{{ v.status_code }}</td><td>{{ "%.0f"|format(v.duration_ms or 0) }} ms</td><td>{{ v.referrer or "-" }}</td></tr>
       {% else %}
-      <tr><td colspan="6">Nema poseta.</td></tr>
+      <tr><td colspan="6">Nema prikaza.</td></tr>
       {% endfor %}
       </tbody>
     </table>

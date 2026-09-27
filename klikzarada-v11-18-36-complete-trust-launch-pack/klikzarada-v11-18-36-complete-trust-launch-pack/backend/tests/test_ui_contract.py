@@ -29,6 +29,7 @@ class UiContractTests(unittest.TestCase):
             "/api/ui/public/overview",
             "/api/ui/public/waitlist",
             "/api/ui/client-errors",
+            "/api/ui/admin/analytics/reset",
             "/admin/analitika-v117",
         }
         self.assertTrue(expected.issubset(paths))
@@ -48,6 +49,13 @@ class UiContractTests(unittest.TestCase):
         source = (BACKEND_DIR / "frontend" / "src" / "pages" / "UserDashboard.tsx").read_text(encoding="utf-8")
         self.assertIn("Alert, Input } from '../components/ui'", source)
         self.assertIn('<Input label="Email za pristup testiranju"', source)
+
+    def test_pageview_tracking_excludes_non_browser_traffic(self):
+        """Traffic counters must not be inflated by crawlers or prefetches."""
+        source = (BACKEND_DIR / "app" / "main.py").read_text(encoding="utf-8")
+        self.assertIn('"facebookexternalhit"', source)
+        self.assertIn('user_agent.lower().startswith("mozilla/")', source)
+        self.assertIn('is_document and not is_prefetch', source)
 
 
 if __name__ == "__main__":

@@ -9986,13 +9986,26 @@ async def kz117_visit_tracking_middleware(request: Request, call_next):
             db.close()
     response = await call_next(request)
     try:
-        # Count only successful browser pages. API, assets, and administrator work
-        # must not inflate the public traffic numbers shown to the team.
+        # Count only successful human browser document views. API, assets,
+        # back-office pages, probes, previews, and crawlers must never inflate
+        # the public page-view metric.
         ignored_prefixes = ("/api/", "/admin", "/static/", "/app-ui/", "/uploads/")
         ignored_paths = {"/favicon.ico", "/sw.js", "/robots.txt", "/sitemap.xml", "/openapi.json"}
         accepts_html = "text/html" in request.headers.get("accept", "")
         is_public_page = not path.startswith(ignored_prefixes) and path not in ignored_paths
-        if request.method == "GET" and accepts_html and is_public_page and response.status_code < 400:
+        user_agent = request.headers.get("user-agent", "").strip()
+        bot_signatures = (
+            "bot", "crawl", "spider", "slurp", "headless", "lighthouse",
+            "curl", "wget", "python-requests", "httpclient", "postman",
+            "facebookexternalhit", "meta-externalagent", "uptimerobot",
+        )
+        is_browser = user_agent.lower().startswith("mozilla/") and not any(
+            signature in user_agent.lower() for signature in bot_signatures
+        )
+        fetch_destination = request.headers.get("sec-fetch-dest", "").lower()
+        is_document = not fetch_destination or fetch_destination == "document"
+        is_prefetch = "prefetch" in request.headers.get("purpose", "").lower() or "prefetch" in request.headers.get("sec-purpose", "").lower()
+        if request.method == "GET" and accepts_html and is_public_page and is_browser and is_document and not is_prefetch and response.status_code < 400:
             db = SessionLocal()
             try:
                 u = current_user(request, db)

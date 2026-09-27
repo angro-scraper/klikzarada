@@ -248,6 +248,7 @@ export type AdminMetrics = {
   site_views_total: number
   site_unique_total: number
   site_active_now: number
+  site_tracking_started_at: string | null
   site_daily: Array<{
     date: string
     views: number
@@ -498,6 +499,7 @@ export const api = {
     method: 'POST',
   }),
   adminDashboard: () => request<{ metrics: AdminMetrics }>('/admin/dashboard'),
+  resetAdminAnalytics: () => request<{ deleted: number; started_at: string }>('/admin/analytics/reset', { method: 'POST' }),
   adminProductionReadiness: () => request<ProductionReadiness>('/admin/production-readiness'),
   adminBanners: () => request<{ slots: BannerSlot[]; banners: PaidBanner[]; pricing: AdvertisingPricing }>('/admin/banners'),
   adminPromotions: () => request<{ promotions: PaidPromotion[] }>('/admin/promotions'),

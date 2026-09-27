@@ -100,6 +100,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [userDetails, setUserDetails] = useState<AdminUserProfile | null>(null)
   const [bannerAction, setBannerAction] = useState<{ id: number; naslov: string; iznos: number; type: 'approve' | 'reject' } | null>(null)
   const [promotionAction, setPromotionAction] = useState<{ id: number; naslov: string; iznos: number; type: 'approve' | 'reject' } | null>(null)
+  const [resetAnalyticsConfirm, setResetAnalyticsConfirm] = useState(false)
   const [userStatuses, setUserStatuses] = useState<Record<number, string>>({})
   const [payoutStatuses, setPayoutStatuses] = useState<Record<number, string>>({})
   const [campStatuses, setCampStatuses] = useState<Record<number, string>>({})
@@ -241,6 +242,27 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
         variant="danger"
         onConfirm={async () => { try { await api.logout() } finally { onNavigate('home') } }}
         onCancel={() => setLogoutConfirm(false)}
+      />
+
+      <ConfirmModal
+        open={resetAnalyticsConfirm}
+        title="Započeti čisto merenje?"
+        description="Brišu se samo dosadašnji analitički zapisi prikaza stranica. Korisnici, kampanje, novac i ostali podaci ostaju netaknuti. Novi brojevi će obuhvatati samo stvarne browser prikaze."
+        confirmLabel="Obriši stare prikaze"
+        cancelLabel="Otkaži"
+        variant="danger"
+        onConfirm={async () => {
+          setSavingAction(true)
+          try {
+            const result = await api.resetAdminAnalytics()
+            await refreshAdmin()
+            showToast(`Čisto merenje je počelo. Uklonjeno je ${result.deleted} starih zapisa.`, 'success')
+            setResetAnalyticsConfirm(false)
+          } catch (error) {
+            showToast(error instanceof Error ? error.message : 'Analitika nije resetovana.', 'error')
+          } finally { setSavingAction(false) }
+        }}
+        onCancel={() => setResetAnalyticsConfirm(false)}
       />
 
       <ConfirmModal
@@ -505,18 +527,21 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                 <Card className="border-sky-200 bg-sky-50 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <h2 className="font-bold text-ink">Posete sajta</h2>
-                      <p className="mt-0.5 text-sm text-ink-2">Računaju se samo javne stranice, bez admina, API-ja i fajlova.</p>
+                      <h2 className="font-bold text-ink">Prikazi stranica</h2>
+                      <p className="mt-0.5 text-sm text-ink-2">Računaju se samo javni dokumenti iz stvarnog browsera, bez admina, API-ja, fajlova, tehničkih provera i botova.</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-x-5 gap-y-3 text-center sm:grid-cols-4 sm:min-w-[30rem]">
+                    <div className="flex items-center gap-3">
+                      <Btn size="sm" variant="secondary" disabled={savingAction} onClick={() => setResetAnalyticsConfirm(true)}>Novi početak merenja</Btn>
+                      <div className="grid grid-cols-2 gap-x-5 gap-y-3 text-center sm:grid-cols-4 sm:min-w-[30rem]">
                       <div><p className="text-xl font-extrabold text-ink">{metrics?.site_views_today ?? 0}</p><p className="text-xs text-ink-2">danas</p></div>
                       <div><p className="text-xl font-extrabold text-ink">{metrics?.site_views_7d ?? 0}</p><p className="text-xs text-ink-2">7 dana</p></div>
                       <div><p className="text-xl font-extrabold text-ink">{metrics?.site_views_total ?? 0}</p><p className="text-xs text-ink-2">ukupno</p></div>
                       <div><p className="text-xl font-extrabold text-ink">{metrics?.site_active_now ?? 0}</p><p className="text-xs text-ink-2">aktivnih sada</p></div>
+                      </div>
                     </div>
                   </div>
                   <div className="mt-4 border-t border-sky-200 pt-3">
-                    <div className="mb-2 flex items-center justify-between gap-3"><p className="text-xs font-bold uppercase tracking-wide text-ink-2">Dnevni pregled, poslednjih 7 dana</p><p className="text-xs text-ink-2">{metrics?.site_unique_total ?? 0} jedinstvenih od početka</p></div>
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-3"><p className="text-xs font-bold uppercase tracking-wide text-ink-2">Dnevni prikaz, poslednjih 7 dana</p><p className="text-xs text-ink-2">{metrics?.site_unique_total ?? 0} jedinstvenih od početka{metrics?.site_tracking_started_at ? ` · od ${new Intl.DateTimeFormat('sr-RS', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(metrics.site_tracking_started_at))}` : ''}</p></div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
                       {(metrics?.site_daily ?? []).map(day => <div key={day.date} className="rounded-lg border border-sky-100 bg-white/80 px-2 py-2 text-center"><p className="text-xs font-semibold text-ink-2">{new Intl.DateTimeFormat('sr-RS', { day: 'numeric', month: 'short' }).format(new Date(`${day.date}T00:00:00`))}</p><p className="mt-1 text-base font-extrabold text-ink">{day.views}</p><p className="text-[11px] text-ink-2">{day.unique_visitors} jedinstvenih</p></div>)}
                     </div>

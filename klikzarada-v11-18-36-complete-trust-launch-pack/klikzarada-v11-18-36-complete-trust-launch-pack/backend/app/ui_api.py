@@ -2759,6 +2759,9 @@ def _admin_dashboard_data(db: Session) -> dict:
     pending_campaigns = db.query(Task).filter(Task.status == "pending").count()
     pending_banners = db.query(PaidAdBannerV111).filter(PaidAdBannerV111.status == "pending").count()
     pending_promotions = db.query(PaidPromotionRequestV111).filter(PaidPromotionRequestV111.status == "pending").count()
+    analytics_start_setting = db.query(SystemSetting).filter(
+        SystemSetting.key == "analytics_pageviews_started_at"
+    ).first()
     return {
         "metrics": {
             "users": db.query(User).filter(User.role == "korisnik").count(),
@@ -2780,6 +2783,7 @@ def _admin_dashboard_data(db: Session) -> dict:
                 PlatformVisitV117.created_at >= active_start
             ).with_entities(PlatformVisitV117.visitor_id).distinct().count(),
             "site_daily": site_daily,
+            "site_tracking_started_at": analytics_start_setting.value if analytics_start_setting else None,
         }
     }
 
@@ -2789,6 +2793,35 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
     _require_user(request, db, {"admin"})
     _expire_campaigns(db)
     return _admin_dashboard_data(db)
+
+
+@router.post("/admin/analytics/reset")
+def reset_admin_analytics(request: Request, db: Session = Depends(get_db)) -> dict:
+    """Start clean, privacy-preserving page-view measurement for an admin."""
+    user = _require_user(request, db, {"admin"})
+    deleted = db.query(PlatformVisitV117).delete(synchronize_session=False)
+    started_at = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    setting = db.query(SystemSetting).filter(
+        SystemSetting.key == "analytics_pageviews_started_at"
+    ).first()
+    if setting:
+        setting.value = started_at
+        setting.description = "Početak čistog merenja browser prikaza stranica."
+    else:
+        db.add(SystemSetting(
+            key="analytics_pageviews_started_at",
+            value=started_at,
+            description="Početak čistog merenja browser prikaza stranica.",
+        ))
+    db.add(AuditLog(
+        admin_id=user.id,
+        action="analytics_pageviews_reset",
+        entity_type="PlatformVisitV117",
+        entity_id=None,
+        reason=f"Obrisano {deleted} starih analitičkih zapisa; novo merenje počinje {started_at}.",
+    ))
+    db.commit()
+    return {"deleted": int(deleted), "started_at": started_at}
 
 
 @router.get("/admin/production-readiness")
