@@ -11,7 +11,7 @@ const navGroups = [
     { id: 'pregled', label: 'Pregled', icon: '📊' },
     { id: 'zadaci', label: 'Dostupni zadaci', icon: '📋' },
     { id: 'preporuke', label: 'Preporuke', icon: '✨' },
-    { id: 'dokazi', label: 'Moji dokazi', icon: '✅', badge: 2 },
+    { id: 'dokazi', label: 'Moji dokazi', icon: '✅' },
     { id: 'obavestenja', label: 'Obaveštenja', icon: '🔔' },
   ]},
   { group: 'Zarada', items: [
@@ -255,6 +255,12 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
 
   const user: SessionUser | undefined = dashboard?.user
   const activeTasks: Task[] = dashboard?.tasks ?? []
+  const proofCount = dashboard?.submissions?.length ?? 0
+  const visibleProofs = (dashboard?.submissions ?? []).filter(proof => proofTab === 'svi' || proof.status === proofTab)
+  const navigationGroups = navGroups.map(group => ({
+    ...group,
+    items: group.items.map(item => item.id === 'dokazi' ? { ...item, badge: proofCount || undefined } : item),
+  }))
   const balance = user?.balance_rsd ?? 0
   const minWithdrawal = dashboard?.min_withdrawal_rsd ?? 1000
   const payoutGap = Math.max(0, minWithdrawal - balance)
@@ -460,12 +466,12 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
       )}
 
       <div className="hidden lg:flex shrink-0">
-        <Sidebar groups={navGroups} active={page} onNavigate={p => goTo(p as Page)} footer={sidebarFooter} />
+        <Sidebar groups={navigationGroups} active={page} onNavigate={p => goTo(p as Page)} footer={sidebarFooter} />
       </div>
       {mobileOpen && (
         <div className="fixed left-0 top-0 h-full z-50 lg:hidden">
           <Sidebar
-            groups={navGroups}
+            groups={navigationGroups}
             active={page}
             onNavigate={p => { goTo(p as Page); setMobileOpen(false) }}
             footer={sidebarFooter}
@@ -732,15 +738,19 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                   onChange={setProofTab}
                 />
                 <Card>
-                  <Table
-                    headers={['Zadatak', 'Poslato', 'Nagrada', 'Status']}
-                    rows={(dashboard?.submissions ?? []).filter(p => proofTab === 'svi' || p.status === proofTab).map(p => [
-                      <span className="font-medium text-ink">{p.task_title}</span>,
-                      <span className="font-mono text-xs text-ink-2">{formatDate(p.created_at)}</span>,
-                      <span className="font-mono font-semibold text-emerald-600">{formatRsd(p.reward_rsd)}</span>,
-                      <StatusBadge status={p.status} />,
-                    ])}
-                  />
+                  {visibleProofs.length > 0 ? (
+                    <Table
+                      headers={['Zadatak', 'Poslato', 'Nagrada', 'Status']}
+                      rows={visibleProofs.map(p => [
+                        <span className="font-medium text-ink">{p.task_title}</span>,
+                        <span className="font-mono text-xs text-ink-2">{formatDate(p.created_at)}</span>,
+                        <span className="font-mono font-semibold text-emerald-600">{formatRsd(p.reward_rsd)}</span>,
+                        <StatusBadge status={p.status} />,
+                      ])}
+                    />
+                  ) : (
+                    <EmptyState icon="📭" title="Još nema poslatih dokaza" description={proofTab === 'svi' ? 'Kada završiš zadatak i pošalješ dokaz, njegov stvarni status će biti prikazan ovde.' : 'Nema dokaza u izabranoj kategoriji.'} action={<Btn size="sm" onClick={() => goTo('zadaci')}>Pogledaj dostupne zadatke</Btn>} />
+                  )}
                 </Card>
               </div>
             )}

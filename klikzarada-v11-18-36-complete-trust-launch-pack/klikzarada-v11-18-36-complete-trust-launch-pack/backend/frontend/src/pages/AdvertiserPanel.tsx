@@ -115,7 +115,7 @@ const navGroups = [
     { id: 'pregled', label: 'Pregled', icon: '📊' },
     { id: 'nova', label: 'Nova kampanja', icon: '➕' },
     { id: 'kampanje', label: 'Moje kampanje', icon: '🎯' },
-    { id: 'dokazi', label: 'Dokazi korisnika', icon: '📎', badge: 5 },
+    { id: 'dokazi', label: 'Dokazi korisnika', icon: '📎' },
   ]},
   { group: 'Analitika', items: [
     { id: 'analitika', label: 'Rezultati', icon: '📈' },
@@ -612,6 +612,13 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   }))
   const testerEnrollments = dashboard?.tester_enrollments ?? []
   const testerCheckins = dashboard?.tester_checkins ?? []
+  const pendingProofCount = proofs.filter(proof => proof.status === 'na_proveri').length
+  const pendingTesterEnrollmentCount = testerEnrollments.filter(enrollment => enrollment.status === 'requested').length
+  const proofBadge = pendingProofCount + pendingTesterEnrollmentCount
+  const navigationGroups = navGroups.map(group => ({
+    ...group,
+    items: group.items.map(item => item.id === 'dokazi' ? { ...item, badge: proofBadge || undefined } : item),
+  }))
 
   function goTo(p: Page) { setPage(p) }
   const back = BACK[page]
@@ -678,11 +685,11 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
       {mobileOpen && <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />}
       <div className="hidden lg:flex shrink-0">
-        <Sidebar groups={navGroups} active={page} onNavigate={p => goTo(p as Page)} footer={sidebarFooter} />
+        <Sidebar groups={navigationGroups} active={page} onNavigate={p => goTo(p as Page)} footer={sidebarFooter} />
       </div>
       {mobileOpen && (
         <div className="fixed left-0 top-0 h-full z-50 lg:hidden">
-          <Sidebar groups={navGroups} active={page} onNavigate={p => { goTo(p as Page); setMobileOpen(false) }} footer={sidebarFooter} isMobile onClose={() => setMobileOpen(false)} />
+          <Sidebar groups={navigationGroups} active={page} onNavigate={p => { goTo(p as Page); setMobileOpen(false) }} footer={sidebarFooter} isMobile onClose={() => setMobileOpen(false)} />
         </div>
       )}
 

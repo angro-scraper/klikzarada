@@ -72,6 +72,15 @@ class UiContractTests(unittest.TestCase):
             self.assertNotIn("max-w-4xl mx-auto", source, page)
             self.assertNotIn("max-w-5xl mx-auto", source, page)
 
+    def test_proof_badges_are_backed_by_dashboard_data(self):
+        """Proof navigation must not display placeholder demo counts."""
+        user_source = (BACKEND_DIR / "frontend" / "src" / "pages" / "UserDashboard.tsx").read_text(encoding="utf-8")
+        advertiser_source = (BACKEND_DIR / "frontend" / "src" / "pages" / "AdvertiserPanel.tsx").read_text(encoding="utf-8")
+        self.assertNotIn("label: 'Moji dokazi', icon: '✅', badge: 2", user_source)
+        self.assertNotIn("label: 'Dokazi korisnika', icon: '📎', badge: 5", advertiser_source)
+        self.assertIn("badge: proofCount || undefined", user_source)
+        self.assertIn("badge: proofBadge || undefined", advertiser_source)
+
 
 if __name__ == "__main__":
     unittest.main()
