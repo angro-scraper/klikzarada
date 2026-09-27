@@ -67,17 +67,27 @@ class UiContractTests(unittest.TestCase):
         self.assertIn('<Input label="Email za pristup testiranju"', source)
 
     def test_pageview_tracking_excludes_non_browser_traffic(self):
-        """Traffic counters must not be inflated by crawlers or prefetches."""
+        """Traffic counters must only accept deliberate public navigations."""
         source = (BACKEND_DIR / "app" / "main.py").read_text(encoding="utf-8")
         self.assertIn('"facebookexternalhit"', source)
         self.assertIn('user_agent.lower().startswith("mozilla/")', source)
-        self.assertIn('is_document and not is_prefetch', source)
+        self.assertIn('fetch_mode == "navigate"', source)
+        self.assertIn('fetch_user == "?1"', source)
+        self.assertIn('timedelta(minutes=20)', source)
+        self.assertIn('is_public_pageview_path(path)', source)
 
-    def test_analytics_reset_preserves_today(self):
-        """A clean analytics start must retain the current day's page views."""
+        from app.analytics import is_public_pageview_path
+        self.assertTrue(is_public_pageview_path("/registracija"))
+        self.assertTrue(is_public_pageview_path("/zadaci"))
+        self.assertFalse(is_public_pageview_path("/korisnik/zadaci"))
+        self.assertFalse(is_public_pageview_path("/oglasivac/panel"))
+
+    def test_analytics_reset_starts_a_clean_series(self):
+        """A clean start must hide legacy traffic without deleting business data."""
         source = (BACKEND_DIR / "app" / "ui_api.py").read_text(encoding="utf-8")
-        self.assertIn("PlatformVisitV117.created_at < today_start", source)
-        self.assertIn('"preserved_today": True', source)
+        self.assertIn("start_clean_pageview_measurement(db, datetime.utcnow(), force=True)", source)
+        self.assertIn('"legacy_measurements_hidden": True', source)
+        self.assertIn("PlatformVisitV117.path.in_(PUBLIC_PAGEVIEW_PATHS)", source)
 
     def test_utm_registration_funnel_is_privacy_preserving_and_complete(self):
         """Paid traffic should be attributable without storing raw visitor data."""

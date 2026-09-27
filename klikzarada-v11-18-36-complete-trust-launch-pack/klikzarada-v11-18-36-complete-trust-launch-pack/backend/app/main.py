@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from urllib.request import Request as UrlRequest, urlopen
 from .database import Base, engine, get_db, SessionLocal
+from .analytics import PUBLIC_PAGEVIEW_PATHS, is_public_pageview_path, start_clean_pageview_measurement
 from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, TaskSourceV11, SecurityEvent, KycDocument, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
 from .security import create_session_token, hash_password, make_referral_code, read_session_token, verify_password
 from .ui_api import router as ui_api_router
@@ -10032,13 +10033,10 @@ async def kz117_visit_tracking_middleware(request: Request, call_next):
             db.close()
     response = await call_next(request)
     try:
-        # Count only successful human browser document views. API, assets,
-        # back-office pages, probes, previews, and crawlers must never inflate
-        # the public page-view metric.
-        ignored_prefixes = ("/api/", "/admin", "/static/", "/app-ui/", "/uploads/")
-        ignored_paths = {"/favicon.ico", "/sw.js", "/robots.txt", "/sitemap.xml", "/openapi.json"}
+        # Count only deliberate public-entry navigations. A browser-looking
+        # request alone is not enough: scanners often use Chromium user agents.
         accepts_html = "text/html" in request.headers.get("accept", "")
-        is_public_page = not path.startswith(ignored_prefixes) and path not in ignored_paths
+        is_public_page = is_public_pageview_path(path)
         user_agent = request.headers.get("user-agent", "").strip()
         bot_signatures = (
             "bot", "crawl", "spider", "slurp", "headless", "lighthouse",
@@ -10049,11 +10047,19 @@ async def kz117_visit_tracking_middleware(request: Request, call_next):
             signature in user_agent.lower() for signature in bot_signatures
         )
         fetch_destination = request.headers.get("sec-fetch-dest", "").lower()
-        is_document = not fetch_destination or fetch_destination == "document"
+        fetch_mode = request.headers.get("sec-fetch-mode", "").lower()
+        fetch_user = request.headers.get("sec-fetch-user", "").lower()
+        is_user_navigation = (
+            fetch_destination == "document"
+            and fetch_mode == "navigate"
+            and fetch_user == "?1"
+        )
         is_prefetch = "prefetch" in request.headers.get("purpose", "").lower() or "prefetch" in request.headers.get("sec-purpose", "").lower()
-        if request.method == "GET" and accepts_html and is_public_page and is_browser and is_document and not is_prefetch and response.status_code < 400:
+        if request.method == "GET" and accepts_html and is_public_page and is_browser and is_user_navigation and not is_prefetch and response.status_code < 400:
             db = SessionLocal()
             try:
+                measured_at = datetime.utcnow()
+                start_clean_pageview_measurement(db, measured_at)
                 u = current_user(request, db)
                 visitor_id = request.cookies.get("kz_visitor_id") or ""
                 if not re.fullmatch(r"[A-Za-z0-9_-]{20,128}", visitor_id):
@@ -10070,20 +10076,25 @@ async def kz117_visit_tracking_middleware(request: Request, call_next):
                 # Store only the traffic-source domain. The analytics table does
                 # not retain IP addresses, full referrer URLs, or user agents.
                 referrer = urlparse(request.headers.get("referer", "")).netloc.lower()[:255]
-                visit = PlatformVisitV117(
-                    visitor_id=visitor_id,
-                    user_id=(u.id if u else None),
-                    role=(u.role if u else "guest"),
-                    path=path[:500],
-                    method=request.method,
-                    status_code=response.status_code,
-                    referrer=referrer,
-                    user_agent="",
-                    ip_hash="",
-                    duration_ms=round((time.time() - start) * 1000, 2),
-                    created_at=datetime.utcnow(),
-                )
-                db.add(visit)
+                duplicate_pageview = db.query(PlatformVisitV117.id).filter(
+                    PlatformVisitV117.visitor_id == visitor_id,
+                    PlatformVisitV117.path == path[:500],
+                    PlatformVisitV117.created_at >= measured_at - timedelta(minutes=20),
+                ).first()
+                if not duplicate_pageview:
+                    db.add(PlatformVisitV117(
+                        visitor_id=visitor_id,
+                        user_id=(u.id if u else None),
+                        role=(u.role if u else "guest"),
+                        path=path[:500],
+                        method=request.method,
+                        status_code=response.status_code,
+                        referrer=referrer,
+                        user_agent="",
+                        ip_hash="",
+                        duration_ms=round((time.time() - start) * 1000, 2),
+                        created_at=measured_at,
+                    ))
                 utm_source = _clean_utm_value(request.query_params.get("utm_source"), 80)
                 utm_medium = _clean_utm_value(request.query_params.get("utm_medium"), 80)
                 utm_campaign = _clean_utm_value(request.query_params.get("utm_campaign"), 160)
@@ -10096,7 +10107,7 @@ async def kz117_visit_tracking_middleware(request: Request, call_next):
                         PublicFunnelEventV12.source == utm_source,
                         PublicFunnelEventV12.medium == utm_medium,
                         PublicFunnelEventV12.campaign == utm_campaign,
-                        PublicFunnelEventV12.created_at >= datetime.utcnow() - timedelta(days=1),
+                        PublicFunnelEventV12.created_at >= measured_at - timedelta(days=1),
                     ).first()
                     if not duplicate_landing:
                         db.add(PublicFunnelEventV12(
@@ -10107,7 +10118,7 @@ async def kz117_visit_tracking_middleware(request: Request, call_next):
                             medium=utm_medium,
                             campaign=utm_campaign,
                             landing_path=path[:500],
-                            created_at=datetime.utcnow(),
+                            created_at=measured_at,
                         ))
                 db.commit()
             finally:
@@ -10118,18 +10129,14 @@ async def kz117_visit_tracking_middleware(request: Request, call_next):
 
 def kz117_visit_stats(db: Session):
     now = datetime.utcnow()
+    tracking_start = start_clean_pageview_measurement(db, now)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=6)
     month_start = today_start - timedelta(days=29)
     active_start = now - timedelta(minutes=15)
-    # Older versions recorded admin screens too; filter them out here as well so
-    # historical totals remain useful after the tracking rules were tightened.
     visits = db.query(PlatformVisitV117).filter(
-        ~PlatformVisitV117.path.like("/admin%"),
-        ~PlatformVisitV117.path.like("/api/%"),
-        ~PlatformVisitV117.path.like("/static/%"),
-        ~PlatformVisitV117.path.like("/app-ui/%"),
-        ~PlatformVisitV117.path.like("/uploads/%"),
+        PlatformVisitV117.path.in_(PUBLIC_PAGEVIEW_PATHS),
+        PlatformVisitV117.created_at >= tracking_start,
     )
     total_visits = visits.count()
     today_visits = visits.filter(PlatformVisitV117.created_at >= today_start).count()

@@ -246,17 +246,17 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
       <ConfirmModal
         open={resetAnalyticsConfirm}
-        title="Obrisati stare prikaze?"
-        description="Brišu se samo prikazi stariji od današnjeg početka. Današnji broj, korisnici, kampanje, novac i ostali podaci ostaju netaknuti."
-        confirmLabel="Obriši stare prikaze"
+        title="Pokrenuti čisto merenje?"
+        description="Od ovog trenutka prikazuju se samo strogo proverene javne navigacije. Raniji pogrešno pomešani prikazi se ne brišu, ali više ne ulaze u statistiku. Korisnici, kampanje i novac ostaju netaknuti."
+        confirmLabel="Pokreni čisto merenje"
         cancelLabel="Otkaži"
         variant="danger"
         onConfirm={async () => {
           setSavingAction(true)
           try {
-            const result = await api.resetAdminAnalytics()
+            await api.resetAdminAnalytics()
             await refreshAdmin()
-            showToast(`Uklonjeno je ${result.deleted} starih zapisa. Današnji prikazi su sačuvani.`, 'success')
+            showToast('Pokrenuto je čisto merenje javnih navigacija.', 'success')
             setResetAnalyticsConfirm(false)
           } catch (error) {
             showToast(error instanceof Error ? error.message : 'Analitika nije resetovana.', 'error')
@@ -528,7 +528,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <h2 className="font-bold text-ink">Prikazi stranica</h2>
-                      <p className="mt-0.5 text-sm text-ink-2">Računaju se samo javni dokumenti iz stvarnog browsera, bez admina, API-ja, fajlova, tehničkih provera i botova.</p>
+                      <p className="mt-0.5 text-sm text-ink-2">Računaju se samo novi ulasci na javne stranice iz eksplicitne navigacije browsera. Paneli, API, botovi, prefetch i osvežavanje iste rute u 20 min nisu uračunati.</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <Btn size="sm" variant="secondary" disabled={savingAction} onClick={() => setResetAnalyticsConfirm(true)}>Novi početak merenja</Btn>
@@ -541,7 +541,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                     </div>
                   </div>
                   <div className="mt-4 border-t border-sky-200 pt-3">
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-3"><p className="text-xs font-bold uppercase tracking-wide text-ink-2">Dnevni prikaz, poslednjih 7 dana</p><p className="text-xs text-ink-2">{metrics?.site_unique_total ?? 0} jedinstvenih od početka{metrics?.site_tracking_started_at ? ` · od ${new Intl.DateTimeFormat('sr-RS', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(metrics.site_tracking_started_at))}` : ''}</p></div>
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-3"><p className="text-xs font-bold uppercase tracking-wide text-ink-2">Dnevni javni ulasci, poslednjih 7 dana</p><p className="text-xs text-ink-2">{metrics?.site_unique_total ?? 0} jedinstvenih od početka{metrics?.site_tracking_started_at ? ` · čista serija od ${new Intl.DateTimeFormat('sr-RS', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(metrics.site_tracking_started_at))}` : ''}</p></div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
                       {(metrics?.site_daily ?? []).map(day => <div key={day.date} className="rounded-lg border border-sky-100 bg-white/80 px-2 py-2 text-center"><p className="text-xs font-semibold text-ink-2">{new Intl.DateTimeFormat('sr-RS', { day: 'numeric', month: 'short' }).format(new Date(`${day.date}T00:00:00`))}</p><p className="mt-1 text-base font-extrabold text-ink">{day.views}</p><p className="text-[11px] text-ink-2">{day.unique_visitors} jedinstvenih</p></div>)}
                     </div>

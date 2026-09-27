@@ -33,6 +33,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .database import get_db
+from .analytics import PUBLIC_PAGEVIEW_PATHS, start_clean_pageview_measurement
 from .models import (
     AppTesterDailyCheckin,
     AppTesterEnrollment,
@@ -2983,17 +2984,13 @@ def update_campaign_lifecycle(task_id: int, payload: CampaignLifecyclePayload, r
 
 def _admin_dashboard_data(db: Session) -> dict:
     now = datetime.utcnow()
+    tracking_start = start_clean_pageview_measurement(db, now)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=6)
     active_start = now - timedelta(minutes=15)
-    # The visit table contains only anonymous identifiers. Exclude older
-    # back-office/API entries so the dashboard reports public site traffic.
     public_visits = db.query(PlatformVisitV117).filter(
-        ~PlatformVisitV117.path.like("/admin%"),
-        ~PlatformVisitV117.path.like("/api/%"),
-        ~PlatformVisitV117.path.like("/static/%"),
-        ~PlatformVisitV117.path.like("/app-ui/%"),
-        ~PlatformVisitV117.path.like("/uploads/%"),
+        PlatformVisitV117.path.in_(PUBLIC_PAGEVIEW_PATHS),
+        PlatformVisitV117.created_at >= tracking_start,
     )
     today_visits = public_visits.filter(PlatformVisitV117.created_at >= today_start)
     week_visits = public_visits.filter(PlatformVisitV117.created_at >= week_start)
@@ -3020,9 +3017,6 @@ def _admin_dashboard_data(db: Session) -> dict:
     pending_campaigns = db.query(Task).filter(Task.status == "pending").count()
     pending_banners = db.query(PaidAdBannerV111).filter(PaidAdBannerV111.status == "pending").count()
     pending_promotions = db.query(PaidPromotionRequestV111).filter(PaidPromotionRequestV111.status == "pending").count()
-    analytics_start_setting = db.query(SystemSetting).filter(
-        SystemSetting.key == "analytics_pageviews_started_at"
-    ).first()
     funnel_events = db.query(PublicFunnelEventV12).all()
     paid_funnel_events = [event for event in funnel_events if event.source and event.source != "direct"]
 
@@ -3075,7 +3069,7 @@ def _admin_dashboard_data(db: Session) -> dict:
                 PlatformVisitV117.created_at >= active_start
             ).with_entities(PlatformVisitV117.visitor_id).distinct().count(),
             "site_daily": site_daily,
-            "site_tracking_started_at": analytics_start_setting.value if analytics_start_setting else None,
+            "site_tracking_started_at": tracking_start.isoformat() + "Z",
             "acquisition_funnel": {
                 "landings": len(paid_landings),
                 "opened": len(funnel_visitors("registration_opened")),
@@ -3093,40 +3087,26 @@ def _admin_dashboard_data(db: Session) -> dict:
 def admin_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
     _require_user(request, db, {"admin"})
     _expire_campaigns(db)
-    return _admin_dashboard_data(db)
+    dashboard = _admin_dashboard_data(db)
+    db.commit()
+    return dashboard
 
 
 @router.post("/admin/analytics/reset")
 def reset_admin_analytics(request: Request, db: Session = Depends(get_db)) -> dict:
-    """Discard previous days while preserving today's page-view measurement."""
+    """Start a new clean public-navigation series without deleting business data."""
     user = _require_user(request, db, {"admin"})
-    # Use the same UTC boundary as dashboard counters so today's value survives.
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    deleted = db.query(PlatformVisitV117).filter(
-        PlatformVisitV117.created_at < today_start
-    ).delete(synchronize_session=False)
-    started_at = today_start.isoformat() + "Z"
-    setting = db.query(SystemSetting).filter(
-        SystemSetting.key == "analytics_pageviews_started_at"
-    ).first()
-    if setting:
-        setting.value = started_at
-        setting.description = "Početak čistog merenja browser prikaza stranica, uz sačuvane današnje prikaze."
-    else:
-        db.add(SystemSetting(
-            key="analytics_pageviews_started_at",
-            value=started_at,
-            description="Početak čistog merenja browser prikaza stranica, uz sačuvane današnje prikaze.",
-        ))
+    tracking_start = start_clean_pageview_measurement(db, datetime.utcnow(), force=True)
+    started_at = tracking_start.isoformat() + "Z"
     db.add(AuditLog(
         admin_id=user.id,
         action="analytics_pageviews_reset",
         entity_type="PlatformVisitV117",
         entity_id=None,
-        reason=f"Obrisano {deleted} analitičkih zapisa starijih od današnjeg početka; današnji prikazi su sačuvani.",
+        reason="Pokrenuta nova čista serija javnih navigacija; raniji analitički zapisi nisu obrisani iz baze.",
     ))
     db.commit()
-    return {"deleted": int(deleted), "started_at": started_at, "preserved_today": True}
+    return {"deleted": 0, "started_at": started_at, "legacy_measurements_hidden": True}
 
 
 @router.get("/admin/production-readiness")
