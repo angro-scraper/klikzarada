@@ -276,6 +276,15 @@ export type PayPalCheckoutConfig = {
   card_checkout_enabled: boolean
 }
 
+export type RegistrationFailureReason =
+  | 'email_taken'
+  | 'phone_taken'
+  | 'terms_missing'
+  | 'invalid_phone'
+  | 'invalid_referral'
+  | 'validation'
+  | 'request_error'
+
 export type AdminMetrics = {
   users: number
   advertisers: number
@@ -306,6 +315,11 @@ export type AdminMetrics = {
     failed: number
     completed: number
     conversion_rate: number
+    failure_reasons: Array<{
+      reason: RegistrationFailureReason
+      label: string
+      count: number
+    }>
     sources: Array<{
       source: string
       medium: string
@@ -564,8 +578,8 @@ export const api = {
   capturePayPalOrder: (orderId: string) => request<{ credited: boolean; advertiser_budget_rsd: number }>(`/advertiser/paypal/orders/${encodeURIComponent(orderId)}/capture`, {
     method: 'POST',
   }),
-  trackPublicFunnel: (eventType: 'registration_opened' | 'registration_submitted' | 'registration_failed') => request<{ recorded: boolean }>('/analytics/funnel', {
-    method: 'POST', body: JSON.stringify({ event_type: eventType }),
+  trackPublicFunnel: (eventType: 'registration_opened' | 'registration_submitted' | 'registration_failed', failureReason?: RegistrationFailureReason) => request<{ recorded: boolean }>('/analytics/funnel', {
+    method: 'POST', body: JSON.stringify({ event_type: eventType, failure_reason: failureReason }),
   }),
   adminDashboard: () => request<{ metrics: AdminMetrics }>('/admin/dashboard'),
   resetAdminAnalytics: () => request<{ deleted: number; started_at: string; legacy_measurements_hidden: boolean }>('/admin/analytics/reset', { method: 'POST' }),

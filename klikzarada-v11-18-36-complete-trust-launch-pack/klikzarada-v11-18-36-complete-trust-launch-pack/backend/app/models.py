@@ -2053,6 +2053,19 @@ class PublicFunnelEventV12(Base):
     user = relationship("User")
 
 
+class PublicFunnelFailureReasonV12(Base):
+    """Aggregatable registration-failure reason without form values or PII."""
+
+    __tablename__ = "public_funnel_failure_reasons_v12"
+    id = Column(Integer, primary_key=True, index=True)
+    visitor_id = Column(String(120), index=True, default="")
+    source = Column(String(80), index=True, default="direct")
+    medium = Column(String(80), default="")
+    campaign = Column(String(160), index=True, default="")
+    reason = Column(String(50), index=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 class UserDirectoryV117(Base):
     __tablename__ = "user_directory_v117"
     id = Column(Integer, primary_key=True, index=True)

@@ -1,8 +1,19 @@
 import { useEffect, useState } from 'react'
 import { Btn, Input, Alert } from '../components/ui'
-import { api, deviceFingerprint } from '../lib/api'
+import { api, deviceFingerprint, type RegistrationFailureReason } from '../lib/api'
 
 type Mode = 'login' | 'register' | 'advertiser-login' | 'advertiser-register' | 'admin-login'
+
+function registrationFailureReason(caught: unknown): RegistrationFailureReason {
+  const message = (caught instanceof Error ? caught.message : '').toLocaleLowerCase('sr-RS')
+  if (message.includes('email adresa je već registrovana')) return 'email_taken'
+  if (message.includes('broj telefona je već povezan')) return 'phone_taken'
+  if (message.includes('moraš prihvatiti')) return 'terms_missing'
+  if (message.includes('telefon') && message.includes('7 cifara')) return 'invalid_phone'
+  if (message.includes('referral')) return 'invalid_referral'
+  if (message.includes('422') || message.includes('valid')) return 'validation'
+  return 'request_error'
+}
 
 export default function Auth({
   initialMode = 'login',
@@ -86,7 +97,7 @@ export default function Auth({
       if (result.user.role === 'admin') onNavigate('admin')
       else onNavigate(result.user.role === 'oglasivac' ? 'advertiser' : 'dashboard')
     } catch (caught) {
-      if (isRegister) void api.trackPublicFunnel('registration_failed').catch(() => undefined)
+      if (isRegister) void api.trackPublicFunnel('registration_failed', registrationFailureReason(caught)).catch(() => undefined)
       setError(caught instanceof Error ? caught.message : 'Prijava nije uspela.')
     } finally {
       setSubmitted(false)

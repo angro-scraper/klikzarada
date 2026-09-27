@@ -104,7 +104,19 @@ class UiContractTests(unittest.TestCase):
         self.assertIn("trackPublicFunnel('registration_opened')", auth_source)
         self.assertIn("trackPublicFunnel('registration_submitted')", auth_source)
         self.assertIn("registration_failed", api_source)
-        self.assertIn("trackPublicFunnel('registration_failed')", auth_source)
+        self.assertIn("trackPublicFunnel('registration_failed', registrationFailureReason(caught))", auth_source)
+
+    def test_registration_failure_diagnostics_never_retain_form_values(self):
+        """The admin funnel may show categories, but never a user's submitted data."""
+        api_source = (BACKEND_DIR / "app" / "ui_api.py").read_text(encoding="utf-8")
+        model_source = (BACKEND_DIR / "app" / "models.py").read_text(encoding="utf-8")
+        auth_source = (BACKEND_DIR / "frontend" / "src" / "pages" / "Auth.tsx").read_text(encoding="utf-8")
+        self.assertIn("class PublicFunnelFailureReasonV12", model_source)
+        self.assertIn("_record_public_funnel_failure_reason", api_source)
+        self.assertIn('"failure_reasons": failure_reasons', api_source)
+        self.assertIn("registrationFailureReason", auth_source)
+        self.assertNotIn("email_value", model_source)
+        self.assertNotIn("phone_value", model_source)
 
     def test_registration_explains_missing_required_fields(self):
         """Ad visitors must never get a silent no-op when the form is incomplete."""

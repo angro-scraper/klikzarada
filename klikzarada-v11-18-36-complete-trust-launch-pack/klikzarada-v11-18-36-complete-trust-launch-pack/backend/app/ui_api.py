@@ -52,6 +52,7 @@ from .models import (
     PaidAdBannerV111,
     PaidPromotionRequestV111,
     PublicFunnelEventV12,
+    PublicFunnelFailureReasonV12,
     PlatformVisitV117,
     SystemErrorLogV11,
     SystemSetting,
@@ -120,6 +121,10 @@ class Registration(Credentials):
 
 class PublicFunnelEventPayload(BaseModel):
     event_type: Literal["registration_opened", "registration_submitted", "registration_failed"]
+    failure_reason: Literal[
+        "email_taken", "phone_taken", "terms_missing", "invalid_phone",
+        "invalid_referral", "validation", "request_error",
+    ] | None = None
 
 
 class ProofPayload(BaseModel):
@@ -1022,6 +1027,39 @@ def _record_public_funnel_event(
     return True
 
 
+def _record_public_funnel_failure_reason(
+    db: Session,
+    request: Request,
+    reason: str,
+) -> bool:
+    """Store an aggregate-safe failure category, never a submitted form value."""
+    visitor_id = _valid_visitor_id(request)
+    if not visitor_id:
+        return False
+    now = datetime.utcnow()
+    duplicate = db.query(PublicFunnelFailureReasonV12.id).filter(
+        PublicFunnelFailureReasonV12.visitor_id == visitor_id,
+        PublicFunnelFailureReasonV12.reason == reason,
+        PublicFunnelFailureReasonV12.created_at >= now - timedelta(minutes=30),
+    ).first()
+    if duplicate:
+        return False
+    latest_landing = db.query(PublicFunnelEventV12).filter(
+        PublicFunnelEventV12.visitor_id == visitor_id,
+        PublicFunnelEventV12.event_type == "ad_landing",
+        PublicFunnelEventV12.created_at >= now - timedelta(days=30),
+    ).order_by(PublicFunnelEventV12.created_at.desc()).first()
+    db.add(PublicFunnelFailureReasonV12(
+        visitor_id=visitor_id,
+        source=latest_landing.source if latest_landing else "direct",
+        medium=latest_landing.medium if latest_landing else "",
+        campaign=latest_landing.campaign if latest_landing else "",
+        reason=reason,
+        created_at=now,
+    ))
+    return True
+
+
 def _require_user(request: Request, db: Session, roles: set[str] | None = None) -> User:
     user = _current_user(request, db)
     if not user:
@@ -1134,6 +1172,8 @@ def session(request: Request, db: Session = Depends(get_db)) -> dict:
 @router.post("/analytics/funnel")
 def track_public_funnel_event(payload: PublicFunnelEventPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     recorded = _record_public_funnel_event(db, request, payload.event_type)
+    if payload.event_type == "registration_failed" and payload.failure_reason:
+        recorded = _record_public_funnel_failure_reason(db, request, payload.failure_reason) or recorded
     if recorded:
         db.commit()
     return {"recorded": recorded}
@@ -3046,11 +3086,38 @@ def _admin_dashboard_data(db: Session) -> dict:
             "landings": len(landings),
             "opened": len(funnel_visitors("registration_opened", source_events)),
             "submitted": len(funnel_visitors("registration_submitted", source_events)),
+            "failed": len(funnel_visitors("registration_failed", source_events)),
             "completed": len(funnel_visitors("registration_completed", source_events)),
         })
     funnel_sources.sort(key=lambda item: item["landings"], reverse=True)
     paid_landings = funnel_visitors("ad_landing")
     paid_completed = funnel_visitors("registration_completed")
+    failure_reason_labels = {
+        "email_taken": "Email je već registrovan",
+        "phone_taken": "Telefon je već povezan sa nalogom",
+        "terms_missing": "Uslovi nisu prihvaćeni",
+        "invalid_phone": "Telefon nije ispravan",
+        "invalid_referral": "Referral kod nije ispravan",
+        "validation": "Nedostaje ili nije ispravan podatak",
+        "request_error": "Tehnička greška pri slanju",
+    }
+    failure_reason_rows = db.query(
+        PublicFunnelFailureReasonV12.reason,
+        func.count(PublicFunnelFailureReasonV12.id).label("count"),
+    ).filter(
+        PublicFunnelFailureReasonV12.source.isnot(None),
+        PublicFunnelFailureReasonV12.source != "direct",
+    ).group_by(PublicFunnelFailureReasonV12.reason).order_by(
+        func.count(PublicFunnelFailureReasonV12.id).desc()
+    ).all()
+    failure_reasons = [
+        {
+            "reason": row.reason,
+            "label": failure_reason_labels.get(row.reason, "Nepoznata greška"),
+            "count": int(row.count or 0),
+        }
+        for row in failure_reason_rows
+    ]
     return {
         "metrics": {
             "users": db.query(User).filter(User.role == "korisnik").count(),
@@ -3080,6 +3147,7 @@ def _admin_dashboard_data(db: Session) -> dict:
                 "failed": len(funnel_visitors("registration_failed")),
                 "completed": len(paid_completed),
                 "conversion_rate": round((len(paid_completed) / len(paid_landings) * 100) if paid_landings else 0, 1),
+                "failure_reasons": failure_reasons,
                 "sources": funnel_sources[:8],
             },
         }
