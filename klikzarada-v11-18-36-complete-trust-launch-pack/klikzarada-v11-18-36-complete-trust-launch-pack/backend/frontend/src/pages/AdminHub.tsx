@@ -502,6 +502,19 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                   <StatCard label="Dokazi kod oglašivača" value={String(metrics?.pending_submissions ?? 0)} icon="📎" accent="orange" />
                   <StatCard label="Isplate na čekanju" value={String(metrics?.pending_withdrawals ?? 0)} icon="💸" accent="purple" />
                 </div>
+                <Card className="border-sky-200 bg-sky-50 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h2 className="font-bold text-ink">Posete sajta danas</h2>
+                      <p className="mt-0.5 text-sm text-ink-2">Računaju se samo javne stranice, bez admina, API-ja i fajlova.</p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-center sm:min-w-96">
+                      <div><p className="text-xl font-extrabold text-ink">{metrics?.site_views_today ?? 0}</p><p className="text-xs text-ink-2">prikaza</p></div>
+                      <div><p className="text-xl font-extrabold text-ink">{metrics?.site_unique_today ?? 0}</p><p className="text-xs text-ink-2">jedinstvenih</p></div>
+                      <div><p className="text-xl font-extrabold text-ink">{metrics?.site_active_now ?? 0}</p><p className="text-xs text-ink-2">aktivnih sada</p></div>
+                    </div>
+                  </div>
+                </Card>
                 <div className="space-y-2">
                   {(metrics?.pending_campaigns ?? 0) > 0 && <Alert type="warning"><strong>{metrics?.pending_campaigns} kampanja</strong> čeka moderaciju pre aktivacije.</Alert>}
                   {sources.some(source => source.status === 'error') && <Alert type="error">Najmanje jedan partner izvor je u grešci. Proveri API izvore pre sledećeg uvoza.</Alert>}

@@ -50,6 +50,7 @@ from .models import (
     PayPalPayoutAttempt,
     PaidAdBannerV111,
     PaidPromotionRequestV111,
+    PlatformVisitV117,
     SystemSetting,
     SupportMessage,
     SupportTicket,
@@ -2260,7 +2261,7 @@ def _paypal_card_checkout_enabled() -> bool:
     return os.getenv("PAYPAL_CARD_PAYMENTS_ENABLED", "true").strip().lower() not in {"0", "false", "no", "off"}
 
 
-def _public_app_url(request: Request) -> str:
+def _public_app_url_from_request(request: Request) -> str:
     configured = (os.getenv("PUBLIC_APP_URL") or os.getenv("RENDER_EXTERNAL_URL") or "").strip().rstrip("/")
     if configured.startswith("https://"):
         return configured
@@ -2409,7 +2410,7 @@ def create_paypal_order(payload: PayPalTopupPayload, request: Request, db: Sessi
         }],
     }
     if payload.checkout_flow == "redirect":
-        public_url = _public_app_url(request)
+        public_url = _public_app_url_from_request(request)
         order_payload["payment_source"] = {"paypal": {"experience_context": {
             "brand_name": "KlikZarada",
             "landing_page": "LOGIN",
@@ -2493,7 +2494,7 @@ def paypal_return(token: str, request: Request, db: Session = Depends(get_db)) -
     advertiser = _require_user(request, db, {"oglasivac", "admin"})
     checkout = db.query(PayPalCheckout).filter(PayPalCheckout.paypal_order_id == token, PayPalCheckout.advertiser_id == advertiser.id).first()
     if not checkout:
-        return RedirectResponse(f"{_public_app_url(request)}/oglasivac/panel?payment=error", status_code=303)
+        return RedirectResponse(f"{_public_app_url_from_request(request)}/oglasivac/panel?payment=error", status_code=303)
     try:
         _capture_paypal_checkout(db, checkout)
         db.commit()
@@ -2501,12 +2502,12 @@ def paypal_return(token: str, request: Request, db: Session = Depends(get_db)) -
     except HTTPException:
         db.rollback()
         result = "error"
-    return RedirectResponse(f"{_public_app_url(request)}/oglasivac/panel?payment={result}", status_code=303)
+    return RedirectResponse(f"{_public_app_url_from_request(request)}/oglasivac/panel?payment={result}", status_code=303)
 
 
 @router.get("/advertiser/paypal/cancel")
 def paypal_cancel(request: Request) -> RedirectResponse:
-    return RedirectResponse(f"{_public_app_url(request)}/oglasivac/panel?payment=cancelled", status_code=303)
+    return RedirectResponse(f"{_public_app_url_from_request(request)}/oglasivac/panel?payment=cancelled", status_code=303)
 
 
 @router.post("/paypal/webhook", status_code=204)
@@ -2697,6 +2698,19 @@ def update_campaign_lifecycle(task_id: int, payload: CampaignLifecyclePayload, r
 
 
 def _admin_dashboard_data(db: Session) -> dict:
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    active_start = now - timedelta(minutes=15)
+    # The visit table contains only anonymous identifiers. Exclude older
+    # back-office/API entries so the dashboard reports public site traffic.
+    public_visits = db.query(PlatformVisitV117).filter(
+        ~PlatformVisitV117.path.like("/admin%"),
+        ~PlatformVisitV117.path.like("/api/%"),
+        ~PlatformVisitV117.path.like("/static/%"),
+        ~PlatformVisitV117.path.like("/app-ui/%"),
+        ~PlatformVisitV117.path.like("/uploads/%"),
+    )
+    today_visits = public_visits.filter(PlatformVisitV117.created_at >= today_start)
     pending_submissions = db.query(TaskSubmission).filter(TaskSubmission.status == "pending").count()
     pending_withdrawals = db.query(Withdrawal).filter(Withdrawal.status == "pending").count()
     pending_campaigns = db.query(Task).filter(Task.status == "pending").count()
@@ -2713,6 +2727,11 @@ def _admin_dashboard_data(db: Session) -> dict:
             "pending_banners": pending_banners,
             "pending_promotions": pending_promotions,
             "reserved_budget_rsd": _money(db.query(func.coalesce(func.sum(User.advertiser_reserved_rsd), 0)).scalar()),
+            "site_views_today": today_visits.count(),
+            "site_unique_today": today_visits.with_entities(PlatformVisitV117.visitor_id).distinct().count(),
+            "site_active_now": public_visits.filter(
+                PlatformVisitV117.created_at >= active_start
+            ).with_entities(PlatformVisitV117.visitor_id).distinct().count(),
         }
     }
 

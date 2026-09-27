@@ -10021,7 +10021,13 @@ def kz117_visit_stats(db: Session):
     active_start = now - timedelta(minutes=15)
     # Older versions recorded admin screens too; filter them out here as well so
     # historical totals remain useful after the tracking rules were tightened.
-    visits = db.query(PlatformVisitV117).filter(~PlatformVisitV117.path.like("/admin%"))
+    visits = db.query(PlatformVisitV117).filter(
+        ~PlatformVisitV117.path.like("/admin%"),
+        ~PlatformVisitV117.path.like("/api/%"),
+        ~PlatformVisitV117.path.like("/static/%"),
+        ~PlatformVisitV117.path.like("/app-ui/%"),
+        ~PlatformVisitV117.path.like("/uploads/%"),
+    )
     total_visits = visits.count()
     today_visits = visits.filter(PlatformVisitV117.created_at >= today_start).count()
     week_visits = visits.filter(PlatformVisitV117.created_at >= week_start).count()

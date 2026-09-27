@@ -241,6 +241,9 @@ export type AdminMetrics = {
   pending_banners: number
   pending_promotions?: number
   reserved_budget_rsd: number
+  site_views_today: number
+  site_unique_today: number
+  site_active_now: number
 }
 
 export type AdminUser = SessionUser & { created_at: string | null }

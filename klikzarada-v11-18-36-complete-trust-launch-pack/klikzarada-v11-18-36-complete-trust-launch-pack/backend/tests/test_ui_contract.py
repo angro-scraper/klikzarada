@@ -3,6 +3,7 @@
 import os
 import sys
 import unittest
+from inspect import signature
 from pathlib import Path
 
 
@@ -11,6 +12,7 @@ os.chdir(BACKEND_DIR)
 sys.path.insert(0, str(BACKEND_DIR))
 
 from app.main import app  # noqa: E402
+from app.ui_api import _public_app_url  # noqa: E402
 
 
 class UiContractTests(unittest.TestCase):
@@ -28,6 +30,10 @@ class UiContractTests(unittest.TestCase):
             "/admin/analitika-v117",
         }
         self.assertTrue(expected.issubset(paths))
+
+    def test_email_public_url_helper_does_not_require_a_request(self):
+        """Registration and password reset must be able to create email links."""
+        self.assertEqual(len(signature(_public_app_url).parameters), 0)
 
 
 if __name__ == "__main__":
