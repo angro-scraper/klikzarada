@@ -56,6 +56,8 @@ class UiContractTests(unittest.TestCase):
         self.assertIn("const AdvertiserPanel = lazy(() => import('./pages/AdvertiserPanel'))", app_source)
         self.assertIn("const UserDashboard = lazy(() => import('./pages/UserDashboard'))", app_source)
         self.assertNotIn("import AdminHub from './pages/AdminHub'", app_source)
+        self.assertIn("startTransition(() => setPathname(nextPath))", app_source)
+        self.assertIn('aria-label="Učitavanje panela"', app_source)
         self.assertIn("GZipMiddleware", main_source)
         self.assertIn('public, max-age=31536000, immutable', main_source)
 
