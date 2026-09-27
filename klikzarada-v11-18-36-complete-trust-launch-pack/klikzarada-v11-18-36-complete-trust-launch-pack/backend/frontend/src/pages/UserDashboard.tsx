@@ -5,6 +5,7 @@ import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal, InfoModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { api, deviceFingerprint, type NotificationItem, type SessionUser, type SupportTicket, type Task, type TaskVerification, type UserDashboardData } from '../lib/api'
+import { type UserDashboardPage, userDashboardPageFromPath, userDashboardPath } from '../lib/userDashboardRoutes'
 
 const navGroups = [
   { items: [
@@ -30,29 +31,7 @@ const navGroups = [
   ]},
 ]
 
-export type UserDashboardPage = 'pregled'|'zadaci'|'preporuke'|'dokazi'|'obavestenja'|'novcanik'|'isplate'|'podaci-isplata'|'nagrade'|'misije'|'referral'|'profil'|'podrska'|'zadatak-detalj'
 type Page = UserDashboardPage
-
-const USER_PAGE_PATHS: Partial<Record<Page, string>> = {
-  pregled: '/korisnik/panel',
-  zadaci: '/korisnik/zadaci',
-  preporuke: '/korisnik/preporuke',
-  dokazi: '/korisnik/dokazi',
-  obavestenja: '/korisnik/notifikacije',
-  novcanik: '/korisnik/wallet',
-  isplate: '/korisnik/isplate',
-  'podaci-isplata': '/korisnik/payout-profile-v11',
-  nagrade: '/korisnik/motivacija-v115',
-  misije: '/korisnik/bedzevi',
-  referral: '/korisnik/referral',
-  profil: '/korisnik/profil',
-  podrska: '/korisnik/tiketi',
-}
-
-export function userDashboardPageFromPath(pathname: string): UserDashboardPage {
-  const matched = (Object.entries(USER_PAGE_PATHS) as Array<[Page, string]>).find(([, path]) => pathname.startsWith(path))
-  return matched?.[0] ?? 'pregled'
-}
 
 const BACK: Partial<Record<Page, { label: string; to: Page }>> = {
   zadaci:          { label: 'Nazad na pregled', to: 'pregled' },
@@ -278,7 +257,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
 
   function goTo(p: Page) {
     setPage(p)
-    const path = USER_PAGE_PATHS[p]
+    const path = userDashboardPath(p)
     if (path && window.location.pathname !== path) window.history.pushState({}, '', path)
     window.scrollTo(0, 0)
   }

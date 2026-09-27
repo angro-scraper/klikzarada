@@ -46,6 +46,17 @@ class UiContractTests(unittest.TestCase):
         self.assertIn('Cache-Control"] = "no-store, max-age=0, must-revalidate"', main_source)
         self.assertIn("class AppUiStaticFiles", main_source)
 
+    def test_public_entry_does_not_ship_private_workspaces(self):
+        """Landing visitors must load authenticated screens only after navigation."""
+        app_source = (BACKEND_DIR / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
+        main_source = (BACKEND_DIR / "app" / "main.py").read_text(encoding="utf-8")
+        self.assertIn("const AdminHub = lazy(() => import('./pages/AdminHub'))", app_source)
+        self.assertIn("const AdvertiserPanel = lazy(() => import('./pages/AdvertiserPanel'))", app_source)
+        self.assertIn("const UserDashboard = lazy(() => import('./pages/UserDashboard'))", app_source)
+        self.assertNotIn("import AdminHub from './pages/AdminHub'", app_source)
+        self.assertIn("GZipMiddleware", main_source)
+        self.assertIn('public, max-age=31536000, immutable', main_source)
+
     def test_user_beta_task_detail_has_its_input_component(self):
         """Opening a closed-beta task must not fail because its form component is missing."""
         source = (BACKEND_DIR / "frontend" / "src" / "pages" / "UserDashboard.tsx").read_text(encoding="utf-8")

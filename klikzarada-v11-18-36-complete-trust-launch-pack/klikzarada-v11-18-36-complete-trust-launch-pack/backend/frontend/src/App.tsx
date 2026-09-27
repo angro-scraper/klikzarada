@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import Landing from './pages/Landing'
-import Auth from './pages/Auth'
-import TasksPublic from './pages/TasksPublic'
-import UserDashboard, { userDashboardPageFromPath } from './pages/UserDashboard'
-import AdvertiserPanel from './pages/AdvertiserPanel'
-import AdminHub from './pages/AdminHub'
-import Legal from './pages/Legal'
-import HelpCenter from './pages/HelpCenter'
 import { api } from './lib/api'
+import { userDashboardPageFromPath } from './lib/userDashboardRoutes'
+
+// Public visitors should not download the three authenticated workspaces.
+const Auth = lazy(() => import('./pages/Auth'))
+const TasksPublic = lazy(() => import('./pages/TasksPublic'))
+const UserDashboard = lazy(() => import('./pages/UserDashboard'))
+const AdvertiserPanel = lazy(() => import('./pages/AdvertiserPanel'))
+const AdminHub = lazy(() => import('./pages/AdminHub'))
+const Legal = lazy(() => import('./pages/Legal'))
+const HelpCenter = lazy(() => import('./pages/HelpCenter'))
 
 type Route =
   | 'home'
@@ -79,6 +82,17 @@ function AdvertiserRoute({ onNavigate }: { onNavigate: (id: string) => void }) {
   return <AdvertiserPanel onNavigate={onNavigate} />
 }
 
+function RouteLoader() {
+  return (
+    <main className="min-h-screen bg-mint-50 px-5 py-24">
+      <section className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm" aria-live="polite">
+        <div className="mx-auto h-9 w-9 animate-pulse rounded-xl bg-blue-600" />
+        <p className="mt-4 font-semibold text-navy-900">Učitavamo bezbedan prostor naloga...</p>
+      </section>
+    </main>
+  )
+}
+
 export default function App() {
   const [pathname, setPathname] = useState(() => window.location.pathname)
   const route = routeFromPath(pathname)
@@ -98,18 +112,21 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  if (route === 'home')               return <Landing onNavigate={go} />
-  if (route === 'tasks-public')       return <TasksPublic onNavigate={go} />
-  if (route === 'login')              return <Auth initialMode="login" onNavigate={go} />
-  if (route === 'register')           return <Auth initialMode="register" onNavigate={go} />
-  if (route === 'advertiser-login')   return <Auth initialMode="advertiser-login" onNavigate={go} />
-  if (route === 'advertiser-register')return <Auth initialMode="advertiser-register" onNavigate={go} />
-  if (route === 'admin-login')         return <Auth initialMode="admin-login" onNavigate={go} />
-  if (route === 'dashboard')          return <UserDashboard initialPage={userDashboardPageFromPath(pathname)} onNavigate={go} />
-  if (route === 'advertiser')         return <AdvertiserRoute onNavigate={go} />
-  if (route === 'admin')              return <AdminRoute onNavigate={go} />
-  if (route === 'legal')              return <Legal onNavigate={go} />
-  if (route === 'help')               return <HelpCenter onNavigate={go} />
+  if (route === 'home') return <Landing onNavigate={go} />
 
-  return <Landing onNavigate={go} />
+  return (
+    <Suspense fallback={<RouteLoader />}>
+      {route === 'tasks-public' && <TasksPublic onNavigate={go} />}
+      {route === 'login' && <Auth initialMode="login" onNavigate={go} />}
+      {route === 'register' && <Auth initialMode="register" onNavigate={go} />}
+      {route === 'advertiser-login' && <Auth initialMode="advertiser-login" onNavigate={go} />}
+      {route === 'advertiser-register' && <Auth initialMode="advertiser-register" onNavigate={go} />}
+      {route === 'admin-login' && <Auth initialMode="admin-login" onNavigate={go} />}
+      {route === 'dashboard' && <UserDashboard initialPage={userDashboardPageFromPath(pathname)} onNavigate={go} />}
+      {route === 'advertiser' && <AdvertiserRoute onNavigate={go} />}
+      {route === 'admin' && <AdminRoute onNavigate={go} />}
+      {route === 'legal' && <Legal onNavigate={go} />}
+      {route === 'help' && <HelpCenter onNavigate={go} />}
+    </Suspense>
+  )
 }

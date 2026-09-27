@@ -19,6 +19,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Upload
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.gzip import GZipMiddleware
 from sqlalchemy import func, inspect, or_
 from sqlalchemy.orm import Session
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
@@ -44,8 +45,17 @@ class AppUiStaticFiles(StaticFiles):
                 if match:
                     current_bundle = SPA_DIR / match.group(1)
                     if current_bundle.exists() and path != match.group(1):
-                        return FileResponse(current_bundle, media_type="text/javascript")
-        return await super().get_response(path, scope)
+                        response = FileResponse(current_bundle, media_type="text/javascript")
+                        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+                        return response
+
+        response = await super().get_response(path, scope)
+        if path == "index.html":
+            response.headers["Cache-Control"] = "no-store, max-age=0, must-revalidate"
+        elif path.startswith("assets/"):
+            # Vite names every production asset with a content hash.
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
 
 
 if SPA_DIR.exists():
@@ -77,6 +87,10 @@ async def serve_react_application(request: Request, call_next):
     if request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https":
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return response
+
+
+# Compress JavaScript, CSS and HTML for first-time visitors on mobile networks.
+app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=6)
 
 PLATFORM_FEE_PERCENT = 20.0
 REFERRAL_BONUS_RSD = 15.0
