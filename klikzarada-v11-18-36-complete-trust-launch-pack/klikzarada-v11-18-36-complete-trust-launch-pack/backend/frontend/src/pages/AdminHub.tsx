@@ -125,28 +125,49 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const { show: showToast, node: toastNode } = useToast()
 
   const refreshAdmin = async () => {
-    try {
-      const [dashboard, userData, campaignData, submissionData, withdrawalData, sourceData, ticketData, settingData, fraudData, bannerData, promotionData, readinessData] = await Promise.all([
-        api.adminDashboard(), api.adminUsers(), api.adminCampaigns(), api.adminSubmissions(), api.adminWithdrawals(), api.adminTaskSources(), api.adminTickets(), api.adminSettings(), api.adminFraudOverview(), api.adminBanners(), api.adminPromotions(), api.adminProductionReadiness(),
-      ])
-      setMetrics(dashboard.metrics)
-      setUsers(userData.users)
-      setCampaigns(campaignData.campaigns)
-      setSubmissions(submissionData.submissions)
-      setWithdrawals(withdrawalData.withdrawals)
-      setSources(sourceData.sources)
-      setTickets(ticketData.tickets)
-      setSettings(settingData.settings)
-      setFraudOverview(fraudData)
-      setBannerSlots(bannerData.slots)
-      setBanners(bannerData.banners)
-      setPromotions(promotionData.promotions)
-      setProductionReadiness(readinessData)
-      setSettingDrafts(Object.fromEntries(settingData.settings.map(setting => [setting.key, setting.value])))
-      setDataError('')
-    } catch (error) {
-      setDataError(error instanceof Error ? error.message : 'Admin podaci nisu dostupni.')
+    const errors: string[] = []
+    let dashboardLoaded = false
+    let loadedUsers: AdminUser[] | null = null
+    let loadedCampaigns: AdminCampaign[] | null = null
+
+    // One unavailable admin endpoint must not turn the entire operations view into zeros.
+    const load = async <T,>(label: string, request: Promise<T>, apply: (data: T) => void) => {
+      try {
+        apply(await request)
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : 'nepoznata greška'
+        errors.push(`${label}: ${detail}`)
+      }
     }
+
+    await Promise.all([
+      load('operativni pregled', api.adminDashboard(), data => { dashboardLoaded = true; setMetrics(data.metrics) }),
+      load('korisnici', api.adminUsers(), data => { loadedUsers = data.users; setUsers(data.users) }),
+      load('kampanje', api.adminCampaigns(), data => { loadedCampaigns = data.campaigns; setCampaigns(data.campaigns) }),
+      load('dokazi', api.adminSubmissions(), data => setSubmissions(data.submissions)),
+      load('isplate', api.adminWithdrawals(), data => setWithdrawals(data.withdrawals)),
+      load('izvori zadataka', api.adminTaskSources(), data => setSources(data.sources)),
+      load('tiketi', api.adminTickets(), data => setTickets(data.tickets)),
+      load('podešavanja', api.adminSettings(), data => {
+        setSettings(data.settings)
+        setSettingDrafts(Object.fromEntries(data.settings.map(setting => [setting.key, setting.value])))
+      }),
+      load('anti-fraud', api.adminFraudOverview(), data => setFraudOverview(data)),
+      load('banneri', api.adminBanners(), data => { setBannerSlots(data.slots); setBanners(data.banners) }),
+      load('promocije', api.adminPromotions(), data => setPromotions(data.promotions)),
+      load('produkcijska provera', api.adminProductionReadiness(), data => setProductionReadiness(data)),
+    ])
+
+    if (!dashboardLoaded && (loadedUsers || loadedCampaigns)) {
+      setMetrics(current => ({
+        ...current,
+        users: loadedUsers?.filter(user => user.role === 'korisnik').length ?? current.users,
+        advertisers: loadedUsers?.filter(user => user.role === 'oglasivac').length ?? current.advertisers,
+        active_tasks: loadedCampaigns?.filter(campaign => campaign.status === 'active').length ?? current.active_tasks,
+      }))
+    }
+
+    setDataError(errors.length ? `Delimično učitavanje: ${errors.join(' | ')}` : '')
   }
 
   useEffect(() => { void refreshAdmin() }, [])
