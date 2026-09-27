@@ -61,6 +61,7 @@ from .models import (
     TaskVerificationSessionV1,
     User,
     UserConsentV11,
+    UserProgramRewardClaim,
     WalletTransaction,
     Withdrawal,
 )
@@ -77,6 +78,13 @@ ANTI_FRAUD_DAILY_TASK_LIMIT = 20
 ANTI_FRAUD_DAILY_EARNINGS_RSD = 2000.0
 ANTI_FRAUD_MIN_ACTIVITY_EVENTS = 8
 ANTI_FRAUD_HIGH_RISK_SCORE = 70.0
+
+PROGRAM_REWARDS = {
+    "today_3_proofs": 50.0,
+    "week_5_proofs": 150.0,
+    "first_active_referral": 200.0,
+}
+DAILY_REWARD_RSD = 10.0
 
 REQUIRED_SYSTEM_SETTINGS = {
     "advertiser_payment_account": "Poslovni račun na koji oglašivači uplaćuju budžet.",
@@ -1295,6 +1303,114 @@ def record_client_error(payload: ClientErrorPayload, db: Session = Depends(get_d
     return Response(status_code=204)
 
 
+def _program_data(db: Session, user: User) -> dict:
+    """Return only server-calculated engagement progress for the signed-in user."""
+    now = datetime.utcnow()
+    today = now.date()
+    today_start = datetime.combine(today, datetime.min.time())
+    tomorrow_start = today_start + timedelta(days=1)
+    week_start = today_start - timedelta(days=today.weekday())
+    next_week_start = week_start + timedelta(days=7)
+
+    submitted_total = db.query(TaskSubmission).filter(TaskSubmission.user_id == user.id).count()
+    approved_total = db.query(TaskSubmission).filter(
+        TaskSubmission.user_id == user.id,
+        TaskSubmission.status == "approved",
+    ).count()
+    submitted_today = db.query(TaskSubmission).filter(
+        TaskSubmission.user_id == user.id,
+        TaskSubmission.created_at >= today_start,
+        TaskSubmission.created_at < tomorrow_start,
+    ).count()
+    submitted_this_week = db.query(TaskSubmission).filter(
+        TaskSubmission.user_id == user.id,
+        TaskSubmission.created_at >= week_start,
+        TaskSubmission.created_at < next_week_start,
+    ).count()
+    active_referrals = db.query(func.count(func.distinct(User.id))).join(
+        TaskSubmission, TaskSubmission.user_id == User.id,
+    ).filter(
+        User.referred_by_id == user.id,
+        TaskSubmission.status == "approved",
+    ).scalar() or 0
+
+    claims = db.query(UserProgramRewardClaim).filter(UserProgramRewardClaim.user_id == user.id).all()
+    claimed_keys = {claim.reward_key for claim in claims}
+    claimed_daily_dates = {
+        claim.reward_key.removeprefix("daily:")
+        for claim in claims
+        if claim.reward_key.startswith("daily:")
+    }
+    streak = 0
+    cursor = today
+    while cursor.isoformat() in claimed_daily_dates:
+        streak += 1
+        cursor -= timedelta(days=1)
+
+    mission_specs = (
+        ("today_3_proofs", "Pošalji 3 dokaza danas", submitted_today, 3, "bg-blue-500"),
+        ("week_5_proofs", "Pošalji 5 dokaza ove nedelje", submitted_this_week, 5, "bg-emerald-500"),
+        ("first_active_referral", "Dovedi prvog aktivnog prijatelja", active_referrals, 1, "bg-violet-500"),
+    )
+    missions = [
+        {
+            "key": key,
+            "title": title,
+            "progress": min(progress, target),
+            "target": target,
+            "reward_rsd": PROGRAM_REWARDS[key],
+            "accent": accent,
+            "eligible": progress >= target,
+            "claimed": key in claimed_keys,
+        }
+        for key, title, progress, target, accent in mission_specs
+    ]
+    badges = [
+        {"key": "starter", "icon": "🚀", "name": "Starter", "description": "Prvih 5 poslatih dokaza", "unlocked": submitted_total >= 5},
+        {"key": "streak_7", "icon": "🔥", "name": "Streak 7", "description": "7 uzastopno preuzetih dnevnih nagrada", "unlocked": streak >= 7},
+        {"key": "trusted", "icon": "⭐", "name": "Trusted", "description": "20 odobrenih dokaza", "unlocked": approved_total >= 20},
+        {"key": "pro_earner", "icon": "💎", "name": "Pro Earner", "description": "500 RSD stvarne zarade", "unlocked": (user.lifetime_earned_rsd or 0) >= 500},
+        {"key": "elite", "icon": "👑", "name": "Elite", "description": "50 odobrenih dokaza", "unlocked": approved_total >= 50},
+    ]
+    week = []
+    for offset in range(7):
+        day = week_start.date() + timedelta(days=offset)
+        week.append({
+            "date": day.isoformat(),
+            "label": ("Pon", "Uto", "Sre", "Čet", "Pet", "Sub", "Ned")[offset],
+            "claimed": day.isoformat() in claimed_daily_dates,
+            "is_today": day == today,
+        })
+    daily_key = f"daily:{today.isoformat()}"
+    return {
+        "daily": {
+            "key": daily_key,
+            "reward_rsd": DAILY_REWARD_RSD,
+            "eligible": submitted_today > 0,
+            "claimed": daily_key in claimed_keys,
+            "streak": streak,
+            "week": week,
+        },
+        "missions": missions,
+        "badges": badges,
+        "stats": {"submitted_total": submitted_total, "approved_total": approved_total},
+    }
+
+
+def _claimable_program_reward(db: Session, user: User, reward_key: str) -> tuple[float, str]:
+    program = _program_data(db, user)
+    if reward_key == program["daily"]["key"]:
+        if not program["daily"]["eligible"]:
+            raise HTTPException(409, "Dnevna nagrada se otključava nakon prvog stvarno poslatog dokaza danas.")
+        return DAILY_REWARD_RSD, "Dnevna nagrada za aktivnost"
+    mission = next((item for item in program["missions"] if item["key"] == reward_key), None)
+    if not mission:
+        raise HTTPException(404, "Nagrada nije pronađena.")
+    if not mission["eligible"]:
+        raise HTTPException(409, "Uslov za ovu misiju još nije ispunjen.")
+    return mission["reward_rsd"], f"Nagrada za misiju: {mission['title']}"
+
+
 @router.get("/user/dashboard")
 def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"korisnik", "admin"})
@@ -1317,6 +1433,7 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
         "user": _user_data(user),
         "min_withdrawal_rsd": MIN_WITHDRAWAL_RSD,
         "referral_count": referrals,
+        "program": _program_data(db, user),
         "tasks": [
             _task_data(task) | (
                 {
@@ -1332,6 +1449,26 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
         "withdrawals": [{"id": item.id, "amount_rsd": _money(item.amount_rsd), "status": _status(item.status), "payment_method": item.payment_method, "created_at": _iso(item.created_at)} for item in withdrawals],
         "transactions": [{"id": item.id, "amount_rsd": _money(item.amount_rsd), "tx_type": item.tx_type, "description": item.description, "created_at": _iso(item.created_at)} for item in transactions],
     }
+
+
+@router.post("/user/program/rewards/{reward_key}")
+def claim_program_reward(reward_key: str, request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db, {"korisnik", "admin"})
+    reward_key = reward_key.strip()[:80]
+    reward_rsd, description = _claimable_program_reward(db, user, reward_key)
+    existing = db.query(UserProgramRewardClaim).filter(
+        UserProgramRewardClaim.user_id == user.id,
+        UserProgramRewardClaim.reward_key == reward_key,
+    ).first()
+    if existing:
+        raise HTTPException(409, "Ova nagrada je već preuzeta.")
+    user.balance_rsd = _money(user.balance_rsd + reward_rsd)
+    user.lifetime_earned_rsd = _money(user.lifetime_earned_rsd + reward_rsd)
+    db.add(UserProgramRewardClaim(user_id=user.id, reward_key=reward_key, reward_rsd=reward_rsd))
+    db.add(WalletTransaction(user_id=user.id, amount_rsd=reward_rsd, tx_type="program_reward", description=description))
+    db.add(Notification(user_id=user.id, title="Nagrada je dodata", body=f"{description}: dodato je {reward_rsd:.0f} RSD na raspoloživi saldo.", status="unread"))
+    db.commit()
+    return {"claimed": True, "reward_rsd": _money(reward_rsd), "program": _program_data(db, user)}
 
 
 @router.put("/user/profile")

@@ -30,6 +30,7 @@ class UiContractTests(unittest.TestCase):
             "/api/ui/public/waitlist",
             "/api/ui/client-errors",
             "/api/ui/admin/analytics/reset",
+            "/api/ui/user/program/rewards/{reward_key}",
             "/admin/analitika-v117",
         }
         self.assertTrue(expected.issubset(paths))
@@ -80,6 +81,18 @@ class UiContractTests(unittest.TestCase):
         self.assertNotIn("label: 'Dokazi korisnika', icon: '📎', badge: 5", advertiser_source)
         self.assertIn("badge: proofCount || undefined", user_source)
         self.assertIn("badge: proofBadge || undefined", advertiser_source)
+
+    def test_rewards_and_badges_are_not_demo_values(self):
+        """Engagement screens must calculate progress on the server, not in JSX."""
+        user_source = (BACKEND_DIR / "frontend" / "src" / "pages" / "UserDashboard.tsx").read_text(encoding="utf-8")
+        api_source = (BACKEND_DIR / "app" / "ui_api.py").read_text(encoding="utf-8")
+        model_source = (BACKEND_DIR / "app" / "models.py").read_text(encoding="utf-8")
+        self.assertNotIn("Streak: 7 dana", user_source)
+        self.assertNotIn("unlocked: true", user_source)
+        self.assertIn("claimProgramReward", user_source)
+        self.assertIn("def _claimable_program_reward", api_source)
+        self.assertIn("Dnevna nagrada se otključava nakon prvog stvarno poslatog dokaza", api_source)
+        self.assertIn("class UserProgramRewardClaim", model_source)
 
 
 if __name__ == "__main__":

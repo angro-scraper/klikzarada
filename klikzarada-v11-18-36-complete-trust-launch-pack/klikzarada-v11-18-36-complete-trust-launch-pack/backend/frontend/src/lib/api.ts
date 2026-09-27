@@ -147,6 +147,39 @@ export type WalletTransaction = {
   created_at: string | null
 }
 
+export type ProgramMission = {
+  key: string
+  title: string
+  progress: number
+  target: number
+  reward_rsd: number
+  accent: string
+  eligible: boolean
+  claimed: boolean
+}
+
+export type ProgramBadge = {
+  key: string
+  icon: string
+  name: string
+  description: string
+  unlocked: boolean
+}
+
+export type UserProgram = {
+  daily: {
+    key: string
+    reward_rsd: number
+    eligible: boolean
+    claimed: boolean
+    streak: number
+    week: Array<{ date: string; label: string; claimed: boolean; is_today: boolean }>
+  }
+  missions: ProgramMission[]
+  badges: ProgramBadge[]
+  stats: { submitted_total: number; approved_total: number }
+}
+
 export type Withdrawal = {
   id: number
   amount_rsd: number
@@ -163,6 +196,7 @@ export type UserDashboardData = {
   submissions: Submission[]
   withdrawals: Withdrawal[]
   transactions: WalletTransaction[]
+  program?: UserProgram
 }
 
 export type NotificationItem = {
@@ -420,6 +454,9 @@ export const api = {
   }),
   recordBannerImpression: (id: number) => request<void>(`/public/banners/${id}/impression`, { method: 'POST' }),
   userDashboard: () => request<UserDashboardData>('/user/dashboard'),
+  claimProgramReward: (rewardKey: string) => request<{ claimed: boolean; reward_rsd: number; program: UserProgram }>(`/user/program/rewards/${encodeURIComponent(rewardKey)}`, {
+    method: 'POST',
+  }),
   completeUserOnboarding: (payload: { city?: string; age_group: string; interests: string[] }) => request<{ user: SessionUser; onboarding_complete: boolean }>('/user/onboarding', {
     method: 'POST', body: JSON.stringify(payload),
   }),

@@ -141,20 +141,6 @@ function normalizeDashboard(data: UserDashboardData): UserDashboardData {
   }
 }
 
-const badges = [
-  { icon: '🚀', name: 'Starter', desc: 'Prvih 5 zadataka', unlocked: true },
-  { icon: '🔥', name: 'Streak 7', desc: '7 dana zaredom', unlocked: true },
-  { icon: '⭐', name: 'Trusted', desc: '20 odobrenih dokaza', unlocked: false },
-  { icon: '💎', name: 'Pro Earner', desc: '500 RSD zarade', unlocked: false },
-  { icon: '👑', name: 'Elite', desc: '50 dokaza', unlocked: false },
-]
-
-const missions = [
-  { title: 'Izvrši 3 zadatka danas', progress: 1, total: 3, reward: '50 RSD', accent: 'bg-blue-500' },
-  { title: 'Dostavi 5 dokaza ove nedelje', progress: 2, total: 5, reward: '150 RSD', accent: 'bg-emerald-500' },
-  { title: 'Pozovi prvog prijatelja', progress: 0, total: 1, reward: '200 RSD', accent: 'bg-violet-500' },
-]
-
 export default function UserDashboard({ initialPage = 'pregled', onNavigate }: { initialPage?: UserDashboardPage; onNavigate: (id: string) => void }) {
   const [page, setPage] = useState<Page>(initialPage)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -256,6 +242,11 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const user: SessionUser | undefined = dashboard?.user
   const activeTasks: Task[] = dashboard?.tasks ?? []
   const proofCount = dashboard?.submissions?.length ?? 0
+  const program = dashboard?.program
+  const dailyReward = program?.daily
+  const programMissions = program?.missions ?? []
+  const programBadges = program?.badges ?? []
+  const approvedProofCount = program?.stats.approved_total ?? 0
   const visibleProofs = (dashboard?.submissions ?? []).filter(proof => proofTab === 'svi' || proof.status === proofTab)
   const navigationGroups = navGroups.map(group => ({
     ...group,
@@ -266,6 +257,19 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const payoutGap = Math.max(0, minWithdrawal - balance)
   const selectedTask = activeTasks.find(task => task.id === selectedTaskId || task.id === submitProofModal)
   const selectedTesterProgress = selectedTask?.tester_progress
+
+  async function claimProgramReward(rewardKey: string) {
+    setSaving(true)
+    try {
+      const result = await api.claimProgramReward(rewardKey)
+      await refreshDashboard()
+      showToast(`Dodato je ${formatRsd(result.reward_rsd)} na raspoloživi saldo.`, 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Nagrada nije preuzeta.', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   function goTo(p: Page) {
     setPage(p)
@@ -546,10 +550,12 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                     <span className="text-3xl">🎁</span>
                     <div>
                       <p className="font-bold text-ink">Dnevna nagrada</p>
-                    <p className="text-sm text-amber-700">Program dnevnih nagrada se uvodi uskoro. Ne prikazujemo izmišljene bonuse.</p>
+                      <p className="text-sm text-amber-700">{dailyReward?.claimed ? 'Današnja nagrada je preuzeta.' : dailyReward?.eligible ? `Dostupno ${formatRsd(dailyReward.reward_rsd)} nakon današnje aktivnosti.` : 'Pošalji prvi stvarni dokaz danas da otključaš nagradu.'}</p>
                     </div>
                   </div>
-                  <span className="text-sm text-amber-700 font-bold bg-amber-100 px-3 py-1.5 rounded-lg">Uskoro</span>
+                  <Btn size="sm" variant={dailyReward?.eligible && !dailyReward.claimed ? 'success' : 'secondary'} disabled={saving || !dailyReward?.eligible || dailyReward.claimed} onClick={() => dailyReward?.eligible ? void claimProgramReward(dailyReward.key) : goTo('zadaci')}>
+                    {dailyReward?.claimed ? 'Preuzeto' : dailyReward?.eligible ? `Preuzmi ${formatRsd(dailyReward.reward_rsd)}` : 'Pogledaj zadatke'}
+                  </Btn>
                 </div>
 
                 {/* Tier */}
@@ -561,16 +567,16 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                     </div>
                   </div>
                   <div className="flex gap-2 mb-3">
-                    {[{ t: 'Explorer', icon: '🧭', active: true }, { t: 'Trusted', icon: '⭐', active: false }, { t: 'Pro', icon: '💎', active: false }, { t: 'Elite', icon: '👑', active: false }].map(tier => (
-                      <div key={tier.t} className={`flex-1 text-center text-xs py-1.5 rounded-lg font-semibold ${tier.active ? 'bg-blue-600 text-white' : 'bg-gray-100 text-ink-3'}`}>
-                        {tier.icon} <span className="hidden sm:inline">{tier.t}</span>
+                    {programBadges.slice(1).map(badge => (
+                      <div key={badge.key} className={`flex-1 text-center text-xs py-1.5 rounded-lg font-semibold ${badge.unlocked ? 'bg-blue-600 text-white' : 'bg-gray-100 text-ink-3'}`}>
+                        {badge.icon} <span className="hidden sm:inline">{badge.name}</span>
                       </div>
                     ))}
                   </div>
                   <div className="bg-gray-100 rounded-full h-1.5 mb-1">
-                    <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: '25%' }} />
+                    <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${Math.min(100, (approvedProofCount / 20) * 100)}%` }} />
                   </div>
-                  <p className="text-xs text-ink-3">5 od 20 odobrenih dokaza</p>
+                  <p className="text-xs text-ink-3">{approvedProofCount} od 20 odobrenih dokaza</p>
                 </Card>
 
                 {/* Priority tasks */}
@@ -833,20 +839,20 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
             {/* ── NAGRADE ── */}
             {page === 'nagrade' && (
               <div className="space-y-5">
-                <SectionHeader title="Dnevne nagrade i streak" />
+                <SectionHeader title="Dnevne nagrade i streak" description="Nagrada se otključava tek nakon prvog stvarno poslatog dokaza tog dana." />
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="font-bold text-ink text-lg">🔥 Streak: 7 dana</p>
-                      <p className="text-sm text-amber-700 mt-0.5">Nastavi svaki dan za bonus nagrade!</p>
+                      <p className="font-bold text-ink text-lg">🔥 Streak: {dailyReward?.streak ?? 0} dana</p>
+                      <p className="text-sm text-amber-700 mt-0.5">{dailyReward?.claimed ? 'Današnja nagrada je evidentirana.' : dailyReward?.eligible ? `Preuzmi današnjih ${formatRsd(dailyReward.reward_rsd)}.` : 'Pošalji dokaz danas da otključaš dnevnu nagradu.'}</p>
                     </div>
-                    <span className="text-amber-700 font-bold bg-amber-100 px-3 py-1.5 rounded-lg text-sm">Uskoro</span>
+                    {dailyReward?.claimed ? <span className="text-emerald-700 font-bold bg-emerald-100 px-3 py-1.5 rounded-lg text-sm">Preuzeto</span> : <Btn size="sm" variant="success" disabled={saving || !dailyReward?.eligible} onClick={() => dailyReward?.eligible ? void claimProgramReward(dailyReward.key) : goTo('zadaci')}>{dailyReward?.eligible ? `Preuzmi ${formatRsd(dailyReward.reward_rsd)}` : 'Otvori zadatke'}</Btn>}
                   </div>
                   <div className="grid grid-cols-7 gap-1.5">
-                    {['Pon', 'Uto', 'Sre', 'Čet', 'Pet', 'Sub', 'Ned'].map((dan, i) => (
-                      <div key={dan} className={`rounded-lg p-2 text-center ${i < 6 ? 'bg-amber-200' : 'bg-white border-2 border-amber-400'}`}>
-                        <p className="text-[10px] text-amber-800 font-semibold">{dan}</p>
-                        <p className="text-sm">{i < 6 ? '✓' : '⭐'}</p>
+                    {(dailyReward?.week ?? []).map(day => (
+                      <div key={day.date} className={`rounded-lg p-2 text-center ${day.claimed ? 'bg-amber-200' : day.is_today ? 'bg-white border-2 border-amber-400' : 'bg-white border border-amber-100'}`}>
+                        <p className="text-[10px] text-amber-800 font-semibold">{day.label}</p>
+                        <p className="text-sm">{day.claimed ? '✓' : day.is_today ? '⭐' : '—'}</p>
                       </div>
                     ))}
                   </div>
@@ -861,17 +867,18 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                 <div>
                   <h3 className="text-xs font-bold text-ink-3 uppercase tracking-widest mb-3">Aktivne misije</h3>
                   <div className="flex flex-col gap-3">
-                    {missions.map(m => (
-                      <Card key={m.title} className="p-4">
+                    {programMissions.map(m => (
+                      <Card key={m.key} className="p-4">
                         <div className="flex items-center justify-between mb-2">
                           <p className="font-semibold text-ink text-sm">{m.title}</p>
-                          <span className="font-mono font-bold text-emerald-600 text-sm">{m.reward}</span>
+                          <span className="font-mono font-bold text-emerald-600 text-sm">{formatRsd(m.reward_rsd)}</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="flex-1 bg-gray-100 rounded-full h-2">
-                            <div className={`${m.accent} h-2 rounded-full transition-all`} style={{ width: `${(m.progress / m.total) * 100}%` }} />
+                            <div className={`${m.accent} h-2 rounded-full transition-all`} style={{ width: `${Math.min(100, (m.progress / m.target) * 100)}%` }} />
                           </div>
-                          <span className="text-xs text-ink-3 font-mono">{m.progress}/{m.total}</span>
+                          <span className="text-xs text-ink-3 font-mono">{m.progress}/{m.target}</span>
+                          <Btn size="sm" variant={m.claimed ? 'secondary' : 'success'} disabled={saving || m.claimed || !m.eligible} onClick={() => void claimProgramReward(m.key)}>{m.claimed ? 'Preuzeto' : m.eligible ? 'Preuzmi' : 'U toku'}</Btn>
                         </div>
                       </Card>
                     ))}
@@ -880,12 +887,12 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                 <div>
                   <h3 className="text-xs font-bold text-ink-3 uppercase tracking-widest mb-3">Bedževi</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                    {badges.map(b => (
-                      <div key={b.name} className={`rounded-xl p-4 text-center border ${b.unlocked ? 'bg-violet-50 border-violet-200' : 'bg-gray-50 border-gray-200 opacity-50'}`}>
-                        <span className="text-3xl block mb-2">{b.icon}</span>
-                        <p className="text-sm font-bold text-ink">{b.name}</p>
-                        <p className="text-xs text-ink-3 mt-0.5">{b.desc}</p>
-                        {b.unlocked && <span className="text-xs text-emerald-600 font-bold mt-1 block">✓ Otključano</span>}
+                    {programBadges.map(badge => (
+                      <div key={badge.key} className={`rounded-xl p-4 text-center border ${badge.unlocked ? 'bg-violet-50 border-violet-200' : 'bg-gray-50 border-gray-200 opacity-50'}`}>
+                        <span className="text-3xl block mb-2">{badge.icon}</span>
+                        <p className="text-sm font-bold text-ink">{badge.name}</p>
+                        <p className="text-xs text-ink-3 mt-0.5">{badge.description}</p>
+                        {badge.unlocked && <span className="text-xs text-emerald-600 font-bold mt-1 block">✓ Otključano</span>}
                       </div>
                     ))}
                   </div>

@@ -172,6 +172,24 @@ class WalletTransaction(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     user = relationship("User", back_populates="transactions")
 
+
+class UserProgramRewardClaim(Base):
+    """One auditable reward claim per user and program goal.
+
+    The unique key prevents retries or multiple browser tabs from crediting the
+    same daily or mission reward more than once.
+    """
+    __tablename__ = "user_program_reward_claims"
+    __table_args__ = (UniqueConstraint("user_id", "reward_key", name="uq_user_program_reward_claim"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    reward_key = Column(String(80), nullable=False)
+    reward_rsd = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    user = relationship("User")
+
 class Withdrawal(Base):
     __tablename__ = "withdrawals"
     id = Column(Integer, primary_key=True, index=True)
