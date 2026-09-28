@@ -55,6 +55,13 @@ class SecurityHardeningTests(unittest.TestCase):
         Base.metadata.drop_all(self.engine)
         self.engine.dispose()
 
+    def test_public_home_and_legacy_pages_render_with_current_starlette(self):
+        for path in ("/", "/login", "/pravila"):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn("text/html", response.headers["content-type"])
+
     def test_cross_site_registration_is_rejected_before_database_write(self):
         response = self.client.post("/api/ui/auth/register", json={
             "full_name": "Test Korisnik", "email": "csrf@example.com",

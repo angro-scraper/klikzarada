@@ -66,7 +66,16 @@ class AppUiStaticFiles(StaticFiles):
 if SPA_DIR.exists():
     app.mount("/app-ui", AppUiStaticFiles(directory=SPA_DIR), name="app-ui")
 app.include_router(ui_api_router)
-templates = Jinja2Templates(directory="app/templates")
+class CompatibleJinja2Templates(Jinja2Templates):
+    def TemplateResponse(self, *args, **kwargs):
+        # Legacy pages pass (name, context); Starlette 1.x requires (request, name, context).
+        if args and isinstance(args[0], str):
+            name, context, *rest = args
+            return super().TemplateResponse(context["request"], name, context, *rest, **kwargs)
+        return super().TemplateResponse(*args, **kwargs)
+
+
+templates = CompatibleJinja2Templates(directory="app/templates")
 UPLOAD_DIR = Path("app/static/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 KYC_UPLOAD_DIR = Path(os.getenv("KYC_UPLOAD_DIR", "app/private_uploads/kyc"))
