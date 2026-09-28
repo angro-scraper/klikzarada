@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -169,6 +169,19 @@ class AppTesterDailyCheckin(Base):
 
     task = relationship("Task", back_populates="tester_daily_checkins")
     user = relationship("User")
+
+
+class TaskChatMessage(Base):
+    """Private conversation between one task participant and its advertiser."""
+    __tablename__ = "task_chat_messages"
+    __table_args__ = (Index("ix_task_chat_thread", "task_id", "participant_id", "id"),)
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
+    participant_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 class WalletTransaction(Base):
     __tablename__ = "wallet_transactions"

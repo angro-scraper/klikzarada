@@ -94,7 +94,7 @@ class UiContractTests(unittest.TestCase):
         """Opening a closed-beta task must not fail because its form component is missing."""
         source = (BACKEND_DIR / "frontend" / "src" / "pages" / "UserDashboard.tsx").read_text(encoding="utf-8")
         self.assertIn("Alert, Input } from '../components/ui'", source)
-        self.assertIn('<Input label="Email za pristup testiranju"', source)
+        self.assertIn('<Input label="Tvoj Google Play email za ovaj test"', source)
 
     def test_pageview_tracking_excludes_non_browser_traffic(self):
         """Traffic counters must only accept deliberate public navigations."""

@@ -3,6 +3,7 @@ import { Sidebar, TopBar } from '../components/Sidebar'
 import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tabs, Alert, Input } from '../components/ui'
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal, InfoModal } from '../components/Modal'
+import { TaskChat } from '../components/TaskChat'
 import { useToast } from '../components/Toast'
 import { api, deviceFingerprint, type NotificationItem, type SessionUser, type SupportTicket, type Task, type TaskVerification, type UserDashboardData } from '../lib/api'
 import { type UserDashboardPage, userDashboardPageFromPath, userDashboardPath } from '../lib/userDashboardRoutes'
@@ -135,11 +136,13 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const [confirmPayout, setConfirmPayout] = useState(false)
   const [submitProofModal, setSubmitProofModal] = useState<number | null>(null)
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(() => Number(window.location.pathname.match(/^\/korisnik\/zadaci\/(\d+)$/)?.[1]) || null)
+  const [chatTaskId, setChatTaskId] = useState<number | null>(null)
   const [logoutConfirm, setLogoutConfirm] = useState(false)
   const [dashboard, setDashboard] = useState<UserDashboardData | null>(null)
   const [dashboardError, setDashboardError] = useState('')
   const [proofText, setProofText] = useState('')
   const [testerEmail, setTesterEmail] = useState('')
+  const [testerEmailConfirmTask, setTesterEmailConfirmTask] = useState<Task | null>(null)
   const [testerCheckinNote, setTesterCheckinNote] = useState('')
   const [verification, setVerification] = useState<TaskVerification | null>(null)
   const [payoutAmount, setPayoutAmount] = useState('')
@@ -174,6 +177,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
       setProfileName(safeDashboard.user.full_name)
       setProfilePhone(safeDashboard.user.phone || '')
       setProfileCity(safeDashboard.user.city || '')
+      setTesterEmail(current => current || safeDashboard.user.email)
       setOnboardingAge(safeDashboard.user.age_group || '')
       setOnboardingInterests(safeDashboard.user.interests || [])
       setDashboardError('')
@@ -259,6 +263,11 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const selectedTask = [...myTasks, ...activeTasks].find(task => task.id === selectedTaskId || task.id === submitProofModal)
   const selectedTesterProgress = selectedTask?.tester_progress
   const selectedTaskRevision = selectedTask ? (dashboard?.submissions ?? []).find(submission => submission.task_id === selectedTask.id && submission.status === 'needs_revision') : undefined
+  const canChatOnSelectedTask = Boolean(selectedTask && (
+    ['requested', 'invited'].includes(selectedTask.tester_enrollment?.status || '') ||
+    selectedTask.verification_in_progress ||
+    (dashboard?.submissions ?? []).some(submission => submission.task_id === selectedTask.id)
+  ))
 
   async function claimProgramReward(rewardKey: string) {
     setSaving(true)
@@ -366,6 +375,16 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   return (
     <div className="flex h-screen bg-mint-50 text-ink overflow-hidden">
       {toastNode}
+      {chatTaskId !== null && dashboard?.user.id && <TaskChat taskId={chatTaskId} participantId={dashboard.user.id} onClose={() => setChatTaskId(null)} />}
+      <ConfirmModal
+        open={testerEmailConfirmTask !== null}
+        title="Potvrdi Google Play adresu"
+        description={`Prijavljen/a si na KlikZarada kao ${dashboard?.user.email || 'korisnik'}, a za test želiš da pošalješ ${testerEmail.trim()}. Nastavi samo ako je to tvoj Google Play nalog i imaš pristup toj adresi.`}
+        confirmLabel="Da, ovo je moja adresa"
+        variant="primary"
+        onConfirm={() => { const task = testerEmailConfirmTask; setTesterEmailConfirmTask(null); if (task) void requestTesterAccess(task) }}
+        onCancel={() => setTesterEmailConfirmTask(null)}
+      />
 
       {/* Logout confirm */}
       <ConfirmModal
@@ -702,6 +721,11 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                     {!selectedTask?.requires_tester_enrollment && <><p><span className="text-ink-3 font-medium">Ponavljanje:</span> {selectedTask?.repeat_interval_hours ? `na svakih ${selectedTask.repeat_interval_hours} h nakon odobrenja` : 'samo jednom'}</p><p><span className="text-ink-3 font-medium">Kvalitet:</span> {selectedTask?.min_quality_score ? `najmanje ${selectedTask.min_quality_score}%` : 'bez dodatnog uslova'}</p></>}
                   </div>
                   <Alert type="info">Za standardne zadatke server prati vreme, aktivnost i fokus taba. Za zatvoreni beta test šalješ dnevni izveštaj; svaki dan posebno odobrava oglašivač.</Alert>
+                  {selectedTask?.tester_enrollment && <div className="rounded-xl border border-blue-200 bg-white p-4 text-sm text-ink-2 space-y-1">
+                    <p><strong>KlikZarada nalog:</strong> {dashboard?.user.email}</p>
+                    <p><strong>Google Play email za ovaj test:</strong> {selectedTask.tester_enrollment.testing_email || '—'}</p>
+                    {selectedTask.tester_enrollment.email_conflict && <p className="font-semibold text-red-700">Test adresa je povezana i sa drugim nalogom. Ne šalji nove izveštaje dok preko podrške ne razjasnimo kojoj prijavi pripada.</p>}
+                  </div>}
                   {!selectedTask ? <Alert type="warning">Ovaj zadatak nije pronađen na tvom nalogu. Proveri da li si prijavljen/a istim nalogom sa kojeg je prijava poslata.</Alert> : selectedTask.status !== 'active' ? <Alert type="warning">Kampanja trenutno nije aktivna. Tvoja prijava i istorija ostaju sačuvani, ali novi izveštaji nisu dostupni.</Alert> : selectedTask.requires_tester_enrollment && selectedTask.tester_enrollment?.status !== 'invited' ? (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
                       <p className="font-bold text-amber-900">{selectedTask.tester_enrollment?.status === 'requested' ? 'Prijava je poslata sa ovog naloga' : 'Na ovom nalogu nema aktivne prijave za ovaj zadatak'}</p>
@@ -711,8 +735,9 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                         <>
                           {selectedTask.tester_enrollment?.status === 'declined' && <p className="text-sm text-red-700">{selectedTask.tester_enrollment.note || 'Prijava nije odobrena. Proveri adresu i pošalji ponovo.'}</p>}
                           {!selectedTask.tester_enrollment && <p className="text-sm text-amber-800">Ako je oglašivač već aktivirao tvoju prijavu, proveri da li si prijavljen/a istim KlikZarada nalogom sa kog si je poslao/la. Email za Google Play pristup može biti drugačiji od emaila naloga.</p>}
-                          <Input label="Email za pristup testiranju" placeholder="ime@gmail.com" value={testerEmail} onChange={setTesterEmail} />
-                          <Btn disabled={saving} onClick={() => selectedTask && void requestTesterAccess(selectedTask)}>Pošalji email za pristup</Btn>
+                          <Input label="Tvoj Google Play email za ovaj test" placeholder="ime@gmail.com" value={testerEmail} onChange={setTesterEmail} />
+                          <p className="text-xs text-amber-800">Ovaj email može biti drugačiji od KlikZarada naloga ({dashboard?.user.email}), ali ne sme pripadati drugom korisničkom nalogu.</p>
+                          <Btn disabled={saving} onClick={() => { if (!selectedTask) return; if (testerEmail.trim() && testerEmail.trim().toLowerCase() !== dashboard?.user.email.toLowerCase()) setTesterEmailConfirmTask(selectedTask); else void requestTesterAccess(selectedTask) }}>Pošalji Google Play email</Btn>
                         </>
                       )}
                     </div>
@@ -738,6 +763,11 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                       <Btn disabled={saving} onClick={() => selectedTask && void beginTaskVerification(selectedTask)} variant="success">🛡️ {selectedTask?.verification_in_progress ? 'Nastavi proveru' : selectedTaskRevision ? 'Pokreni doradu dokaza' : 'Pokreni proveru'}</Btn>
                     </div>
                   )}
+                  {canChatOnSelectedTask && selectedTask && <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                    <p className="font-bold text-blue-950">Pitanje za oglašivača?</p>
+                    <p className="mt-1 mb-3 text-sm text-blue-900">Dogovori pristup testu i test link direktno uz ovu prijavu. Ovaj razgovor nije zamena za dnevni izveštaj ili dokaz.</p>
+                    <Btn variant="secondary" onClick={() => setChatTaskId(selectedTask.id)}>Otvori razgovor uz zadatak</Btn>
+                  </div>}
                   <Btn onClick={() => goTo(myTasks.some(task => task.id === selectedTaskId) ? 'moji-zadaci' : 'zadaci')} variant="secondary">{myTasks.some(task => task.id === selectedTaskId) ? 'Nazad na započete zadatke' : 'Nazad na dostupne zadatke'}</Btn>
                 </Card>
               </div>

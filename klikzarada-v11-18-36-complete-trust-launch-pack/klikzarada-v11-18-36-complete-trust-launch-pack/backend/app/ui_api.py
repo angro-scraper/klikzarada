@@ -15,7 +15,7 @@ import os
 import re
 import socket
 import smtplib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from email.message import EmailMessage
 from io import BytesIO
@@ -60,6 +60,7 @@ from .models import (
     SupportMessage,
     SupportTicket,
     Task,
+    TaskChatMessage,
     TaskSourceV11,
     TaskSubmission,
     TaskVerificationSessionV1,
@@ -222,6 +223,10 @@ class CampaignPayload(BaseModel):
 
 class TesterEnrollmentPayload(BaseModel):
     testing_email: str = Field(min_length=5, max_length=160)
+
+
+class TaskChatPayload(BaseModel):
+    body: str = Field(min_length=1, max_length=2000)
 
 
 class TesterEnrollmentStatusPayload(BaseModel):
@@ -631,6 +636,7 @@ def _tester_enrollment_data(item: AppTesterEnrollment, include_email: bool = Fal
     }
     if include_email:
         data |= {
+            "user_id": item.user_id,
             "testing_email": item.testing_email,
             "user_name": item.user.full_name if item.user else "Korisnik",
             "account_email": item.user.email if item.user else None,
@@ -638,9 +644,23 @@ def _tester_enrollment_data(item: AppTesterEnrollment, include_email: bool = Fal
     return data
 
 
+def _tester_email_conflict(db: Session, email: str, user_id: int) -> bool:
+    normalized = email.strip().lower()
+    registered_to_other = db.query(User.id).filter(
+        func.lower(User.email) == normalized, User.id != user_id,
+    ).first()
+    used_by_other = db.query(AppTesterEnrollment.id).filter(
+        func.lower(AppTesterEnrollment.testing_email) == normalized,
+        AppTesterEnrollment.user_id != user_id,
+        AppTesterEnrollment.status.in_(("requested", "invited")),
+    ).first()
+    return bool(registered_to_other or used_by_other)
+
+
 def _tester_checkin_data(item: AppTesterDailyCheckin) -> dict:
     return {
         "id": item.id,
+        "user_id": item.user_id,
         "task_id": item.task_id,
         "day_number": item.day_number,
         "note": item.note,
@@ -676,6 +696,7 @@ def _tester_window_progress(task: Task, enrollment: AppTesterEnrollment | None, 
 def _submission_data(submission: TaskSubmission) -> dict:
     return {
         "id": submission.id,
+        "user_id": submission.user_id,
         "task_id": submission.task_id,
         "task_title": submission.task.title if submission.task else "Zadatak",
         "proof": submission.proof,
@@ -1640,7 +1661,9 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
         enrollment = enrollment_by_task.get(task.id)
         if enrollment:
             data.update({
-                "tester_enrollment": _tester_enrollment_data(enrollment, include_email=True),
+                "tester_enrollment": _tester_enrollment_data(enrollment, include_email=True) | {
+                    "email_conflict": _tester_email_conflict(db, enrollment.testing_email, enrollment.user_id),
+                },
                 "tester_checkins": [_tester_checkin_data(item) for item in checkins_by_task.get(task.id, [])],
                 "tester_progress": _tester_window_progress(task, enrollment, checkins_by_task.get(task.id, [])),
             })
@@ -1915,20 +1938,14 @@ def request_tester_enrollment(task_id: int, payload: TesterEnrollmentPayload, re
     email = payload.testing_email.strip().lower()
     if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
         raise HTTPException(400, "Unesi važeću email adresu za pristup testiranju.")
+    if _tester_email_conflict(db, email, user.id):
+        raise HTTPException(409, "Ovu test adresu nije moguće vezati za tvoj nalog. Proveri da li koristiš sopstveni Google Play email ili se obrati podršci.")
     enrollment = db.query(AppTesterEnrollment).filter(
         AppTesterEnrollment.task_id == task.id,
         AppTesterEnrollment.user_id == user.id,
     ).first()
     if enrollment and enrollment.status in {"requested", "invited"}:
         raise HTTPException(409, "Prijava za testiranje je već poslata.")
-    another_enrollment = db.query(AppTesterEnrollment).filter(
-        AppTesterEnrollment.task_id == task.id,
-        AppTesterEnrollment.user_id != user.id,
-        func.lower(AppTesterEnrollment.testing_email) == email,
-        AppTesterEnrollment.status.in_(("requested", "invited")),
-    ).first()
-    if another_enrollment:
-        raise HTTPException(409, "Ovaj email za testiranje je već prijavljen sa drugog naloga. Prijavi se nalogom sa kog je prijava poslata ili kontaktiraj podršku.")
     if int(task.used_slots or 0) >= int(task.total_slots or 0):
         raise HTTPException(409, "Sva mesta za testere su trenutno popunjena.")
     if enrollment:
@@ -1966,6 +1983,8 @@ def create_tester_daily_checkin(task_id: int, payload: TesterDailyCheckinPayload
     ).first()
     if not enrollment or not enrollment.invited_at:
         raise HTTPException(409, "Dnevna evidencija se otključava kada oglašivač potvrdi da si dodat/a u tester listu.")
+    if _tester_email_conflict(db, enrollment.testing_email, user.id):
+        raise HTTPException(409, "Test adresa je povezana sa drugim nalogom. Razjasni prijavu preko podrške pre novog dnevnog izveštaja.")
     progress = _tester_window_progress(task, enrollment, [])
     if not progress["started"] or progress["current_day"] < 1:
         raise HTTPException(409, "Tvoj period testiranja još nije počeo.")
@@ -2231,6 +2250,16 @@ def advertiser_dashboard(request: Request, db: Session = Depends(get_db)) -> dic
     tasks = db.query(Task).filter(Task.advertiser_id == user.id).order_by(Task.created_at.desc()).limit(100).all()
     submissions = db.query(TaskSubmission).join(Task).filter(Task.advertiser_id == user.id).order_by(TaskSubmission.created_at.desc()).limit(100).all()
     enrollments = db.query(AppTesterEnrollment).join(Task).filter(Task.advertiser_id == user.id).order_by(AppTesterEnrollment.created_at.desc()).limit(300).all()
+    tester_emails = {item.testing_email.strip().lower() for item in enrollments}
+    registered_email_owners = {
+        email.lower(): owner_id for owner_id, email in db.query(User.id, User.email).filter(func.lower(User.email).in_(tester_emails)).all()
+    }
+    tester_email_owners: dict[str, set[int]] = {}
+    for owner_id, email in db.query(AppTesterEnrollment.user_id, func.lower(AppTesterEnrollment.testing_email)).filter(
+        func.lower(AppTesterEnrollment.testing_email).in_(tester_emails),
+        AppTesterEnrollment.status.in_(("requested", "invited")),
+    ).all():
+        tester_email_owners.setdefault(email, set()).add(owner_id)
     tester_checkins = db.query(AppTesterDailyCheckin).join(Task).filter(Task.advertiser_id == user.id).order_by(AppTesterDailyCheckin.checked_in_at.desc()).limit(500).all()
     transactions = db.query(AdvertiserBudgetTransaction).filter(AdvertiserBudgetTransaction.advertiser_id == user.id).order_by(AdvertiserBudgetTransaction.created_at.desc()).limit(100).all()
     task_payload = []
@@ -2256,7 +2285,15 @@ def advertiser_dashboard(request: Request, db: Session = Depends(get_db)) -> dic
         "user": _user_data(user),
         "tasks": task_payload,
         "submissions": [_submission_data(submission) | {"user_name": submission.user.full_name if submission.user else "Korisnik"} for submission in submissions],
-        "tester_enrollments": [_tester_enrollment_data(item, include_email=True) | {"task_title": item.task.title if item.task else "Zadatak"} for item in enrollments],
+        "tester_enrollments": [
+            _tester_enrollment_data(item, include_email=True) | {
+                "task_title": item.task.title if item.task else "Zadatak",
+                "email_conflict": (
+                    registered_email_owners.get(item.testing_email.strip().lower()) not in (None, item.user_id)
+                    or bool(tester_email_owners.get(item.testing_email.strip().lower(), set()) - {item.user_id})
+                ),
+            } for item in enrollments
+        ],
         "tester_checkins": [_tester_checkin_data(item) | {"task_title": item.task.title if item.task else "Zadatak", "user_name": item.user.full_name if item.user else "Korisnik"} for item in tester_checkins],
         "transactions": [{"id": tx.id, "amount_rsd": _money(tx.amount_rsd), "tx_type": tx.tx_type, "description": tx.description, "created_at": _iso(tx.created_at)} for tx in transactions],
         "pricing": _pricing_data(),
@@ -2282,16 +2319,17 @@ def start_tester_cohort(task_id: int, payload: TesterCohortStartPayload, request
         AppTesterEnrollment.status == "invited",
     ).count()
     available_slots = max(0, int(task.total_slots or 0) - invited_count)
+    eligible = [item for item in requested if not _tester_email_conflict(db, item.testing_email, item.user_id)]
     requested_count = payload.count or 1
-    count = min(int(requested_count), len(requested), available_slots)
+    count = min(int(requested_count), len(eligible), available_slots)
     if count < 1:
-        raise HTTPException(409, "Nema prijavljenih testera sa slobodnim mestom za aktivaciju.")
+        raise HTTPException(409, "Nema prijava sa slobodnim mestom i jedinstvenom test adresom za aktivaciju. Proveri upozorenja uz prijave.")
 
     activation_number = int(db.query(func.max(AppTesterEnrollment.cohort_number)).filter(
         AppTesterEnrollment.task_id == task.id,
     ).scalar() or 0) + 1
     started_at = datetime.utcnow()
-    activated = requested[:count]
+    activated = eligible[:count]
     for enrollment in activated:
         enrollment.status = "invited"
         enrollment.cohort_number = activation_number
@@ -2329,6 +2367,8 @@ def update_tester_enrollment(enrollment_id: int, payload: TesterEnrollmentStatus
     task = enrollment.task
     was_invited = enrollment.status == "invited"
     if payload.status == "invited" and not was_invited:
+        if _tester_email_conflict(db, enrollment.testing_email, enrollment.user_id):
+            raise HTTPException(409, "Test adresa je povezana sa drugim nalogom. Razjasni prijavu pre aktivacije.")
         occupied_slots = db.query(AppTesterEnrollment).filter(
             AppTesterEnrollment.task_id == task.id,
             AppTesterEnrollment.status == "invited",
@@ -2360,6 +2400,103 @@ def update_tester_enrollment(enrollment_id: int, payload: TesterEnrollmentStatus
     return {"enrollment": _tester_enrollment_data(enrollment, include_email=True)}
 
 
+def _task_chat_access(task_id: int, participant_id: int, request: Request, db: Session) -> tuple[Task, User, User]:
+    actor = _require_user(request, db)
+    task = db.get(Task, task_id)
+    participant = db.get(User, participant_id)
+    if not task or not task.advertiser_id or not participant or participant.role != "korisnik" or participant_id == task.advertiser_id:
+        raise HTTPException(404, "Razgovor nije pronađen.")
+    is_participant = actor.id == participant_id and actor.role == "korisnik"
+    is_owner = actor.id == task.advertiser_id and actor.role in {"oglasivac", "admin"}
+    if not (is_participant or is_owner):
+        raise HTTPException(403, "Nemaš pristup ovom razgovoru.")
+    enrolled = db.query(AppTesterEnrollment.id).filter(
+        AppTesterEnrollment.task_id == task_id,
+        AppTesterEnrollment.user_id == participant_id,
+        AppTesterEnrollment.status.in_({"requested", "invited"}),
+    ).first()
+    submitted = db.query(TaskSubmission.id).filter(
+        TaskSubmission.task_id == task_id, TaskSubmission.user_id == participant_id,
+    ).first()
+    started = db.query(TaskVerificationSessionV1.id).filter(
+        TaskVerificationSessionV1.task_id == task_id, TaskVerificationSessionV1.user_id == participant_id,
+    ).first()
+    existing_chat = db.query(TaskChatMessage.id).filter(
+        TaskChatMessage.task_id == task_id, TaskChatMessage.participant_id == participant_id,
+    ).first()
+    if not (enrolled or submitted or started or existing_chat):
+        raise HTTPException(404, "Razgovor nije pronađen.")
+    return task, actor, participant
+
+
+def _task_chat_message_data(message: TaskChatMessage) -> dict:
+    return {
+        "id": message.id,
+        "sender_id": message.sender_id,
+        "body": message.body,
+        "created_at": message.created_at.replace(tzinfo=timezone.utc).isoformat() if message.created_at else None,
+    }
+
+
+@router.get("/advertiser/task-chats")
+def advertiser_task_chats(request: Request, db: Session = Depends(get_db)) -> dict:
+    advertiser = _require_user(request, db, {"oglasivac", "admin"})
+    latest = db.query(
+        TaskChatMessage.task_id.label("task_id"),
+        TaskChatMessage.participant_id.label("participant_id"),
+        func.max(TaskChatMessage.id).label("message_id"),
+    ).group_by(TaskChatMessage.task_id, TaskChatMessage.participant_id).subquery()
+    rows = db.query(TaskChatMessage, Task.title, User.full_name).join(
+        latest, TaskChatMessage.id == latest.c.message_id,
+    ).join(Task, Task.id == TaskChatMessage.task_id).join(
+        User, User.id == TaskChatMessage.participant_id,
+    ).filter(Task.advertiser_id == advertiser.id).order_by(TaskChatMessage.id.desc()).limit(100).all()
+    return {"threads": [{
+        "task_id": message.task_id,
+        "task_title": title,
+        "participant_id": message.participant_id,
+        "participant_name": name,
+        "last_message": message.body[:180],
+        "last_message_at": message.created_at.replace(tzinfo=timezone.utc).isoformat() if message.created_at else None,
+    } for message, title, name in rows]}
+
+
+@router.get("/task-chat/{task_id}/{participant_id}")
+def get_task_chat(task_id: int, participant_id: int, request: Request, db: Session = Depends(get_db)) -> dict:
+    task, actor, participant = _task_chat_access(task_id, participant_id, request, db)
+    messages = db.query(TaskChatMessage).filter(
+        TaskChatMessage.task_id == task_id, TaskChatMessage.participant_id == participant_id,
+    ).order_by(TaskChatMessage.id.desc()).limit(200).all()
+    return {
+        "task_id": task.id,
+        "task_title": task.title,
+        "participant_id": participant.id,
+        "participant_name": participant.full_name,
+        "current_user_id": actor.id,
+        "messages": [_task_chat_message_data(message) for message in reversed(messages)],
+    }
+
+
+@router.post("/task-chat/{task_id}/{participant_id}")
+def send_task_chat_message(task_id: int, participant_id: int, payload: TaskChatPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    task, actor, participant = _task_chat_access(task_id, participant_id, request, db)
+    body = payload.body.strip()
+    if not body:
+        raise HTTPException(400, "Unesi poruku pre slanja.")
+    message = TaskChatMessage(task_id=task.id, participant_id=participant.id, sender_id=actor.id, body=body)
+    db.add(message)
+    recipient_id = participant.id if actor.id == task.advertiser_id else task.advertiser_id
+    db.add(Notification(
+        user_id=recipient_id,
+        title="Nova poruka uz zadatak",
+        body=f"{actor.full_name} je poslao/la poruku za zadatak '{task.title}'. Otvori razgovor uz zadatak.",
+        status="unread",
+    ))
+    db.commit()
+    db.refresh(message)
+    return {"message": _task_chat_message_data(message)}
+
+
 @router.patch("/advertiser/tester-checkins/{checkin_id}")
 def review_tester_daily_checkin(checkin_id: int, payload: AdminStatusPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     """The campaign owner approves each declared test day and its daily reward."""
@@ -2374,6 +2511,13 @@ def review_tester_daily_checkin(checkin_id: int, payload: AdminStatusPayload, re
         raise HTTPException(404, "Dnevni izveštaj nije pronađen.")
     if checkin.status != "pending":
         raise HTTPException(409, "Ovaj dnevni izveštaj je već obrađen.")
+    if payload.status == "approved":
+        enrollment = db.query(AppTesterEnrollment).filter(
+            AppTesterEnrollment.task_id == checkin.task_id,
+            AppTesterEnrollment.user_id == checkin.user_id,
+        ).first()
+        if enrollment and _tester_email_conflict(db, enrollment.testing_email, checkin.user_id):
+            raise HTTPException(409, "Test adresa je povezana sa drugim nalogom. Ne odobravaj nagradu dok prijava ne bude razjašnjena.")
     checkin.status = payload.status
     checkin.review_note = (payload.note or "").strip() or None
     checkin.reviewed_at = datetime.utcnow()

@@ -89,10 +89,12 @@ export type Task = {
 export type TesterEnrollment = {
   id: number
   task_id: number
+  user_id?: number
   task_title?: string
   user_name?: string
   testing_email?: string
   account_email?: string | null
+  email_conflict?: boolean
   status: string
   note: string | null
   cohort_number: number | null
@@ -103,6 +105,7 @@ export type TesterEnrollment = {
 
 export type TesterDailyCheckin = {
   id: number
+  user_id: number
   task_id: number
   task_title?: string
   user_name?: string
@@ -139,6 +142,7 @@ export type PublicOverview = {
 
 export type Submission = {
   id: number
+  user_id?: number
   task_id: number
   task_title: string
   proof: string
@@ -148,6 +152,31 @@ export type Submission = {
   revision_due_at?: string | null
   created_at: string | null
   user_name?: string
+}
+
+export type TaskChatMessage = {
+  id: number
+  sender_id: number
+  body: string
+  created_at: string | null
+}
+
+export type TaskChatThread = {
+  task_id: number
+  task_title: string
+  participant_id: number
+  participant_name: string
+  current_user_id: number
+  messages: TaskChatMessage[]
+}
+
+export type TaskChatInboxItem = {
+  task_id: number
+  task_title: string
+  participant_id: number
+  participant_name: string
+  last_message: string
+  last_message_at: string | null
 }
 
 export type WalletTransaction = {
@@ -530,6 +559,11 @@ export const api = {
     method: 'POST', body: JSON.stringify(payload),
   }),
   notifications: () => request<{ notifications: NotificationItem[] }>('/notifications'),
+  taskChat: (taskId: number, participantId: number) => request<TaskChatThread>(`/task-chat/${taskId}/${participantId}`),
+  advertiserTaskChats: () => request<{ threads: TaskChatInboxItem[] }>('/advertiser/task-chats'),
+  sendTaskChatMessage: (taskId: number, participantId: number, body: string) => request<{ message: TaskChatMessage }>(`/task-chat/${taskId}/${participantId}`, {
+    method: 'POST', body: JSON.stringify({ body }),
+  }),
   markNotificationRead: (id: number) => request<{ notification: NotificationItem }>(`/notifications/${id}/read`, { method: 'PATCH' }),
   startTaskVerification: (taskId: number, payload: { device_fingerprint: string; device_label?: string }) => request<{ session: TaskVerification; resumed: boolean }>(`/user/tasks/${taskId}/verification/start`, {
     method: 'POST', body: JSON.stringify(payload),

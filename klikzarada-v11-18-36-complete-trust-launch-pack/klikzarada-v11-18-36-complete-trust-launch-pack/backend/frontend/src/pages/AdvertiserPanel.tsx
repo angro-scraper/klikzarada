@@ -3,8 +3,9 @@ import { Sidebar, TopBar } from '../components/Sidebar'
 import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tabs, Alert, Input, Select } from '../components/ui'
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal } from '../components/Modal'
+import { TaskChat } from '../components/TaskChat'
 import { useToast } from '../components/Toast'
-import { api, type AdvertiserDashboardData, type BannerSlot, type PaidBanner, type PaidPromotion, type SupportTicket } from '../lib/api'
+import { api, type AdvertiserDashboardData, type BannerSlot, type NotificationItem, type PaidBanner, type PaidPromotion, type SupportTicket, type TaskChatInboxItem } from '../lib/api'
 
 type PayPalSdk = {
   FUNDING: { CARD: unknown }
@@ -466,6 +467,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [page, setPage] = useState<Page>('pregled')
   const [mobileOpen, setMobileOpen] = useState(false)
   const [proofsTab, setProofsTab] = useState('svi')
+  const [chatTarget, setChatTarget] = useState<{ taskId: number; participantId: number } | null>(null)
   const [logoutConfirm, setLogoutConfirm] = useState(false)
   const [roleCorrectionConfirm, setRoleCorrectionConfirm] = useState(false)
   const [campaignLifecycleAction, setCampaignLifecycleAction] = useState<{ id: number; title: string; action: 'pause' | 'resume' | 'stop' } | null>(null)
@@ -505,6 +507,8 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [repeatPassword, setRepeatPassword] = useState('')
   const [profileSaving, setProfileSaving] = useState(false)
   const [tickets, setTickets] = useState<SupportTicket[]>([])
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [chatThreads, setChatThreads] = useState<TaskChatInboxItem[]>([])
   const [ticketSubject, setTicketSubject] = useState('')
   const [ticketBody, setTicketBody] = useState('')
   const [ticketLoading, setTicketLoading] = useState(false)
@@ -512,12 +516,14 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
   const refreshDashboard = async () => {
     try {
-      const [dashboardData, bannerData, promotionData, ticketData] = await Promise.all([api.advertiserDashboard(), api.advertiserBanners(), api.advertiserPromotions(), api.tickets()])
+      const [dashboardData, bannerData, promotionData, ticketData, notificationData, chatData] = await Promise.all([api.advertiserDashboard(), api.advertiserBanners(), api.advertiserPromotions(), api.tickets(), api.notifications().catch(() => ({ notifications: [] })), api.advertiserTaskChats().catch(() => ({ threads: [] }))])
       setDashboard(dashboardData)
       setBannerSlots(bannerData.slots)
       setOwnBanners(bannerData.banners)
       setPromotions(promotionData.promotions)
       setTickets(ticketData.tickets)
+      setNotifications(notificationData.notifications)
+      setChatThreads(chatData.threads)
       setBannerSlotId(current => current || String(bannerData.slots[0]?.id ?? ''))
       setPromotionTaskId(current => current || String(dashboardData.tasks.find(task => task.status === 'aktivno' || task.status === 'active')?.id ?? ''))
       setProfileName(current => current || dashboardData.user.full_name)
@@ -534,6 +540,17 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   }
 
   useEffect(() => { void refreshDashboard() }, [])
+
+  useEffect(() => {
+    if (page !== 'dokazi') return
+    const refreshChats = () => {
+      void api.advertiserTaskChats().then(data => setChatThreads(data.threads)).catch(() => {})
+      void api.notifications().then(data => setNotifications(data.notifications)).catch(() => {})
+    }
+    refreshChats()
+    const timer = window.setInterval(refreshChats, 20000)
+    return () => window.clearInterval(timer)
+  }, [page])
 
   useEffect(() => {
     const payment = new URLSearchParams(window.location.search).get('payment')
@@ -683,6 +700,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   }))
   const testerEnrollments = dashboard?.tester_enrollments ?? []
   const testerCheckins = dashboard?.tester_checkins ?? []
+  const unreadChatNotifications = notifications.filter(item => item.status === 'unread' && item.title === 'Nova poruka uz zadatak')
   const pendingProofCount = proofs.filter(proof => proof.status === 'na_proveri').length
   const pendingTesterEnrollmentCount = testerEnrollments.filter(enrollment => enrollment.status === 'requested').length
   const proofBadge = pendingProofCount + pendingTesterEnrollmentCount
@@ -717,6 +735,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   return (
     <div className="flex h-screen bg-mint-50 text-ink overflow-hidden">
       {toastNode}
+      {chatTarget && <TaskChat taskId={chatTarget.taskId} participantId={chatTarget.participantId} onClose={() => setChatTarget(null)} />}
 
       <ConfirmModal
         open={logoutConfirm}
@@ -886,7 +905,29 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
             {page === 'dokazi' && (
               <div>
+                {unreadChatNotifications.length > 0 && <Card className="mb-5 border-blue-200 bg-blue-50">
+                  <h3 className="mb-2 font-bold text-blue-950">Nove poruke uz zadatke ({unreadChatNotifications.length})</h3>
+                  <p className="mb-3 text-sm text-blue-900">Otvori odgovarajući razgovor ispod da odgovoriš.</p>
+                  <div className="space-y-2">
+                    {unreadChatNotifications.slice(0, 5).map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm text-ink">
+                      <span>{item.body}</span>
+                      <Btn size="sm" variant="secondary" onClick={() => void (async () => { try { await api.markNotificationRead(item.id); setNotifications(current => current.filter(notification => notification.id !== item.id)) } catch { showToast('Obaveštenje nije označeno kao pročitano.', 'error') } })()}>Pročitano</Btn>
+                    </div>)}
+                  </div>
+                </Card>}
                 <SectionHeader title="Dokazi korisnika" description="Ti odlučuješ o rezultatu svoje kampanje. Admin interveniše samo kod spora ili anti-fraud provere." />
+                {chatThreads.length > 0 && <Card className="mb-5 border-blue-100 shadow-sm">
+                  <h3 className="mb-3 font-bold text-ink">Razgovori uz zadatke</h3>
+                  <div className="space-y-2">
+                    {chatThreads.map(thread => <div key={`${thread.task_id}-${thread.participant_id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-frame bg-white p-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-ink">{thread.participant_name} · {thread.task_title}</p>
+                        <p className="truncate text-sm text-ink-2">{thread.last_message}</p>
+                      </div>
+                      <Btn size="sm" variant="secondary" onClick={() => setChatTarget({ taskId: thread.task_id, participantId: thread.participant_id })}>Otvori poruke</Btn>
+                    </div>)}
+                  </div>
+                </Card>}
                 {testerEnrollments.length > 0 && <div className="mb-5">
                   <div className="mb-4 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-emerald-50 p-5 shadow-sm">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700">Kontrola zatvorenog testiranja</p>
@@ -896,8 +937,9 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                   <div className="mb-5 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
                     {(dashboard?.tasks ?? []).filter(task => task.requires_tester_enrollment).map(task => {
                       const requested = testerEnrollments.filter(item => item.task_id === task.id && item.status === 'requested').length
+                      const ready = testerEnrollments.filter(item => item.task_id === task.id && item.status === 'requested' && !item.email_conflict).length
                       const target = task.tester_required_count
-                      const canStart = requested > 0
+                      const canStart = ready > 0
                       return <Card key={task.id} className="group relative overflow-hidden border-violet-200 bg-white p-5 shadow-md transition-shadow hover:shadow-lg">
                         <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-violet-100/70 transition-transform group-hover:scale-125" />
                         <div className="relative">
@@ -916,7 +958,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                             <div><p className="font-mono text-lg font-extrabold text-emerald-700">{target}</p><p className="text-[10px] font-semibold uppercase tracking-wide text-ink-3">cilj</p></div>
                             <div><p className="font-mono text-lg font-extrabold text-blue-700">{task.tester_enrollment_invited ?? 0}</p><p className="text-[10px] font-semibold uppercase tracking-wide text-ink-3">aktivno</p></div>
                           </div>
-                          <p className="mt-4 min-h-10 text-xs leading-5 text-ink-2">{canStart ? `${requested} prijava čeka. Aktiviraj svakog testera čim ga dodaš u store listu; nema čekanja da se dostigne cilj od ${target}.` : `Nema prijava na čekanju. Cilj kampanje je ${target} aktivnih testera, ali svaki novi može krenuti odmah.`}</p>
+                          <p className="mt-4 min-h-10 text-xs leading-5 text-ink-2">{requested > ready ? `${ready} prijava je spremno za aktivaciju; ${requested - ready} ima konflikt test adrese i zahteva proveru.` : canStart ? `${ready} prijava čeka. Aktiviraj svakog testera čim ga dodaš u store listu; nema čekanja da se dostigne cilj od ${target}.` : `Nema prijava na čekanju. Cilj kampanje je ${target} aktivnih testera, ali svaki novi može krenuti odmah.`}</p>
                           <Btn size="sm" className="mt-4 w-full justify-center" disabled={!canStart} variant="success" onClick={() => void (async () => { try { const result = await api.startTesterCohort(task.id, 1); await refreshDashboard(); showToast(`${result.activated_count} tester je aktiviran. Njegov lični period testiranja počinje danas.`, 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Tester nije aktiviran.', 'error') } })()}>
                             Aktiviraj sledećeg testera
                           </Btn>
@@ -926,15 +968,18 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                   </div>
                   <Card className="overflow-hidden border-violet-100 shadow-md">
                     <Table
-                      headers={['Korisnik', 'Kampanja', 'Email za pristup', 'Status', 'Akcija']}
+                      headers={['KlikZarada nalog', 'Kampanja', 'Google Play email za test', 'Status', 'Akcija']}
                       rows={testerEnrollments.map(item => [
-                        <span><span className="font-semibold text-ink">{item.user_name || 'Korisnik'}</span><span className="block text-xs text-ink-2">Nalog: {item.account_email || '—'}</span></span>,
+                        <span><span className="font-semibold text-ink">{item.user_name || 'Korisnik'}</span><span className="block text-xs text-ink-2">Email naloga: {item.account_email || '—'}</span><span className="block text-xs text-ink-3">ID naloga: {item.user_id || '—'}</span></span>,
                         <span className="text-xs text-ink-2">{item.task_title || 'Zadatak'}</span>,
-                        <span className="font-mono text-xs select-all">{item.testing_email || '—'}</span>,
+                        <span><span className="font-mono text-xs select-all">{item.testing_email || '—'}</span>{item.email_conflict && <span className="mt-1 block text-xs font-semibold text-red-700">Adresa je povezana i sa drugim nalogom. Ne menjaj status bez provere.</span>}{!item.email_conflict && item.account_email && item.testing_email?.toLowerCase() !== item.account_email.toLowerCase() && <span className="mt-1 block text-xs text-amber-700">Druga adresa, koju je tester uneo.</span>}</span>,
                         <StatusBadge status={item.status === 'requested' ? 'na_cekanju' : item.status === 'invited' ? 'aktivno' : 'odbijeno'} />,
-                        item.status === 'requested'
-                          ? <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-ink-3">Dodaj email u store listu, pa aktiviraj.</span><Btn size="sm" variant="success" onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'invited'); await refreshDashboard(); showToast('Tester je aktiviran, a njegov lični period testiranja počinje danas.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Tester nije aktiviran.', 'error') } })()}>Aktiviraj sada</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'declined', 'Trenutno nema slobodnih mesta u zatvorenom testiranju.'); await refreshDashboard(); showToast('Prijava je odbijena uz obaveštenje korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Status prijave nije ažuriran.', 'error') } })()}>Odbij</Btn></div>
-                          : <span className="text-xs text-ink-3">{item.note || (item.status === 'invited' ? `Aktiviran od ${item.invited_at ? new Intl.DateTimeFormat('sr-RS').format(new Date(item.invited_at)) : 'danas'}` : 'Obrađeno')}</span>,
+                        <div className="flex flex-wrap items-center gap-2">
+                          {item.status === 'requested'
+                            ? <><span className="text-xs text-ink-3">{item.email_conflict ? 'Prvo razjasni kome pripada test adresa.' : 'Dodaj email u store listu, pa aktiviraj.'}</span><Btn size="sm" variant="success" disabled={item.email_conflict} onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'invited'); await refreshDashboard(); showToast('Tester je aktiviran, a njegov lični period testiranja počinje danas.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Tester nije aktiviran.', 'error') } })()}>Aktiviraj sada</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'declined', 'Trenutno nema slobodnih mesta u zatvorenom testiranju.'); await refreshDashboard(); showToast('Prijava je odbijena uz obaveštenje korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Status prijave nije ažuriran.', 'error') } })()}>Odbij</Btn></>
+                            : <span className="text-xs text-ink-3">{item.note || (item.status === 'invited' ? `Aktiviran od ${item.invited_at ? new Intl.DateTimeFormat('sr-RS').format(new Date(item.invited_at)) : 'danas'}` : 'Obrađeno')}</span>}
+                          {item.user_id && item.status !== 'declined' && <Btn size="sm" variant="secondary" onClick={() => setChatTarget({ taskId: item.task_id, participantId: item.user_id! })}>Poruke</Btn>}
+                        </div>,
                       ])}
                     />
                   </Card>
@@ -944,7 +989,9 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                   <Card>
                     <Table
                       headers={['Korisnik', 'Kampanja', 'Dan', 'Izveštaj', 'Nagrada', 'Status', 'Akcija']}
-                      rows={testerCheckins.map(item => [
+                      rows={testerCheckins.map(item => {
+                        const emailConflict = testerEnrollments.some(enrollment => enrollment.task_id === item.task_id && enrollment.user_id === item.user_id && enrollment.email_conflict)
+                        return [
                         <span className="font-semibold text-ink">{item.user_name || 'Korisnik'}</span>,
                         <span className="text-xs text-ink-2">{item.task_title || 'Zadatak'}</span>,
                         <span className="font-mono font-bold">{item.day_number}</span>,
@@ -952,9 +999,10 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                         <span className="font-mono text-emerald-600">{item.reward_rsd} RSD</span>,
                         <StatusBadge status={item.status === 'pending' ? 'na_proveri' : item.status === 'approved' ? 'odobreno' : 'odbijeno'} />,
                         item.status === 'pending'
-                          ? <div className="flex gap-2"><Btn size="sm" variant="success" onClick={() => void (async () => { try { await api.reviewTesterCheckin(item.id, 'approved'); await refreshDashboard(); showToast('Dnevni izveštaj je odobren, a nagrada prebačena korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dnevni izveštaj nije obrađen.', 'error') } })()}>Odobri dan</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.reviewTesterCheckin(item.id, 'rejected', 'Izveštaj nema dovoljno detalja za ovaj dan.'); await refreshDashboard(); showToast('Dnevni izveštaj je odbijen.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dnevni izveštaj nije obrađen.', 'error') } })()}>Odbij</Btn></div>
+                          ? <div className="flex flex-wrap items-center gap-2">{emailConflict && <span className="text-xs font-semibold text-red-700">Konflikt test adrese: provera pre odobrenja.</span>}<Btn size="sm" variant="success" disabled={emailConflict} onClick={() => void (async () => { try { await api.reviewTesterCheckin(item.id, 'approved'); await refreshDashboard(); showToast('Dnevni izveštaj je odobren, a nagrada prebačena korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dnevni izveštaj nije obrađen.', 'error') } })()}>Odobri dan</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.reviewTesterCheckin(item.id, 'rejected', 'Izveštaj nema dovoljno detalja za ovaj dan.'); await refreshDashboard(); showToast('Dnevni izveštaj je odbijen.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dnevni izveštaj nije obrađen.', 'error') } })()}>Odbij</Btn></div>
                           : <span className="text-xs text-ink-3">{item.review_note || 'Obrađeno'}</span>,
-                      ])}
+                        ]
+                      })}
                     />
                   </Card>
                 </div>}
@@ -973,9 +1021,12 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                         <span>{p.zadatak}</span>,
                         <span className="font-mono text-xs">{p.poslato}</span>,
                         <StatusBadge status={st} />,
-                        st === 'na_proveri'
-                          ? <div className="flex flex-wrap gap-2"><Btn size="sm" variant="success" onClick={() => void (async () => { try { await api.reviewAdvertiserSubmission(p.id, 'approved'); await refreshDashboard(); showToast('Dokaz je odobren, a nagrada prebačena korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dokaz nije obrađen.', 'error') } })()}>Odobri</Btn><Btn size="sm" variant="secondary" onClick={() => void (async () => { try { await api.reviewAdvertiserSubmission(p.id, 'needs_revision', 'Dopuni dokaz jasnim linkom ili snimkom ekrana i odgovori na zahteve iz specifikacije zadatka.'); await refreshDashboard(); showToast('Korisnik je obavešten da dopuni dokaz.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dorada dokaza nije poslata.', 'error') } })()}>Traži doradu</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.reviewAdvertiserSubmission(p.id, 'rejected', 'Dokaz ne ispunjava zahteve kampanje.'); await refreshDashboard(); showToast('Dokaz je vraćen korisniku kao odbijen.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dokaz nije obrađen.', 'error') } })()}>Odbij</Btn></div>
-                          : <span className="text-xs text-ink-3">{p.submission.review_note || 'Obrađeno'}</span>,
+                        <div className="flex flex-wrap items-center gap-2">
+                          {st === 'na_proveri'
+                            ? <><Btn size="sm" variant="success" onClick={() => void (async () => { try { await api.reviewAdvertiserSubmission(p.id, 'approved'); await refreshDashboard(); showToast('Dokaz je odobren, a nagrada prebačena korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dokaz nije obrađen.', 'error') } })()}>Odobri</Btn><Btn size="sm" variant="secondary" onClick={() => void (async () => { try { await api.reviewAdvertiserSubmission(p.id, 'needs_revision', 'Dopuni dokaz jasnim linkom ili snimkom ekrana i odgovori na zahteve iz specifikacije zadatka.'); await refreshDashboard(); showToast('Korisnik je obavešten da dopuni dokaz.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dorada dokaza nije poslata.', 'error') } })()}>Traži doradu</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.reviewAdvertiserSubmission(p.id, 'rejected', 'Dokaz ne ispunjava zahteve kampanje.'); await refreshDashboard(); showToast('Dokaz je vraćen korisniku kao odbijen.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dokaz nije obrađen.', 'error') } })()}>Odbij</Btn></>
+                            : <span className="text-xs text-ink-3">{p.submission.review_note || 'Obrađeno'}</span>}
+                          {p.submission.user_id && <Btn size="sm" variant="secondary" onClick={() => setChatTarget({ taskId: p.submission.task_id, participantId: p.submission.user_id! })}>Poruke</Btn>}
+                        </div>,
                       ]
                     })}
                   />
