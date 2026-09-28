@@ -132,6 +132,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const [submitProofModal, setSubmitProofModal] = useState<number | null>(null)
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
   const [logoutConfirm, setLogoutConfirm] = useState(false)
+  const [advertiserWorkspaceConfirm, setAdvertiserWorkspaceConfirm] = useState(false)
   const [dashboard, setDashboard] = useState<UserDashboardData | null>(null)
   const [dashboardError, setDashboardError] = useState('')
   const [proofText, setProofText] = useState('')
@@ -471,12 +472,31 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
       )}
 
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <ConfirmModal
+          open={advertiserWorkspaceConfirm}
+          title="Uključiti oglašivački prostor?"
+          description="Ne otvara se novi nalog: kampanje, aktivacije testera i tvoji zadaci ostaju povezani sa ovim istim nalogom."
+          confirmLabel="Uključi oglašavanje"
+          cancelLabel="Otkaži"
+          variant="success"
+          onConfirm={async () => {
+            try {
+              await api.enableAdvertiserWorkspace()
+              setAdvertiserWorkspaceConfirm(false)
+              onNavigate('advertiser')
+            } catch (error) {
+              showToast(error instanceof Error ? error.message : 'Oglašivački prostor nije uključen.', 'error')
+            }
+          }}
+          onCancel={() => setAdvertiserWorkspaceConfirm(false)}
+        />
         <TopBar
           onMenuClick={() => setMobileOpen(true)}
           pageTitle="Zarada centar"
           onNavigate={onNavigate}
           actions={
             <div className="flex items-center gap-3">
+              {user?.role === 'korisnik' && <Btn variant="secondary" size="sm" onClick={() => setAdvertiserWorkspaceConfirm(true)} className="hidden sm:inline-flex">Oglašavanje</Btn>}
               <div className="text-right hidden sm:block">
                 <p className="font-mono text-sm font-bold text-emerald-600">{formatRsd(balance)}</p>
                 <p className="text-[10px] text-ink-3">Balans</p>

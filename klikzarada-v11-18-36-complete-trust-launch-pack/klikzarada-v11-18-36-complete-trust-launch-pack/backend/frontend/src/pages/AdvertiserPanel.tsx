@@ -789,7 +789,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
           pageTitle={advertiser?.role === 'admin' ? 'Objave platforme' : 'Oglašivački panel'}
           badge={advertiser?.role === 'admin' ? 'Admin' : undefined}
           onNavigate={onNavigate}
-          actions={<div className="flex gap-2">{advertiser?.role === 'admin' && <Btn onClick={() => onNavigate('admin')} variant="secondary" size="sm" className="hidden sm:inline-flex">Admin</Btn>}<Btn onClick={() => goTo('nova')} size="sm">+ Nova kampanja</Btn></div>}
+          actions={<div className="flex gap-2"><Btn onClick={() => onNavigate('dashboard')} variant="secondary" size="sm" className="hidden sm:inline-flex">Moji zadaci</Btn>{advertiser?.role === 'admin' && <Btn onClick={() => onNavigate('admin')} variant="secondary" size="sm" className="hidden sm:inline-flex">Admin</Btn>}<Btn onClick={() => goTo('nova')} size="sm">+ Nova kampanja</Btn></div>}
         />
         <main className="flex-1 overflow-y-auto bg-mint-50">
           <div className="w-full max-w-none px-4 py-6 sm:px-6 xl:px-8 2xl:px-10">

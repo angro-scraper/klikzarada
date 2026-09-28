@@ -20,7 +20,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 from app.database import Base  # noqa: E402
 from app.models import AppTesterEnrollment, EmailOutboxV8, EmailVerificationTokenV11, Task, User, UserConsentV11  # noqa: E402
 from app.security import create_session_token  # noqa: E402
-from app.ui_api import Registration, TesterCohortStartPayload as CohortStartPayload, correct_account_role_to_user, register, start_tester_cohort  # noqa: E402
+from app.ui_api import Registration, TesterCohortStartPayload as CohortStartPayload, correct_account_role_to_user, enable_advertiser_workspace, register, start_tester_cohort, user_dashboard  # noqa: E402
 
 
 class RegistrationFlowTests(unittest.TestCase):
@@ -156,6 +156,25 @@ class RegistrationFlowTests(unittest.TestCase):
 
         self.assertEqual(result["user"]["role"], "korisnik")
         self.assertEqual(advertiser.role, "korisnik")
+
+    def test_one_account_can_restore_campaign_workspace_and_keep_task_access(self):
+        user = User(full_name="Višenamenski nalog", email="workspace@example.com", password_hash="hash", role="korisnik")
+        self.db.add(user)
+        self.db.commit()
+        request = Request({
+            "type": "http",
+            "method": "POST",
+            "scheme": "https",
+            "path": "/api/ui/account/role/enable-advertiser",
+            "headers": [(b"cookie", f"kz_session={create_session_token(user.id)}".encode())],
+            "client": ("198.51.100.20", 443),
+        })
+
+        result = enable_advertiser_workspace(request, self.db)
+        dashboard = user_dashboard(request, self.db)
+
+        self.assertEqual(result["user"]["role"], "oglasivac")
+        self.assertEqual(dashboard["user"]["role"], "oglasivac")
 
 
 if __name__ == "__main__":

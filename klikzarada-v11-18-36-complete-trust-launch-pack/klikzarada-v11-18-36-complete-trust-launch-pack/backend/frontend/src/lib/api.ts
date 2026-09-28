@@ -615,6 +615,7 @@ export const api = {
   }),
   adminUsers: () => request<{ users: AdminUser[] }>('/admin/users'),
   correctAccountRoleToUser: () => request<{ user: SessionUser }>('/account/role/correct-to-user', { method: 'POST' }),
+  enableAdvertiserWorkspace: () => request<{ user: SessionUser }>('/account/role/enable-advertiser', { method: 'POST' }),
   adminUserProfile: (id: number) => request<AdminUserProfile>(`/admin/users/${id}/profile`),
   updateAdminUser: (id: number, status: 'active' | 'blocked' | 'suspended', note?: string) => request<{ user: SessionUser }>(`/admin/users/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),
