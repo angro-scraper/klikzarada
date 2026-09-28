@@ -29,6 +29,7 @@ export default function Auth({
   const [phone, setPhone] = useState('')
   const [advertiserType, setAdvertiserType] = useState<'business' | 'private'>('business')
   const [referral, setReferral] = useState('')
+  const [referralFromLink, setReferralFromLink] = useState(false)
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [forgotPassword, setForgotPassword] = useState(false)
   const [resetToken, setResetToken] = useState('')
@@ -61,6 +62,15 @@ export default function Auth({
     // This is intentionally non-blocking: an analytics outage must never stop registration.
     void api.trackPublicFunnel('registration_opened').catch(() => undefined)
   }, [isRegister])
+
+  useEffect(() => {
+    if (!isRegister || isAdvertiser) return
+    const rawCode = new URLSearchParams(window.location.search).get('ref') || ''
+    const code = rawCode.toUpperCase().replace(/[^A-Z0-9]/g, '')
+    if (code.length < 2) return
+    setReferral(code)
+    setReferralFromLink(true)
+  }, [isAdvertiser, isRegister])
 
   async function handleSubmit() {
     if (!email.trim() || !password) {
@@ -219,7 +229,11 @@ export default function Auth({
               )}
               {!forgotPassword && <Input label={resetToken ? 'Nova lozinka' : 'Lozinka'} type="password" placeholder="••••••••" value={password} onChange={setPassword} />}
               {!resetToken && !forgotPassword && isRegister && !isAdvertiser && (
-                <Input label="Referral kod (opciono)" placeholder="npr. USER123" value={referral} onChange={setReferral} />
+                <>
+                  <Input label="Referral kod (opciono)" placeholder="Unesi kod iz referral linka ili ostavi prazno" value={referral} onChange={value => { setReferral(value.toUpperCase()); setReferralFromLink(false) }} />
+                  {referralFromLink && <p className="-mt-2 text-xs text-emerald-700">Referral kod je preuzet iz prijateljevog linka i biće proveren pri kreiranju naloga.</p>}
+                  {!referralFromLink && <p className="-mt-2 text-xs text-ink-3">Nemaš kod? Ostavi polje prazno. Ne unosi primer ili nasumičan tekst.</p>}
+                </>
               )}
 
               {!resetToken && !forgotPassword && isRegister && (

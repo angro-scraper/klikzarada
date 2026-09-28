@@ -498,6 +498,15 @@ def _user_data(user: User) -> dict:
     }
 
 
+def _new_referral_code(db: Session, full_name: str) -> str:
+    """Keep referral links short, readable, and unique before a user is created."""
+    for _ in range(12):
+        candidate = make_referral_code(full_name)
+        if not db.query(User.id).filter(User.referral_code == candidate).first():
+            return candidate
+    raise HTTPException(503, "Referral kod trenutno nije moguće generisati. Pokušaj ponovo.")
+
+
 def _task_data(task: Task) -> dict:
     return {
         "id": task.id,
@@ -1212,7 +1221,7 @@ def register(payload: Registration, request: Request, response: Response, db: Se
         role=payload.role,
         status="active",
         phone=phone or None,
-        referral_code=make_referral_code(payload.full_name),
+        referral_code=_new_referral_code(db, payload.full_name),
         referred_by_id=referrer.id if referrer else None,
         company_name=payload.full_name.strip() if payload.role == "oglasivac" and payload.advertiser_type == "business" else None,
     )

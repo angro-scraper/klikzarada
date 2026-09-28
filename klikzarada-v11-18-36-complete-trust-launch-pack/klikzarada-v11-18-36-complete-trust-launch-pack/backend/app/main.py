@@ -73,7 +73,7 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 async def serve_react_application(request: Request, call_next):
     """Serve the Figma React application for browser pages, never for APIs/assets."""
     path = request.url.path
-    excluded = ("/api/", "/static/", "/app-ui/", "/docs", "/openapi.json", "/favicon.ico", "/sw.js", "/logout")
+    excluded = ("/api/", "/static/", "/app-ui/", "/docs", "/openapi.json", "/favicon.ico", "/sw.js", "/logout", "/r/")
     index = SPA_DIR / "index.html"
     wants_html = "text/html" in request.headers.get("accept", "")
     if request.method == "GET" and wants_html and index.exists() and not path.startswith(excluded):
@@ -2322,6 +2322,17 @@ def task_detail(task_id:int, request:Request, msg:str|None=None, db:Session=Depe
 @app.get("/registracija", response_class=HTMLResponse)
 def reg_page(request:Request, ref:str|None=None, role:str|None=None, db:Session=Depends(get_db)):
     return templates.TemplateResponse("register.html", {"request":request,"user":current_user(request,db),"error":None,"ref":ref or "", "role":role or "korisnik"})
+
+
+@app.get("/r/{referral_code}")
+def referral_link(referral_code: str, db: Session = Depends(get_db)):
+    """Turn a copied referral link into the registration URL used by the React app."""
+    code = "".join(character for character in referral_code.upper() if character.isalnum())
+    referrer = db.query(User).filter(User.referral_code == code).first() if code else None
+    destination = "/registracija"
+    if referrer and referrer.referral_code:
+        destination = f"{destination}?{urlencode({'ref': referrer.referral_code})}"
+    return RedirectResponse(destination, status_code=302)
 
 @app.post("/registracija")
 def reg(request:Request, full_name:str=Form(...), email:str=Form(...), password:str=Form(...), role:str=Form("korisnik"), referral_code:str=Form(""), city:str=Form(""), phone:str=Form(""), db:Session=Depends(get_db)):

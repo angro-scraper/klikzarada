@@ -33,8 +33,17 @@ class UiContractTests(unittest.TestCase):
             "/api/ui/analytics/funnel",
             "/api/ui/user/program/rewards/{reward_key}",
             "/admin/analitika-v117",
+            "/r/{referral_code}",
         }
         self.assertTrue(expected.issubset(paths))
+
+    def test_referral_link_reaches_react_registration_with_a_real_code(self):
+        main_source = (BACKEND_DIR / "app" / "main.py").read_text(encoding="utf-8")
+        auth_source = (BACKEND_DIR / "frontend" / "src" / "pages" / "Auth.tsx").read_text(encoding="utf-8")
+        self.assertIn('"/r/"', main_source)
+        self.assertIn('urlencode({\'ref\': referrer.referral_code})', main_source)
+        self.assertIn("get('ref')", auth_source)
+        self.assertNotIn('placeholder="npr. USER123"', auth_source)
 
     def test_email_public_url_helper_does_not_require_a_request(self):
         """Registration and password reset must be able to create email links."""

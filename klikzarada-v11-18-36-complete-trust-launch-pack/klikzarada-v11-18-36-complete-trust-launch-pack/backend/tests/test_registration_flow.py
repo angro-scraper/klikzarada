@@ -79,6 +79,20 @@ class RegistrationFlowTests(unittest.TestCase):
                 self._register(**changes)
             self.assertEqual(caught.exception.status_code, status_code)
 
+    def test_generated_referral_code_can_be_used_by_another_registration(self):
+        self._register(email="referrer@example.com", full_name="Referral Vlasnik")
+        referrer = self.db.query(User).filter(User.email == "referrer@example.com").one()
+
+        self._register(
+            email="invited@example.com",
+            full_name="Pozvani Korisnik",
+            referral_code=f"  {referrer.referral_code.lower()}  ",
+        )
+        invited = self.db.query(User).filter(User.email == "invited@example.com").one()
+
+        self.assertEqual(invited.referred_by_id, referrer.id)
+        self.assertNotEqual(invited.referral_code, referrer.referral_code)
+
 
 if __name__ == "__main__":
     unittest.main()
