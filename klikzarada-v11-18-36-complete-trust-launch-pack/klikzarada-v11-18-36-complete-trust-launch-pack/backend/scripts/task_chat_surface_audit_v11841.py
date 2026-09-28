@@ -1,4 +1,4 @@
-"""Audit advertiser message spacing and readable conversation previews."""
+"""Audit the dedicated light task-chat message surface."""
 
 import sys
 import unittest
@@ -11,11 +11,11 @@ sys.path.insert(0, str(BACKEND_DIR))
 from app.main import app  # noqa: E402
 
 
-assert tuple(map(int, app.version.split("."))) >= (11, 18, 40)
+assert app.version == "11.18.41"
 suite = unittest.defaultTestLoader.loadTestsFromName(
-    "tests.test_ui_contract.UiContractTests.test_advertiser_messages_have_spacing_and_readable_preview"
+    "tests.test_ui_contract.UiContractTests.test_task_chat_has_a_light_dedicated_background"
 )
 result = unittest.TextTestRunner(verbosity=2).run(suite)
 if not result.wasSuccessful():
     raise SystemExit(1)
-print("Task messages layout audit: OK")
+print("Task chat surface audit: OK")

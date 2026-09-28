@@ -114,6 +114,16 @@ body { margin: 0; min-height: 100vh; font-weight: 450; }
 .table-scroll { overflow-x: auto; }
 .table-scroll::-webkit-scrollbar { height: 4px; }
 
+.task-chat-canvas {
+  background-color: #f3faf7;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(62, 89, 115, 0.10) 1px, transparent 0),
+    radial-gradient(circle at 18% 10%, rgba(116, 198, 164, 0.16), transparent 32%),
+    radial-gradient(circle at 85% 85%, rgba(120, 169, 224, 0.16), transparent 36%),
+    linear-gradient(145deg, #f7fcf9, #edf5f9);
+  background-size: 24px 24px, auto, auto, auto;
+}
+
 @keyframes landing-rise {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }

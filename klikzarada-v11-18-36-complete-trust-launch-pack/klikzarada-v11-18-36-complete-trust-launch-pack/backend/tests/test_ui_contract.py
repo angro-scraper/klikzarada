@@ -113,6 +113,14 @@ class UiContractTests(unittest.TestCase):
         self.assertIn("line-clamp-2 break-words", messages)
         self.assertNotIn("truncate text-sm", messages)
 
+    def test_task_chat_has_a_light_dedicated_background(self):
+        source = (BACKEND_DIR / "frontend" / "src" / "components" / "TaskChat.tsx").read_text(encoding="utf-8")
+        styles = (BACKEND_DIR / "frontend" / "src" / "index.css").read_text(encoding="utf-8")
+        self.assertIn('className="task-chat-canvas flex-1', source)
+        self.assertNotIn("bg-slate-50/70", source)
+        self.assertIn(".task-chat-canvas {", styles)
+        self.assertIn("background-color: #f3faf7", styles)
+
     def test_pageview_tracking_excludes_non_browser_traffic(self):
         """Traffic counters must only accept deliberate public navigations."""
         source = (BACKEND_DIR / "app" / "main.py").read_text(encoding="utf-8")

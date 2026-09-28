@@ -68,7 +68,7 @@ export function TaskChat({ taskId, participantId, onClose }: { taskId: number; p
         </div>
         <button type="button" onClick={onClose} aria-label="Zatvori" className="rounded-lg px-2 py-1 text-xl text-ink-2 hover:bg-white hover:text-ink">×</button>
       </header>
-      <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-4 sm:p-5" aria-live="polite">
+      <div className="task-chat-canvas flex-1 space-y-3 overflow-y-auto p-4 sm:p-5" aria-live="polite">
         {!thread && !error && <p className="text-center text-sm text-ink-2">Učitavanje poruka...</p>}
         {thread?.messages.length === 0 && <p className="rounded-xl border border-dashed border-blue-200 bg-white p-5 text-center text-sm text-ink-2">Još nema poruka. Ovde možeš poslati pitanje ili test link koji se odnosi samo na ovaj zadatak.</p>}
         {thread?.messages.map(message => {
