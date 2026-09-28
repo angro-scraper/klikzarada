@@ -114,6 +114,9 @@ class UiContractTests(unittest.TestCase):
         self.assertIn("trackPublicFunnel('registration_submitted')", auth_source)
         self.assertIn("registration_failed", api_source)
         self.assertIn("trackPublicFunnel('registration_failed', registrationFailureReason(caught))", auth_source)
+        self.assertIn('"network_error"', api_source)
+        self.assertIn('"server_error"', api_source)
+        self.assertIn("caught.status === 422", auth_source)
 
     def test_registration_failure_diagnostics_never_retain_form_values(self):
         """The admin funnel may show categories, but never a user's submitted data."""

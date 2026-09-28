@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Btn, Input, Alert } from '../components/ui'
-import { api, deviceFingerprint, type RegistrationFailureReason } from '../lib/api'
+import { ApiRequestError, api, deviceFingerprint, type RegistrationFailureReason } from '../lib/api'
 
 type Mode = 'login' | 'register' | 'advertiser-login' | 'advertiser-register' | 'admin-login'
 
 function registrationFailureReason(caught: unknown): RegistrationFailureReason {
+  if (caught instanceof ApiRequestError) {
+    if (caught.status === 0) return 'network_error'
+    if (caught.status >= 500) return 'server_error'
+    if (caught.status === 422) return 'validation'
+  }
   const message = (caught instanceof Error ? caught.message : '').toLocaleLowerCase('sr-RS')
   if (message.includes('email adresa je već registrovana')) return 'email_taken'
   if (message.includes('broj telefona je već povezan')) return 'phone_taken'

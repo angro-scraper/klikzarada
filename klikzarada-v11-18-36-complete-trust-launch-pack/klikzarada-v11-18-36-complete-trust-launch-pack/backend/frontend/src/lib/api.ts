@@ -283,6 +283,8 @@ export type RegistrationFailureReason =
   | 'invalid_phone'
   | 'invalid_referral'
   | 'validation'
+  | 'network_error'
+  | 'server_error'
   | 'request_error'
 
 export type AdminMetrics = {
@@ -454,19 +456,38 @@ export function deviceFingerprint(): string {
   return `${stableId}|${traits.join('|')}`.slice(0, 300)
 }
 
-type ApiErrorBody = { detail?: string }
+type ApiErrorBody = { detail?: string | Array<{ msg?: string }> }
+
+export class ApiRequestError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message)
+    this.name = 'ApiRequestError'
+  }
+}
+
+function apiErrorMessage(body: ApiErrorBody, status: number): string {
+  if (status === 422) return 'Podaci u formi nisu ispravni. Proveri ime, email i lozinku.'
+  if (typeof body.detail === 'string' && body.detail.trim()) return body.detail
+  if (status >= 500) return 'Server trenutno nije dostupan. Pokušaj ponovo za trenutak.'
+  return 'Zahtev nije uspeo. Pokušaj ponovo.'
+}
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
-  const response = await fetch(`${API_ROOT}${path}`, {
-    ...options,
-    credentials: 'same-origin',
-    headers: { ...(isFormData ? {} : { 'Content-Type': 'application/json' }), ...(options.headers ?? {}) },
-  })
+  let response: Response
+  try {
+    response = await fetch(`${API_ROOT}${path}`, {
+      ...options,
+      credentials: 'same-origin',
+      headers: { ...(isFormData ? {} : { 'Content-Type': 'application/json' }), ...(options.headers ?? {}) },
+    })
+  } catch {
+    throw new ApiRequestError('Veza sa serverom je prekinuta. Proveri internet i pokušaj ponovo.', 0)
+  }
 
   if (response.status === 204) return undefined as T
   const body = await response.json().catch(() => ({} as ApiErrorBody))
-  if (!response.ok) throw new Error((body as ApiErrorBody).detail || 'Zahtev nije uspeo. Pokušaj ponovo.')
+  if (!response.ok) throw new ApiRequestError(apiErrorMessage(body as ApiErrorBody, response.status), response.status)
   return body as T
 }
 

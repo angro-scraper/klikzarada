@@ -123,7 +123,7 @@ class PublicFunnelEventPayload(BaseModel):
     event_type: Literal["registration_opened", "registration_submitted", "registration_failed"]
     failure_reason: Literal[
         "email_taken", "phone_taken", "terms_missing", "invalid_phone",
-        "invalid_referral", "validation", "request_error",
+        "invalid_referral", "validation", "network_error", "server_error", "request_error",
     ] | None = None
 
 
@@ -3108,7 +3108,11 @@ def _admin_dashboard_data(db: Session) -> dict:
         "invalid_phone": "Telefon nije ispravan",
         "invalid_referral": "Referral kod nije ispravan",
         "validation": "Nedostaje ili nije ispravan podatak",
-        "request_error": "Tehnička greška pri slanju",
+        # request_error is retained only so that older, privacy-minimal events
+        # stay intelligible. New browser events use one of the precise groups below.
+        "request_error": "Ranije neodređena greška pri slanju",
+        "network_error": "Prekinuta veza sa serverom",
+        "server_error": "Server je privremeno bio nedostupan",
     }
     failure_reason_rows = db.query(
         PublicFunnelFailureReasonV12.reason,
