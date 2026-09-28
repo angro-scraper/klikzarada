@@ -67,6 +67,17 @@ class UiContractTests(unittest.TestCase):
         self.assertIn("poruke: '/korisnik/poruke'", routes)
         self.assertIn("/api/ui/user/task-chats", app.openapi()["paths"])
 
+    def test_notifications_are_available_in_every_role_sidebar(self):
+        pages = ("UserDashboard.tsx", "AdvertiserPanel.tsx", "AdminHub.tsx")
+        for page in pages:
+            with self.subTest(page=page):
+                source = (BACKEND_DIR / "frontend" / "src" / "pages" / page).read_text(encoding="utf-8")
+                self.assertIn("label: 'Obaveštenja'", source)
+                self.assertIn("page === 'obavestenja'", source)
+                self.assertIn("api.notifications()", source)
+                self.assertIn("api.markNotificationRead(item.id)", source)
+                self.assertIn("badge:", source)
+
     def test_referral_link_reaches_react_registration_with_a_real_code(self):
         main_source = (BACKEND_DIR / "app" / "main.py").read_text(encoding="utf-8")
         auth_source = (BACKEND_DIR / "frontend" / "src" / "pages" / "Auth.tsx").read_text(encoding="utf-8")

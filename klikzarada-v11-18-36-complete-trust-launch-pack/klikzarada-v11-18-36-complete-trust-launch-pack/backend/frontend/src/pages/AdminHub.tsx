@@ -4,9 +4,9 @@ import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tab
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal, InfoModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminUserProfile, type AdminWithdrawal, type AdminSetting, type BannerSlot, type FraudOverview, type PaidBanner, type PaidPromotion, type ProductionReadiness, type SupportTicket, type TaskSource } from '../lib/api'
+import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminUserProfile, type AdminWithdrawal, type AdminSetting, type BannerSlot, type FraudOverview, type NotificationItem, type PaidBanner, type PaidPromotion, type ProductionReadiness, type SupportTicket, type TaskSource } from '../lib/api'
 
-function adminNavigation(metrics: AdminMetrics | null, tickets: SupportTicket[]) {
+function adminNavigation(metrics: AdminMetrics | null, tickets: SupportTicket[], unreadNotifications: number) {
   const pendingWithdrawals = metrics?.pending_withdrawals ?? 0
   const pendingCampaigns = metrics?.pending_campaigns ?? 0
   const pendingBanners = metrics?.pending_banners ?? 0
@@ -14,7 +14,10 @@ function adminNavigation(metrics: AdminMetrics | null, tickets: SupportTicket[])
   const openTickets = tickets.filter(ticket => ticket.status !== 'closed').length
 
   return [
-  { group: 'Dashboard', items: [{ id: 'dashboard', label: 'Pregled', icon: '📊' }] },
+  { group: 'Dashboard', items: [
+    { id: 'dashboard', label: 'Pregled', icon: '📊' },
+    { id: 'obavestenja', label: 'Obaveštenja', icon: '🔔', badge: unreadNotifications || undefined },
+  ] },
   { group: 'Finansije', items: [
     { id: 'fin-racuni', label: 'Računi platforme', icon: '🏦' },
     { id: 'fin-isplate', label: 'Isplate korisnika', icon: '💸', badge: pendingWithdrawals || undefined },
@@ -44,12 +47,13 @@ function adminNavigation(metrics: AdminMetrics | null, tickets: SupportTicket[])
   ]
 }
 
-type AdminPage = 'dashboard'|'fin-racuni'|'fin-isplate'|'fin-uplate'|'fin-fakture'|
+type AdminPage = 'dashboard'|'obavestenja'|'fin-racuni'|'fin-isplate'|'fin-uplate'|'fin-fakture'|
   'kam-kampanje'|'kam-dokazi'|'kam-uvoz'|'kam-banneri'|
   'lj-korisnici'|'lj-oglasivaci'|'lj-referral'|'lj-podrska'|
   'ops-antifraud'|'ops-logovi'|'sys-api'|'sys-settings'
 
 const BACK: Partial<Record<AdminPage, { label: string; to: AdminPage }>> = {
+  obavestenja:   { label: 'Nazad na pregled', to: 'dashboard' },
   'fin-racuni':    { label: 'Nazad u Finansije', to: 'fin-isplate' },
   'fin-isplate':   { label: 'Nazad na pregled', to: 'dashboard' },
   'fin-uplate':    { label: 'Nazad u Finansije', to: 'fin-isplate' },
@@ -69,6 +73,7 @@ const BACK: Partial<Record<AdminPage, { label: string; to: AdminPage }>> = {
 }
 
 const CRUMBS: Partial<Record<AdminPage, { label: string }[]>> = {
+  obavestenja:   [{ label: 'Admin' }, { label: 'Obaveštenja' }],
   'fin-racuni':    [{ label: 'Admin' }, { label: 'Finansije' }, { label: 'Računi platforme' }],
   'fin-isplate':   [{ label: 'Admin' }, { label: 'Finansije' }, { label: 'Isplate korisnika' }],
   'fin-uplate':    [{ label: 'Admin' }, { label: 'Finansije' }, { label: 'Uplate oglašivača' }],
@@ -111,6 +116,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [withdrawals, setWithdrawals] = useState<AdminWithdrawal[]>([])
   const [sources, setSources] = useState<TaskSource[]>([])
   const [tickets, setTickets] = useState<SupportTicket[]>([])
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [settings, setSettings] = useState<AdminSetting[]>([])
   const [fraudOverview, setFraudOverview] = useState<FraudOverview | null>(null)
   const [bannerSlots, setBannerSlots] = useState<BannerSlot[]>([])
@@ -150,6 +156,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
       load('isplate', api.adminWithdrawals(), data => setWithdrawals(data.withdrawals)),
       load('izvori zadataka', api.adminTaskSources(), data => setSources(data.sources)),
       load('tiketi', api.adminTickets(), data => setTickets(data.tickets)),
+      load('obaveštenja', api.notifications(), data => setNotifications(data.notifications)),
       load('podešavanja', api.adminSettings(), data => {
         setSettings(data.settings)
         setSettingDrafts(Object.fromEntries(data.settings.map(setting => [setting.key, setting.value])))
@@ -173,6 +180,16 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   }
 
   useEffect(() => { void refreshAdmin() }, [])
+
+  useEffect(() => {
+    const refreshNotifications = () => {
+      if (document.visibilityState !== 'visible') return
+      void api.notifications().then(data => setNotifications(data.notifications)).catch(() => {})
+    }
+    const timer = window.setInterval(refreshNotifications, 15000)
+    window.addEventListener('focus', refreshNotifications)
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refreshNotifications) }
+  }, [])
 
   function goTo(p: AdminPage) { setPage(p) }
   const back = BACK[page]
@@ -483,11 +500,11 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
       {mobileOpen && <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />}
       <div className="hidden lg:flex shrink-0">
-        <Sidebar groups={adminNavigation(metrics, tickets)} active={page} onNavigate={p => goTo(p as AdminPage)} footer={sidebarFooter} />
+        <Sidebar groups={adminNavigation(metrics, tickets, notifications.filter(item => item.status === 'unread').length)} active={page} onNavigate={p => goTo(p as AdminPage)} footer={sidebarFooter} />
       </div>
       {mobileOpen && (
         <div className="fixed left-0 top-0 h-full z-50 lg:hidden">
-          <Sidebar groups={adminNavigation(metrics, tickets)} active={page} onNavigate={p => { goTo(p as AdminPage); setMobileOpen(false) }} footer={sidebarFooter} isMobile onClose={() => setMobileOpen(false)} />
+          <Sidebar groups={adminNavigation(metrics, tickets, notifications.filter(item => item.status === 'unread').length)} active={page} onNavigate={p => { goTo(p as AdminPage); setMobileOpen(false) }} footer={sidebarFooter} isMobile onClose={() => setMobileOpen(false)} />
         </div>
       )}
 
@@ -509,6 +526,18 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                 onBack={back ? () => goTo(back.to) : undefined}
                 backLabel={back?.label}
               />
+            )}
+
+            {page === 'obavestenja' && (
+              <div className="space-y-4">
+                <SectionHeader title="Obaveštenja" description="Operativne informacije i promene na administratorskom nalogu." />
+                {notifications.length === 0 ? <EmptyState icon="🔔" title="Nema obaveštenja" description="Nove informacije za administratora pojaviće se ovde." /> : notifications.map(item => <Card key={item.id} className={`p-4 ${item.status === 'unread' ? 'border-blue-200 bg-blue-50' : ''}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1"><p className="font-bold text-ink">{item.title}</p><p className="mt-1 break-words text-sm text-ink-2">{item.body}</p>{item.created_at && <p className="mt-2 text-xs text-ink-3">{new Intl.DateTimeFormat('sr-RS', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.created_at))}</p>}</div>
+                    {item.status === 'unread' && <Btn size="sm" variant="secondary" onClick={() => void (async () => { try { await api.markNotificationRead(item.id); setNotifications(current => current.map(note => note.id === item.id ? { ...note, status: 'read' } : note)) } catch { showToast('Obaveštenje nije označeno kao pročitano.', 'error') } })()}>Pročitano</Btn>}
+                  </div>
+                </Card>)}
+              </div>
             )}
 
             {page === 'dashboard' && (

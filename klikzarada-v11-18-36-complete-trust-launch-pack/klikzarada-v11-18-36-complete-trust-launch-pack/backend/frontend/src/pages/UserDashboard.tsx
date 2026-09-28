@@ -269,9 +269,10 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const programBadges = program?.badges ?? []
   const approvedProofCount = program?.stats.approved_total ?? 0
   const visibleProofs = (dashboard?.submissions ?? []).filter(proof => proofTab === 'svi' || proof.status === proofTab)
+  const unreadNotificationCount = notifications.filter(note => note.status === 'unread').length
   const navigationGroups = navGroups.map(group => ({
     ...group,
-    items: group.items.map(item => item.id === 'dokazi' ? { ...item, badge: proofCount || undefined } : item.id === 'poruke' ? { ...item, badge: notifications.filter(note => note.status === 'unread' && note.title === 'Nova poruka uz zadatak').length || undefined } : item),
+    items: group.items.map(item => item.id === 'dokazi' ? { ...item, badge: proofCount || undefined } : item.id === 'poruke' ? { ...item, badge: notifications.filter(note => note.status === 'unread' && note.title === 'Nova poruka uz zadatak').length || undefined } : item.id === 'obavestenja' ? { ...item, badge: unreadNotificationCount || undefined } : item),
   }))
   const balance = user?.balance_rsd ?? 0
   const minWithdrawal = dashboard?.min_withdrawal_rsd ?? 1000

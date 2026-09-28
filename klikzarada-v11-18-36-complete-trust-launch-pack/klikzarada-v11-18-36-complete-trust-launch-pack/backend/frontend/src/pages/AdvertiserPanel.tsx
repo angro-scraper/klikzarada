@@ -117,6 +117,7 @@ const navGroups = [
     { id: 'nova', label: 'Nova kampanja', icon: '➕' },
     { id: 'kampanje', label: 'Moje kampanje', icon: '🎯' },
     { id: 'poruke', label: 'Poruke', icon: '💬' },
+    { id: 'obavestenja', label: 'Obaveštenja', icon: '🔔' },
     { id: 'dokazi', label: 'Dokazi korisnika', icon: '📎' },
   ]},
   { group: 'Analitika', items: [
@@ -137,12 +138,13 @@ const navGroups = [
   ]},
 ]
 
-type Page = 'pregled'|'nova'|'kampanje'|'poruke'|'dokazi'|'analitika'|'budzet'|'fakture'|'izvestaji'|'banneri'|'premium'|'profil'|'podrska'
+type Page = 'pregled'|'nova'|'kampanje'|'poruke'|'obavestenja'|'dokazi'|'analitika'|'budzet'|'fakture'|'izvestaji'|'banneri'|'premium'|'profil'|'podrska'
 
 const BACK: Partial<Record<Page, { label: string; to: Page }>> = {
   nova:      { label: 'Nazad na pregled', to: 'pregled' },
   kampanje:  { label: 'Nazad na pregled', to: 'pregled' },
   poruke:    { label: 'Nazad na pregled', to: 'pregled' },
+  obavestenja: { label: 'Nazad na pregled', to: 'pregled' },
   dokazi:    { label: 'Nazad na pregled', to: 'pregled' },
   analitika: { label: 'Nazad na pregled', to: 'pregled' },
   budzet:    { label: 'Nazad na pregled', to: 'pregled' },
@@ -158,6 +160,7 @@ const CRUMBS: Partial<Record<Page, { label: string }[]>> = {
   nova:      [{ label: 'Oglašivač' }, { label: 'Nova kampanja' }],
   kampanje:  [{ label: 'Oglašivač' }, { label: 'Kampanje' }],
   poruke:    [{ label: 'Oglašivač' }, { label: 'Poruke' }],
+  obavestenja: [{ label: 'Oglašivač' }, { label: 'Obaveštenja' }],
   dokazi:    [{ label: 'Oglašivač' }, { label: 'Dokazi korisnika' }],
   analitika: [{ label: 'Oglašivač' }, { label: 'Analitika' }],
   budzet:    [{ label: 'Oglašivač' }, { label: 'Budžet i uplate' }],
@@ -705,12 +708,13 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const testerEnrollments = dashboard?.tester_enrollments ?? []
   const testerCheckins = dashboard?.tester_checkins ?? []
   const unreadChatNotifications = notifications.filter(item => item.status === 'unread' && item.title === 'Nova poruka uz zadatak')
+  const unreadNotificationCount = notifications.filter(item => item.status === 'unread').length
   const pendingProofCount = proofs.filter(proof => proof.status === 'na_proveri').length
   const pendingTesterEnrollmentCount = testerEnrollments.filter(enrollment => enrollment.status === 'requested').length
   const proofBadge = pendingProofCount + pendingTesterEnrollmentCount
   const navigationGroups = navGroups.map(group => ({
     ...group,
-    items: group.items.map(item => item.id === 'dokazi' ? { ...item, badge: proofBadge || undefined } : item.id === 'poruke' ? { ...item, badge: unreadChatNotifications.length || undefined } : item),
+    items: group.items.map(item => item.id === 'dokazi' ? { ...item, badge: proofBadge || undefined } : item.id === 'poruke' ? { ...item, badge: unreadChatNotifications.length || undefined } : item.id === 'obavestenja' ? { ...item, badge: unreadNotificationCount || undefined } : item),
   }))
 
   function goTo(p: Page) { setPage(p) }
@@ -904,6 +908,21 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     ])}
                   />
                 </Card>
+              </div>
+            )}
+
+            {page === 'obavestenja' && (
+              <div className="space-y-4">
+                <SectionHeader title="Obaveštenja" description="Novosti o kampanjama, testerima, dokazima i nalogu." />
+                {notifications.length === 0 ? <EmptyState icon="🔔" title="Nema obaveštenja" description="Nove informacije o kampanjama i nalogu pojaviće se ovde." /> : notifications.map(item => <Card key={item.id} className={`p-4 ${item.status === 'unread' ? 'border-blue-200 bg-blue-50' : ''}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1"><p className="font-bold text-ink">{item.title}</p><p className="mt-1 break-words text-sm text-ink-2">{item.body}</p><p className="mt-2 text-xs text-ink-3">{displayDate(item.created_at)}</p></div>
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      {item.title === 'Nova poruka uz zadatak' && <Btn size="sm" variant="secondary" onClick={() => goTo('poruke')}>Otvori poruke</Btn>}
+                      {item.status === 'unread' && <Btn size="sm" variant="secondary" onClick={() => void (async () => { try { await api.markNotificationRead(item.id); setNotifications(current => current.map(note => note.id === item.id ? { ...note, status: 'read' } : note)) } catch { showToast('Obaveštenje nije označeno kao pročitano.', 'error') } })()}>Pročitano</Btn>}
+                    </div>
+                  </div>
+                </Card>)}
               </div>
             )}
 
