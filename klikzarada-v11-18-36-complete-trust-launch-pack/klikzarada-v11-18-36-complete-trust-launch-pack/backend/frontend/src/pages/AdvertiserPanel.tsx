@@ -255,7 +255,7 @@ function NovaCampanja({ onCancel, onSuccess, onCreate, onRevise, feePercent, pla
   const steps = ['Definicija', platformPublishing ? 'Nagrada i obim' : 'Nagrada i budžet', 'Publika i dokaz', 'Pregled']
   const taskForm = CAMPAIGN_TEMPLATES.find(template => template.id === templateId)
   const keepsExistingBrief = Boolean(campaign) && templateId === 'legacy'
-  const hasCompleteBrief = Boolean(campaign) || (Boolean(taskForm) && Boolean(subject.trim()) && taskForm.fields.every(field => taskDetails[field.key]?.trim()))
+  const hasCompleteBrief = Boolean(campaign) || (Boolean(taskForm && subject.trim()) && Boolean(taskForm?.fields.every(field => taskDetails[field.key]?.trim())))
   const detailLines = taskForm?.fields.filter(field => taskDetails[field.key]?.trim()).map(field => `${field.label}: ${taskDetails[field.key].trim()}`) ?? []
 
   const selectTemplate = (id: string) => {
@@ -558,6 +558,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
     setTopupError('')
     try {
       const order = await api.createPayPalOrder(amount)
+      if (!order.approval_url) throw new Error('PayPal nije vratio link za potvrdu uplate. Uplata nije pokrenuta.')
       window.location.assign(order.approval_url)
     } catch (error) {
       setTopupError(error instanceof Error ? error.message : 'PayPal uplata nije mogla da se pokrene.')
@@ -789,7 +790,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
           pageTitle={advertiser?.role === 'admin' ? 'Objave platforme' : 'Oglašivački panel'}
           badge={advertiser?.role === 'admin' ? 'Admin' : undefined}
           onNavigate={onNavigate}
-          actions={<div className="flex gap-2"><Btn onClick={() => onNavigate('dashboard')} variant="secondary" size="sm" className="hidden sm:inline-flex">Moji zadaci</Btn>{advertiser?.role === 'admin' && <Btn onClick={() => onNavigate('admin')} variant="secondary" size="sm" className="hidden sm:inline-flex">Admin</Btn>}<Btn onClick={() => goTo('nova')} size="sm">+ Nova kampanja</Btn></div>}
+          actions={<div className="flex gap-2">{advertiser?.role === 'admin' && <Btn onClick={() => onNavigate('admin')} variant="secondary" size="sm" className="hidden sm:inline-flex">Admin</Btn>}<Btn onClick={() => goTo('nova')} size="sm">+ Nova kampanja</Btn></div>}
         />
         <main className="flex-1 overflow-y-auto bg-mint-50">
           <div className="w-full max-w-none px-4 py-6 sm:px-6 xl:px-8 2xl:px-10">
@@ -805,7 +806,8 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
             {page === 'pregled' && (
               <div className="space-y-5">
                 <h1 className="text-xl font-extrabold text-ink">Pregled</h1>
-                {advertiser?.role === 'oglasivac' && <Card className="p-5 border-violet-200 bg-violet-50"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="font-bold text-ink">Otvorio/la si oglašivački nalog greškom?</p><p className="text-sm text-ink-2 mt-1">Ako želiš da radiš zadatke, prebaci ovaj prazan nalog u korisnički režim. Kampanje, budžet i uplate se nikada ne menjaju automatski.</p></div><Btn size="sm" variant="secondary" onClick={() => setRoleCorrectionConfirm(true)}>Radim zadatke, ne oglašavam se</Btn></div></Card>}
+                {advertiser && <p className="text-xs font-medium text-ink-3">{advertiser.role === 'admin' ? 'Admin nalog · objave platforme' : 'Oglašivački nalog'}: {advertiser.email}</p>}
+                {advertiser?.role === 'oglasivac' && (dashboard?.tasks ?? []).length === 0 && (dashboard?.transactions ?? []).length === 0 && !advertiser.advertiser_budget_rsd && !advertiser.advertiser_reserved_rsd && !advertiser.advertiser_spent_rsd && <Card className="p-5 border-violet-200 bg-violet-50"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="font-bold text-ink">Otvorio/la si oglašivački nalog greškom?</p><p className="text-sm text-ink-2 mt-1">Samo prazan nalog bez kampanja i uplata možeš jednokratno ispraviti u korisnički. Nalog sa poslovnim podacima ne menja se automatski.</p></div><Btn size="sm" variant="secondary" onClick={() => setRoleCorrectionConfirm(true)}>Ispravi u korisnički nalog</Btn></div></Card>}
                 {advertiser && (!advertiser.company_name || !advertiser.phone || !advertiser.company_website) && <Card className="p-5 border-blue-200 bg-blue-50"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="font-bold text-ink">Završi profil oglašivača</p><p className="text-sm text-ink-2 mt-1">Za sigurniju moderaciju kampanja dodaj naziv, kontakt telefon i sajt firme ili ponude.</p></div><Btn size="sm" onClick={() => goTo('profil')}>Dopuni profil</Btn></div><div className="flex flex-wrap gap-2 mt-3 text-xs font-semibold"><span className={`rounded-full px-2 py-1 ${advertiser.company_name ? 'bg-emerald-100 text-emerald-700' : 'bg-white text-ink-3'}`}>Naziv {advertiser.company_name ? 'spreman' : 'nedostaje'}</span><span className={`rounded-full px-2 py-1 ${advertiser.phone ? 'bg-emerald-100 text-emerald-700' : 'bg-white text-ink-3'}`}>Telefon {advertiser.phone ? 'spreman' : 'nedostaje'}</span><span className={`rounded-full px-2 py-1 ${advertiser.company_website ? 'bg-emerald-100 text-emerald-700' : 'bg-white text-ink-3'}`}>Sajt {advertiser.company_website ? 'spreman' : 'nedostaje'}</span></div></Card>}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <StatCard label="Raspoloživi budžet" value={`${new Intl.NumberFormat('sr-RS').format(advertiser?.advertiser_budget_rsd ?? 0)} RSD`} accent="green" icon="💰" />
@@ -926,7 +928,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     <Table
                       headers={['Korisnik', 'Kampanja', 'Email za pristup', 'Status', 'Akcija']}
                       rows={testerEnrollments.map(item => [
-                        <span className="font-semibold text-ink">{item.user_name || 'Korisnik'}</span>,
+                        <span><span className="font-semibold text-ink">{item.user_name || 'Korisnik'}</span><span className="block text-xs text-ink-2">Nalog: {item.account_email || '—'}</span></span>,
                         <span className="text-xs text-ink-2">{item.task_title || 'Zadatak'}</span>,
                         <span className="font-mono text-xs select-all">{item.testing_email || '—'}</span>,
                         <StatusBadge status={item.status === 'requested' ? 'na_cekanju' : item.status === 'invited' ? 'aktivno' : 'odbijeno'} />,

@@ -1,11 +1,12 @@
 export type UserDashboardPage =
-  | 'pregled' | 'zadaci' | 'preporuke' | 'dokazi' | 'obavestenja'
+  | 'pregled' | 'zadaci' | 'moji-zadaci' | 'preporuke' | 'dokazi' | 'obavestenja'
   | 'novcanik' | 'isplate' | 'podaci-isplata' | 'nagrade' | 'misije'
   | 'referral' | 'profil' | 'podrska' | 'zadatak-detalj'
 
 const USER_PAGE_PATHS: Partial<Record<UserDashboardPage, string>> = {
   pregled: '/korisnik/panel',
   zadaci: '/korisnik/zadaci',
+  'moji-zadaci': '/korisnik/moji-zadaci',
   preporuke: '/korisnik/preporuke',
   dokazi: '/korisnik/dokazi',
   obavestenja: '/korisnik/notifikacije',
@@ -20,6 +21,7 @@ const USER_PAGE_PATHS: Partial<Record<UserDashboardPage, string>> = {
 }
 
 export function userDashboardPageFromPath(pathname: string): UserDashboardPage {
+  if (/^\/korisnik\/zadaci\/\d+$/.test(pathname)) return 'zadatak-detalj'
   const matched = (Object.entries(USER_PAGE_PATHS) as Array<[UserDashboardPage, string]>).find(([, path]) => pathname.startsWith(path))
   return matched?.[0] ?? 'pregled'
 }

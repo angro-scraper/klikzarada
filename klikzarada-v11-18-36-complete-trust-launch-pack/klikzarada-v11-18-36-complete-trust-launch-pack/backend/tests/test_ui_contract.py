@@ -5,6 +5,10 @@ import sys
 import unittest
 from inspect import signature
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+
+from fastapi.testclient import TestClient
 
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -16,6 +20,23 @@ from app.ui_api import _public_app_url  # noqa: E402
 
 
 class UiContractTests(unittest.TestCase):
+    def test_browser_entry_routes_load_without_intercepting_private_api(self):
+        from app import main
+
+        with TemporaryDirectory() as directory, patch.object(main, "SPA_DIR", Path(directory)):
+            (Path(directory) / "index.html").write_text("<html>app shell</html>", encoding="utf-8")
+            client = TestClient(app)
+            for path in (
+                "/", "/registracija", "/prijava", "/korisnik/panel",
+                "/korisnik/zadaci", "/korisnik/moji-zadaci", "/korisnik/zadaci/123",
+                "/korisnik/profil", "/oglasivac/panel", "/admin",
+            ):
+                with self.subTest(path=path):
+                    response = client.get(path, headers={"accept": "text/html"})
+                    self.assertEqual(response.status_code, 200)
+                    self.assertIn("app shell", response.text)
+            self.assertEqual(client.get("/api/ui/user/dashboard").status_code, 401)
+
     def test_production_routes_are_registered(self):
         paths = app.openapi()["paths"]
         expected = {

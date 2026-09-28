@@ -161,12 +161,12 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
     ])
 
     if (!dashboardLoaded && (loadedUsers || loadedCampaigns)) {
-      setMetrics(current => ({
+      setMetrics(current => current ? ({
         ...current,
         users: loadedUsers?.filter(user => user.role === 'korisnik').length ?? current.users,
         advertisers: loadedUsers?.filter(user => user.role === 'oglasivac').length ?? current.advertisers,
         active_tasks: loadedCampaigns?.filter(campaign => campaign.status === 'active').length ?? current.active_tasks,
-      }))
+      }) : null)
     }
 
     setDataError(errors.length ? `Delimično učitavanje: ${errors.join(' | ')}` : '')

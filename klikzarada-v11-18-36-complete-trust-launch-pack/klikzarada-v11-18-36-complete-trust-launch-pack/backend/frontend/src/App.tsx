@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import Landing from './pages/Landing'
 import Auth from './pages/Auth'
 import TasksPublic from './pages/TasksPublic'
@@ -48,42 +48,35 @@ function routeFromPath(pathname: string): Route {
   return (Object.entries(routePaths).find(([, path]) => path === pathname)?.[0] as Route | undefined) ?? 'home'
 }
 
-function AdminRoute({ onNavigate }: { onNavigate: (id: string) => void }) {
+function ProtectedRoute({ roles, onNavigate, children }: { roles: Array<'korisnik' | 'oglasivac' | 'admin'>; onNavigate: (id: string) => void; children: ReactNode }) {
+  const [allowed, setAllowed] = useState(false)
   useEffect(() => {
+    let mounted = true
     void api.session()
       .then(({ user }) => {
-        if (user?.role !== 'admin') onNavigate('admin-login')
+        if (!mounted) return
+        if (user && roles.includes(user.role)) setAllowed(true)
+        else onNavigate(user?.role === 'admin' ? 'admin' : user?.role === 'oglasivac' ? 'advertiser' : user?.role === 'korisnik' ? 'dashboard' : roles.includes('admin') ? 'admin-login' : roles.includes('oglasivac') ? 'advertiser-login' : 'login')
       })
-      .catch(() => onNavigate('admin-login'))
+      .catch(() => { if (mounted) onNavigate(roles.includes('admin') ? 'admin-login' : roles.includes('oglasivac') ? 'advertiser-login' : 'login') })
+    return () => { mounted = false }
   }, [onNavigate])
 
-  return <AdminHub onNavigate={onNavigate} />
-}
-
-function AdvertiserRoute({ onNavigate }: { onNavigate: (id: string) => void }) {
-  useEffect(() => {
-    void api.session()
-      .then(({ user }) => {
-        if (user?.role !== 'oglasivac' && user?.role !== 'admin') onNavigate('advertiser-login')
-      })
-      .catch(() => onNavigate('advertiser-login'))
-  }, [onNavigate])
-
-  return <AdvertiserPanel onNavigate={onNavigate} />
+  return allowed ? children : <div className="min-h-screen bg-mint-50 flex items-center justify-center px-4" aria-busy="true"><p className="rounded-xl border border-blue-100 bg-white px-6 py-4 text-sm font-medium text-ink shadow-sm">Proveravamo nalog i otvaramo tvoj panel...</p></div>
 }
 
 export default function App() {
   const [pathname, setPathname] = useState(() => window.location.pathname)
   const route = routeFromPath(pathname)
 
-  function go(id: string) {
+  const go = useCallback((id: string) => {
     const nextRoute = id as Route
     if (!routePaths[nextRoute]) return
     const nextPath = routePaths[nextRoute]
     window.history.pushState({}, '', nextPath)
     setPathname(nextPath)
     window.scrollTo(0, 0)
-  }
+  }, [])
 
   useEffect(() => {
     const onPopState = () => setPathname(window.location.pathname)
@@ -99,9 +92,9 @@ export default function App() {
   if (route === 'advertiser-login') return <Auth key="advertiser-login" initialMode="advertiser-login" onNavigate={go} />
   if (route === 'advertiser-register') return <Auth key="advertiser-register" initialMode="advertiser-register" onNavigate={go} />
   if (route === 'admin-login') return <Auth key="admin-login" initialMode="admin-login" onNavigate={go} />
-  if (route === 'dashboard') return <UserDashboard initialPage={userDashboardPageFromPath(pathname)} onNavigate={go} />
-  if (route === 'advertiser') return <AdvertiserRoute onNavigate={go} />
-  if (route === 'admin') return <AdminRoute onNavigate={go} />
+  if (route === 'dashboard') return <ProtectedRoute key="user" roles={['korisnik']} onNavigate={go}><UserDashboard initialPage={userDashboardPageFromPath(pathname)} onNavigate={go} /></ProtectedRoute>
+  if (route === 'advertiser') return <ProtectedRoute key="advertiser" roles={['oglasivac', 'admin']} onNavigate={go}><AdvertiserPanel onNavigate={go} /></ProtectedRoute>
+  if (route === 'admin') return <ProtectedRoute key="admin" roles={['admin']} onNavigate={go}><AdminHub onNavigate={go} /></ProtectedRoute>
   if (route === 'legal') return <Legal onNavigate={go} />
   if (route === 'help') return <HelpCenter onNavigate={go} />
 

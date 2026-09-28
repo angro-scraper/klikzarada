@@ -11,6 +11,7 @@ const navGroups = [
   { items: [
     { id: 'pregled', label: 'Pregled', icon: '📊' },
     { id: 'zadaci', label: 'Dostupni zadaci', icon: '📋' },
+    { id: 'moji-zadaci', label: 'Započeti zadaci', icon: '🧪' },
     { id: 'preporuke', label: 'Preporuke', icon: '✨' },
     { id: 'dokazi', label: 'Moji dokazi', icon: '✅' },
     { id: 'obavestenja', label: 'Obaveštenja', icon: '🔔' },
@@ -35,6 +36,7 @@ type Page = UserDashboardPage
 
 const BACK: Partial<Record<Page, { label: string; to: Page }>> = {
   zadaci:          { label: 'Nazad na pregled', to: 'pregled' },
+  'moji-zadaci':   { label: 'Nazad na pregled', to: 'pregled' },
   preporuke:       { label: 'Nazad na pregled', to: 'pregled' },
   dokazi:          { label: 'Nazad na pregled', to: 'pregled' },
   obavestenja:     { label: 'Nazad na pregled', to: 'pregled' },
@@ -51,6 +53,7 @@ const BACK: Partial<Record<Page, { label: string; to: Page }>> = {
 
 const BREADCRUMBS: Partial<Record<Page, { label: string }[]>> = {
   zadaci:          [{ label: 'Korisnik' }, { label: 'Dostupni zadaci' }],
+  'moji-zadaci':   [{ label: 'Korisnik' }, { label: 'Započeti zadaci' }],
   preporuke:       [{ label: 'Korisnik' }, { label: 'Preporuke' }],
   dokazi:          [{ label: 'Korisnik' }, { label: 'Moji dokazi' }],
   obavestenja:     [{ label: 'Korisnik' }, { label: 'Obaveštenja' }],
@@ -80,7 +83,7 @@ const numberValue = (value: unknown, fallback = 0) => typeof value === 'number' 
 function normalizeDashboard(data: UserDashboardData): UserDashboardData {
   const raw = (data && typeof data === 'object' ? data : {}) as Partial<UserDashboardData>
   const rawUser = (raw.user && typeof raw.user === 'object' ? raw.user : {}) as Partial<SessionUser>
-  const tasks = Array.isArray(raw.tasks) ? raw.tasks.filter(Boolean).map((item) => {
+  const normalizeTasks = (items: Task[] | undefined) => Array.isArray(items) ? items.filter(Boolean).map((item) => {
     const task = item as Task
     return {
       ...task,
@@ -117,7 +120,8 @@ function normalizeDashboard(data: UserDashboardData): UserDashboardData {
     } as SessionUser,
     min_withdrawal_rsd: numberValue(raw.min_withdrawal_rsd, 1000),
     referral_count: numberValue(raw.referral_count),
-    tasks,
+    tasks: normalizeTasks(raw.tasks),
+    my_tasks: normalizeTasks(raw.my_tasks),
     submissions: Array.isArray(raw.submissions) ? raw.submissions : [],
     withdrawals: Array.isArray(raw.withdrawals) ? raw.withdrawals : [],
     transactions: Array.isArray(raw.transactions) ? raw.transactions : [],
@@ -130,9 +134,8 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const [proofTab, setProofTab] = useState('svi')
   const [confirmPayout, setConfirmPayout] = useState(false)
   const [submitProofModal, setSubmitProofModal] = useState<number | null>(null)
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(() => Number(window.location.pathname.match(/^\/korisnik\/zadaci\/(\d+)$/)?.[1]) || null)
   const [logoutConfirm, setLogoutConfirm] = useState(false)
-  const [advertiserWorkspaceConfirm, setAdvertiserWorkspaceConfirm] = useState(false)
   const [dashboard, setDashboard] = useState<UserDashboardData | null>(null)
   const [dashboardError, setDashboardError] = useState('')
   const [proofText, setProofText] = useState('')
@@ -181,7 +184,19 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
 
   useEffect(() => { void refreshDashboard() }, [])
 
-  useEffect(() => { setPage(initialPage) }, [initialPage])
+  useEffect(() => {
+    setPage(initialPage)
+    if (initialPage === 'zadatak-detalj') setSelectedTaskId(Number(window.location.pathname.match(/^\/korisnik\/zadaci\/(\d+)$/)?.[1]) || null)
+  }, [initialPage])
+
+  useEffect(() => {
+    const syncTaskFromHistory = () => {
+      const taskId = Number(window.location.pathname.match(/^\/korisnik\/zadaci\/(\d+)$/)?.[1]) || null
+      if (taskId) setSelectedTaskId(taskId)
+    }
+    window.addEventListener('popstate', syncTaskFromHistory)
+    return () => window.removeEventListener('popstate', syncTaskFromHistory)
+  }, [])
 
   useEffect(() => {
     if (!verification || submitProofModal === null || verification.active_seconds >= verification.required_seconds) return
@@ -225,6 +240,8 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
 
   const user: SessionUser | undefined = dashboard?.user
   const activeTasks: Task[] = dashboard?.tasks ?? []
+  const myTasks: Task[] = dashboard?.my_tasks ?? []
+  const newTasks = activeTasks.filter(task => !myTasks.some(started => started.id === task.id))
   const proofCount = dashboard?.submissions?.length ?? 0
   const program = dashboard?.program
   const dailyReward = program?.daily
@@ -239,7 +256,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const balance = user?.balance_rsd ?? 0
   const minWithdrawal = dashboard?.min_withdrawal_rsd ?? 1000
   const payoutGap = Math.max(0, minWithdrawal - balance)
-  const selectedTask = activeTasks.find(task => task.id === selectedTaskId || task.id === submitProofModal)
+  const selectedTask = [...myTasks, ...activeTasks].find(task => task.id === selectedTaskId || task.id === submitProofModal)
   const selectedTesterProgress = selectedTask?.tester_progress
   const selectedTaskRevision = selectedTask ? (dashboard?.submissions ?? []).find(submission => submission.task_id === selectedTask.id && submission.status === 'needs_revision') : undefined
 
@@ -263,6 +280,13 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
     window.scrollTo(0, 0)
   }
 
+  function openTask(taskId: number) {
+    setSelectedTaskId(taskId)
+    setPage('zadatak-detalj')
+    window.history.pushState({}, '', `/korisnik/zadaci/${taskId}`)
+    window.scrollTo(0, 0)
+  }
+
   async function beginTaskVerification(task: Task) {
     setSaving(true)
     try {
@@ -275,6 +299,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
       setVerification(result.session)
       setProofText('')
       setSubmitProofModal(task.id)
+      await refreshDashboard()
       showToast(result.resumed ? 'Nastavljena je postojeća provera zadatka.' : 'Provera zadatka je pokrenuta. Ostani aktivan/na dok se timer ne završi.', 'info')
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Provera zadatka nije pokrenuta.', 'error')
@@ -472,31 +497,12 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
       )}
 
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-        <ConfirmModal
-          open={advertiserWorkspaceConfirm}
-          title="Uključiti oglašivački prostor?"
-          description="Ne otvara se novi nalog: kampanje, aktivacije testera i tvoji zadaci ostaju povezani sa ovim istim nalogom."
-          confirmLabel="Uključi oglašavanje"
-          cancelLabel="Otkaži"
-          variant="success"
-          onConfirm={async () => {
-            try {
-              await api.enableAdvertiserWorkspace()
-              setAdvertiserWorkspaceConfirm(false)
-              onNavigate('advertiser')
-            } catch (error) {
-              showToast(error instanceof Error ? error.message : 'Oglašivački prostor nije uključen.', 'error')
-            }
-          }}
-          onCancel={() => setAdvertiserWorkspaceConfirm(false)}
-        />
         <TopBar
           onMenuClick={() => setMobileOpen(true)}
           pageTitle="Zarada centar"
           onNavigate={onNavigate}
           actions={
             <div className="flex items-center gap-3">
-              {user?.role === 'korisnik' && <Btn variant="secondary" size="sm" onClick={() => setAdvertiserWorkspaceConfirm(true)} className="hidden sm:inline-flex">Oglašavanje</Btn>}
               <div className="text-right hidden sm:block">
                 <p className="font-mono text-sm font-bold text-emerald-600">{formatRsd(balance)}</p>
                 <p className="text-[10px] text-ink-3">Balans</p>
@@ -524,6 +530,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                 <div>
                   <h1 className="text-xl font-extrabold text-ink">Dobrodošao/la, {user?.full_name || 'korisniče'}! 👋</h1>
                   <p className="text-sm text-ink-2 mt-0.5">Pregled stvarnog stanja tvog KlikZarada naloga.</p>
+                  {user && <p className="text-xs font-medium text-ink-3 mt-1">Korisnički nalog: {user.email}</p>}
                 </div>
                 {user && (!user.age_group || user.interests.length === 0) && (
                   <Card className="p-5 border-blue-200 bg-blue-50">
@@ -548,6 +555,12 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                   <StatCard label="Dostupni zadaci" value={String(activeTasks.length)} icon="✅" accent="blue" />
                   <StatCard label="Do isplate" value={formatRsd(payoutGap)} sub={`Min. ${formatRsd(minWithdrawal)}`} icon="🏦" accent="orange" />
                 </div>
+                <Card className="p-5 border-blue-200 bg-blue-50/50">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div><p className="font-bold text-ink">Započeti zadaci</p><p className="text-sm text-ink-2">Prijave, aktivirani testovi i poslati dokazi ostaju ovde na tvom nalogu.</p></div>
+                    <Btn size="sm" onClick={() => goTo('moji-zadaci')}>Započeti zadaci ({myTasks.length})</Btn>
+                  </div>
+                </Card>
 
                 {/* Daily reward */}
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 flex items-center justify-between gap-4">
@@ -599,7 +612,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
                           <span className="font-mono font-bold text-emerald-600">{t.requires_tester_enrollment ? `${formatRsd(t.tester_daily_reward_rsd)}/dan` : formatRsd(t.reward_rsd)}</span>
-                          <Btn size="sm" onClick={() => { setSelectedTaskId(t.id); goTo('zadatak-detalj') }}>Detalji</Btn>
+                          <Btn size="sm" onClick={() => openTask(t.id)}>Detalji</Btn>
                         </div>
                       </Card>
                     ))}
@@ -627,11 +640,27 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
             )}
 
             {/* ── ZADACI ── */}
+            {page === 'moji-zadaci' && (
+              <div className="space-y-3">
+                <SectionHeader title="Započeti zadaci" description="Zadaci za koje si poslao/la prijavu ili dokaz, uključujući aktivirane testove." />
+                {myTasks.length === 0 && <EmptyState icon="🧪" title="Još nema započetih zadataka" description="Izaberi zadatak i pošalji prijavu ili dokaz; zatim će se pojaviti ovde." />}
+                {myTasks.map(task => {
+                  const lastProof = dashboard?.submissions.find(item => item.task_id === task.id)
+                  const enrollment = task.tester_enrollment
+                  const status = enrollment?.status === 'invited' ? 'Pristup odobren' : enrollment?.status === 'requested' ? 'Prijava poslata' : enrollment?.status === 'declined' ? 'Prijava odbijena' : lastProof ? `Dokaz: ${lastProof.status}` : task.verification_in_progress ? 'Provera u toku' : 'Započet'
+                  return <Card key={task.id} className="p-5 flex flex-wrap items-center justify-between gap-3">
+                    <div><h3 className="font-semibold text-ink">{task.title}</h3><p className="text-sm text-ink-2">{status}{enrollment?.testing_email ? ` · Email za test: ${enrollment.testing_email}` : ''}{task.status !== 'active' ? ` · Kampanja: ${task.status}` : ''}</p></div>
+                    <Btn size="sm" onClick={() => openTask(task.id)}>{task.verification_in_progress ? 'Nastavi proveru' : 'Otvori zadatak'}</Btn>
+                  </Card>
+                })}
+              </div>
+            )}
             {page === 'zadaci' && (
               <div>
-                <SectionHeader title="Dostupni zadaci" description="Preuzmi zadatak, izvrši ga i pošalji dokaz." />
+                <SectionHeader title="Dostupni zadaci" description="Novi zadaci su ovde. Prijave, testovi i započete provere su u meniju Započeti zadaci." />
                 <div className="flex flex-col gap-3">
-                  {activeTasks.map(t => (
+                  {newTasks.length === 0 && <EmptyState icon="📋" title="Trenutno nema novih zadataka" description="Zadatke koje si već započeo/la pogledaj u meniju Započeti zadaci." />}
+                  {newTasks.map(t => (
                     <Card key={t.id} className="p-5 hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
@@ -645,7 +674,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                         </div>
                         <div className="text-right shrink-0">
                           <p className="font-mono font-bold text-emerald-600 text-lg">{t.requires_tester_enrollment ? `${formatRsd(t.tester_daily_reward_rsd)}/dan` : formatRsd(t.reward_rsd)}</p>
-                          <Btn size="sm" className="mt-2" onClick={() => { setSelectedTaskId(t.id); goTo('zadatak-detalj') }}>Detalji →</Btn>
+                          <Btn size="sm" className="mt-2" onClick={() => openTask(t.id)}>Detalji →</Btn>
                         </div>
                       </div>
                     </Card>
@@ -661,7 +690,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                 <Card className="p-5 space-y-4">
                   <div className="flex flex-wrap gap-2">
                     <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${categoryColor(selectedTask?.category || '')}`}>{selectedTask?.category || 'Zadatak'}</span>
-                    <StatusBadge status="aktivno" />
+                    <StatusBadge status={selectedTask?.status || 'nepoznato'} />
                   </div>
                   <p className="text-sm text-ink-2">{selectedTask?.description || 'Izaberi dostupni zadatak sa liste.'}</p>
                   {selectedTask?.instructions && <Alert type="info">{selectedTask.instructions}</Alert>}
@@ -673,14 +702,15 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                     {!selectedTask?.requires_tester_enrollment && <><p><span className="text-ink-3 font-medium">Ponavljanje:</span> {selectedTask?.repeat_interval_hours ? `na svakih ${selectedTask.repeat_interval_hours} h nakon odobrenja` : 'samo jednom'}</p><p><span className="text-ink-3 font-medium">Kvalitet:</span> {selectedTask?.min_quality_score ? `najmanje ${selectedTask.min_quality_score}%` : 'bez dodatnog uslova'}</p></>}
                   </div>
                   <Alert type="info">Za standardne zadatke server prati vreme, aktivnost i fokus taba. Za zatvoreni beta test šalješ dnevni izveštaj; svaki dan posebno odobrava oglašivač.</Alert>
-                  {selectedTask?.requires_tester_enrollment && selectedTask.tester_enrollment?.status !== 'invited' ? (
+                  {!selectedTask ? <Alert type="warning">Ovaj zadatak nije pronađen na tvom nalogu. Proveri da li si prijavljen/a istim nalogom sa kojeg je prijava poslata.</Alert> : selectedTask.status !== 'active' ? <Alert type="warning">Kampanja trenutno nije aktivna. Tvoja prijava i istorija ostaju sačuvani, ali novi izveštaji nisu dostupni.</Alert> : selectedTask.requires_tester_enrollment && selectedTask.tester_enrollment?.status !== 'invited' ? (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
-                      <p className="font-bold text-amber-900">Prvo zatraži pristup zatvorenom testiranju</p>
+                      <p className="font-bold text-amber-900">{selectedTask.tester_enrollment?.status === 'requested' ? 'Prijava je poslata sa ovog naloga' : 'Na ovom nalogu nema aktivne prijave za ovaj zadatak'}</p>
                       {selectedTask.tester_enrollment?.status === 'requested' ? (
-                        <p className="text-sm text-amber-800">Email je poslat oglašivaču. Test počinje čim te doda u tester listu i aktivira pristup; ne čeka se da se prijavi ceo broj testera.</p>
+                        <p className="text-sm text-amber-800">Prijava je već poslata{selectedTask.tester_enrollment.testing_email ? ` za ${selectedTask.tester_enrollment.testing_email}` : ''}. Test počinje kada oglašivač aktivira pristup; ne šalji ponovo.</p>
                       ) : (
                         <>
                           {selectedTask.tester_enrollment?.status === 'declined' && <p className="text-sm text-red-700">{selectedTask.tester_enrollment.note || 'Prijava nije odobrena. Proveri adresu i pošalji ponovo.'}</p>}
+                          {!selectedTask.tester_enrollment && <p className="text-sm text-amber-800">Ako je oglašivač već aktivirao tvoju prijavu, proveri da li si prijavljen/a istim KlikZarada nalogom sa kog si je poslao/la. Email za Google Play pristup može biti drugačiji od emaila naloga.</p>}
                           <Input label="Email za pristup testiranju" placeholder="ime@gmail.com" value={testerEmail} onChange={setTesterEmail} />
                           <Btn disabled={saving} onClick={() => selectedTask && void requestTesterAccess(selectedTask)}>Pošalji email za pristup</Btn>
                         </>
@@ -705,10 +735,10 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                   ) : (
                     <div className="flex gap-2">
                       {selectedTask?.target_url && <Btn onClick={() => window.open(selectedTask.target_url || '', '_blank', 'noopener,noreferrer')} variant="secondary">↗ Otvori zadatak</Btn>}
-                      <Btn disabled={saving} onClick={() => selectedTask && void beginTaskVerification(selectedTask)} variant="success">🛡️ {selectedTaskRevision ? 'Pokreni doradu dokaza' : 'Pokreni proveru'}</Btn>
+                      <Btn disabled={saving} onClick={() => selectedTask && void beginTaskVerification(selectedTask)} variant="success">🛡️ {selectedTask?.verification_in_progress ? 'Nastavi proveru' : selectedTaskRevision ? 'Pokreni doradu dokaza' : 'Pokreni proveru'}</Btn>
                     </div>
                   )}
-                  <Btn onClick={() => goTo('zadaci')} variant="secondary">Nazad na zadatke</Btn>
+                  <Btn onClick={() => goTo(myTasks.some(task => task.id === selectedTaskId) ? 'moji-zadaci' : 'zadaci')} variant="secondary">{myTasks.some(task => task.id === selectedTaskId) ? 'Nazad na započete zadatke' : 'Nazad na dostupne zadatke'}</Btn>
                 </Card>
               </div>
             )}
@@ -731,7 +761,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                         </div>
                         <div className="text-right shrink-0">
                           <p className="font-mono font-bold text-emerald-600 text-lg">{t.requires_tester_enrollment ? `${formatRsd(t.tester_daily_reward_rsd)}/dan` : formatRsd(t.reward_rsd)}</p>
-                          <Btn size="sm" className="mt-2" onClick={() => { setSelectedTaskId(t.id); goTo('zadatak-detalj') }}>Detalji</Btn>
+                          <Btn size="sm" className="mt-2" onClick={() => openTask(t.id)}>Detalji</Btn>
                         </div>
                       </div>
                     </Card>
@@ -941,6 +971,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
             {page === 'profil' && (
               <div className="space-y-4">
                 <SectionHeader title="Profil i podešavanja" />
+                {user?.city_needs_correction && <Alert type="warning">U polju Grad je ranije sačuvan email. To nije email ovog naloga. Polje je očišćeno u prikazu; klikni „Sačuvaj profil“ da se ukloni i iz sačuvanih podataka.</Alert>}
                 <Card className="p-5">
                   <div className="flex items-center gap-4 mb-5">
                     <div className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center text-white text-xl font-bold">{user?.full_name?.slice(0, 1).toUpperCase() || 'K'}</div>

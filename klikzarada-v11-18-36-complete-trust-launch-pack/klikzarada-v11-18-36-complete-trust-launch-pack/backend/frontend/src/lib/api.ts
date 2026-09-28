@@ -15,6 +15,7 @@ export type SessionUser = {
   email_verified: boolean
   phone_verified: boolean
   city: string | null
+  city_needs_correction?: boolean
   age_group: string | null
   interests: string[]
   payment_method: string | null
@@ -61,6 +62,7 @@ export type Task = {
   tester_enrollment?: TesterEnrollment
   tester_checkins?: TesterDailyCheckin[]
   tester_progress?: TesterProgress
+  verification_in_progress?: boolean
   tester_enrollment_total?: number
   tester_enrollment_requested?: number
   tester_enrollment_invited?: number
@@ -90,6 +92,7 @@ export type TesterEnrollment = {
   task_title?: string
   user_name?: string
   testing_email?: string
+  account_email?: string | null
   status: string
   note: string | null
   cohort_number: number | null
@@ -142,6 +145,7 @@ export type Submission = {
   status: string
   reward_rsd: number
   review_note: string | null
+  revision_due_at?: string | null
   created_at: string | null
   user_name?: string
 }
@@ -200,6 +204,7 @@ export type UserDashboardData = {
   min_withdrawal_rsd: number
   referral_count: number
   tasks: Task[]
+  my_tasks: Task[]
   submissions: Submission[]
   withdrawals: Withdrawal[]
   transactions: WalletTransaction[]
@@ -615,7 +620,6 @@ export const api = {
   }),
   adminUsers: () => request<{ users: AdminUser[] }>('/admin/users'),
   correctAccountRoleToUser: () => request<{ user: SessionUser }>('/account/role/correct-to-user', { method: 'POST' }),
-  enableAdvertiserWorkspace: () => request<{ user: SessionUser }>('/account/role/enable-advertiser', { method: 'POST' }),
   adminUserProfile: (id: number) => request<AdminUserProfile>(`/admin/users/${id}/profile`),
   updateAdminUser: (id: number, status: 'active' | 'blocked' | 'suspended', note?: string) => request<{ user: SessionUser }>(`/admin/users/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),

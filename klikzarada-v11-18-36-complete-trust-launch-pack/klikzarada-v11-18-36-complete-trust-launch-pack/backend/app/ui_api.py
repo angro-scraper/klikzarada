@@ -463,6 +463,17 @@ def _is_platform_publisher(user: User | None) -> bool:
     return bool(user and user.role == "admin")
 
 
+def _invalid_city(value: str | None) -> bool:
+    return bool(value and ("@" in value or "://" in value))
+
+
+def _profile_city(value: str | None) -> str | None:
+    city = (value or "").strip()
+    if _invalid_city(city):
+        raise HTTPException(400, "U polje Grad unesi naziv grada, ne email adresu ili link.")
+    return city or None
+
+
 def _user_data(user: User) -> dict:
     try:
         interests = json.loads(user.interests or "[]")
@@ -482,7 +493,8 @@ def _user_data(user: User) -> dict:
         "phone": user.phone,
         "email_verified": bool(user.email_verified),
         "phone_verified": bool(user.phone_verified),
-        "city": user.city,
+        "city": None if _invalid_city(user.city) else user.city,
+        "city_needs_correction": _invalid_city(user.city),
         "age_group": user.age_group,
         "interests": interests if isinstance(interests, list) else [],
         "payment_method": user.payment_method,
@@ -620,6 +632,7 @@ def _tester_enrollment_data(item: AppTesterEnrollment, include_email: bool = Fal
         data |= {
             "testing_email": item.testing_email,
             "user_name": item.user.full_name if item.user else "Korisnik",
+            "account_email": item.user.email if item.user else None,
         }
     return data
 
@@ -1212,19 +1225,8 @@ def correct_account_role_to_user(request: Request, db: Session = Depends(get_db)
 
 @router.post("/account/role/enable-advertiser")
 def enable_advertiser_workspace(request: Request, db: Session = Depends(get_db)) -> dict:
-    """Restore the campaign workspace without creating a second account."""
-    user = _require_user(request, db, {"korisnik"})
-    user.role = "oglasivac"
-    _audit(db, user, "self_role_enable_advertiser", "User", user.id, "Campaign workspace enabled by account owner.")
-    db.add(Notification(
-        user_id=user.id,
-        title="Oglašivački prostor je uključen",
-        body="Kampanje i aktivacije testera ostaju na istom nalogu. Svoje zadatke možeš otvoriti preko dugmeta Moji zadaci.",
-        status="unread",
-    ))
-    db.commit()
-    db.refresh(user)
-    return {"user": _user_data(user)}
+    _require_user(request, db, {"korisnik"})
+    raise HTTPException(409, "Korisnički i oglašivački nalog su odvojeni. Za kampanje otvori oglašivački nalog.")
 
 
 @router.post("/analytics/funnel")
@@ -1609,8 +1611,14 @@ def _claimable_program_reward(db: Session, user: User, reward_key: str) -> tuple
 
 @router.get("/user/dashboard")
 def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
-    user = _require_user(request, db, {"korisnik", "oglasivac", "admin"})
+    user = _require_user(request, db, {"korisnik"})
     now = datetime.utcnow()
+    active_verifications = db.query(TaskVerificationSessionV1).filter(
+        TaskVerificationSessionV1.user_id == user.id,
+        TaskVerificationSessionV1.status.in_(("started", "ready", "flagged")),
+        TaskVerificationSessionV1.started_at >= now - timedelta(hours=2),
+    ).order_by(TaskVerificationSessionV1.started_at.desc()).all()
+    verification_by_task = {item.task_id: item for item in reversed(active_verifications)}
     enrollment_by_task = {
         item.task_id: item
         for item in db.query(AppTesterEnrollment).filter(AppTesterEnrollment.user_id == user.id).all()
@@ -1620,12 +1628,25 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
         latest = _latest_task_submission(db, user.id, task.id)
         # A task returned for proof revision stays visible even when its last
         # available slot has already been reserved by this user.
-        if task.id in enrollment_by_task or _task_access_error(task, user, latest, now) is None:
+        if task.id in enrollment_by_task or task.id in verification_by_task or _task_access_error(task, user, latest, now) is None:
             tasks.append(task)
     checkins_by_task: dict[int, list[AppTesterDailyCheckin]] = {}
     for item in db.query(AppTesterDailyCheckin).filter(AppTesterDailyCheckin.user_id == user.id).all():
         checkins_by_task.setdefault(item.task_id, []).append(item)
     submissions = db.query(TaskSubmission).filter(TaskSubmission.user_id == user.id).order_by(TaskSubmission.created_at.desc()).limit(100).all()
+    my_task_ids = set(enrollment_by_task) | set(verification_by_task) | {item.task_id for item in submissions}
+    my_tasks = db.query(Task).filter(Task.id.in_(my_task_ids)).all() if my_task_ids else []
+    def task_for_user(task: Task) -> dict:
+        data = _task_data(task)
+        enrollment = enrollment_by_task.get(task.id)
+        if enrollment:
+            data.update({
+                "tester_enrollment": _tester_enrollment_data(enrollment, include_email=True),
+                "tester_checkins": [_tester_checkin_data(item) for item in checkins_by_task.get(task.id, [])],
+                "tester_progress": _tester_window_progress(task, enrollment, checkins_by_task.get(task.id, [])),
+            })
+        data["verification_in_progress"] = task.id in verification_by_task
+        return data
     withdrawals = db.query(Withdrawal).filter(Withdrawal.user_id == user.id).order_by(Withdrawal.created_at.desc()).limit(100).all()
     transactions = db.query(WalletTransaction).filter(WalletTransaction.user_id == user.id).order_by(WalletTransaction.created_at.desc()).limit(100).all()
     referrals = db.query(User).filter(User.referred_by_id == user.id).count()
@@ -1634,17 +1655,8 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
         "min_withdrawal_rsd": MIN_WITHDRAWAL_RSD,
         "referral_count": referrals,
         "program": _program_data(db, user),
-        "tasks": [
-            _task_data(task) | (
-                {
-                    "tester_enrollment": _tester_enrollment_data(enrollment_by_task[task.id]),
-                    "tester_checkins": [_tester_checkin_data(item) for item in checkins_by_task.get(task.id, [])],
-                    "tester_progress": _tester_window_progress(task, enrollment_by_task[task.id], checkins_by_task.get(task.id, [])),
-                }
-                if task.id in enrollment_by_task else {}
-            )
-            for task in tasks
-        ],
+        "tasks": [task_for_user(task) for task in tasks],
+        "my_tasks": [task_for_user(task) for task in sorted(my_tasks, key=lambda item: item.id, reverse=True)],
         "submissions": [_submission_data(submission) for submission in submissions],
         "withdrawals": [{"id": item.id, "amount_rsd": _money(item.amount_rsd), "status": _status(item.status), "payment_method": item.payment_method, "created_at": _iso(item.created_at)} for item in withdrawals],
         "transactions": [{"id": item.id, "amount_rsd": _money(item.amount_rsd), "tx_type": item.tx_type, "description": item.description, "created_at": _iso(item.created_at)} for item in transactions],
@@ -1653,7 +1665,7 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
 
 @router.post("/user/program/rewards/{reward_key}")
 def claim_program_reward(reward_key: str, request: Request, db: Session = Depends(get_db)) -> dict:
-    user = _require_user(request, db, {"korisnik", "oglasivac", "admin"})
+    user = _require_user(request, db, {"korisnik"})
     reward_key = reward_key.strip()[:80]
     reward_rsd, description = _claimable_program_reward(db, user, reward_key)
     existing = db.query(UserProgramRewardClaim).filter(
@@ -1679,7 +1691,7 @@ def save_user_profile(payload: ProfilePayload, request: Request, db: Session = D
         raise HTTPException(409, "Taj broj telefona je već povezan sa drugim nalogom.")
     user.full_name = payload.full_name.strip()
     user.phone = phone or None
-    user.city = (payload.city or "").strip() or None
+    user.city = _profile_city(payload.city)
     if user.role == "oglasivac":
         website = (payload.company_website or "").strip()
         if website and not website.startswith(("https://", "http://")):
@@ -1698,7 +1710,7 @@ def save_user_profile(payload: ProfilePayload, request: Request, db: Session = D
 
 @router.post("/user/onboarding")
 def complete_user_onboarding(payload: OnboardingPayload, request: Request, db: Session = Depends(get_db)) -> dict:
-    user = _require_user(request, db, {"korisnik", "oglasivac", "admin"})
+    user = _require_user(request, db, {"korisnik"})
     allowed_age_groups = {"18-24", "25-34", "35-44", "45-54", "55+", "18+"}
     age_group = payload.age_group.strip()
     if age_group not in allowed_age_groups:
@@ -1710,7 +1722,7 @@ def complete_user_onboarding(payload: OnboardingPayload, request: Request, db: S
             interests.append(clean[:50])
     if not interests:
         raise HTTPException(400, "Izaberi najmanje jednu oblast interesovanja.")
-    user.city = (payload.city or "").strip()[:100] or None
+    user.city = _profile_city(payload.city)
     user.age_group = age_group
     user.interests = json.dumps(interests, ensure_ascii=False)
     db.add(Notification(
@@ -1896,13 +1908,11 @@ def _require_tester_daily_completion(db: Session, user: User, task: Task) -> Non
 
 @router.post("/user/tasks/{task_id}/tester-enrollments", status_code=201)
 def request_tester_enrollment(task_id: int, payload: TesterEnrollmentPayload, request: Request, db: Session = Depends(get_db)) -> dict:
-    user = _require_user(request, db, {"korisnik", "oglasivac", "admin"})
+    user = _require_user(request, db, {"korisnik"})
     _expire_campaigns(db)
     task = db.query(Task).filter(Task.id == task_id, Task.status == "active").first()
     if not task or not task.requires_tester_enrollment:
         raise HTTPException(404, "Ovaj zadatak nema prijavu za zatvoreno testiranje.")
-    if int(task.used_slots or 0) >= int(task.total_slots or 0):
-        raise HTTPException(409, "Sva mesta za testere su trenutno popunjena.")
     email = payload.testing_email.strip().lower()
     if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
         raise HTTPException(400, "Unesi važeću email adresu za pristup testiranju.")
@@ -1912,6 +1922,16 @@ def request_tester_enrollment(task_id: int, payload: TesterEnrollmentPayload, re
     ).first()
     if enrollment and enrollment.status in {"requested", "invited"}:
         raise HTTPException(409, "Prijava za testiranje je već poslata.")
+    another_enrollment = db.query(AppTesterEnrollment).filter(
+        AppTesterEnrollment.task_id == task.id,
+        AppTesterEnrollment.user_id != user.id,
+        func.lower(AppTesterEnrollment.testing_email) == email,
+        AppTesterEnrollment.status.in_(("requested", "invited")),
+    ).first()
+    if another_enrollment:
+        raise HTTPException(409, "Ovaj email za testiranje je već prijavljen sa drugog naloga. Prijavi se nalogom sa kog je prijava poslata ili kontaktiraj podršku.")
+    if int(task.used_slots or 0) >= int(task.total_slots or 0):
+        raise HTTPException(409, "Sva mesta za testere su trenutno popunjena.")
     if enrollment:
         enrollment.testing_email = email
         enrollment.status = "requested"
@@ -1935,7 +1955,7 @@ def request_tester_enrollment(task_id: int, payload: TesterEnrollmentPayload, re
 @router.post("/user/tasks/{task_id}/tester-checkins", status_code=201)
 def create_tester_daily_checkin(task_id: int, payload: TesterDailyCheckinPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     """Record a daily test report. It is a user declaration, not third-party telemetry."""
-    user = _require_user(request, db, {"korisnik", "oglasivac", "admin"})
+    user = _require_user(request, db, {"korisnik"})
     _expire_campaigns(db)
     task = db.query(Task).filter(Task.id == task_id, Task.status == "active").first()
     if not task or not task.requires_tester_enrollment:
@@ -1991,7 +2011,7 @@ def create_tester_daily_checkin(task_id: int, payload: TesterDailyCheckinPayload
 
 @router.post("/user/tasks/{task_id}/verification/start", status_code=201)
 def start_task_verification(task_id: int, payload: VerificationStartPayload, request: Request, db: Session = Depends(get_db)) -> dict:
-    user = _require_user(request, db, {"korisnik", "oglasivac", "admin"})
+    user = _require_user(request, db, {"korisnik"})
     _expire_campaigns(db)
     task = db.query(Task).filter(Task.id == task_id, Task.status == "active").first()
     if not task:
@@ -2073,7 +2093,7 @@ def start_task_verification(task_id: int, payload: VerificationStartPayload, req
 
 @router.post("/user/tasks/verification/heartbeat")
 def task_verification_heartbeat(payload: VerificationHeartbeatPayload, request: Request, db: Session = Depends(get_db)) -> dict:
-    user = _require_user(request, db, {"korisnik", "oglasivac", "admin"})
+    user = _require_user(request, db, {"korisnik"})
     session = db.query(TaskVerificationSessionV1).filter(
         TaskVerificationSessionV1.token == payload.token,
         TaskVerificationSessionV1.user_id == user.id,
@@ -2124,7 +2144,7 @@ def task_verification_heartbeat(payload: VerificationHeartbeatPayload, request: 
 
 @router.post("/user/tasks/{task_id}/proof", status_code=201)
 def submit_proof(task_id: int, payload: ProofPayload, request: Request, db: Session = Depends(get_db)) -> dict:
-    user = _require_user(request, db, {"korisnik", "oglasivac", "admin"})
+    user = _require_user(request, db, {"korisnik"})
     _expire_campaigns(db)
     task = db.query(Task).filter(Task.id == task_id, Task.status == "active").first()
     if not task:
@@ -2185,7 +2205,7 @@ def submit_proof(task_id: int, payload: ProofPayload, request: Request, db: Sess
 
 @router.post("/user/withdrawals", status_code=201)
 def request_withdrawal(payload: WithdrawalPayload, request: Request, db: Session = Depends(get_db)) -> dict:
-    user = _require_user(request, db, {"korisnik", "oglasivac", "admin"})
+    user = _require_user(request, db, {"korisnik"})
     if _open_risk_score(db, user.id) >= ANTI_FRAUD_HIGH_RISK_SCORE:
         raise HTTPException(403, "Isplata je privremeno na fraud proveri. Administrator će pregledati nalog.")
     if payload.amount_rsd < MIN_WITHDRAWAL_RSD:
