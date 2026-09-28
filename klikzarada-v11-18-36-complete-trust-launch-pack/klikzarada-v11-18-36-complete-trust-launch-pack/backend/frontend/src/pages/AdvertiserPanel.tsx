@@ -905,26 +905,39 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
             {page === 'dokazi' && (
               <div>
-                {unreadChatNotifications.length > 0 && <Card className="mb-5 border-blue-200 bg-blue-50">
-                  <h3 className="mb-2 font-bold text-blue-950">Nove poruke uz zadatke ({unreadChatNotifications.length})</h3>
-                  <p className="mb-3 text-sm text-blue-900">Otvori odgovarajući razgovor ispod da odgovoriš.</p>
+                {unreadChatNotifications.length > 0 && <Card className="mb-6 border-blue-200 bg-blue-50/70 p-5 shadow-sm sm:p-6">
+                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-blue-700">Obaveštenja</p>
+                      <h3 className="mt-1 text-lg font-bold text-blue-950">Nove poruke uz zadatke</h3>
+                      <p className="mt-1 text-sm leading-6 text-blue-900">Otvori razgovor ispod da odgovoriš testeru.</p>
+                    </div>
+                    <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-bold text-blue-800">{unreadChatNotifications.length} novo</span>
+                  </div>
                   <div className="space-y-2">
-                    {unreadChatNotifications.slice(0, 5).map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm text-ink">
-                      <span>{item.body}</span>
-                      <Btn size="sm" variant="secondary" onClick={() => void (async () => { try { await api.markNotificationRead(item.id); setNotifications(current => current.filter(notification => notification.id !== item.id)) } catch { showToast('Obaveštenje nije označeno kao pročitano.', 'error') } })()}>Pročitano</Btn>
+                    {unreadChatNotifications.slice(0, 5).map(item => <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-blue-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                      <p className="min-w-0 flex-1 break-words text-sm leading-6 text-ink">{item.body}</p>
+                      <Btn size="sm" variant="secondary" className="self-start shrink-0 sm:self-auto" onClick={() => void (async () => { try { await api.markNotificationRead(item.id); setNotifications(current => current.filter(notification => notification.id !== item.id)) } catch { showToast('Obaveštenje nije označeno kao pročitano.', 'error') } })()}>Označi pročitano</Btn>
                     </div>)}
                   </div>
                 </Card>}
                 <SectionHeader title="Dokazi korisnika" description="Ti odlučuješ o rezultatu svoje kampanje. Admin interveniše samo kod spora ili anti-fraud provere." />
-                {chatThreads.length > 0 && <Card className="mb-5 border-blue-100 shadow-sm">
-                  <h3 className="mb-3 font-bold text-ink">Razgovori uz zadatke</h3>
-                  <div className="space-y-2">
-                    {chatThreads.map(thread => <div key={`${thread.task_id}-${thread.participant_id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-frame bg-white p-3">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-ink">{thread.participant_name} · {thread.task_title}</p>
-                        <p className="truncate text-sm text-ink-2">{thread.last_message}</p>
+                {chatThreads.length > 0 && <Card className="mb-6 border-blue-100 p-5 shadow-sm sm:p-6">
+                  <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+                    <div>
+                      <h3 className="text-lg font-bold text-ink">Razgovori uz zadatke</h3>
+                      <p className="mt-1 text-sm text-ink-2">Dogovori oko pristupa i pitanja testera na jednom mestu.</p>
+                    </div>
+                    <span className="text-xs font-semibold text-ink-3">{chatThreads.length} razgovora</span>
+                  </div>
+                  <div className="space-y-3">
+                    {chatThreads.map(thread => <div key={`${thread.task_id}-${thread.participant_id}`} className="flex flex-col gap-3 rounded-xl border border-frame bg-mint-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words font-semibold leading-6 text-ink">{thread.participant_name}</p>
+                        <p className="break-words text-xs font-medium leading-5 text-ink-3">{thread.task_title}</p>
+                        <p className="mt-2 line-clamp-2 break-words text-sm leading-5 text-ink-2">{thread.last_message}</p>
                       </div>
-                      <Btn size="sm" variant="secondary" onClick={() => setChatTarget({ taskId: thread.task_id, participantId: thread.participant_id })}>Otvori poruke</Btn>
+                      <Btn size="sm" variant="secondary" className="self-start shrink-0 sm:self-auto" onClick={() => setChatTarget({ taskId: thread.task_id, participantId: thread.participant_id })}>Otvori razgovor</Btn>
                     </div>)}
                   </div>
                 </Card>}

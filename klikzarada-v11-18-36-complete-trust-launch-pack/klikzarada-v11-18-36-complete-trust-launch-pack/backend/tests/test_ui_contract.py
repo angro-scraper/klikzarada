@@ -105,6 +105,14 @@ class UiContractTests(unittest.TestCase):
         self.assertIn("Google Play email za test", cards)
         self.assertIn("Status i akcije", cards)
 
+    def test_advertiser_messages_have_spacing_and_readable_preview(self):
+        source = (BACKEND_DIR / "frontend" / "src" / "pages" / "AdvertiserPanel.tsx").read_text(encoding="utf-8")
+        messages = source.split("{unreadChatNotifications.length > 0 && <Card", 1)[1].split("{testerEnrollments.length > 0", 1)[0]
+        self.assertEqual(messages.count("sm:p-6"), 2)
+        self.assertIn("Otvori razgovor", messages)
+        self.assertIn("line-clamp-2 break-words", messages)
+        self.assertNotIn("truncate text-sm", messages)
+
     def test_pageview_tracking_excludes_non_browser_traffic(self):
         """Traffic counters must only accept deliberate public navigations."""
         source = (BACKEND_DIR / "app" / "main.py").read_text(encoding="utf-8")
