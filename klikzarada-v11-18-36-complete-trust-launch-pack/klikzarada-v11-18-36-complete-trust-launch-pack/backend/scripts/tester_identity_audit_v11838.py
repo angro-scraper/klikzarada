@@ -11,7 +11,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 from app.main import app  # noqa: E402
 
 
-assert app.version == "11.18.38"
+assert tuple(map(int, app.version.split("."))) >= (11, 18, 38)
 suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_tester_identity")
 result = unittest.TextTestRunner(verbosity=2).run(suite)
 if not result.wasSuccessful():

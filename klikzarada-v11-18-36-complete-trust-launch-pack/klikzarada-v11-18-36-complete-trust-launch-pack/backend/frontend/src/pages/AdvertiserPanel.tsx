@@ -966,22 +966,43 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                       </Card>
                     })}
                   </div>
-                  <Card className="overflow-hidden border-violet-100 shadow-md">
-                    <Table
-                      headers={['KlikZarada nalog', 'Kampanja', 'Google Play email za test', 'Status', 'Akcija']}
-                      rows={testerEnrollments.map(item => [
-                        <span><span className="font-semibold text-ink">{item.user_name || 'Korisnik'}</span><span className="block text-xs text-ink-2">Email naloga: {item.account_email || '—'}</span><span className="block text-xs text-ink-3">ID naloga: {item.user_id || '—'}</span></span>,
-                        <span className="text-xs text-ink-2">{item.task_title || 'Zadatak'}</span>,
-                        <span><span className="font-mono text-xs select-all">{item.testing_email || '—'}</span>{item.email_conflict && <span className="mt-1 block text-xs font-semibold text-red-700">Adresa je povezana i sa drugim nalogom. Ne menjaj status bez provere.</span>}{!item.email_conflict && item.account_email && item.testing_email?.toLowerCase() !== item.account_email.toLowerCase() && <span className="mt-1 block text-xs text-amber-700">Druga adresa, koju je tester uneo.</span>}</span>,
-                        <StatusBadge status={item.status === 'requested' ? 'na_cekanju' : item.status === 'invited' ? 'aktivno' : 'odbijeno'} />,
-                        <div className="flex flex-wrap items-center gap-2">
-                          {item.status === 'requested'
-                            ? <><span className="text-xs text-ink-3">{item.email_conflict ? 'Prvo razjasni kome pripada test adresa.' : 'Dodaj email u store listu, pa aktiviraj.'}</span><Btn size="sm" variant="success" disabled={item.email_conflict} onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'invited'); await refreshDashboard(); showToast('Tester je aktiviran, a njegov lični period testiranja počinje danas.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Tester nije aktiviran.', 'error') } })()}>Aktiviraj sada</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'declined', 'Trenutno nema slobodnih mesta u zatvorenom testiranju.'); await refreshDashboard(); showToast('Prijava je odbijena uz obaveštenje korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Status prijave nije ažuriran.', 'error') } })()}>Odbij</Btn></>
-                            : <span className="text-xs text-ink-3">{item.note || (item.status === 'invited' ? `Aktiviran od ${item.invited_at ? new Intl.DateTimeFormat('sr-RS').format(new Date(item.invited_at)) : 'danas'}` : 'Obrađeno')}</span>}
-                          {item.user_id && item.status !== 'declined' && <Btn size="sm" variant="secondary" onClick={() => setChatTarget({ taskId: item.task_id, participantId: item.user_id! })}>Poruke</Btn>}
-                        </div>,
-                      ])}
-                    />
+                  <Card className="border-violet-100 p-4 shadow-md sm:p-5">
+                    <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+                      <div>
+                        <h3 className="font-bold text-ink">Prijavljeni testeri</h3>
+                        <p className="mt-1 text-xs text-ink-3">KlikZarada nalog i Google Play email su odvojeni podaci.</p>
+                      </div>
+                      <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">{testerEnrollments.length} prijava</span>
+                    </div>
+                    <div className="space-y-3">
+                      {testerEnrollments.map(item => <div key={item.id} className={`grid min-w-0 gap-4 rounded-xl border p-4 lg:grid-cols-2 2xl:grid-cols-4 ${item.email_conflict ? 'border-red-200 bg-red-50/40' : 'border-frame bg-white'}`}>
+                        <div className="min-w-0">
+                          <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-ink-3">KlikZarada nalog</p>
+                          <p className="font-semibold text-ink break-words">{item.user_name || 'Korisnik'}</p>
+                          <p className="mt-1 text-xs text-ink-2 break-all select-all">{item.account_email || '—'}</p>
+                          <p className="mt-1 text-xs text-ink-3">ID naloga: {item.user_id || '—'}</p>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-ink-3">Kampanja</p>
+                          <p className="text-sm leading-5 text-ink-2 break-words">{item.task_title || 'Zadatak'}</p>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-ink-3">Google Play email za test</p>
+                          <p className="font-mono text-xs leading-5 text-ink break-all select-all">{item.testing_email || '—'}</p>
+                          {item.email_conflict && <p className="mt-2 rounded-lg bg-red-100 px-2.5 py-2 text-xs font-semibold leading-5 text-red-800">Adresa je povezana i sa drugim nalogom. Proveri vlasništvo pre odobravanja.</p>}
+                          {!item.email_conflict && item.account_email && item.testing_email?.toLowerCase() !== item.account_email.toLowerCase() && <p className="mt-2 text-xs leading-5 text-amber-700">Druga adresa koju je tester uneo.</p>}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-3">Status i akcije</p>
+                          <StatusBadge status={item.status === 'requested' ? 'na_cekanju' : item.status === 'invited' ? 'aktivno' : 'odbijeno'} />
+                          <p className="my-2 text-xs leading-5 text-ink-3">{item.status === 'requested' ? item.email_conflict ? 'Prvo razjasni test adresu.' : 'Dodaj email u store listu, pa aktiviraj.' : item.note || (item.status === 'invited' ? `Aktiviran od ${item.invited_at ? new Intl.DateTimeFormat('sr-RS').format(new Date(item.invited_at)) : 'danas'}` : 'Obrađeno')}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {item.status === 'requested' && <><Btn size="sm" variant="success" disabled={item.email_conflict} onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'invited'); await refreshDashboard(); showToast('Tester je aktiviran, a njegov lični period testiranja počinje danas.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Tester nije aktiviran.', 'error') } })()}>Aktiviraj sada</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'declined', 'Trenutno nema slobodnih mesta u zatvorenom testiranju.'); await refreshDashboard(); showToast('Prijava je odbijena uz obaveštenje korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Status prijave nije ažuriran.', 'error') } })()}>Odbij</Btn></>}
+                            {item.user_id && item.status !== 'declined' && <Btn size="sm" variant="secondary" onClick={() => setChatTarget({ taskId: item.task_id, participantId: item.user_id! })}>Poruke</Btn>}
+                          </div>
+                        </div>
+                      </div>)}
+                    </div>
                   </Card>
                 </div>}
                 {testerCheckins.length > 0 && <div className="mb-5">

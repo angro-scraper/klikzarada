@@ -96,6 +96,15 @@ class UiContractTests(unittest.TestCase):
         self.assertIn("Alert, Input } from '../components/ui'", source)
         self.assertIn('<Input label="Tvoj Google Play email za ovaj test"', source)
 
+    def test_tester_enrollments_keep_emails_and_actions_visible(self):
+        source = (BACKEND_DIR / "frontend" / "src" / "pages" / "AdvertiserPanel.tsx").read_text(encoding="utf-8")
+        cards = source.split('Prijavljeni testeri</h3>', 1)[1].split("{testerCheckins.length > 0", 1)[0]
+        self.assertNotIn("<Table", cards)
+        self.assertIn("2xl:grid-cols-4", cards)
+        self.assertIn("break-all select-all", cards)
+        self.assertIn("Google Play email za test", cards)
+        self.assertIn("Status i akcije", cards)
+
     def test_pageview_tracking_excludes_non_browser_traffic(self):
         """Traffic counters must only accept deliberate public navigations."""
         source = (BACKEND_DIR / "app" / "main.py").read_text(encoding="utf-8")
