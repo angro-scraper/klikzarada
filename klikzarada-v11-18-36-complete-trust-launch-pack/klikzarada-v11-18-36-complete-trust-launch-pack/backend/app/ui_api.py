@@ -2197,13 +2197,13 @@ def advertiser_dashboard(request: Request, db: Session = Depends(get_db)) -> dic
 
 @router.post("/advertiser/tasks/{task_id}/tester-cohorts/start")
 def start_tester_cohort(task_id: int, payload: TesterCohortStartPayload, request: Request, db: Session = Depends(get_db)) -> dict:
-    """Activate a closed-beta cohort together so its 14-day window is shared and auditable."""
+    """Activate waiting testers immediately, each with their own full test window."""
     advertiser = _require_user(request, db, {"oglasivac", "admin"})
     task = db.query(Task).filter(Task.id == task_id, Task.advertiser_id == advertiser.id).first()
     if not task or not task.requires_tester_enrollment:
         raise HTTPException(404, "Zatvorena beta kampanja nije pronađena.")
     if _status(task.status) != "active":
-        raise HTTPException(409, "Kohortu možeš pokrenuti tek kada je kampanja aktivna.")
+        raise HTTPException(409, "Testera možeš aktivirati tek kada je kampanja aktivna.")
 
     requested = db.query(AppTesterEnrollment).filter(
         AppTesterEnrollment.task_id == task.id,
@@ -2214,41 +2214,32 @@ def start_tester_cohort(task_id: int, payload: TesterCohortStartPayload, request
         AppTesterEnrollment.status == "invited",
     ).count()
     available_slots = max(0, int(task.total_slots or 0) - invited_count)
-    cohort_rows = db.query(AppTesterEnrollment.cohort_number).filter(
-        AppTesterEnrollment.task_id == task.id,
-        AppTesterEnrollment.cohort_number.isnot(None),
-    ).all()
-    existing_cohorts = [row[0] for row in cohort_rows]
-    is_initial_cohort = not existing_cohorts
-    minimum = int(task.tester_required_count or 12) if is_initial_cohort else 1
-    if is_initial_cohort and payload.count is not None and payload.count != minimum:
-        raise HTTPException(400, f"Početna Google kohorta mora imati tačno {minimum} testera.")
-    requested_count = payload.count or (minimum if is_initial_cohort else min(len(requested), available_slots))
+    requested_count = payload.count or 1
     count = min(int(requested_count), len(requested), available_slots)
-    if count < minimum:
-        if is_initial_cohort:
-            raise HTTPException(409, f"Za početnu Google kohortu potrebno je najmanje {minimum} prijavljenih testera.")
-        raise HTTPException(409, "Nema dostupnih prijava za sledeću kohortu.")
+    if count < 1:
+        raise HTTPException(409, "Nema prijavljenih testera sa slobodnim mestom za aktivaciju.")
 
-    cohort_number = max(existing_cohorts, default=0) + 1
+    activation_number = int(db.query(func.max(AppTesterEnrollment.cohort_number)).filter(
+        AppTesterEnrollment.task_id == task.id,
+    ).scalar() or 0) + 1
     started_at = datetime.utcnow()
     activated = requested[:count]
     for enrollment in activated:
         enrollment.status = "invited"
-        enrollment.cohort_number = cohort_number
+        enrollment.cohort_number = activation_number
         enrollment.invited_at = started_at
         enrollment.updated_at = started_at
         db.add(Notification(
             user_id=enrollment.user_id,
             title="Pristup testiranju je odobren",
-            body=f"Dodat/a si u kohortu {cohort_number} za: {task.title}. Tvojih {task.tester_duration_days or 14} dana počinje danas. Svakog dana testiraj najmanje {task.tester_daily_minutes or 5} min i pošalji kratak dnevni izveštaj.",
+            body=f"Pristup testiranju za '{task.title}' je aktiviran. Tvojih {task.tester_duration_days or 14} dana počinje danas. Svakog dana testiraj najmanje {task.tester_daily_minutes or 5} min i pošalji kratak dnevni izveštaj.",
             status="unread",
         ))
     task.used_slots = int(task.used_slots or 0) + len(activated)
-    _audit(db, advertiser, "tester_cohort_started", "Task", task.id, f"cohort={cohort_number}; testers={len(activated)}")
+    _audit(db, advertiser, "tester_access_activated", "Task", task.id, f"activation={activation_number}; testers={len(activated)}")
     db.commit()
     return {
-        "cohort_number": cohort_number,
+        "cohort_number": activation_number,
         "activated_count": len(activated),
         "started_at": _iso(started_at),
         "enrollments": [_tester_enrollment_data(item, include_email=True) for item in activated],
@@ -2268,8 +2259,6 @@ def update_tester_enrollment(enrollment_id: int, payload: TesterEnrollmentStatus
     if enrollment.status == "invited" and payload.status == "invited":
         raise HTTPException(409, "Korisnik je već označen kao pozvan u testiranje.")
     task = enrollment.task
-    if payload.status == "invited" and task.requires_tester_enrollment:
-        raise HTTPException(409, "Za zatvoreni beta test aktiviraj testere kroz početnu ili sledeću kohortu.")
     was_invited = enrollment.status == "invited"
     if payload.status == "invited" and not was_invited:
         occupied_slots = db.query(AppTesterEnrollment).filter(
@@ -2279,9 +2268,13 @@ def update_tester_enrollment(enrollment_id: int, payload: TesterEnrollmentStatus
         if occupied_slots >= int(task.total_slots or 0):
             raise HTTPException(409, "Sva mesta za testere su već popunjena.")
         enrollment.invited_at = datetime.utcnow()
+        enrollment.cohort_number = int(db.query(func.max(AppTesterEnrollment.cohort_number)).filter(
+            AppTesterEnrollment.task_id == task.id,
+        ).scalar() or 0) + 1
         task.used_slots = int(task.used_slots or 0) + 1
     elif payload.status == "declined" and was_invited:
         enrollment.invited_at = None
+        enrollment.cohort_number = None
         task.used_slots = max(0, int(task.used_slots or 0) - 1)
     enrollment.status = payload.status
     enrollment.note = (payload.note or "").strip() or None

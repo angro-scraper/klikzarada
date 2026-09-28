@@ -140,6 +140,14 @@ class UiContractTests(unittest.TestCase):
         self.assertIn('if phone and len(phone.replace("+", "")) < 7:', api_source)
         self.assertIn("disabled={submitted}", source)
 
+    def test_closed_testers_can_start_individually(self):
+        api_source = (BACKEND_DIR / "app" / "ui_api.py").read_text(encoding="utf-8")
+        advertiser_source = (BACKEND_DIR / "frontend" / "src" / "pages" / "AdvertiserPanel.tsx").read_text(encoding="utf-8")
+        self.assertIn('requested_count = payload.count or 1', api_source)
+        self.assertNotIn('Početna Google kohorta mora imati', api_source)
+        self.assertIn('Aktiviraj sada', advertiser_source)
+        self.assertIn('Ne čeka se ciljnih 20 prijava', advertiser_source)
+
     def test_operational_screens_use_the_available_workspace_width(self):
         """Dashboards must not leave a narrow fixed-width column beside the sidebar."""
         pages = ("AdvertiserPanel.tsx", "UserDashboard.tsx", "AdminHub.tsx", "TasksPublic.tsx")

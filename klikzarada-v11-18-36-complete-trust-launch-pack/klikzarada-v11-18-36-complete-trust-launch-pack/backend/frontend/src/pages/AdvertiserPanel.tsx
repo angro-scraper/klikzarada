@@ -867,15 +867,13 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                   <div className="mb-4 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-emerald-50 p-5 shadow-sm">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700">Kontrola zatvorenog testiranja</p>
                     <h2 className="mt-1 text-xl font-extrabold text-ink">Prijave za zatvoreno testiranje</h2>
-                    <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">Pokreni kohortu tek kada su prijavljeni testeri zaista dodati u Google Play listu. Svi testeri iz iste kohorte dobijaju isti datum početka i punih 14 dana testiranja.</p>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">Ne čeka se ciljnih 20 prijava. Čim email testera dodaš u Google Play tester listu, aktiviraj ga ovde i njegov lični period od 14 dana počinje odmah.</p>
                   </div>
                   <div className="mb-5 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
                     {(dashboard?.tasks ?? []).filter(task => task.requires_tester_enrollment).map(task => {
                       const requested = testerEnrollments.filter(item => item.task_id === task.id && item.status === 'requested').length
-                      const initialCohort = !(task.tester_cohort_count ?? 0)
-                      const needed = task.tester_required_count
-                      const canStart = initialCohort ? requested >= needed : requested > 0
-                      const remaining = Math.max(0, needed - requested)
+                      const target = task.tester_required_count
+                      const canStart = requested > 0
                       return <Card key={task.id} className="group relative overflow-hidden border-violet-200 bg-white p-5 shadow-md transition-shadow hover:shadow-lg">
                         <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-violet-100/70 transition-transform group-hover:scale-125" />
                         <div className="relative">
@@ -883,7 +881,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                             <div className="flex min-w-0 items-center gap-3">
                               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-xl shadow-sm">📱</div>
                               <div className="min-w-0">
-                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-700">{initialCohort ? 'Početna kohorta' : 'Sledeća kohorta'}</p>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-700">Kontinuirano testiranje</p>
                                 <h3 className="truncate text-base font-extrabold text-ink" title={task.title}>{task.title}</h3>
                               </div>
                             </div>
@@ -891,12 +889,12 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                           </div>
                           <div className="mt-5 grid grid-cols-3 divide-x divide-violet-100 rounded-xl border border-violet-100 bg-violet-50/70 py-3 text-center">
                             <div><p className="font-mono text-lg font-extrabold text-violet-700">{requested}</p><p className="text-[10px] font-semibold uppercase tracking-wide text-ink-3">prijava</p></div>
-                            <div><p className="font-mono text-lg font-extrabold text-emerald-700">{needed}</p><p className="text-[10px] font-semibold uppercase tracking-wide text-ink-3">potrebno</p></div>
+                            <div><p className="font-mono text-lg font-extrabold text-emerald-700">{target}</p><p className="text-[10px] font-semibold uppercase tracking-wide text-ink-3">cilj</p></div>
                             <div><p className="font-mono text-lg font-extrabold text-blue-700">{task.tester_enrollment_invited ?? 0}</p><p className="text-[10px] font-semibold uppercase tracking-wide text-ink-3">aktivno</p></div>
                           </div>
-                          <p className="mt-4 min-h-10 text-xs leading-5 text-ink-2">{initialCohort ? (canStart ? `Spremno je ${requested}/${needed} prijava. Aktiviraj ih zajedno kada su dodati u store listu.` : `Potrebno je još ${remaining} prijava da bi početna kohorta mogla da počne.`) : `${requested} prijava čeka aktivaciju u sledećoj kohorti.`}</p>
-                          <Btn size="sm" className="mt-4 w-full justify-center" disabled={!canStart} variant="success" onClick={() => void (async () => { try { const result = await api.startTesterCohort(task.id, initialCohort ? needed : undefined); await refreshDashboard(); showToast(`Kohorta ${result.cohort_number} je aktivirana za ${result.activated_count} testera istog dana.`, 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Kohorta nije aktivirana.', 'error') } })()}>
-                            {initialCohort ? `Pokreni prvih ${needed} zajedno` : 'Pokreni sledeću grupu'}
+                          <p className="mt-4 min-h-10 text-xs leading-5 text-ink-2">{canStart ? `${requested} prijava čeka. Aktiviraj svakog testera čim ga dodaš u store listu; nema čekanja da se dostigne cilj od ${target}.` : `Nema prijava na čekanju. Cilj kampanje je ${target} aktivnih testera, ali svaki novi može krenuti odmah.`}</p>
+                          <Btn size="sm" className="mt-4 w-full justify-center" disabled={!canStart} variant="success" onClick={() => void (async () => { try { const result = await api.startTesterCohort(task.id, 1); await refreshDashboard(); showToast(`${result.activated_count} tester je aktiviran. Njegov lični period testiranja počinje danas.`, 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Tester nije aktiviran.', 'error') } })()}>
+                            Aktiviraj sledećeg testera
                           </Btn>
                         </div>
                       </Card>
@@ -911,8 +909,8 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                         <span className="font-mono text-xs select-all">{item.testing_email || '—'}</span>,
                         <StatusBadge status={item.status === 'requested' ? 'na_cekanju' : item.status === 'invited' ? 'aktivno' : 'odbijeno'} />,
                         item.status === 'requested'
-                          ? <div className="flex items-center gap-2"><span className="text-xs text-ink-3">Čeka početak kohorte</span><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'declined', 'Trenutno nema slobodnih mesta u zatvorenom testiranju.'); await refreshDashboard(); showToast('Prijava je odbijena uz obaveštenje korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Status prijave nije ažuriran.', 'error') } })()}>Odbij</Btn></div>
-                          : <span className="text-xs text-ink-3">{item.note || (item.status === 'invited' ? `Kohorta ${item.cohort_number || 'ranija'}, aktivna od ${item.invited_at ? new Intl.DateTimeFormat('sr-RS').format(new Date(item.invited_at)) : 'danas'}` : 'Obrađeno')}</span>,
+                          ? <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-ink-3">Dodaj email u store listu, pa aktiviraj.</span><Btn size="sm" variant="success" onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'invited'); await refreshDashboard(); showToast('Tester je aktiviran, a njegov lični period testiranja počinje danas.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Tester nije aktiviran.', 'error') } })()}>Aktiviraj sada</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.updateTesterEnrollment(item.id, 'declined', 'Trenutno nema slobodnih mesta u zatvorenom testiranju.'); await refreshDashboard(); showToast('Prijava je odbijena uz obaveštenje korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Status prijave nije ažuriran.', 'error') } })()}>Odbij</Btn></div>
+                          : <span className="text-xs text-ink-3">{item.note || (item.status === 'invited' ? `Aktiviran od ${item.invited_at ? new Intl.DateTimeFormat('sr-RS').format(new Date(item.invited_at)) : 'danas'}` : 'Obrađeno')}</span>,
                       ])}
                     />
                   </Card>

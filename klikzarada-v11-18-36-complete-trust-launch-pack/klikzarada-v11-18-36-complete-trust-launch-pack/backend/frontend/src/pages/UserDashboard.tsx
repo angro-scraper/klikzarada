@@ -657,7 +657,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
                       <p className="font-bold text-amber-900">Prvo zatraži pristup zatvorenom testiranju</p>
                       {selectedTask.tester_enrollment?.status === 'requested' ? (
-                        <p className="text-sm text-amber-800">Prijava je poslata. Sačekaj obaveštenje kada te oglašivač ručno doda u tester listu.</p>
+                        <p className="text-sm text-amber-800">Email je poslat oglašivaču. Test počinje čim te doda u tester listu i aktivira pristup; ne čeka se da se prijavi ceo broj testera.</p>
                       ) : (
                         <>
                           {selectedTask.tester_enrollment?.status === 'declined' && <p className="text-sm text-red-700">{selectedTask.tester_enrollment.note || 'Prijava nije odobrena. Proveri adresu i pošalji ponovo.'}</p>}

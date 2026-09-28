@@ -88,7 +88,7 @@ class Task(Base):
     target_interests = Column(Text, nullable=True)
     min_user_level = Column(String(40), default="Bronza")
     proof_file_required = Column(Boolean, default=False)
-    # Closed beta campaigns use an invite-only, time-bound testing cohort.
+    # Closed beta campaigns use individually activated, time-bound tester access.
     requires_tester_enrollment = Column(Boolean, default=False)
     tester_required_count = Column(Integer, default=12)
     tester_duration_days = Column(Integer, default=14)
@@ -141,7 +141,7 @@ class AppTesterEnrollment(Base):
     testing_email = Column(String(160), nullable=False)
     status = Column(String(40), default="requested", nullable=False)  # requested, invited, declined
     note = Column(Text, nullable=True)
-    # Members activated together share a common, auditable testing start.
+    # Activation batch is retained for audit history; every tester has their own start time.
     cohort_number = Column(Integer, nullable=True)
     invited_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

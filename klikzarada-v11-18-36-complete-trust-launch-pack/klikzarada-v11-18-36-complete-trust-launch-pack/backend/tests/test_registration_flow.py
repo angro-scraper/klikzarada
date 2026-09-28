@@ -18,8 +18,9 @@ os.chdir(BACKEND_DIR)
 sys.path.insert(0, str(BACKEND_DIR))
 
 from app.database import Base  # noqa: E402
-from app.models import EmailOutboxV8, EmailVerificationTokenV11, User, UserConsentV11  # noqa: E402
-from app.ui_api import Registration, register  # noqa: E402
+from app.models import AppTesterEnrollment, EmailOutboxV8, EmailVerificationTokenV11, Task, User, UserConsentV11  # noqa: E402
+from app.security import create_session_token  # noqa: E402
+from app.ui_api import Registration, TesterCohortStartPayload as CohortStartPayload, register, start_tester_cohort  # noqa: E402
 
 
 class RegistrationFlowTests(unittest.TestCase):
@@ -92,6 +93,50 @@ class RegistrationFlowTests(unittest.TestCase):
 
         self.assertEqual(invited.referred_by_id, referrer.id)
         self.assertNotEqual(invited.referral_code, referrer.referral_code)
+
+    def test_closed_beta_can_start_one_tester_without_waiting_for_target(self):
+        advertiser = User(full_name="Oglašivač", email="advertiser@example.com", password_hash="hash", role="oglasivac", referral_code="ADV001")
+        tester = User(full_name="Tester", email="tester@example.com", password_hash="hash", referral_code="TEST001")
+        self.db.add_all([advertiser, tester])
+        self.db.flush()
+        task = Task(
+            advertiser_id=advertiser.id,
+            title="Zatvoreni beta test",
+            category="Testiranje",
+            task_type="app_beta",
+            description="Testiraj aplikaciju.",
+            instructions="Pošalji dnevni izveštaj.",
+            proof_required="Dnevni izveštaj",
+            reward_rsd=70,
+            total_slots=20,
+            status="active",
+            requires_tester_enrollment=True,
+            tester_required_count=20,
+            tester_duration_days=14,
+            tester_daily_reward_rsd=5,
+        )
+        self.db.add(task)
+        self.db.flush()
+        enrollment = AppTesterEnrollment(task_id=task.id, user_id=tester.id, testing_email="tester@example.com", status="requested")
+        self.db.add(enrollment)
+        self.db.commit()
+
+        request = Request({
+            "type": "http",
+            "method": "POST",
+            "scheme": "https",
+            "path": f"/api/ui/advertiser/tasks/{task.id}/tester-cohorts/start",
+            "headers": [(b"cookie", f"kz_session={create_session_token(advertiser.id)}".encode())],
+            "client": ("198.51.100.20", 443),
+        })
+        result = start_tester_cohort(task.id, CohortStartPayload(count=1), request, self.db)
+        self.db.refresh(enrollment)
+        self.db.refresh(task)
+
+        self.assertEqual(result["activated_count"], 1)
+        self.assertEqual(enrollment.status, "invited")
+        self.assertIsNotNone(enrollment.invited_at)
+        self.assertEqual(task.used_slots, 1)
 
 
 if __name__ == "__main__":
