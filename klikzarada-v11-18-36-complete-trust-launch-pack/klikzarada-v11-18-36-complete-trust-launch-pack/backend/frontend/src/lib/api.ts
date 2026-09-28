@@ -614,6 +614,7 @@ export const api = {
     method: 'PATCH', body: JSON.stringify({ status, note }),
   }),
   adminUsers: () => request<{ users: AdminUser[] }>('/admin/users'),
+  correctAccountRoleToUser: () => request<{ user: SessionUser }>('/account/role/correct-to-user', { method: 'POST' }),
   adminUserProfile: (id: number) => request<AdminUserProfile>(`/admin/users/${id}/profile`),
   updateAdminUser: (id: number, status: 'active' | 'blocked' | 'suspended', note?: string) => request<{ user: SessionUser }>(`/admin/users/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),

@@ -1178,6 +1178,38 @@ def session(request: Request, db: Session = Depends(get_db)) -> dict:
     return {"authenticated": bool(user), "user": _user_data(user) if user else None}
 
 
+@router.post("/account/role/correct-to-user")
+def correct_account_role_to_user(request: Request, db: Session = Depends(get_db)) -> dict:
+    """Let an accidentally-created advertiser account safely become a worker account."""
+    user = _require_user(request, db, {"oglasivac"})
+    has_campaigns = db.query(Task.id).filter(Task.advertiser_id == user.id).first() is not None
+    has_budget_history = db.query(AdvertiserBudgetTransaction.id).filter(
+        AdvertiserBudgetTransaction.advertiser_id == user.id,
+    ).first() is not None
+    balances = (
+        float(user.advertiser_budget_rsd or 0),
+        float(user.advertiser_reserved_rsd or 0),
+        float(user.advertiser_spent_rsd or 0),
+    )
+    if has_campaigns or has_budget_history or any(abs(value) > 0.001 for value in balances):
+        raise HTTPException(
+            409,
+            "Nalog sa kampanjama, budžetom ili uplatama ne može automatski promeniti ulogu. Obrati se podršci.",
+        )
+    user.role = "korisnik"
+    user.advertiser_verified = False
+    _audit(db, user, "self_role_correction_to_user", "User", user.id, "Accidental advertiser registration corrected by account owner.")
+    db.add(Notification(
+        user_id=user.id,
+        title="Nalog je prebačen u korisnički režim",
+        body="Sada možeš da otvaraš dostupne zadatke i šalješ dokaze.",
+        status="unread",
+    ))
+    db.commit()
+    db.refresh(user)
+    return {"user": _user_data(user)}
+
+
 @router.post("/analytics/funnel")
 def track_public_funnel_event(payload: PublicFunnelEventPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     recorded = _record_public_funnel_event(db, request, payload.event_type)

@@ -20,7 +20,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 from app.database import Base  # noqa: E402
 from app.models import AppTesterEnrollment, EmailOutboxV8, EmailVerificationTokenV11, Task, User, UserConsentV11  # noqa: E402
 from app.security import create_session_token  # noqa: E402
-from app.ui_api import Registration, TesterCohortStartPayload as CohortStartPayload, register, start_tester_cohort  # noqa: E402
+from app.ui_api import Registration, TesterCohortStartPayload as CohortStartPayload, correct_account_role_to_user, register, start_tester_cohort  # noqa: E402
 
 
 class RegistrationFlowTests(unittest.TestCase):
@@ -137,6 +137,25 @@ class RegistrationFlowTests(unittest.TestCase):
         self.assertEqual(enrollment.status, "invited")
         self.assertIsNotNone(enrollment.invited_at)
         self.assertEqual(task.used_slots, 1)
+
+    def test_accidental_empty_advertiser_account_can_switch_to_user(self):
+        advertiser = User(full_name="Pogrešna uloga", email="wrong-role@example.com", password_hash="hash", role="oglasivac")
+        self.db.add(advertiser)
+        self.db.commit()
+        request = Request({
+            "type": "http",
+            "method": "POST",
+            "scheme": "https",
+            "path": "/api/ui/account/role/correct-to-user",
+            "headers": [(b"cookie", f"kz_session={create_session_token(advertiser.id)}".encode())],
+            "client": ("198.51.100.20", 443),
+        })
+
+        result = correct_account_role_to_user(request, self.db)
+        self.db.refresh(advertiser)
+
+        self.assertEqual(result["user"]["role"], "korisnik")
+        self.assertEqual(advertiser.role, "korisnik")
 
 
 if __name__ == "__main__":

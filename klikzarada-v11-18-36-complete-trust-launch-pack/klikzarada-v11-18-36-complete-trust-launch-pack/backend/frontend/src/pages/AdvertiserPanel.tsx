@@ -467,6 +467,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [mobileOpen, setMobileOpen] = useState(false)
   const [proofsTab, setProofsTab] = useState('svi')
   const [logoutConfirm, setLogoutConfirm] = useState(false)
+  const [roleCorrectionConfirm, setRoleCorrectionConfirm] = useState(false)
   const [campaignLifecycleAction, setCampaignLifecycleAction] = useState<{ id: number; title: string; action: 'pause' | 'resume' | 'stop' } | null>(null)
   const [dashboard, setDashboard] = useState<AdvertiserDashboardData | null>(null)
   const [campaignToRevise, setCampaignToRevise] = useState<import('../lib/api').Task | null>(null)
@@ -728,6 +729,26 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
       />
 
       <ConfirmModal
+        open={roleCorrectionConfirm}
+        title="Prebaciti nalog u korisnički režim?"
+        description="Ovaj nalog će moći da radi zadatke umesto da objavljuje kampanje. Promena je dozvoljena samo ako nemaš kampanje, budžet ili uplate."
+        confirmLabel="Da, želim da radim zadatke"
+        cancelLabel="Otkaži"
+        variant="success"
+        onConfirm={async () => {
+          try {
+            await api.correctAccountRoleToUser()
+            showToast('Nalog je prebačen u korisnički režim.', 'success')
+            setRoleCorrectionConfirm(false)
+            onNavigate('dashboard')
+          } catch (error) {
+            showToast(error instanceof Error ? error.message : 'Uloga naloga nije promenjena.', 'error')
+          }
+        }}
+        onCancel={() => setRoleCorrectionConfirm(false)}
+      />
+
+      <ConfirmModal
         open={campaignLifecycleAction !== null}
         title={campaignLifecycleAction?.action === 'pause' ? 'Pauzirati kampanju?' : campaignLifecycleAction?.action === 'resume' ? 'Ponovo aktivirati kampanju?' : 'Završiti kampanju pre isteka?'}
         description={campaignLifecycleAction?.action === 'pause'
@@ -784,6 +805,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
             {page === 'pregled' && (
               <div className="space-y-5">
                 <h1 className="text-xl font-extrabold text-ink">Pregled</h1>
+                {advertiser?.role === 'oglasivac' && <Card className="p-5 border-violet-200 bg-violet-50"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="font-bold text-ink">Otvorio/la si oglašivački nalog greškom?</p><p className="text-sm text-ink-2 mt-1">Ako želiš da radiš zadatke, prebaci ovaj prazan nalog u korisnički režim. Kampanje, budžet i uplate se nikada ne menjaju automatski.</p></div><Btn size="sm" variant="secondary" onClick={() => setRoleCorrectionConfirm(true)}>Radim zadatke, ne oglašavam se</Btn></div></Card>}
                 {advertiser && (!advertiser.company_name || !advertiser.phone || !advertiser.company_website) && <Card className="p-5 border-blue-200 bg-blue-50"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="font-bold text-ink">Završi profil oglašivača</p><p className="text-sm text-ink-2 mt-1">Za sigurniju moderaciju kampanja dodaj naziv, kontakt telefon i sajt firme ili ponude.</p></div><Btn size="sm" onClick={() => goTo('profil')}>Dopuni profil</Btn></div><div className="flex flex-wrap gap-2 mt-3 text-xs font-semibold"><span className={`rounded-full px-2 py-1 ${advertiser.company_name ? 'bg-emerald-100 text-emerald-700' : 'bg-white text-ink-3'}`}>Naziv {advertiser.company_name ? 'spreman' : 'nedostaje'}</span><span className={`rounded-full px-2 py-1 ${advertiser.phone ? 'bg-emerald-100 text-emerald-700' : 'bg-white text-ink-3'}`}>Telefon {advertiser.phone ? 'spreman' : 'nedostaje'}</span><span className={`rounded-full px-2 py-1 ${advertiser.company_website ? 'bg-emerald-100 text-emerald-700' : 'bg-white text-ink-3'}`}>Sajt {advertiser.company_website ? 'spreman' : 'nedostaje'}</span></div></Card>}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <StatCard label="Raspoloživi budžet" value={`${new Intl.NumberFormat('sr-RS').format(advertiser?.advertiser_budget_rsd ?? 0)} RSD`} accent="green" icon="💰" />
