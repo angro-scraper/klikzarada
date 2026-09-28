@@ -79,6 +79,8 @@ router = APIRouter(prefix="/api/ui", tags=["KlikZarada UI"])
 # presents the final required budget, not this internal allocation.
 PLATFORM_FEE_PERCENT = 40.0
 MIN_WITHDRAWAL_RSD = 1000.0
+REFERRAL_INVITER_BONUS_RSD = 100.0
+REFERRAL_JOINER_BONUS_RSD = 50.0
 ANTI_FRAUD_DAILY_TASK_LIMIT = 20
 ANTI_FRAUD_DAILY_EARNINGS_RSD = 2000.0
 ANTI_FRAUD_MIN_ACTIVITY_EVENTS = 8
@@ -1672,10 +1674,17 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
     withdrawals = db.query(Withdrawal).filter(Withdrawal.user_id == user.id).order_by(Withdrawal.created_at.desc()).limit(100).all()
     transactions = db.query(WalletTransaction).filter(WalletTransaction.user_id == user.id).order_by(WalletTransaction.created_at.desc()).limit(100).all()
     referrals = db.query(User).filter(User.referred_by_id == user.id).count()
+    referral_earned = db.query(func.coalesce(func.sum(WalletTransaction.amount_rsd), 0)).filter(
+        WalletTransaction.user_id == user.id,
+        WalletTransaction.tx_type == "referral_inviter_bonus",
+    ).scalar()
     return {
         "user": _user_data(user),
         "min_withdrawal_rsd": MIN_WITHDRAWAL_RSD,
         "referral_count": referrals,
+        "referral_earned_rsd": _money(referral_earned),
+        "referral_inviter_bonus_rsd": REFERRAL_INVITER_BONUS_RSD,
+        "referral_joiner_bonus_rsd": REFERRAL_JOINER_BONUS_RSD,
         "program": _program_data(db, user),
         "tasks": [task_for_user(task) for task in tasks],
         "my_tasks": [task_for_user(task) for task in sorted(my_tasks, key=lambda item: item.id, reverse=True)],
@@ -2556,6 +2565,8 @@ def review_tester_daily_checkin(checkin_id: int, payload: AdminStatusPayload, re
             tx_type="app_test_daily_reward",
             description=f"Odobren test aplikacije, dan {checkin.day_number}: {task.title}",
         ))
+        if checkin.reward_rsd > 0:
+            _grant_referral_bonus_if_eligible(db, user)
         if not _is_platform_publisher(advertiser):
             advertiser_cost = _money(checkin.reward_rsd * (1 + float(task.platform_fee_percent or 0) / 100))
             advertiser.advertiser_reserved_rsd = _money(max(0, advertiser.advertiser_reserved_rsd - advertiser_cost))
@@ -3695,6 +3706,41 @@ def admin_submissions(request: Request, db: Session = Depends(get_db)) -> dict:
     return {"submissions": [_submission_data(item) | {"user_name": item.user.full_name if item.user else "Korisnik"} for item in submissions]}
 
 
+def _grant_referral_bonus_if_eligible(db: Session, user: User) -> bool:
+    if not user.referred_by_id:
+        return False
+    # Serialize approvals for the same user before checking their first result.
+    db.query(User).filter(User.id == user.id).with_for_update().first()
+    approved_proofs = db.query(TaskSubmission).filter(
+        TaskSubmission.user_id == user.id,
+        TaskSubmission.status == "approved",
+    ).count()
+    approved_test_days = db.query(AppTesterDailyCheckin).filter(
+        AppTesterDailyCheckin.user_id == user.id,
+        AppTesterDailyCheckin.status == "approved",
+        AppTesterDailyCheckin.reward_rsd > 0,
+    ).count()
+    already_paid = db.query(WalletTransaction.id).filter(
+        WalletTransaction.user_id == user.id,
+        WalletTransaction.tx_type == "referral_joiner_bonus",
+    ).first()
+    referrer = db.query(User).filter(
+        User.id == user.referred_by_id,
+        User.status == "active",
+    ).first()
+    if approved_proofs + approved_test_days != 1 or already_paid or not referrer or _open_risk_score(db, user.id) >= ANTI_FRAUD_HIGH_RISK_SCORE:
+        return False
+    user.balance_rsd = _money(user.balance_rsd + REFERRAL_JOINER_BONUS_RSD)
+    user.lifetime_earned_rsd = _money(user.lifetime_earned_rsd + REFERRAL_JOINER_BONUS_RSD)
+    referrer.balance_rsd = _money(referrer.balance_rsd + REFERRAL_INVITER_BONUS_RSD)
+    referrer.lifetime_earned_rsd = _money(referrer.lifetime_earned_rsd + REFERRAL_INVITER_BONUS_RSD)
+    db.add(WalletTransaction(user_id=user.id, amount_rsd=REFERRAL_JOINER_BONUS_RSD, tx_type="referral_joiner_bonus", description="Referral bonus nakon prvog odobrenog rezultata"))
+    db.add(WalletTransaction(user_id=referrer.id, amount_rsd=REFERRAL_INVITER_BONUS_RSD, tx_type="referral_inviter_bonus", description=f"Referral bonus za prvi odobreni rezultat korisnika {user.full_name}"))
+    db.add(Notification(user_id=user.id, title="Referral bonus je dodat", body=f"Dobio/la si {REFERRAL_JOINER_BONUS_RSD:.0f} RSD nakon prvog odobrenog rezultata.", status="unread"))
+    db.add(Notification(user_id=referrer.id, title="Referral bonus je dodat", body=f"Dobio/la si {REFERRAL_INVITER_BONUS_RSD:.0f} RSD jer je {user.full_name} završio/la prvi odobreni rezultat.", status="unread"))
+    return True
+
+
 def _review_submission(submission_id: int, payload: AdminStatusPayload, actor: User, db: Session) -> dict:
     submission = db.query(TaskSubmission).filter(TaskSubmission.id == submission_id).first()
     if not submission:
@@ -3732,21 +3778,7 @@ def _review_submission(submission_id: int, payload: AdminStatusPayload, actor: U
         user.balance_rsd = _money(user.balance_rsd + submission.reward_rsd)
         user.lifetime_earned_rsd = _money(user.lifetime_earned_rsd + submission.reward_rsd)
         db.add(WalletTransaction(user_id=user.id, amount_rsd=submission.reward_rsd, tx_type="task_reward", description=f"Odobren zadatak: {submission.task.title}"))
-        approved_count = db.query(TaskSubmission).filter(
-            TaskSubmission.user_id == user.id,
-            TaskSubmission.status == "approved",
-        ).count()
-        referrer = db.query(User).filter(User.id == user.referred_by_id, User.status == "active").first() if user.referred_by_id else None
-        if approved_count == 1 and referrer and _open_risk_score(db, user.id) < ANTI_FRAUD_HIGH_RISK_SCORE:
-            # Referral rewards unlock once, only after a real approved result.
-            user.balance_rsd = _money(user.balance_rsd + 50)
-            user.lifetime_earned_rsd = _money(user.lifetime_earned_rsd + 50)
-            referrer.balance_rsd = _money(referrer.balance_rsd + 100)
-            referrer.lifetime_earned_rsd = _money(referrer.lifetime_earned_rsd + 100)
-            db.add(WalletTransaction(user_id=user.id, amount_rsd=50, tx_type="referral_joiner_bonus", description="Referral bonus nakon prvog odobrenog zadatka"))
-            db.add(WalletTransaction(user_id=referrer.id, amount_rsd=100, tx_type="referral_inviter_bonus", description=f"Referral bonus za prvog odobrenog zadatka korisnika {user.full_name}"))
-            db.add(Notification(user_id=user.id, title="Referral bonus je dodat", body="Dobio/la si 50 RSD nakon prvog odobrenog zadatka.", status="unread"))
-            db.add(Notification(user_id=referrer.id, title="Referral bonus je dodat", body=f"Dobio/la si 100 RSD jer je {user.full_name} završio/la prvi odobreni zadatak.", status="unread"))
+        _grant_referral_bonus_if_eligible(db, user)
         db.add(Notification(user_id=user.id, title="Zadatak je odobren", body=f"Nagrada od {submission.reward_rsd:.0f} RSD je prebačena u raspoloživi saldo.", status="unread"))
         advertiser = task.advertiser if task else None
         if advertiser and not _is_platform_publisher(advertiser):

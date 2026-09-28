@@ -232,6 +232,9 @@ export type UserDashboardData = {
   user: SessionUser
   min_withdrawal_rsd: number
   referral_count: number
+  referral_earned_rsd: number
+  referral_inviter_bonus_rsd: number
+  referral_joiner_bonus_rsd: number
   tasks: Task[]
   my_tasks: Task[]
   submissions: Submission[]

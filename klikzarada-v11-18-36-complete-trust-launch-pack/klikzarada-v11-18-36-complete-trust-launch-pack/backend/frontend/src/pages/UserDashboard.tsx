@@ -124,6 +124,9 @@ function normalizeDashboard(data: UserDashboardData): UserDashboardData {
     } as SessionUser,
     min_withdrawal_rsd: numberValue(raw.min_withdrawal_rsd, 1000),
     referral_count: numberValue(raw.referral_count),
+    referral_earned_rsd: numberValue(raw.referral_earned_rsd),
+    referral_inviter_bonus_rsd: numberValue(raw.referral_inviter_bonus_rsd, 100),
+    referral_joiner_bonus_rsd: numberValue(raw.referral_joiner_bonus_rsd, 50),
     tasks: normalizeTasks(raw.tasks),
     my_tasks: normalizeTasks(raw.my_tasks),
     submissions: Array.isArray(raw.submissions) ? raw.submissions : [],
@@ -659,7 +662,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                 <div className="bg-violet-50 border border-violet-200 rounded-xl p-5 flex items-start justify-between gap-4">
                   <div>
                     <p className="font-bold text-ink">🔗 Referral program</p>
-                    <p className="text-sm text-violet-700 mt-0.5">Ti: <span className="font-mono font-bold">+100 RSD</span> · Prijatelj: <span className="font-mono font-bold">+50 RSD</span></p>
+                    <p className="text-sm text-violet-700 mt-0.5">Ti: <span className="font-mono font-bold">+{formatRsd(dashboard?.referral_inviter_bonus_rsd ?? 100)}</span> · Prijatelj: <span className="font-mono font-bold">+{formatRsd(dashboard?.referral_joiner_bonus_rsd ?? 50)}</span></p>
                     <p className="text-xs text-ink-3 mt-1">Pozvano: <strong className="text-ink">{dashboard?.referral_count ?? 0}</strong> korisnika</p>
                   </div>
                   <Btn onClick={() => goTo('referral')} variant="premium" size="sm">Podeli link</Btn>
@@ -1009,27 +1012,28 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                 <SectionHeader title="Referral program" description="Pozovi prijatelje i zaradite oboje." />
                 <div className="grid grid-cols-2 gap-3">
                   <StatCard label="Pozvanih korisnika" value={String(dashboard?.referral_count ?? 0)} icon="👥" accent="blue" />
-                  <StatCard label="Zarađeno referral" value="0 RSD" icon="💰" accent="green" />
+                  <StatCard label="Zarađeno od poziva" value={formatRsd(dashboard?.referral_earned_rsd ?? 0)} icon="💰" accent="green" />
                 </div>
                 <Card className="p-5">
                   <h3 className="font-bold text-ink mb-2">Tvoj referral link</h3>
-                  <p className="text-sm text-ink-2 mb-4">Podeli ovaj link. Kad se prijatelj registruje i izvrši prvi zadatak, oboje dobijate bonus.</p>
+                  <p className="text-sm text-ink-2 mb-4">Podeli ovaj link. Bonus se dodeljuje tek posle prvog odobrenog dokaza ili plaćenog dnevnog izveštaja za testiranje, uz anti-fraud proveru. Sama registracija ne donosi bonus.</p>
                   <div className="flex items-center gap-2 bg-mint-100 border border-frame rounded-lg p-3">
                     <span className="font-mono text-sm text-ink-2 flex-1 truncate">{`${window.location.origin}/r/${user?.referral_code || '—'}`}</span>
                     <Btn size="sm" variant="secondary" onClick={() => { void navigator.clipboard?.writeText(`${window.location.origin}/r/${user?.referral_code || ''}`); showToast('Link je kopiran u clipboard!', 'success') }}>Kopiraj</Btn>
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
-                      <p className="font-mono font-bold text-emerald-700 text-lg">+100 RSD</p>
+                      <p className="font-mono font-bold text-emerald-700 text-lg">+{formatRsd(dashboard?.referral_inviter_bonus_rsd ?? 100)}</p>
                       <p className="text-xs text-emerald-600 mt-0.5 font-medium">Ti dobijaš</p>
                     </div>
                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
-                      <p className="font-mono font-bold text-blue-700 text-lg">+50 RSD</p>
+                      <p className="font-mono font-bold text-blue-700 text-lg">+{formatRsd(dashboard?.referral_joiner_bonus_rsd ?? 50)}</p>
                       <p className="text-xs text-blue-600 mt-0.5 font-medium">Prijatelj dobija</p>
                     </div>
                   </div>
+                  <p className="mt-3 text-xs text-ink-3">Dodatna misija za prvog aktivnog prijatelja prikazuje se odvojeno u delu „Misije i bedževi”.</p>
                 </Card>
-                <EmptyState icon="👥" title="Još nema pozvanih korisnika" description="Podeli referral link i pozovi prve prijatelje." />
+                {(dashboard?.referral_count ?? 0) === 0 && <EmptyState icon="👥" title="Još nema pozvanih korisnika" description="Podeli referral link i pozovi prve prijatelje." />}
               </div>
             )}
 

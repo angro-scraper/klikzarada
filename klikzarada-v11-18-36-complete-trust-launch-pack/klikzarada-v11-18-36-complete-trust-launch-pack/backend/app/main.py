@@ -29,9 +29,9 @@ from .analytics import PUBLIC_PAGEVIEW_PATHS, is_public_pageview_path, start_cle
 from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, TaskSourceV11, SecurityEvent, KycDocument, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
 from .security import create_session_token, hash_password, make_referral_code, read_session_token, verify_password
 from .login_guard import admin_identity_allowed, authenticate_login
-from .ui_api import router as ui_api_router
+from .ui_api import REFERRAL_INVITER_BONUS_RSD, _grant_referral_bonus_if_eligible, router as ui_api_router
 
-app = FastAPI(title="KlikZarada V11.18.43 Notification Center", version="11.18.43")
+app = FastAPI(title="KlikZarada V11.18.44 Referral Payout Audit", version="11.18.44")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 SPA_DIR = Path("app/static/app-ui")
 
@@ -98,7 +98,7 @@ async def serve_react_application(request: Request, call_next):
 app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=6)
 
 PLATFORM_FEE_PERCENT = 20.0
-REFERRAL_BONUS_RSD = 15.0
+REFERRAL_BONUS_RSD = REFERRAL_INVITER_BONUS_RSD
 MIN_WITHDRAWAL_RSD = 1000.0
 ADMIN_FOCUS_ALLOWED_PATHS = (
     "/admin/v11",
@@ -11324,6 +11324,7 @@ def v11831_approve_submission(db: Session, admin, sub, note: str = ""):
     sub.user.balance_rsd = round(v11831_money(getattr(sub.user, "balance_rsd", 0)) + reward, 2)
     sub.user.lifetime_earned_rsd = round(v11831_money(getattr(sub.user, "lifetime_earned_rsd", 0)) + reward, 2)
     add_tx(db, sub.user, reward, "task_reward", f"Zarada za zadatak: {sub.task.title}")
+    _grant_referral_bonus_if_eligible(db, sub.user)
 
     if sub.task and sub.task.advertiser and cost > 0:
         adv = sub.task.advertiser

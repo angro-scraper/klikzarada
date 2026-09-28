@@ -94,6 +94,11 @@ class RegistrationFlowTests(unittest.TestCase):
 
         self.assertEqual(invited.referred_by_id, referrer.id)
         self.assertNotEqual(invited.referral_code, referrer.referral_code)
+        self.assertEqual(user_dashboard(Request({
+            "type": "http", "method": "GET", "scheme": "https", "path": "/api/ui/user/dashboard",
+            "headers": [(b"cookie", f"kz_session={create_session_token(referrer.id)}".encode())],
+            "client": ("198.51.100.20", 443),
+        }), self.db)["referral_earned_rsd"], 0)
 
     def test_closed_beta_can_start_one_tester_without_waiting_for_target(self):
         advertiser = User(full_name="Oglašivač", email="advertiser@example.com", password_hash="hash", role="oglasivac", referral_code="ADV001")
