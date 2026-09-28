@@ -27,11 +27,11 @@ from urllib.request import Request as UrlRequest, urlopen
 from .database import Base, engine, get_db, SessionLocal
 from .analytics import PUBLIC_PAGEVIEW_PATHS, is_public_pageview_path, start_clean_pageview_measurement
 from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, TaskSourceV11, SecurityEvent, KycDocument, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
-from .security import create_session_token, hash_password, make_referral_code, read_session_token, verify_password
+from .security import create_session_token, hash_password, is_legacy_session, make_referral_code, read_session_token, running_in_production, session_matches_user, verify_password
 from .login_guard import admin_identity_allowed, authenticate_login
 from .ui_api import REFERRAL_INVITER_BONUS_RSD, _grant_referral_bonus_if_eligible, router as ui_api_router
 
-app = FastAPI(title="KlikZarada V11.18.44 Referral Payout Audit", version="11.18.44")
+app = FastAPI(title="KlikZarada V11.18.45 Security Hardening", version="11.18.45")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 SPA_DIR = Path("app/static/app-ui")
 
@@ -69,12 +69,23 @@ app.include_router(ui_api_router)
 templates = Jinja2Templates(directory="app/templates")
 UPLOAD_DIR = Path("app/static/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+KYC_UPLOAD_DIR = Path(os.getenv("KYC_UPLOAD_DIR", "app/private_uploads/kyc"))
 
 @app.middleware("http")
 async def serve_react_application(request: Request, call_next):
     """Serve the Figma React application for browser pages, never for APIs/assets."""
     path = request.url.path
-    excluded = ("/api/", "/static/", "/app-ui/", "/docs", "/openapi.json", "/favicon.ico", "/sw.js", "/logout", "/r/")
+    if path.startswith("/static/uploads/") and Path(path).suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp", ".pdf"}:
+        return Response(status_code=404)
+    if request.method not in {"GET", "HEAD", "OPTIONS"}:
+        origin = request.headers.get("origin", "")
+        if origin:
+            parsed_origin = urlparse(origin)
+            if parsed_origin.scheme not in {"http", "https"} or parsed_origin.netloc.lower() != request.headers.get("host", "").lower():
+                return JSONResponse({"detail": "Zahtev nije poslat sa ovog sajta."}, status_code=403)
+        if request.headers.get("sec-fetch-site", "").lower() == "cross-site":
+            return JSONResponse({"detail": "Zahtev nije poslat sa ovog sajta."}, status_code=403)
+    excluded = ("/api/", "/static/", "/app-ui/", "/docs", "/openapi.json", "/favicon.ico", "/sw.js", "/logout", "/r/", "/kyc/files/")
     index = SPA_DIR / "index.html"
     wants_html = "text/html" in request.headers.get("accept", "")
     if request.method == "GET" and wants_html and index.exists() and not path.startswith(excluded):
@@ -1807,7 +1818,7 @@ def seed():
     Base.metadata.create_all(bind=engine)
     db = next(get_db())
     try:
-        production = os.getenv("APP_ENV", "").strip().lower() == "production"
+        production = running_in_production()
         admin_email = os.getenv("ADMIN_BOOTSTRAP_EMAIL", "").strip().lower()
         admin_password = os.getenv("ADMIN_BOOTSTRAP_PASSWORD", "")
         admin_name = os.getenv("ADMIN_BOOTSTRAP_NAME", "Administrator").strip() or "Administrator"
@@ -1961,10 +1972,12 @@ def favicon(): return FileResponse("app/static/favicon.svg", media_type="image/s
 def sw(): return Response("self.addEventListener('install',e=>self.skipWaiting());", media_type="application/javascript")
 
 def current_user(request: Request, db: Session):
-    uid = read_session_token(request.cookies.get("kz_session"))
+    token = request.cookies.get("kz_session")
+    uid = read_session_token(token)
     if not uid: return None
     u = db.query(User).filter(User.id==uid).first()
-    if not u or u.status != "active" or not admin_identity_allowed(u): return None
+    legacy_revoked = bool(is_legacy_session(token) and db.query(SystemSetting.id).filter(SystemSetting.key == f"legacy_session_revoked:{u.id}").first()) if u else False
+    if not u or u.status != "active" or not admin_identity_allowed(u) or not session_matches_user(token, u.password_hash, u.role, legacy_revoked): return None
     return u
 
 def require(request, db):
@@ -2276,13 +2289,27 @@ def upsert_system_setting(db: Session, key: str, value: str, description: str | 
 
 def save_file(file: Optional[UploadFile]):
     if not file or not file.filename: return None
-    ext = Path(file.filename).suffix.lower()[:10]
+    data = file.file.read(5 * 1024 * 1024 + 1)
+    if not data or len(data) > 5 * 1024 * 1024:
+        raise HTTPException(400, "Fajl je prazan ili prevelik.")
+    ext = _verified_image_suffix(data)
     name = f"{uuid.uuid4().hex}{ext}"
     path = UPLOAD_DIR / name
-    data = file.file.read()
-    if len(data) > 5*1024*1024: raise HTTPException(400, "Fajl je prevelik.")
     path.write_bytes(data)
     return f"/static/uploads/{name}"
+
+
+def _verified_image_suffix(data: bytes) -> str:
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            suffix = {"PNG": ".png", "JPEG": ".jpg", "WEBP": ".webp"}.get(image.format or "")
+            width, height = image.size
+            image.verify()
+        if suffix and 1 <= width <= 6000 and 1 <= height <= 6000:
+            return suffix
+    except (OSError, ValueError, Image.DecompressionBombError):
+        pass
+    raise HTTPException(400, "Dozvoljeni su samo ispravni PNG, JPG ili WEBP fajlovi.")
 
 # PUBLIC
 # V11.16.1 disabled old home route
@@ -2320,7 +2347,7 @@ def task_detail(task_id:int, request:Request, msg:str|None=None, db:Session=Depe
 
 @app.get("/registracija", response_class=HTMLResponse)
 def reg_page(request:Request, ref:str|None=None, role:str|None=None, db:Session=Depends(get_db)):
-    return templates.TemplateResponse("register.html", {"request":request,"user":current_user(request,db),"error":None,"ref":ref or "", "role":role or "korisnik"})
+    return templates.TemplateResponse(request, "register.html", {"user":current_user(request,db),"error":None,"ref":ref or "", "role":role or "korisnik"})
 
 
 @app.get("/r/{referral_code}")
@@ -2334,14 +2361,23 @@ def referral_link(referral_code: str, db: Session = Depends(get_db)):
     return RedirectResponse(destination, status_code=302)
 
 @app.post("/registracija")
-def reg(request:Request, full_name:str=Form(...), email:str=Form(...), password:str=Form(...), role:str=Form("korisnik"), referral_code:str=Form(""), city:str=Form(""), phone:str=Form(""), db:Session=Depends(get_db)):
-    email=email.strip().lower(); role=role if role in ["korisnik","oglasivac"] else "korisnik"
-    if db.query(User).filter(User.email==email).first():
-        return templates.TemplateResponse("register.html", {"request":request,"user":None,"error":"Email već postoji.","ref":referral_code,"role":role}, status_code=400)
-    referrer=db.query(User).filter(User.referral_code==referral_code.strip().upper()).first() if referral_code.strip() else None
-    u=User(full_name=full_name.strip(),email=email,password_hash=hash_password(password),role=role,referral_code=make_referral_code(full_name),referred_by_id=referrer.id if referrer else None,city=city.strip() or None,phone=phone.strip() or None,company_name=full_name.strip() if role=="oglasivac" else None,contact_person=full_name.strip() if role=="oglasivac" else None)
-    db.add(u); db.commit(); db.refresh(u)
-    resp=RedirectResponse(role_url(u.role),303); resp.set_cookie("kz_session",create_session_token(u.id),httponly=True,samesite="lax",secure=request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https"); return resp
+def reg(request:Request, full_name:str=Form(...), email:str=Form(...), password:str=Form(...), role:str=Form("korisnik"), referral_code:str=Form(""), city:str=Form(""), phone:str=Form(""), accept_terms:bool=Form(False), website:str=Form(""), db:Session=Depends(get_db)):
+    from .ui_api import Registration, register as register_api
+    try:
+        payload = Registration(full_name=full_name, email=email, password=password, role=role, referral_code=referral_code or None, phone=phone or None, accept_terms=accept_terms, website=website or None)
+        cookie_response = Response()
+        result = register_api(payload, request, cookie_response, db)
+    except (HTTPException, ValueError) as exc:
+        detail = exc.detail if isinstance(exc, HTTPException) else "Proveri podatke u obrascu."
+        status = exc.status_code if isinstance(exc, HTTPException) else 400
+        return templates.TemplateResponse(request, "register.html", {"user":None,"error":detail,"ref":referral_code,"role":role}, status_code=status)
+    user = db.query(User).filter(User.id == result["user"]["id"]).first()
+    if city.strip():
+        user.city = city.strip()[:100]
+        db.commit()
+    resp = RedirectResponse(role_url(user.role), 303)
+    resp.headers.append("set-cookie", cookie_response.headers["set-cookie"])
+    return resp
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request:Request, db:Session=Depends(get_db)):
@@ -2350,10 +2386,10 @@ def login_page(request:Request, db:Session=Depends(get_db)):
 @app.post("/login")
 def login(request:Request, email:str=Form(...), password:str=Form(...), db:Session=Depends(get_db)):
     try:
-        u = authenticate_login(db, email, password)
+        u = authenticate_login(db, email, password, request)
     except HTTPException as exc:
         return templates.TemplateResponse(request, "login.html", {"user":None,"error":exc.detail}, status_code=exc.status_code)
-    resp=RedirectResponse(role_url(u.role),303); resp.set_cookie("kz_session",create_session_token(u.id),httponly=True,samesite="lax",secure=request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https"); return resp
+    resp=RedirectResponse(role_url(u.role),303); resp.set_cookie("kz_session",create_session_token(u.id, u.password_hash),httponly=True,samesite="lax",secure=request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https"); return resp
 
 @app.get("/logout")
 def logout():
@@ -3613,12 +3649,44 @@ def user_kyc_page(request: Request, msg: str | None = None, db: Session = Depend
 def user_kyc_upload(request: Request, doc_type: str = Form("identity"), proof_file: UploadFile | None = File(None), db: Session = Depends(get_db)):
     u = require(request, db)
     check_role(u, ["korisnik", "admin"])
-    file_path = save_upload(proof_file)
-    db.add(KycDocument(user_id=u.id, doc_type=doc_type, file_path=file_path, status="pending"))
+    if running_in_production() and not os.getenv("KYC_UPLOAD_DIR", "").strip():
+        raise HTTPException(503, "Privatna pohrana dokumenata nije podešena.")
+    if doc_type not in {"identity", "payment", "company"}:
+        raise HTTPException(400, "Nepoznat tip dokumenta.")
+    if not proof_file or not proof_file.filename:
+        raise HTTPException(400, "Dokument je obavezan.")
+    data = proof_file.file.read(5 * 1024 * 1024 + 1)
+    if not data or len(data) > 5 * 1024 * 1024:
+        raise HTTPException(400, "Dokument je prazan ili prevelik.")
+    if Path(proof_file.filename).suffix.lower() == ".pdf" and data.startswith(b"%PDF-"):
+        suffix = ".pdf"
+    else:
+        suffix = _verified_image_suffix(data)
+    doc = KycDocument(user_id=u.id, doc_type=doc_type, status="pending")
+    db.add(doc)
+    db.flush()
+    KYC_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    (KYC_UPLOAD_DIR / f"{doc.id}{suffix}").write_bytes(data)
+    doc.file_path = f"/kyc/files/{doc.id}"
     notify(db, None, "admin", "Nova KYC provera", f"Korisnik {u.full_name} je poslao dokument za verifikaciju.")
     create_security_event(db, u, "kyc_upload", "medium", "Korisnik je poslao KYC dokument.", request)
     db.commit()
     return RedirectResponse("/korisnik/verifikacija?msg=saved", 303)
+
+
+@app.get("/kyc/files/{doc_id}")
+def kyc_file(doc_id: int, request: Request, db: Session = Depends(get_db)):
+    u = require(request, db)
+    doc = db.query(KycDocument).filter(KycDocument.id == doc_id).first()
+    if not doc or (doc.user_id != u.id and u.role != "admin"):
+        raise HTTPException(404)
+    for suffix in (".pdf", ".png", ".jpg", ".webp"):
+        path = KYC_UPLOAD_DIR / f"{doc.id}{suffix}"
+        if path.is_file():
+            response = FileResponse(path, filename=f"dokument-{doc.id}{suffix}", media_type="application/octet-stream")
+            response.headers["Cache-Control"] = "no-store"
+            return response
+    raise HTTPException(404)
 
 
 @app.get("/korisnik/export-podataka", response_class=HTMLResponse)
@@ -6327,12 +6395,8 @@ def password_reset_request_page_v11(request: Request, db: Session = Depends(get_
 
 @app.post("/reset-lozinke")
 def password_reset_request_v11(request: Request, email: str = Form(...), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == email.strip().lower()).first()
-    if user:
-        token = v11_token()
-        db.add(PasswordResetTokenV11(user_id=user.id, token=token))
-        db.add(EmailOutboxItem(recipient_email=user.email, subject="Reset lozinke", body=f"Demo reset link: /reset-lozinke/{token}", status="queued"))
-        db.commit()
+    from .ui_api import PasswordResetRequestPayload, request_password_reset
+    request_password_reset(PasswordResetRequestPayload(email=email), request, db)
     return RedirectResponse("/login?msg=reset_sent", 303)
 
 
@@ -6346,13 +6410,11 @@ def password_reset_form_v11(token: str, request: Request, db: Session = Depends(
 
 @app.post("/reset-lozinke/{token}")
 def password_reset_submit_v11(token: str, password: str = Form(...), db: Session = Depends(get_db)):
-    item = db.query(PasswordResetTokenV11).filter(PasswordResetTokenV11.token == token, PasswordResetTokenV11.status == "pending").first()
-    if not item:
+    from .ui_api import PasswordResetConfirmPayload, confirm_password_reset
+    try:
+        confirm_password_reset(PasswordResetConfirmPayload(token=token, new_password=password), db)
+    except (HTTPException, ValueError):
         return RedirectResponse("/login?msg=invalid_token", 303)
-    item.user.password_hash = hash_password(password)
-    item.status = "used"
-    item.used_at = datetime.utcnow()
-    db.commit()
     return RedirectResponse("/login?msg=password_changed", 303)
 
 
@@ -10864,15 +10926,16 @@ async def v11820_save_uploaded_banner(upload_image: UploadFile | None, prefix: s
         return None
     raw_name = upload_image.filename
     suffix = Path(raw_name).suffix.lower()
-    allowed = {".png", ".jpg", ".jpeg", ".webp", ".svg"}
+    allowed = {".png", ".jpg", ".jpeg", ".webp"}
     if suffix not in allowed:
-        raise HTTPException(400, "Dozvoljeni formati slike su PNG, JPG, WEBP ili SVG.")
-    data = await upload_image.read()
+        raise HTTPException(400, "Dozvoljeni formati slike su PNG, JPG ili WEBP.")
+    data = await upload_image.read(4 * 1024 * 1024 + 1)
     if not data:
         return None
     max_bytes = 4 * 1024 * 1024
     if len(data) > max_bytes:
         raise HTTPException(400, "Slika je prevelika. Maksimalno 4 MB.")
+    suffix = _verified_image_suffix(data)
     safe_prefix = "".join(ch.lower() if ch.isalnum() else "-" for ch in (prefix or "banner"))[:40].strip("-") or "banner"
     name = f"{safe_prefix}-{int(time.time()*1000)}-{secrets.token_hex(4)}{suffix}"
     path = BANNER_UPLOAD_DIR / name
@@ -11191,16 +11254,14 @@ async def v11828_save_uploaded_banner_packed(slot, title: str, upload_image: Upl
     suffix = Path(upload_image.filename).suffix.lower()
     allowed = {".png", ".jpg", ".jpeg", ".webp"}
     if suffix not in allowed:
-        # SVG ne cropujemo preko Pillow-a, ali ga čuvamo direktno kao fallback.
-        if "v11820_save_uploaded_banner" in globals():
-            return await v11820_save_uploaded_banner(upload_image, title)
-        raise HTTPException(400, "Dozvoljeni formati slike su PNG, JPG, JPEG, WEBP ili SVG.")
+        raise HTTPException(400, "Dozvoljeni formati slike su PNG, JPG ili WEBP.")
 
-    data = await upload_image.read()
+    data = await upload_image.read(4 * 1024 * 1024 + 1)
     if not data:
         return None
     if len(data) > 4 * 1024 * 1024:
         raise HTTPException(400, "Slika je prevelika. Maksimalno 4 MB.")
+    _verified_image_suffix(data)
 
     target_w, target_h = v11828_slot_size(getattr(slot, "code", None))
     upload_dir = Path("app/static/uploads/banners")

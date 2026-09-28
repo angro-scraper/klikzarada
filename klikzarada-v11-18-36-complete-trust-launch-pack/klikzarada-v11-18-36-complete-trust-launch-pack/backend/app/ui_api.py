@@ -33,7 +33,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from .database import get_db
-from .login_guard import admin_identity_allowed, authenticate_login
+from .login_guard import admin_identity_allowed, authenticate_login, throttle_public_action
 from .analytics import PUBLIC_PAGEVIEW_PATHS, start_clean_pageview_measurement
 from .models import (
     AppTesterDailyCheckin,
@@ -70,7 +70,7 @@ from .models import (
     WalletTransaction,
     Withdrawal,
 )
-from .security import create_session_token, hash_password, make_referral_code, read_session_token, verify_password
+from .security import create_session_token, hash_password, is_legacy_session, make_referral_code, read_session_token, session_matches_user, verify_password
 
 
 router = APIRouter(prefix="/api/ui", tags=["KlikZarada UI"])
@@ -121,6 +121,7 @@ class Registration(Credentials):
     phone: str | None = Field(default=None, max_length=80)
     device_fingerprint: str | None = Field(default=None, max_length=300)
     accept_terms: bool = False
+    website: str | None = Field(default=None, max_length=200)
 
 
 class PublicFunnelEventPayload(BaseModel):
@@ -1025,11 +1026,19 @@ def _ensure_required_settings(db: Session) -> None:
 
 
 def _current_user(request: Request, db: Session) -> User | None:
-    user_id = read_session_token(request.cookies.get("kz_session"))
+    token = request.cookies.get("kz_session")
+    user_id = read_session_token(token)
     if not user_id:
         return None
     user = db.query(User).filter(User.id == user_id).first()
-    return user if user and user.status == "active" and admin_identity_allowed(user) else None
+    legacy_revoked = bool(is_legacy_session(token) and db.query(SystemSetting.id).filter(SystemSetting.key == f"legacy_session_revoked:{user.id}").first()) if user else False
+    return user if user and user.status == "active" and admin_identity_allowed(user) and session_matches_user(token, user.password_hash, user.role, legacy_revoked) else None
+
+
+def _revoke_legacy_sessions(db: Session, user_id: int) -> None:
+    key = f"legacy_session_revoked:{user_id}"
+    if not db.query(SystemSetting.id).filter(SystemSetting.key == key).first():
+        db.add(SystemSetting(key=key, value="1", description="Stare sesije odjavljene nakon promene lozinke."))
 
 
 def _valid_visitor_id(request: Request) -> str:
@@ -1265,14 +1274,17 @@ def track_public_funnel_event(payload: PublicFunnelEventPayload, request: Reques
 
 @router.post("/auth/login")
 def login(payload: Credentials, request: Request, response: Response, db: Session = Depends(get_db)) -> dict:
-    user = authenticate_login(db, payload.email, payload.password)
-    response.set_cookie("kz_session", create_session_token(user.id), httponly=True, samesite="lax", secure=_cookie_is_secure(request))
+    user = authenticate_login(db, payload.email, payload.password, request)
+    response.set_cookie("kz_session", create_session_token(user.id, user.password_hash), httponly=True, samesite="lax", secure=_cookie_is_secure(request))
     return {"user": _user_data(user)}
 
 
 @router.post("/auth/register", status_code=201)
 def register(payload: Registration, request: Request, response: Response, db: Session = Depends(get_db)) -> dict:
     email = payload.email.strip().lower()
+    throttle_public_action(db, request, "registration", email, 5, 60)
+    if payload.website:
+        raise HTTPException(400, "Registracija nije uspela. Proveri podatke.")
     if not payload.accept_terms:
         raise HTTPException(400, "Moraš prihvatiti Uslove korišćenja i Politiku privatnosti.")
     if db.query(User).filter(User.email == email).first():
@@ -1340,7 +1352,7 @@ def register(payload: Registration, request: Request, response: Response, db: Se
     db.commit()
     db.refresh(user)
     _deliver_queued_email(db, verification_email.id)
-    response.set_cookie("kz_session", create_session_token(user.id), httponly=True, samesite="lax", secure=_cookie_is_secure(request))
+    response.set_cookie("kz_session", create_session_token(user.id, user.password_hash), httponly=True, samesite="lax", secure=_cookie_is_secure(request))
     return {"user": _user_data(user)}
 
 
@@ -1379,14 +1391,16 @@ def resend_email_verification(request: Request, db: Session = Depends(get_db)) -
     user = _require_user(request, db)
     if user.email_verified:
         return {"queued": False, "already_verified": True}
+    throttle_public_action(db, request, "email_verification", user.email, 3, 60)
     email = _queue_email_verification(db, user)
     db.commit()
     return {"queued": True, "delivered": _deliver_queued_email(db, email.id), "already_verified": False}
 
 
 @router.post("/auth/password-reset/request")
-def request_password_reset(payload: PasswordResetRequestPayload, db: Session = Depends(get_db)) -> dict:
+def request_password_reset(payload: PasswordResetRequestPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     # Deliberately generic so this endpoint cannot be used to discover accounts.
+    throttle_public_action(db, request, "password_reset", payload.email, 3, 60)
     user = db.query(User).filter(User.email == payload.email.strip().lower(), User.status == "active").first()
     if not user:
         return {"accepted": True}
@@ -1410,6 +1424,7 @@ def confirm_password_reset(payload: PasswordResetConfirmPayload, db: Session = D
     if verify_password(payload.new_password, item.user.password_hash):
         raise HTTPException(400, "Nova lozinka mora biti različita od prethodne.")
     item.user.password_hash = hash_password(payload.new_password)
+    _revoke_legacy_sessions(db, item.user_id)
     item.status = "used"
     item.used_at = datetime.utcnow()
     db.add(Notification(
@@ -1804,6 +1819,7 @@ def change_account_password(payload: PasswordChangePayload, request: Request, db
     if payload.current_password == payload.new_password:
         raise HTTPException(400, "Nova lozinka mora biti različita od trenutne.")
     user.password_hash = hash_password(payload.new_password)
+    _revoke_legacy_sessions(db, user.id)
     db.commit()
     return {"ok": True}
 

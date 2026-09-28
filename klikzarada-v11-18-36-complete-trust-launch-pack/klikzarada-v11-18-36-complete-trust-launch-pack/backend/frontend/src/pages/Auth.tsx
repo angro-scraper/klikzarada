@@ -36,6 +36,7 @@ export default function Auth({
   const [referral, setReferral] = useState('')
   const [referralFromLink, setReferralFromLink] = useState(false)
   const [acceptTerms, setAcceptTerms] = useState(false)
+  const [website, setWebsite] = useState('')
   const [forgotPassword, setForgotPassword] = useState(false)
   const [resetToken, setResetToken] = useState('')
   const [submitted, setSubmitted] = useState(false)
@@ -112,6 +113,7 @@ export default function Auth({
             phone: isAdvertiser ? undefined : phone,
             device_fingerprint: deviceFingerprint(),
             accept_terms: acceptTerms,
+            website,
           })
         : await api.login(email, password)
       if (!isRegister && ((isAdmin && result.user.role !== 'admin') || (isAdvertiser && result.user.role === 'korisnik') || (!isAdmin && !isAdvertiser && result.user.role !== 'korisnik'))) {
@@ -251,6 +253,12 @@ export default function Auth({
                 </>
               )}
 
+              {!resetToken && !forgotPassword && isRegister && (
+                <div className="absolute -left-[10000px]" aria-hidden="true">
+                  <label htmlFor="registration-website">Website</label>
+                  <input id="registration-website" name="website" tabIndex={-1} autoComplete="off" value={website} onChange={event => setWebsite(event.target.value)} />
+                </div>
+              )}
               {!resetToken && !forgotPassword && isRegister && (
                 <label className="flex gap-2 items-start text-xs text-slate-400 cursor-pointer">
                   <input type="checkbox" checked={acceptTerms} onChange={event => setAcceptTerms(event.target.checked)} className="mt-0.5" />

@@ -533,7 +533,7 @@ export const api = {
   login: (email: string, password: string) => request<{ user: SessionUser }>('/auth/login', {
     method: 'POST', body: JSON.stringify({ email, password }),
   }),
-  register: (payload: { full_name: string; email: string; password: string; role: 'korisnik' | 'oglasivac'; advertiser_type?: 'business' | 'private'; referral_code?: string; phone?: string; device_fingerprint?: string; accept_terms: boolean }) => request<{ user: SessionUser }>('/auth/register', {
+  register: (payload: { full_name: string; email: string; password: string; role: 'korisnik' | 'oglasivac'; advertiser_type?: 'business' | 'private'; referral_code?: string; phone?: string; device_fingerprint?: string; accept_terms: boolean; website?: string }) => request<{ user: SessionUser }>('/auth/register', {
     method: 'POST', body: JSON.stringify(payload),
   }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
