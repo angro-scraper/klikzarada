@@ -33,6 +33,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from .database import get_db
+from .login_guard import admin_identity_allowed, authenticate_login
 from .analytics import PUBLIC_PAGEVIEW_PATHS, start_clean_pageview_measurement
 from .models import (
     AppTesterDailyCheckin,
@@ -1005,7 +1006,7 @@ def _current_user(request: Request, db: Session) -> User | None:
     if not user_id:
         return None
     user = db.query(User).filter(User.id == user_id).first()
-    return user if user and user.status == "active" else None
+    return user if user and user.status == "active" and admin_identity_allowed(user) else None
 
 
 def _valid_visitor_id(request: Request) -> str:
@@ -1241,9 +1242,7 @@ def track_public_funnel_event(payload: PublicFunnelEventPayload, request: Reques
 
 @router.post("/auth/login")
 def login(payload: Credentials, request: Request, response: Response, db: Session = Depends(get_db)) -> dict:
-    user = db.query(User).filter(User.email == payload.email.strip().lower()).first()
-    if not user or user.status != "active" or not verify_password(payload.password, user.password_hash):
-        raise HTTPException(401, "Pogrešan email, lozinka ili blokiran nalog.")
+    user = authenticate_login(db, payload.email, payload.password)
     response.set_cookie("kz_session", create_session_token(user.id), httponly=True, samesite="lax", secure=_cookie_is_secure(request))
     return {"user": _user_data(user)}
 

@@ -171,6 +171,16 @@ class UiContractTests(unittest.TestCase):
         self.assertIn('key="register" initialMode="register"', app_source)
         self.assertIn('key="advertiser-register" initialMode="advertiser-register"', app_source)
 
+    def test_private_workspaces_explain_a_wrong_account_without_mixing_roles(self):
+        app_source = (BACKEND_DIR / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
+        auth_source = (BACKEND_DIR / "frontend" / "src" / "pages" / "Auth.tsx").read_text(encoding="utf-8")
+        self.assertIn('section="Admin panel" loginRoute="admin-login"', app_source)
+        self.assertIn('section="Korisnički panel" loginRoute="login"', app_source)
+        self.assertIn('section="Oglašivački panel" loginRoute="advertiser-login"', app_source)
+        self.assertIn("Podaci i zadaci različitih naloga se ne mešaju", app_source)
+        self.assertIn("Nalog ${result.user.email} je", auth_source)
+        self.assertIn("await api.logout().catch(() => undefined)", auth_source)
+
     def test_closed_testers_can_start_individually(self):
         api_source = (BACKEND_DIR / "app" / "ui_api.py").read_text(encoding="utf-8")
         advertiser_source = (BACKEND_DIR / "frontend" / "src" / "pages" / "AdvertiserPanel.tsx").read_text(encoding="utf-8")

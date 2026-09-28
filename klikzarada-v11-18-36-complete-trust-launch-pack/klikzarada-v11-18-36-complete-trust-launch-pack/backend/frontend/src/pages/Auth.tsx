@@ -114,6 +114,11 @@ export default function Auth({
             accept_terms: acceptTerms,
           })
         : await api.login(email, password)
+      if (!isRegister && ((isAdmin && result.user.role !== 'admin') || (isAdvertiser && result.user.role === 'korisnik') || (!isAdmin && !isAdvertiser && result.user.role !== 'korisnik'))) {
+        await api.logout().catch(() => undefined)
+        setError(`Nalog ${result.user.email} je ${result.user.role === 'admin' ? 'administratorski' : result.user.role === 'oglasivac' ? 'oglašivački' : 'korisnički'}. Prijavi se kroz odgovarajuću sekciju; uloge se ne menjaju izborom obrasca.`)
+        return
+      }
       if (result.user.role === 'admin') onNavigate('admin')
       else onNavigate(result.user.role === 'oglasivac' ? 'advertiser' : 'dashboard')
     } catch (caught) {

@@ -28,6 +28,7 @@ from .database import Base, engine, get_db, SessionLocal
 from .analytics import PUBLIC_PAGEVIEW_PATHS, is_public_pageview_path, start_clean_pageview_measurement
 from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, TaskSourceV11, SecurityEvent, KycDocument, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
 from .security import create_session_token, hash_password, make_referral_code, read_session_token, verify_password
+from .login_guard import admin_identity_allowed, authenticate_login
 from .ui_api import router as ui_api_router
 
 app = FastAPI(title="KlikZarada V11.18.36 Complete Trust Launch Pack", version="11.18.36")
@@ -1828,9 +1829,7 @@ def seed():
                     status="active",
                 ))
             elif admin.role != "admin":
-                # A first owner can safely promote their already-registered email.
-                admin.role = "admin"
-                admin.status = "active"
+                print("WARNING: ADMIN_BOOTSTRAP_EMAIL belongs to a non-admin account; refusing automatic promotion.")
         elif production:
             print("WARNING: ADMIN_BOOTSTRAP_EMAIL and ADMIN_BOOTSTRAP_PASSWORD are not set; no admin account was created.")
         demo_accounts = [
@@ -1965,7 +1964,7 @@ def current_user(request: Request, db: Session):
     uid = read_session_token(request.cookies.get("kz_session"))
     if not uid: return None
     u = db.query(User).filter(User.id==uid).first()
-    if not u or u.status != "active": return None
+    if not u or u.status != "active" or not admin_identity_allowed(u): return None
     return u
 
 def require(request, db):
@@ -1974,7 +1973,7 @@ def require(request, db):
     return u
 
 def role_url(role):
-    return "/admin/v11" if role=="admin" else "/oglasivac/panel" if role=="oglasivac" else "/korisnik/panel"
+    return "/admin" if role=="admin" else "/oglasivac/panel" if role=="oglasivac" else "/korisnik/panel"
 
 def check_role(user, roles):
     if user.role not in roles: raise HTTPException(403, "Nemate pristup.")
@@ -2342,18 +2341,19 @@ def reg(request:Request, full_name:str=Form(...), email:str=Form(...), password:
     referrer=db.query(User).filter(User.referral_code==referral_code.strip().upper()).first() if referral_code.strip() else None
     u=User(full_name=full_name.strip(),email=email,password_hash=hash_password(password),role=role,referral_code=make_referral_code(full_name),referred_by_id=referrer.id if referrer else None,city=city.strip() or None,phone=phone.strip() or None,company_name=full_name.strip() if role=="oglasivac" else None,contact_person=full_name.strip() if role=="oglasivac" else None)
     db.add(u); db.commit(); db.refresh(u)
-    resp=RedirectResponse(role_url(u.role),303); resp.set_cookie("kz_session",create_session_token(u.id),httponly=True,samesite="lax"); return resp
+    resp=RedirectResponse(role_url(u.role),303); resp.set_cookie("kz_session",create_session_token(u.id),httponly=True,samesite="lax",secure=request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https"); return resp
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request:Request, db:Session=Depends(get_db)):
-    return templates.TemplateResponse("login.html", {"request":request,"user":current_user(request,db),"error":None})
+    return templates.TemplateResponse(request, "login.html", {"user":current_user(request,db),"error":None})
 
 @app.post("/login")
 def login(request:Request, email:str=Form(...), password:str=Form(...), db:Session=Depends(get_db)):
-    u=db.query(User).filter(User.email==email.strip().lower()).first()
-    if not u or not verify_password(password,u.password_hash) or u.status!="active":
-        return templates.TemplateResponse("login.html", {"request":request,"user":None,"error":"Pogrešan email/lozinka ili blokiran nalog."}, status_code=400)
-    resp=RedirectResponse(role_url(u.role),303); resp.set_cookie("kz_session",create_session_token(u.id),httponly=True,samesite="lax"); return resp
+    try:
+        u = authenticate_login(db, email, password)
+    except HTTPException as exc:
+        return templates.TemplateResponse(request, "login.html", {"user":None,"error":exc.detail}, status_code=exc.status_code)
+    resp=RedirectResponse(role_url(u.role),303); resp.set_cookie("kz_session",create_session_token(u.id),httponly=True,samesite="lax",secure=request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https"); return resp
 
 @app.get("/logout")
 def logout():
@@ -6187,9 +6187,6 @@ def seed_v11_real_launch_pack():
 
         if user and db.query(EmailVerificationTokenV11).filter(EmailVerificationTokenV11.user_id == user.id).count() == 0:
             db.add(EmailVerificationTokenV11(user_id=user.id, token=v11_token()))
-
-        if admin and db.query(AdminTwoFactorCodeV11).filter(AdminTwoFactorCodeV11.admin_id == admin.id).count() == 0:
-            db.add(AdminTwoFactorCodeV11(admin_id=admin.id, code="123456", status="active"))
 
         if user and db.query(PayoutMethodV11).filter(PayoutMethodV11.user_id == user.id).count() == 0:
             db.add(PayoutMethodV11(user_id=user.id, method_type="bank", account_holder=user.full_name, account_data="Demo bankovni račun / ručna obrada", status="pending"))

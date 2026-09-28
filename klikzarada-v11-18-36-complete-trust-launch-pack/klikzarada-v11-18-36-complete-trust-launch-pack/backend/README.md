@@ -173,7 +173,7 @@ Pre prvog stvarnog slanja, PayPal nalog mora imati odobren pristup funkciji Payo
 
 ### Produkcijska baza i admin
 
-Render web servis ne sme koristiti lokalni SQLite fajl u produkciji, jer se njegov sadržaj gubi pri redeploy-u ili restartu. Kreiraj Render PostgreSQL bazu i postavi njen **Internal Database URL** kao `DATABASE_URL` na web servisu. Zatim postavi `ADMIN_BOOTSTRAP_NAME`, `ADMIN_BOOTSTRAP_EMAIL` i jaku `ADMIN_BOOTSTRAP_PASSWORD` u Renderu pre sledećeg deploy-a. Admin se prijavljuje preko `/admin/prijava`; demo nalozi se ne kreiraju u produkciji.
+Render web servis ne sme koristiti lokalni SQLite fajl u produkciji, jer se njegov sadržaj gubi pri redeploy-u ili restartu. Kreiraj Render PostgreSQL bazu i postavi njen **Internal Database URL** kao `DATABASE_URL` na web servisu. Zatim postavi `ADMIN_BOOTSTRAP_NAME`, `ADMIN_BOOTSTRAP_EMAIL` i jaku `ADMIN_BOOTSTRAP_PASSWORD` u Renderu pre sledećeg deploy-a. Postavi i `ADMIN_OWNER_USER_ID` na ID postojećeg vlasničkog admin naloga (ili `ADMIN_OWNER_EMAIL` ako ID nije poznat); ova vrednost ograničava admin prijavu i sesiju na taj nalog, bez vezivanja za IP ili uređaj. Ako nije zadato nijedno od ta dva polja, koristi se `ADMIN_BOOTSTRAP_EMAIL` kao vlasnički email. Admin se prijavljuje preko `/admin/prijava`; demo nalozi se ne kreiraju u produkciji.
 
 ### Anti-fraud tok
 
