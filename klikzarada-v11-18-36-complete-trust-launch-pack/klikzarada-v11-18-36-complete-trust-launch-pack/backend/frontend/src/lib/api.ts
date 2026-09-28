@@ -561,6 +561,7 @@ export const api = {
   notifications: () => request<{ notifications: NotificationItem[] }>('/notifications'),
   taskChat: (taskId: number, participantId: number) => request<TaskChatThread>(`/task-chat/${taskId}/${participantId}`),
   advertiserTaskChats: () => request<{ threads: TaskChatInboxItem[] }>('/advertiser/task-chats'),
+  userTaskChats: () => request<{ threads: TaskChatInboxItem[] }>('/user/task-chats'),
   sendTaskChatMessage: (taskId: number, participantId: number, body: string) => request<{ message: TaskChatMessage }>(`/task-chat/${taskId}/${participantId}`, {
     method: 'POST', body: JSON.stringify({ body }),
   }),

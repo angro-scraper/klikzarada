@@ -2461,6 +2461,29 @@ def advertiser_task_chats(request: Request, db: Session = Depends(get_db)) -> di
     } for message, title, name in rows]}
 
 
+@router.get("/user/task-chats")
+def user_task_chats(request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db, {"korisnik"})
+    latest = db.query(
+        TaskChatMessage.task_id.label("task_id"),
+        TaskChatMessage.participant_id.label("participant_id"),
+        func.max(TaskChatMessage.id).label("message_id"),
+    ).filter(TaskChatMessage.participant_id == user.id).group_by(
+        TaskChatMessage.task_id, TaskChatMessage.participant_id,
+    ).subquery()
+    rows = db.query(TaskChatMessage, Task.title).join(
+        latest, TaskChatMessage.id == latest.c.message_id,
+    ).join(Task, Task.id == TaskChatMessage.task_id).order_by(TaskChatMessage.id.desc()).limit(100).all()
+    return {"threads": [{
+        "task_id": message.task_id,
+        "task_title": title,
+        "participant_id": user.id,
+        "participant_name": user.full_name,
+        "last_message": message.body[:180],
+        "last_message_at": message.created_at.replace(tzinfo=timezone.utc).isoformat() if message.created_at else None,
+    } for message, title in rows]}
+
+
 @router.get("/task-chat/{task_id}/{participant_id}")
 def get_task_chat(task_id: int, participant_id: int, request: Request, db: Session = Depends(get_db)) -> dict:
     task, actor, participant = _task_chat_access(task_id, participant_id, request, db)

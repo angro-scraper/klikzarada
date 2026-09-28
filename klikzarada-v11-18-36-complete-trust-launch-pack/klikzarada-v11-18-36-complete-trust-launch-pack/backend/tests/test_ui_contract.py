@@ -28,7 +28,7 @@ class UiContractTests(unittest.TestCase):
             client = TestClient(app)
             for path in (
                 "/", "/registracija", "/prijava", "/korisnik/panel",
-                "/korisnik/zadaci", "/korisnik/moji-zadaci", "/korisnik/zadaci/123",
+                "/korisnik/zadaci", "/korisnik/moji-zadaci", "/korisnik/poruke", "/korisnik/zadaci/123",
                 "/korisnik/profil", "/oglasivac/panel", "/admin",
             ):
                 with self.subTest(path=path):
@@ -57,6 +57,15 @@ class UiContractTests(unittest.TestCase):
             "/r/{referral_code}",
         }
         self.assertTrue(expected.issubset(paths))
+
+    def test_task_messages_have_separate_sidebar_destinations(self):
+        user = (BACKEND_DIR / "frontend" / "src" / "pages" / "UserDashboard.tsx").read_text(encoding="utf-8")
+        advertiser = (BACKEND_DIR / "frontend" / "src" / "pages" / "AdvertiserPanel.tsx").read_text(encoding="utf-8")
+        routes = (BACKEND_DIR / "frontend" / "src" / "lib" / "userDashboardRoutes.ts").read_text(encoding="utf-8")
+        self.assertIn("{ id: 'poruke', label: 'Poruke'", user)
+        self.assertIn("{ id: 'poruke', label: 'Poruke'", advertiser)
+        self.assertIn("poruke: '/korisnik/poruke'", routes)
+        self.assertIn("/api/ui/user/task-chats", app.openapi()["paths"])
 
     def test_referral_link_reaches_react_registration_with_a_real_code(self):
         main_source = (BACKEND_DIR / "app" / "main.py").read_text(encoding="utf-8")

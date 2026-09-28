@@ -116,6 +116,7 @@ const navGroups = [
     { id: 'pregled', label: 'Pregled', icon: '📊' },
     { id: 'nova', label: 'Nova kampanja', icon: '➕' },
     { id: 'kampanje', label: 'Moje kampanje', icon: '🎯' },
+    { id: 'poruke', label: 'Poruke', icon: '💬' },
     { id: 'dokazi', label: 'Dokazi korisnika', icon: '📎' },
   ]},
   { group: 'Analitika', items: [
@@ -136,11 +137,12 @@ const navGroups = [
   ]},
 ]
 
-type Page = 'pregled'|'nova'|'kampanje'|'dokazi'|'analitika'|'budzet'|'fakture'|'izvestaji'|'banneri'|'premium'|'profil'|'podrska'
+type Page = 'pregled'|'nova'|'kampanje'|'poruke'|'dokazi'|'analitika'|'budzet'|'fakture'|'izvestaji'|'banneri'|'premium'|'profil'|'podrska'
 
 const BACK: Partial<Record<Page, { label: string; to: Page }>> = {
   nova:      { label: 'Nazad na pregled', to: 'pregled' },
   kampanje:  { label: 'Nazad na pregled', to: 'pregled' },
+  poruke:    { label: 'Nazad na pregled', to: 'pregled' },
   dokazi:    { label: 'Nazad na pregled', to: 'pregled' },
   analitika: { label: 'Nazad na pregled', to: 'pregled' },
   budzet:    { label: 'Nazad na pregled', to: 'pregled' },
@@ -155,6 +157,7 @@ const BACK: Partial<Record<Page, { label: string; to: Page }>> = {
 const CRUMBS: Partial<Record<Page, { label: string }[]>> = {
   nova:      [{ label: 'Oglašivač' }, { label: 'Nova kampanja' }],
   kampanje:  [{ label: 'Oglašivač' }, { label: 'Kampanje' }],
+  poruke:    [{ label: 'Oglašivač' }, { label: 'Poruke' }],
   dokazi:    [{ label: 'Oglašivač' }, { label: 'Dokazi korisnika' }],
   analitika: [{ label: 'Oglašivač' }, { label: 'Analitika' }],
   budzet:    [{ label: 'Oglašivač' }, { label: 'Budžet i uplate' }],
@@ -542,15 +545,16 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   useEffect(() => { void refreshDashboard() }, [])
 
   useEffect(() => {
-    if (page !== 'dokazi') return
     const refreshChats = () => {
+      if (document.visibilityState !== 'visible') return
       void api.advertiserTaskChats().then(data => setChatThreads(data.threads)).catch(() => {})
       void api.notifications().then(data => setNotifications(data.notifications)).catch(() => {})
     }
     refreshChats()
-    const timer = window.setInterval(refreshChats, 20000)
-    return () => window.clearInterval(timer)
-  }, [page])
+    const timer = window.setInterval(refreshChats, 15000)
+    window.addEventListener('focus', refreshChats)
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refreshChats) }
+  }, [])
 
   useEffect(() => {
     const payment = new URLSearchParams(window.location.search).get('payment')
@@ -706,7 +710,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const proofBadge = pendingProofCount + pendingTesterEnrollmentCount
   const navigationGroups = navGroups.map(group => ({
     ...group,
-    items: group.items.map(item => item.id === 'dokazi' ? { ...item, badge: proofBadge || undefined } : item),
+    items: group.items.map(item => item.id === 'dokazi' ? { ...item, badge: proofBadge || undefined } : item.id === 'poruke' ? { ...item, badge: unreadChatNotifications.length || undefined } : item),
   }))
 
   function goTo(p: Page) { setPage(p) }
@@ -900,6 +904,25 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     ])}
                   />
                 </Card>
+              </div>
+            )}
+
+            {page === 'poruke' && (
+              <div className="space-y-5">
+                <SectionHeader title="Poruke uz zadatke" description="Razgovori sa korisnicima o pristupu i toku njihovih zadataka." />
+                {unreadChatNotifications.length > 0 && <Card className="border-blue-200 bg-blue-50 p-5">
+                  <h3 className="font-bold text-blue-950">Nove poruke ({unreadChatNotifications.length})</h3>
+                  <div className="mt-3 space-y-2">{unreadChatNotifications.map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-white p-3">
+                    <p className="text-sm text-ink">{item.body}</p>
+                    <Btn size="sm" variant="secondary" onClick={() => void (async () => { try { await api.markNotificationRead(item.id); setNotifications(current => current.map(note => note.id === item.id ? { ...note, status: 'read' } : note)) } catch { showToast('Poruka nije označena kao pročitana.', 'error') } })()}>Pročitano</Btn>
+                  </div>)}</div>
+                </Card>}
+                {chatThreads.length === 0 ? <EmptyState icon="💬" title="Još nema razgovora" description="Kada korisnik pošalje poruku uz zadatak, razgovor će se pojaviti ovde." /> : <Card className="p-5">
+                  <div className="space-y-3">{chatThreads.map(thread => <div key={`${thread.task_id}-${thread.participant_id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-frame bg-mint-50 p-4">
+                    <div className="min-w-0"><p className="font-semibold text-ink">{thread.participant_name}</p><p className="text-sm text-ink-2">{thread.task_title}</p><p className="mt-1 line-clamp-2 break-words text-sm text-ink-3">{thread.last_message}</p></div>
+                    <Btn size="sm" variant="secondary" onClick={() => setChatTarget({ taskId: thread.task_id, participantId: thread.participant_id })}>Otvori razgovor</Btn>
+                  </div>)}</div>
+                </Card>}
               </div>
             )}
 

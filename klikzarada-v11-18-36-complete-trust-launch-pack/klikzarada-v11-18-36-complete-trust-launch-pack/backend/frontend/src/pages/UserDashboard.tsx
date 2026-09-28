@@ -5,7 +5,7 @@ import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal, InfoModal } from '../components/Modal'
 import { TaskChat } from '../components/TaskChat'
 import { useToast } from '../components/Toast'
-import { api, deviceFingerprint, type NotificationItem, type SessionUser, type SupportTicket, type Task, type TaskVerification, type UserDashboardData } from '../lib/api'
+import { api, deviceFingerprint, type NotificationItem, type SessionUser, type SupportTicket, type Task, type TaskChatInboxItem, type TaskVerification, type UserDashboardData } from '../lib/api'
 import { type UserDashboardPage, userDashboardPageFromPath, userDashboardPath } from '../lib/userDashboardRoutes'
 
 const navGroups = [
@@ -13,6 +13,7 @@ const navGroups = [
     { id: 'pregled', label: 'Pregled', icon: '📊' },
     { id: 'zadaci', label: 'Dostupni zadaci', icon: '📋' },
     { id: 'moji-zadaci', label: 'Započeti zadaci', icon: '🧪' },
+    { id: 'poruke', label: 'Poruke', icon: '💬' },
     { id: 'preporuke', label: 'Preporuke', icon: '✨' },
     { id: 'dokazi', label: 'Moji dokazi', icon: '✅' },
     { id: 'obavestenja', label: 'Obaveštenja', icon: '🔔' },
@@ -38,6 +39,7 @@ type Page = UserDashboardPage
 const BACK: Partial<Record<Page, { label: string; to: Page }>> = {
   zadaci:          { label: 'Nazad na pregled', to: 'pregled' },
   'moji-zadaci':   { label: 'Nazad na pregled', to: 'pregled' },
+  poruke:          { label: 'Nazad na pregled', to: 'pregled' },
   preporuke:       { label: 'Nazad na pregled', to: 'pregled' },
   dokazi:          { label: 'Nazad na pregled', to: 'pregled' },
   obavestenja:     { label: 'Nazad na pregled', to: 'pregled' },
@@ -55,6 +57,7 @@ const BACK: Partial<Record<Page, { label: string; to: Page }>> = {
 const BREADCRUMBS: Partial<Record<Page, { label: string }[]>> = {
   zadaci:          [{ label: 'Korisnik' }, { label: 'Dostupni zadaci' }],
   'moji-zadaci':   [{ label: 'Korisnik' }, { label: 'Započeti zadaci' }],
+  poruke:          [{ label: 'Korisnik' }, { label: 'Poruke' }],
   preporuke:       [{ label: 'Korisnik' }, { label: 'Preporuke' }],
   dokazi:          [{ label: 'Korisnik' }, { label: 'Moji dokazi' }],
   obavestenja:     [{ label: 'Korisnik' }, { label: 'Obaveštenja' }],
@@ -157,6 +160,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const [saving, setSaving] = useState(false)
   const [tickets, setTickets] = useState<SupportTicket[]>([])
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [chatThreads, setChatThreads] = useState<TaskChatInboxItem[]>([])
   const [onboardingAge, setOnboardingAge] = useState('')
   const [onboardingInterests, setOnboardingInterests] = useState<string[]>([])
   const [ticketSubject, setTicketSubject] = useState('')
@@ -167,11 +171,12 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
 
   const refreshDashboard = async () => {
     try {
-      const [data, ticketData, notificationData] = await Promise.all([api.userDashboard(), api.tickets(), api.notifications()])
+      const [data, ticketData, notificationData, chatData] = await Promise.all([api.userDashboard(), api.tickets(), api.notifications(), api.userTaskChats().catch(() => ({ threads: [] }))])
       const safeDashboard = normalizeDashboard(data)
       setDashboard(safeDashboard)
       setTickets(Array.isArray(ticketData?.tickets) ? ticketData.tickets : [])
       setNotifications(Array.isArray(notificationData?.notifications) ? notificationData.notifications : [])
+      setChatThreads(Array.isArray(chatData?.threads) ? chatData.threads : [])
       setPaymentMethod('PayPal')
       setPaymentDetails(safeDashboard.user.payment_details || '')
       setProfileName(safeDashboard.user.full_name)
@@ -187,6 +192,17 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   }
 
   useEffect(() => { void refreshDashboard() }, [])
+
+  useEffect(() => {
+    const refreshMessages = () => {
+      if (document.visibilityState !== 'visible') return
+      void api.notifications().then(data => setNotifications(data.notifications)).catch(() => {})
+      void api.userTaskChats().then(data => setChatThreads(data.threads)).catch(() => {})
+    }
+    const timer = window.setInterval(refreshMessages, 15000)
+    window.addEventListener('focus', refreshMessages)
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refreshMessages) }
+  }, [])
 
   useEffect(() => {
     setPage(initialPage)
@@ -255,7 +271,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const visibleProofs = (dashboard?.submissions ?? []).filter(proof => proofTab === 'svi' || proof.status === proofTab)
   const navigationGroups = navGroups.map(group => ({
     ...group,
-    items: group.items.map(item => item.id === 'dokazi' ? { ...item, badge: proofCount || undefined } : item),
+    items: group.items.map(item => item.id === 'dokazi' ? { ...item, badge: proofCount || undefined } : item.id === 'poruke' ? { ...item, badge: notifications.filter(note => note.status === 'unread' && note.title === 'Nova poruka uz zadatak').length || undefined } : item),
   }))
   const balance = user?.balance_rsd ?? 0
   const minWithdrawal = dashboard?.min_withdrawal_rsd ?? 1000
@@ -647,6 +663,25 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                   </div>
                   <Btn onClick={() => goTo('referral')} variant="premium" size="sm">Podeli link</Btn>
                 </div>
+              </div>
+            )}
+
+            {page === 'poruke' && (
+              <div className="space-y-5">
+                <SectionHeader title="Poruke uz zadatke" description="Razgovori sa oglašivačima o zadacima koje si započeo/la." />
+                {notifications.filter(item => item.status === 'unread' && item.title === 'Nova poruka uz zadatak').length > 0 && <Card className="border-blue-200 bg-blue-50 p-5">
+                  <h3 className="font-bold text-blue-950">Nove poruke</h3>
+                  <div className="mt-3 space-y-2">{notifications.filter(item => item.status === 'unread' && item.title === 'Nova poruka uz zadatak').map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-white p-3">
+                    <p className="text-sm text-ink">{item.body}</p>
+                    <Btn size="sm" variant="secondary" onClick={() => void (async () => { try { await api.markNotificationRead(item.id); setNotifications(current => current.map(note => note.id === item.id ? { ...note, status: 'read' } : note)) } catch { showToast('Poruka nije označena kao pročitana.', 'error') } })()}>Pročitano</Btn>
+                  </div>)}</div>
+                </Card>}
+                {chatThreads.length === 0 ? <EmptyState icon="💬" title="Još nema razgovora" description="Razgovor će se pojaviti kada ti ili oglašivač pošaljete poruku uz zadatak." /> : <Card className="p-5"><div className="space-y-3">
+                  {chatThreads.map(thread => <div key={`${thread.task_id}-${thread.participant_id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-frame bg-mint-50 p-4">
+                    <div className="min-w-0"><p className="font-semibold text-ink">{thread.task_title}</p><p className="mt-1 line-clamp-2 break-words text-sm text-ink-2">{thread.last_message}</p></div>
+                    <Btn size="sm" variant="secondary" onClick={() => setChatTaskId(thread.task_id)}>Otvori razgovor</Btn>
+                  </div>)}
+                </div></Card>}
               </div>
             )}
 

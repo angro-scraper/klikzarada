@@ -31,7 +31,7 @@ from .security import create_session_token, hash_password, make_referral_code, r
 from .login_guard import admin_identity_allowed, authenticate_login
 from .ui_api import router as ui_api_router
 
-app = FastAPI(title="KlikZarada V11.18.41 Task Chat Surface", version="11.18.41")
+app = FastAPI(title="KlikZarada V11.18.42 Task Message Inbox", version="11.18.42")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 SPA_DIR = Path("app/static/app-ui")
 

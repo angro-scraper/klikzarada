@@ -21,7 +21,7 @@ from app.database import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import AppTesterEnrollment, Notification, Task, TaskChatMessage, User  # noqa: E402
 from app.security import create_session_token  # noqa: E402
-from app.ui_api import TaskChatPayload, advertiser_task_chats, get_task_chat, send_task_chat_message  # noqa: E402
+from app.ui_api import TaskChatPayload, advertiser_task_chats, get_task_chat, send_task_chat_message, user_task_chats  # noqa: E402
 
 
 class TaskChatTests(unittest.TestCase):
@@ -78,8 +78,14 @@ class TaskChatTests(unittest.TestCase):
         self.assertEqual(len(inbox), 1)
         self.assertEqual(inbox[0]["participant_id"], self.tester.id)
         self.assertEqual(advertiser_task_chats(self.request(self.other_owner), self.db)["threads"], [])
+        user_inbox = user_task_chats(self.request(self.tester), self.db)["threads"]
+        self.assertEqual(len(user_inbox), 1)
+        self.assertEqual(user_inbox[0]["task_id"], self.task.id)
+        self.assertEqual(user_task_chats(self.request(self.stranger), self.db)["threads"], [])
         with self.assertRaises(HTTPException):
             advertiser_task_chats(self.request(self.tester), self.db)
+        with self.assertRaises(HTTPException):
+            user_task_chats(self.request(self.owner), self.db)
 
     def test_unrelated_accounts_and_nonparticipants_cannot_read_or_send(self):
         for account in (self.stranger, self.other_owner):

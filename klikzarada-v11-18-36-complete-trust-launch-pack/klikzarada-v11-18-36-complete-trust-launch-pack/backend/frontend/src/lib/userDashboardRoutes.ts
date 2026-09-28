@@ -1,5 +1,5 @@
 export type UserDashboardPage =
-  | 'pregled' | 'zadaci' | 'moji-zadaci' | 'preporuke' | 'dokazi' | 'obavestenja'
+  | 'pregled' | 'zadaci' | 'moji-zadaci' | 'preporuke' | 'dokazi' | 'poruke' | 'obavestenja'
   | 'novcanik' | 'isplate' | 'podaci-isplata' | 'nagrade' | 'misije'
   | 'referral' | 'profil' | 'podrska' | 'zadatak-detalj'
 
@@ -9,6 +9,7 @@ const USER_PAGE_PATHS: Partial<Record<UserDashboardPage, string>> = {
   'moji-zadaci': '/korisnik/moji-zadaci',
   preporuke: '/korisnik/preporuke',
   dokazi: '/korisnik/dokazi',
+  poruke: '/korisnik/poruke',
   obavestenja: '/korisnik/notifikacije',
   novcanik: '/korisnik/wallet',
   isplate: '/korisnik/isplate',
