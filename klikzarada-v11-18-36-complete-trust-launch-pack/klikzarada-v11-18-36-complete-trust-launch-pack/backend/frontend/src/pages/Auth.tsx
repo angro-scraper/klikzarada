@@ -46,6 +46,11 @@ export default function Auth({
   const isRegister = mode === 'register' || mode === 'advertiser-register'
   const isAdmin = mode === 'admin-login'
 
+  // Route changes reuse this component, so its selected role must follow the URL.
+  useEffect(() => {
+    setMode(initialMode)
+  }, [initialMode])
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const verificationToken = params.get('verify')
@@ -171,7 +176,7 @@ export default function Auth({
             </div>
           ) : <div className="flex rounded-lg border border-border overflow-hidden mb-6">
             <button
-              onClick={() => setMode(isRegister ? 'register' : 'login')}
+              onClick={() => onNavigate(isRegister ? 'register' : 'login')}
               className={`flex-1 py-2 text-sm font-medium transition-colors cursor-pointer ${
                 !isAdvertiser ? 'bg-blue-500 text-white' : 'bg-navy-800 text-slate-400 hover:text-slate-200'
               }`}
@@ -179,7 +184,7 @@ export default function Auth({
               Korisnik
             </button>
             <button
-              onClick={() => setMode(isRegister ? 'advertiser-register' : 'advertiser-login')}
+              onClick={() => onNavigate(isRegister ? 'advertiser-register' : 'advertiser-login')}
               className={`flex-1 py-2 text-sm font-medium transition-colors cursor-pointer ${
                 isAdvertiser ? 'bg-blue-500 text-white' : 'bg-navy-800 text-slate-400 hover:text-slate-200'
               }`}
@@ -268,7 +273,7 @@ export default function Auth({
                 <p className="text-sm text-slate-400">
                   Već imaš nalog?{' '}
                   <button
-                    onClick={() => setMode(isAdvertiser ? 'advertiser-login' : 'login')}
+                    onClick={() => onNavigate(isAdvertiser ? 'advertiser-login' : 'login')}
                     className="text-blue-400 hover:text-blue-300 cursor-pointer"
                   >
                     Prijavi se
@@ -278,7 +283,7 @@ export default function Auth({
                 <p className="text-sm text-slate-400">
                   Nemaš nalog?{' '}
                   <button
-                    onClick={() => setMode(isAdvertiser ? 'advertiser-register' : 'register')}
+                    onClick={() => onNavigate(isAdvertiser ? 'advertiser-register' : 'register')}
                     className="text-blue-400 hover:text-blue-300 cursor-pointer"
                   >
                     Registruj se

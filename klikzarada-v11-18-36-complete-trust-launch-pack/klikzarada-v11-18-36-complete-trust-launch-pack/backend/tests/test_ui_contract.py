@@ -140,6 +140,16 @@ class UiContractTests(unittest.TestCase):
         self.assertIn('if phone and len(phone.replace("+", "")) < 7:', api_source)
         self.assertIn("disabled={submitted}", source)
 
+    def test_registration_role_stays_aligned_with_the_selected_route(self):
+        """A user route must never retain the advertiser form state after navigation."""
+        auth_source = (BACKEND_DIR / "frontend" / "src" / "pages" / "Auth.tsx").read_text(encoding="utf-8")
+        app_source = (BACKEND_DIR / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
+        self.assertIn("setMode(initialMode)", auth_source)
+        self.assertIn("onNavigate(isRegister ? 'register' : 'login')", auth_source)
+        self.assertIn("onNavigate(isRegister ? 'advertiser-register' : 'advertiser-login')", auth_source)
+        self.assertIn('key="register" initialMode="register"', app_source)
+        self.assertIn('key="advertiser-register" initialMode="advertiser-register"', app_source)
+
     def test_closed_testers_can_start_individually(self):
         api_source = (BACKEND_DIR / "app" / "ui_api.py").read_text(encoding="utf-8")
         advertiser_source = (BACKEND_DIR / "frontend" / "src" / "pages" / "AdvertiserPanel.tsx").read_text(encoding="utf-8")

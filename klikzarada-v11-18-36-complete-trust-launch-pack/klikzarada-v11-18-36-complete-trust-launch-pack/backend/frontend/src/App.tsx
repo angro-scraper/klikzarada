@@ -94,11 +94,11 @@ export default function App() {
   if (route === 'home') return <Landing onNavigate={go} />
 
   if (route === 'tasks-public') return <TasksPublic onNavigate={go} />
-  if (route === 'login') return <Auth initialMode="login" onNavigate={go} />
-  if (route === 'register') return <Auth initialMode="register" onNavigate={go} />
-  if (route === 'advertiser-login') return <Auth initialMode="advertiser-login" onNavigate={go} />
-  if (route === 'advertiser-register') return <Auth initialMode="advertiser-register" onNavigate={go} />
-  if (route === 'admin-login') return <Auth initialMode="admin-login" onNavigate={go} />
+  if (route === 'login') return <Auth key="login" initialMode="login" onNavigate={go} />
+  if (route === 'register') return <Auth key="register" initialMode="register" onNavigate={go} />
+  if (route === 'advertiser-login') return <Auth key="advertiser-login" initialMode="advertiser-login" onNavigate={go} />
+  if (route === 'advertiser-register') return <Auth key="advertiser-register" initialMode="advertiser-register" onNavigate={go} />
+  if (route === 'admin-login') return <Auth key="admin-login" initialMode="admin-login" onNavigate={go} />
   if (route === 'dashboard') return <UserDashboard initialPage={userDashboardPageFromPath(pathname)} onNavigate={go} />
   if (route === 'advertiser') return <AdvertiserRoute onNavigate={go} />
   if (route === 'admin') return <AdminRoute onNavigate={go} />
