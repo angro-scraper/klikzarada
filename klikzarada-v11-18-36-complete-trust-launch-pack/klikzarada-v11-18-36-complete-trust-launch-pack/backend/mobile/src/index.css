@@ -212,3 +212,42 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 .live-auth-top{gap:8px}.live-auth-top .logo{font-size:17px;white-space:nowrap}.live-auth-top .logo-mark{width:31px;height:31px;font-size:19px;border-radius:10px}.live-auth-top>span{max-width:95px;text-align:right;line-height:1.3;font-size:8px;flex:none}.live-auth h1{margin-top:30px}
 .live-legal{font-size:11px;color:var(--muted);line-height:1.45}.live-legal a{color:var(--blue);font-weight:700}
 .live-admin-only{height:100%;padding:38px 22px;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;gap:17px;background:var(--mint)}.live-admin-only .logo{color:var(--navy)}.live-admin-only>svg{color:var(--blue);margin-top:35px}.live-admin-only h1{font-size:24px;letter-spacing:-1px;margin:0}.live-admin-only p{font-size:13px;line-height:1.5;color:var(--muted)}.live-admin-only a{color:var(--blue);font-size:13px;font-weight:700}.live-admin-only .btn{margin-top:25px}
+
+/* Live data is placed in the Figma screen structure; these rules only bridge real-data states. */
+.live-welcome{height:100%;overflow-y:auto;scrollbar-width:none}
+.live-auth-page{height:100%}
+.live-figma-form{display:flex;flex-direction:column;gap:13px}
+.live-figma-form>label:not(.live-check){display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink)}
+.live-figma-form>label:not(.live-check) input{border:1px solid var(--line);border-radius:12px;background:#fff;min-height:52px;padding:0 13px;font-size:13px;color:var(--ink)}
+.live-figma-form .live-check{display:flex;gap:9px;align-items:flex-start;font-size:11px;color:var(--muted);line-height:1.4}
+.live-figma-form .live-check input{width:18px;height:18px;flex:none;margin:0}
+.live-figma-form .btn{width:100%;display:flex;justify-content:center;align-items:center;gap:9px}
+.live-auth-page .live-auth-switch{margin:10px auto 0;display:block}
+.live-auth-page .page-content{padding-top:26px}
+.live-full-link{display:flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;margin-bottom:20px}
+.live-title-action{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.live-title-action .page-title{min-width:0}
+.live-title-action .mini-add{text-decoration:none;flex:none}
+.notice-row{width:100%;border:0;text-align:left;cursor:pointer}
+.tester-card,.proof-row{background:#fff;border:1px solid var(--line);border-radius:15px;overflow:hidden}
+.tester-card .email-pair b{overflow-wrap:anywhere;white-space:normal}
+.proof-actions{grid-template-columns:repeat(auto-fit,minmax(88px,1fr))}
+.proof-actions button:disabled{opacity:.45;cursor:not-allowed}
+.review-card{padding:14px;margin-bottom:10px}
+.review-card .task-main{align-items:flex-start}
+.review-card .badge,.active-card .badge{flex:none}
+.review-card .grow,.active-card .grow{min-width:0}
+.review-card .grow p{overflow-wrap:anywhere}
+@media(max-width:760px){.live-welcome{padding-top:calc(22px + env(safe-area-inset-top))}}
+.live-app .header-title{max-width:calc(100% - 135px);overflow:hidden;text-overflow:ellipsis}
+.live-detail-action{margin:18px 0}
+.live-detail-action>.btn{margin-top:11px}
+.detail .requirement p{white-space:pre-line;overflow-wrap:anywhere}
+.detail .task-hero h1{overflow-wrap:anywhere}
+.live-logout{margin:22px 0 0}
+.live-app .chat-page>.live-error,.live-app .chat-page>.live-success{flex:none;margin:8px 12px}
+.live-app .chat-page .messages{min-height:0;overscroll-behavior:contain}
+.live-app .chat-page .composer{flex:none;margin:0}
+.live-app .chat-page .bubble{white-space:pre-wrap;overflow-wrap:anywhere}
+.live-app .profile-card>div:last-child{min-width:0;overflow-wrap:anywhere}
+.live-app .profile-card strong{font-size:15px}

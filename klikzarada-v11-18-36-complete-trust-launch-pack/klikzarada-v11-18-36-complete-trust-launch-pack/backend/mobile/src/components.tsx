@@ -17,6 +17,12 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
     proof: <><path d="M7 3h10v4h3v14H4V7h3z"/><path d="M8 3v5h8V3M8 13h8M8 17h5"/></>,
     lock: <><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></>,
     chart: <><path d="M4 20V10M10 20V4M16 20v-7M22 20V7"/></>,
+    arrow: <><path d="M4 12h16M14 6l6 6-6 6"/></>,
+    search: <><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></>,
+    check: <path d="m4 12 5 5L20 6"/>,
+    plus: <path d="M12 4v16M4 12h16"/>,
+    mail: <><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 7 9-7"/></>,
+    warning: <><path d="m12 3 10 18H2Z"/><path d="M12 9v5M12 18h.01"/></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }

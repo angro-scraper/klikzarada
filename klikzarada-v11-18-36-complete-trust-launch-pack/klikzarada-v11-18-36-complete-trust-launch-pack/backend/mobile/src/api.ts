@@ -59,7 +59,7 @@ const json = (method: string, value: unknown): RequestInit => ({ method, body: J
 export const api = {
   session: () => request<{ authenticated: boolean; user: Account | null }>('/session'),
   login: (email: string, password: string) => request<{ user: Account }>('/auth/login', json('POST', { email, password })),
-  register: (value: { full_name: string; email: string; password: string; role: 'korisnik' | 'oglasivac'; accept_terms: boolean; referral_code?: string }) => request<{ user: Account }>('/auth/register', json('POST', value)),
+  register: (value: { full_name: string; email: string; password: string; role: 'korisnik' | 'oglasivac'; accept_terms: boolean; referral_code?: string; phone?: string }) => request<{ user: Account }>('/auth/register', json('POST', value)),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   resendVerification: () => request<{ queued: boolean; already_verified: boolean }>('/auth/email-verification/resend', { method: 'POST' }),
   publicTasks: () => request<{ tasks: Task[] }>('/public/tasks'),
