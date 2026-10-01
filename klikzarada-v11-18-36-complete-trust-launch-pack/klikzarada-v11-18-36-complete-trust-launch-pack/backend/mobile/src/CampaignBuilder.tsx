@@ -36,7 +36,7 @@ const templates: Template[] = [
 
 const money = (value: number) => `${value.toLocaleString('sr-RS', { maximumFractionDigits: 2 })} RSD`;
 
-export default function CampaignBuilder({ feePercent, balance, onCreated }: { feePercent: number; balance: number; onCreated: () => void }) {
+export default function CampaignBuilder({ feePercent, balance, onCreated }: { feePercent: number; balance: number; onCreated: (result: Awaited<ReturnType<typeof api.createCampaign>>) => void }) {
   const [step, setStep] = useState(1);
   const [templateId, setTemplateId] = useState('');
   const [subject, setSubject] = useState('');
@@ -68,7 +68,7 @@ export default function CampaignBuilder({ feePercent, balance, onCreated }: { fe
   const selectTemplate = (id: string) => {
     const next = templates.find(item => item.id === id);
     setTemplateId(id); setSubject(''); setTitle(''); setDetails({}); setDescription(next?.description || '');
-    setRewardInput(''); setError(''); setConfirmed(false);
+    setTargetUrl(''); setRewardInput(''); setSlotsInput(''); setError(''); setConfirmed(false);
   };
   const nextStep = () => {
     setError('');
@@ -106,7 +106,7 @@ export default function CampaignBuilder({ feePercent, balance, onCreated }: { fe
       tester_required_count: template.beta ? slots : 12, tester_duration_days: betaDays,
       tester_daily_minutes: betaMinutes, tester_daily_reward_rsd: template.beta ? Number(rewardInput) : 0,
     };
-    try { await api.createCampaign(payload); onCreated(); }
+    try { const result = await api.createCampaign(payload); onCreated(result); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Kampanja nije poslata.'); setSubmitting(false); }
   };
 
@@ -132,9 +132,10 @@ export default function CampaignBuilder({ feePercent, balance, onCreated }: { fe
       <div className="campaign-builder-grid"><label>Država ili grad<input value={city} onChange={event => setCity(event.target.value)} maxLength={100}/></label><label>Starosna grupa<select value={age} onChange={event => setAge(event.target.value)}><option>18+</option><option>18-24</option><option>25-44</option><option>45+</option></select></label></div>
       <label>Interesovanja (opciono)<input value={interests} onChange={event => setInterests(event.target.value)} maxLength={2000}/></label>
       <div className="campaign-budget"><small>Procena rezervacije, sa naknadom od {feePercent}%</small><strong>{Number.isFinite(reserve) ? money(reserve) : '0 RSD'}</strong><span>Dostupno: {money(balance)}</span></div>
+      {Number.isFinite(reserve) && reserve > balance && <div className="campaign-budget-help"><strong>Nedostaje {money(reserve - balance)}</strong><p>Dopuni budžet na sajtu, pa se vrati ovde i nastavi. Obrazac ostaje otvoren.</p><a href="/oglasivac/budzet" target="_blank" rel="noopener noreferrer">Dopuni budžet <Icon name="arrow" size={15}/></a></div>}
     </section>}
     {step === 3 && <section className="campaign-builder-card"><h2>Pregled pre slanja</h2><p>Kampanja ide na moderaciju. Proveri podatke pre rezervacije budžeta.</p>
-      <div className="campaign-review"><div><span>Naziv</span><strong>{title}</strong></div><div><span>Šablon</span><strong>{template?.label}</strong></div><div><span>Nagrada</span><strong>{money(reward)} {template?.beta ? 'po testeru' : 'po zadatku'}</strong></div><div><span>Mesta</span><strong>{slots}</strong></div><div><span>Rezervacija</span><strong>{money(reserve)}</strong></div><div><span>Budžet nakon slanja</span><strong>{money(balance - reserve)}</strong></div></div>
+      <div className="campaign-review"><div><span>Naziv</span><strong>{title}</strong></div><div><span>Šablon</span><strong>{template?.label}</strong></div><div><span>Cilj</span><strong>{description}</strong></div>{template?.fields.map(field => <div key={field.key}><span>{field.label}</span><strong>{details[field.key]}</strong></div>)}{targetUrl && <div><span>Link</span><strong>{targetUrl}</strong></div>}<div><span>Dokaz</span><strong>{template?.proof}</strong></div><div><span>Nagrada</span><strong>{money(reward)} {template?.beta ? 'po testeru' : 'po zadatku'}</strong></div><div><span>Mesta</span><strong>{slots}</strong></div><div><span>Rezervacija</span><strong>{money(reserve)}</strong></div><div><span>Budžet nakon slanja</span><strong>{money(balance - reserve)}</strong></div></div>
       <label className="campaign-confirm"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)}/><span>Potvrđujem podatke i rezervaciju prikazanog iznosa za kampanju.</span></label>
     </section>}
     {error && <div className="live-error" role="alert">{error}</div>}

@@ -65,6 +65,47 @@ class MobilePreviewTests(unittest.TestCase):
             self.assertEqual(db.query(Task).one().advertiser_id, advertiser.id)
             db.refresh(advertiser)
             self.assertEqual(advertiser.advertiser_budget_rsd, 1000 - expected_reserve)
+            dashboard = client.get("/api/ui/advertiser/dashboard")
+            self.assertEqual(dashboard.status_code, 200)
+            self.assertEqual(dashboard.json()["tasks"][0]["title"], "Mobilni UX test")
+            self.assertEqual(dashboard.json()["tasks"][0]["status"], "pending")
+            self.assertEqual(dashboard.json()["user"]["advertiser_reserved_rsd"], expected_reserve)
+        finally:
+            main.app.dependency_overrides.pop(get_db, None)
+            db.close()
+            engine.dispose()
+
+    def test_mobile_beta_campaign_preserves_daily_reward_and_owner(self):
+        engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        Base.metadata.create_all(engine)
+        session_factory = sessionmaker(bind=engine)
+        db = session_factory()
+        advertiser = User(full_name="Beta oglašivač", email="beta-advertiser@example.com", password_hash="hash", role="oglasivac", advertiser_budget_rsd=10000)
+        other = User(full_name="Drugi oglašivač", email="other-advertiser@example.com", password_hash="hash", role="oglasivac", advertiser_budget_rsd=1000)
+        db.add_all([advertiser, other])
+        db.commit()
+        db.refresh(advertiser)
+        db.refresh(other)
+        main.app.dependency_overrides[get_db] = lambda: db
+        try:
+            client = TestClient(main.app)
+            client.cookies.set("kz_session", create_session_token(advertiser.id, advertiser.password_hash), domain="testserver.local", path="/")
+            response = client.post("/api/ui/advertiser/campaigns", json={
+                "title": "Mobilni beta test", "category": "Testiranje sajta ili aplikacije",
+                "task_type": "Zatvoreni beta test aplikacije", "description": "Testiraj aplikaciju 14 dana.",
+                "instructions": "Pošalji dnevni izveštaj.", "proof_required": "Dnevni izveštaj",
+                "reward_rsd": 280, "total_slots": 12, "campaign_duration_days": 30,
+                "requires_tester_enrollment": True, "tester_required_count": 12,
+                "tester_duration_days": 14, "tester_daily_minutes": 5, "tester_daily_reward_rsd": 20,
+            })
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(response.json()["reserved_rsd"], 280 * 12 * (1 + PLATFORM_FEE_PERCENT / 100))
+            task = db.query(Task).one()
+            self.assertTrue(task.requires_tester_enrollment)
+            self.assertEqual(task.tester_daily_reward_rsd, 20)
+            self.assertEqual(task.advertiser_id, advertiser.id)
+            client.cookies.set("kz_session", create_session_token(other.id, other.password_hash), domain="testserver.local", path="/")
+            self.assertEqual(client.get("/api/ui/advertiser/dashboard").json()["tasks"], [])
         finally:
             main.app.dependency_overrides.pop(get_db, None)
             db.close()
