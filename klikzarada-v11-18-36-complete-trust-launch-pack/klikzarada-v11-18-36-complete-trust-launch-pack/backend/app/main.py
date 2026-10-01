@@ -65,7 +65,18 @@ class AppUiStaticFiles(StaticFiles):
 
 if SPA_DIR.exists():
     app.mount("/app-ui", AppUiStaticFiles(directory=SPA_DIR), name="app-ui")
+MOBILE_DIR = Path("app/static/mobile-ui")
+if MOBILE_DIR.exists():
+    app.mount("/mobile-ui", StaticFiles(directory=MOBILE_DIR), name="mobile-ui")
 app.include_router(ui_api_router)
+
+
+@app.get("/mobilna", include_in_schema=False)
+def mobile_application():
+    index = MOBILE_DIR / "index.html"
+    if not index.exists():
+        raise HTTPException(status_code=404)
+    return FileResponse(index, media_type="text/html", headers={"Cache-Control": "no-store, max-age=0, must-revalidate"})
 class CompatibleJinja2Templates(Jinja2Templates):
     def TemplateResponse(self, *args, **kwargs):
         # Legacy pages pass (name, context); Starlette 1.x requires (request, name, context).
@@ -94,7 +105,7 @@ async def serve_react_application(request: Request, call_next):
                 return JSONResponse({"detail": "Zahtev nije poslat sa ovog sajta."}, status_code=403)
         if request.headers.get("sec-fetch-site", "").lower() == "cross-site":
             return JSONResponse({"detail": "Zahtev nije poslat sa ovog sajta."}, status_code=403)
-    excluded = ("/api/", "/static/", "/app-ui/", "/docs", "/openapi.json", "/favicon.ico", "/sw.js", "/logout", "/r/", "/kyc/files/")
+    excluded = ("/api/", "/static/", "/app-ui/", "/mobile-ui/", "/mobilna", "/docs", "/openapi.json", "/favicon.ico", "/sw.js", "/logout", "/r/", "/kyc/files/")
     index = SPA_DIR / "index.html"
     wants_html = "text/html" in request.headers.get("accept", "")
     if request.method == "GET" and wants_html and index.exists() and not path.startswith(excluded):
@@ -1978,7 +1989,14 @@ def startup(): seed(); ensure_task_source_api_key_column(); ensure_closed_tester
 def favicon(): return FileResponse("app/static/favicon.svg", media_type="image/svg+xml")
 
 @app.get("/sw.js")
-def sw(): return Response("self.addEventListener('install',e=>self.skipWaiting());", media_type="application/javascript")
+def sw():
+    # No cache of account data: installed clients always ask the live API.
+    script = (
+        "self.addEventListener('install',event=>self.skipWaiting());"
+        "self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));"
+        "self.addEventListener('fetch',event=>event.respondWith(fetch(event.request)));"
+    )
+    return Response(script, media_type="application/javascript", headers={"Cache-Control": "no-store"})
 
 def current_user(request: Request, db: Session):
     token = request.cookies.get("kz_session")

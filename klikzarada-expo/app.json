@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "KlikZarada Preview",
+    "slug": "klikzarada-expo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/klikzarada-icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0b2b4d",
+        "foregroundImage": "./assets/klikzarada-icon.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/klikzarada-icon.png"
+    }
+  }
+}
