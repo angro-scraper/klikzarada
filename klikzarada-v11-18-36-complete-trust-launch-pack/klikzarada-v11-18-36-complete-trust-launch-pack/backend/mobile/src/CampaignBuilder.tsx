@@ -73,17 +73,25 @@ export default function CampaignBuilder({ feePercent, balance, onCreated }: { fe
   const nextStep = () => {
     setError('');
     if (step === 1) {
-      if (!template || subject.trim().length < 2 || title.trim().length < 3 || description.trim().length < 5 || template.fields.some(field => !details[field.key]?.trim())) {
-        setError('Izaberi šablon i popuni naziv, cilj i sve obavezne detalje.'); return;
-      }
+      if (!template) { setError('Prvo izaberi šablon kampanje.'); return; }
+      const missing = [
+        ...(subject.trim().length < 2 ? [template.subjectLabel] : []),
+        ...(title.trim().length < 3 ? ['Naziv kampanje'] : []),
+        ...(description.trim().length < 5 ? ['Cilj kampanje'] : []),
+        ...template.fields.filter(field => !details[field.key]?.trim()).map(field => field.label),
+      ];
+      if (missing.length) { setError(`Popuni obavezna polja: ${missing.join(', ')}.`); return; }
       if (targetUrl.trim()) {
         try { const url = new URL(targetUrl.trim()); if (!['https:', 'http:'].includes(url.protocol) || !url.hostname) throw new Error(); }
         catch { setError('Unesi ispravan http ili https link.'); return; }
       }
     }
     if (step === 2) {
-      if (!Number.isFinite(reward) || reward <= 0 || !Number.isInteger(slots) || slots < (template?.beta ? 12 : 1) || !Number.isInteger(duration) || duration < 1 || duration > 365 || (template?.beta && (!Number.isInteger(betaDays) || betaDays < 14 || betaDays > 31 || !Number.isInteger(betaMinutes) || betaMinutes < 1 || betaMinutes > 60 || duration < betaDays))) {
-        setError('Proveri nagradu, broj mesta i trajanje kampanje. Za beta test je potrebno najmanje 12 testera i 14 dana.'); return;
+      if (!Number.isFinite(reward) || reward <= 0) { setError('Unesi nagradu veću od 0 RSD.'); return; }
+      if (!Number.isInteger(slots) || slots < (template?.beta ? 12 : 1)) { setError(template?.beta ? 'Unesi najmanje 12 testera.' : 'Unesi najmanje jedno izvršenje.'); return; }
+      if (!Number.isInteger(duration) || duration < 1 || duration > 365) { setError('Trajanje kampanje mora biti od 1 do 365 dana.'); return; }
+      if (template?.beta && (!Number.isInteger(betaDays) || betaDays < 14 || betaDays > 31 || !Number.isInteger(betaMinutes) || betaMinutes < 1 || betaMinutes > 60 || duration < betaDays)) {
+        setError('Beta test mora trajati 14 do 31 dan, uz 1 do 60 minuta dnevno; trajanje kampanje ne sme biti kraće.'); return;
       }
       if (reserve > balance) { setError(`Nedovoljan budžet. Potrebno je ${money(reserve)}, dostupno ${money(balance)}.`); return; }
     }
@@ -113,7 +121,7 @@ export default function CampaignBuilder({ feePercent, balance, onCreated }: { fe
   return <div className="campaign-builder">
     <div className="campaign-stepper" aria-label="Koraci kampanje"><span className={step >= 1 ? 'active' : ''}>1 Brief</span><span className={step >= 2 ? 'active' : ''}>2 Budžet</span><span className={step >= 3 ? 'active' : ''}>3 Potvrda</span></div>
     {step === 1 && <section className="campaign-builder-card">
-      <h2>Šta korisnik treba da uradi?</h2><p>Odaberi tip posla. Svaki šablon traži svoj dokaz i konkretne korake.</p>
+      <h2>Šta korisnik treba da uradi?</h2><p>Odaberi tip posla i popuni sva polja šablona. Link nije obavezan.</p>
       <label>Šablon<select value={templateId} onChange={event => selectTemplate(event.target.value)}><option value="">Izaberi šablon</option>{templates.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
       {template && <><div className="campaign-template-note"><Icon name="file" size={17}/><span>{template.taskType}<small>Dokaz: {template.proof}</small></span></div>
         <label>{template.subjectLabel}<input value={subject} onChange={event => { setSubject(event.target.value); setTitle(template.title(event.target.value.trim())); }} placeholder="Unesi naziv" maxLength={100}/></label>

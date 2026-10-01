@@ -93,6 +93,7 @@ export default function LiveApp() {
   const [confirmPayout, setConfirmPayout] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [nextLoginRole, setNextLoginRole] = useState<'korisnik' | 'oglasivac' | null>(null);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
   const [taskQuery, setTaskQuery] = useState('');
   const [taskFilter, setTaskFilter] = useState('Svi');
   const [myTab, setMyTab] = useState('U toku');
@@ -125,10 +126,66 @@ export default function LiveApp() {
     return () => { mounted = false; };
   }, [refresh]);
   useEffect(() => {
-    if (!account) return;
-    const timer = window.setInterval(() => { void refresh(account).catch(() => undefined); }, 30000);
-    return () => window.clearInterval(timer);
-  }, [account?.id, refresh]);
+    const currentAsset = document.querySelector<HTMLScriptElement>('script[type="module"][src]')?.getAttribute('src');
+    if (!currentAsset?.startsWith('/mobile-ui/assets/')) return;
+    let active = true;
+    const checkVersion = async () => {
+      try {
+        const response = await fetch('/mobilna', { cache: 'no-store', credentials: 'same-origin' });
+        if (!response.ok) return;
+        const html = await response.text();
+        const nextAsset = html.match(/src="(\/mobile-ui\/assets\/index-[^"]+\.js)"/)?.[1];
+        if (active && nextAsset && nextAsset !== currentAsset) setUpdateAvailable(true);
+      } catch { /* Mreža nije dostupna; sledeća provera će pokušati ponovo. */ }
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') void checkVersion(); };
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
+    const timer = window.setInterval(onVisible, 60000);
+    return () => { active = false; window.removeEventListener('focus', onVisible); document.removeEventListener('visibilitychange', onVisible); window.clearInterval(timer); };
+  }, []);
+  useEffect(() => {
+    let active = true;
+    let checking = false;
+    const reconcile = async () => {
+      if (checking || document.visibilityState !== 'visible') return;
+      checking = true;
+      try {
+        const session = await api.session();
+        if (!active) return;
+        const current = session.authenticated ? session.user : null;
+        if (!current) {
+          if (account || adminOnly) {
+            setAccount(null); setDashboard(null); setAdminOnly(false); setNextLoginRole(null); setScreen('home');
+          }
+        } else if (current.role === 'admin') {
+          if (!adminOnly) {
+            setAccount(null); setDashboard(null); setAdminOnly(true); setScreen('home');
+          }
+        } else {
+          const changed = !account || current.id !== account.id || current.role !== account.role || adminOnly;
+          if (changed) {
+            setDashboard(null); setScreen('home'); setAdminOnly(false); setNextLoginRole(null);
+          }
+          await refresh(current);
+          if (active && changed) setNotice('Nalog je promenjen u drugoj kartici. Prikaz je osvežen.');
+        }
+      } catch {
+        // Kratak prekid mreže ne menja prikaz prijavljenog naloga.
+      } finally { checking = false; }
+    };
+    const onFocus = () => { void reconcile(); };
+    const onVisible = () => { if (document.visibilityState === 'visible') void reconcile(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    const timer = window.setInterval(() => { void reconcile(); }, 30000);
+    return () => {
+      active = false;
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.clearInterval(timer);
+    };
+  }, [account?.id, account?.role, adminOnly, refresh]);
   useEffect(() => { if (account) { setProfileName(account.full_name); setProfilePhone(account.phone || ''); setProfileCity(account.city || ''); setPaymentDetails(account.payment_details || ''); } }, [account?.id, account?.full_name, account?.phone, account?.city, account?.payment_details]);
   useEffect(() => {
     if (!selectedChat || screen !== 'chat') return;
@@ -194,6 +251,7 @@ export default function LiveApp() {
     <header className="app-header">{['detail', 'chat', 'notifications', 'profile'].includes(screen) ? <button className="icon-button light" onClick={() => go(screen === 'chat' ? 'messages' : screen === 'detail' ? isUser ? 'tasks' : 'campaigns' : 'home')} aria-label="Nazad"><span className="back">‹</span></button> : <button className="brand-button" onClick={() => go('profile')} aria-label="Otvori profil"><Logo/></button>}{['detail', 'chat', 'notifications', 'profile'].includes(screen) && <div className="header-title">{screen === 'chat' ? selectedChat?.task_title : screen === 'detail' ? isUser ? 'Detalj zadatka' : 'Kampanja' : screen === 'profile' ? 'Profil' : 'Obaveštenja'}</div>}<div className="header-side"><button className={`live-role-label account-trigger ${['detail', 'chat', 'notifications', 'profile'].includes(screen) ? 'compact' : ''}`} onClick={() => setAccountMenuOpen(open => !open)} aria-label="Moj profil i odjava" aria-expanded={accountMenuOpen} aria-haspopup="menu">{['detail', 'chat', 'notifications', 'profile'].includes(screen) ? <Icon name="user" size={18}/> : <>{isUser ? 'Korisnik' : 'Oglašivač'} <span aria-hidden="true">⌄</span></>}</button><button className="icon-button light" onClick={() => go('notifications')} aria-label="Obaveštenja"><Icon name="bell"/>{unread > 0 && <i/>}</button></div>{accountMenuOpen && <div className="account-menu" role="menu"><div className="account-menu-identity"><strong>{account.full_name}</strong><small>{account.email}</small></div><button role="menuitem" onClick={() => go('profile')}><Icon name="user" size={18}/> Moj profil</button><button role="menuitem" disabled={busy} onClick={() => void leave(isUser ? 'oglasivac' : 'korisnik')}><Icon name={isUser ? 'campaign' : 'user'} size={18}/> Prijava kao {isUser ? 'oglašivač' : 'korisnik'}</button><button role="menuitem" className="account-menu-logout" disabled={busy} onClick={() => void leave()}><Icon name="lock" size={18}/> Odjavi se</button></div>}</header>
     {accountMenuOpen && <button className="account-menu-scrim" aria-label="Zatvori meni naloga" onClick={() => setAccountMenuOpen(false)}/>}
     <main className={screen === 'chat' ? 'chat-page' : 'page-content'} key={screen}>
+      {updateAvailable && <div className="live-update" role="status"><span>Nova verzija aplikacije je dostupna. Nesačuvan unos će se izgubiti pri osvežavanju.</span><button type="button" onClick={() => window.location.reload()}>Osveži sada</button></div>}
       <ErrorNote error={error}/>{notice && <div className="live-success" role="status">{notice}</div>}
       {screen === 'home' && (isUser ? <>
         <PageTitle subtitle="Evo šta je važno danas.">Zdravo, {account.full_name.split(' ')[0]}</PageTitle>
