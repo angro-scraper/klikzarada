@@ -187,6 +187,17 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 .live-app .phone-screen{height:100%}
 .live-app .screen{height:100%}
 .live-role-label{color:#d8e7ff;font-size:11px;font-weight:700}
+.account-trigger{display:flex;align-items:center;justify-content:center;gap:4px;min-height:34px;padding:0 8px;border:1px solid rgba(255,255,255,.18);border-radius:10px;background:rgba(255,255,255,.08);white-space:nowrap}
+.account-trigger.compact{width:34px;padding:0}
+.account-trigger span{font-size:15px;line-height:1}
+.account-menu{position:absolute;top:calc(100% - 4px);right:10px;z-index:11;width:min(260px,calc(100% - 20px));padding:8px;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 45px rgba(9,26,52,.22);color:var(--ink)}
+.account-menu-identity{padding:9px 10px 11px;border-bottom:1px solid var(--line);margin-bottom:4px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.account-menu-identity strong{font-size:12px}.account-menu-identity small{font-size:10px;color:var(--muted);overflow-wrap:anywhere}
+.account-menu button{width:100%;min-height:43px;border:0;border-radius:10px;background:transparent;color:var(--ink);display:flex;align-items:center;gap:10px;padding:0 10px;text-align:left;font-size:12px;font-weight:700}
+.account-menu button:hover,.account-menu button:focus-visible{background:#f0f5ff}
+.account-menu .account-menu-logout{color:#b83038}
+.account-menu-scrim{position:absolute;inset:0;z-index:9;border:0;background:rgba(7,26,51,.08)}
+.advertiser-login-link{min-height:40px;border:0;background:transparent;color:var(--blue);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:5px}
 .live-auth{height:100%;overflow-y:auto;padding:30px 22px;background:linear-gradient(160deg,#0b2241 0,#10365e 34%,#f4faf7 34%);scrollbar-width:none}
 .live-auth-top{display:flex;justify-content:space-between;align-items:center;color:#cbdfff;font-size:9px;font-weight:800;letter-spacing:1px}
 .live-auth-art{height:150px;display:grid;place-items:center;position:relative}

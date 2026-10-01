@@ -21,9 +21,10 @@ const proofLabel = (task: Task) => {
 function Empty({ children }: { children: ReactNode }) { return <div className="live-empty"><Icon name="file" size={28}/><p>{children}</p></div>; }
 function ErrorNote({ error }: { error: string }) { return error ? <div className="live-error" role="alert">{error}</div> : null; }
 
-function AuthView({ onAuth, onAdmin }: { onAuth: (user: Account) => void; onAdmin: () => void }) {
-  const [mode, setMode] = useState<'welcome' | 'login' | 'register'>('welcome');
-  const [role, setRole] = useState<'korisnik' | 'oglasivac'>('korisnik');
+function AuthView({ onAuth, onAdmin, loginAs }: { onAuth: (user: Account) => void; onAdmin: () => void; loginAs?: 'korisnik' | 'oglasivac' | null }) {
+  const [mode, setMode] = useState<'welcome' | 'login' | 'register'>(loginAs ? 'login' : 'welcome');
+  const [role, setRole] = useState<'korisnik' | 'oglasivac'>(loginAs || 'korisnik');
+  const [loginRole, setLoginRole] = useState<'korisnik' | 'oglasivac' | null>(loginAs || null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,6 +37,10 @@ function AuthView({ onAuth, onAdmin }: { onAuth: (user: Account) => void; onAdmi
     event.preventDefault(); setError(''); setBusy(true);
     try {
       const result = mode === 'login' ? await api.login(email.trim(), password) : await api.register({ full_name: name.trim(), email: email.trim(), password, role, accept_terms: terms, referral_code: referralCode.trim() || undefined, phone: phone.trim() || undefined });
+      if (mode === 'login' && loginRole && result.user.role !== loginRole) {
+        await api.logout();
+        throw new Error(loginRole === 'oglasivac' ? 'Ovaj nalog nije oglašivački. Prijavi se oglašivačkim emailom.' : 'Ovaj nalog nije korisnički. Prijavi se korisničkim emailom.');
+      }
       if (result.user.role === 'admin') onAdmin();
       else onAuth(result.user);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Prijava nije uspela.'); }
@@ -47,10 +52,10 @@ function AuthView({ onAuth, onAdmin }: { onAuth: (user: Account) => void; onAdmi
     <h1>Vreme je da klikovi<br/>dobiju vrednost.</h1>
     <p className="lead">Pronađi jasne zadatke, prati napredak i gradi svoj saldo — bez komplikacija.</p>
     <div className="benefits"><div><span><Icon name="check"/></span><p><strong>Jednostavni zadaci</strong><small>Sve što ti treba, korak po korak.</small></p></div><div><span><Icon name="chart"/></span><p><strong>Jasan napredak</strong><small>Uvek znaš šta sledi.</small></p></div></div>
-    <div className="auth-actions"><PrimaryButton onClick={() => setMode('register')}>Napravi nalog <Icon name="arrow"/></PrimaryButton><PrimaryButton secondary onClick={() => setMode('login')}>Već imam nalog</PrimaryButton></div>
+    <div className="auth-actions"><PrimaryButton onClick={() => setMode('register')}>Napravi nalog <Icon name="arrow"/></PrimaryButton><PrimaryButton secondary onClick={() => { setLoginRole(null); setMode('login'); }}>Već imam nalog</PrimaryButton><button className="advertiser-login-link" onClick={() => { setLoginRole('oglasivac'); setMode('login'); }}>Prijava za oglašivače <Icon name="arrow" size={15}/></button></div>
   </div>;
   return <div className="scroll-page live-auth-page"><header className="app-header"><button className="icon-button light" onClick={() => setMode('welcome')} aria-label="Nazad"><span className="back">‹</span></button><div className="header-title">{mode === 'register' ? 'Novi nalog' : 'Prijava'}</div><div className="header-side"/></header>
-    <main className="page-content"><PageTitle subtitle={mode === 'register' ? 'Kreiraj nalog i pronađi prvi zadatak.' : 'Isti nalog i podaci kao na sajtu KlikZarada.'}>{mode === 'register' ? 'Dobro došao/la' : 'Dobro došao/la nazad'}</PageTitle>
+    <main className="page-content"><PageTitle subtitle={mode === 'register' ? 'Kreiraj nalog i pronađi prvi zadatak.' : loginRole ? 'Unesi podatke svog naloga. Podaci druge uloge ostaju odvojeni.' : 'Isti nalog i podaci kao na sajtu KlikZarada.'}>{mode === 'register' ? 'Dobro došao/la' : loginRole === 'oglasivac' ? 'Prijava oglašivača' : loginRole === 'korisnik' ? 'Prijava korisnika' : 'Dobro došao/la nazad'}</PageTitle>
     <form onSubmit={submit} className="live-figma-form">
       {mode === 'register' && <><div className="live-role-pick"><button type="button" className={role === 'korisnik' ? 'selected' : ''} onClick={() => setRole('korisnik')}>Radim zadatke</button><button type="button" className={role === 'oglasivac' ? 'selected' : ''} onClick={() => setRole('oglasivac')}>Oglašavam</button></div><label>Ime i prezime<input required value={name} onChange={e => setName(e.target.value)} autoComplete="name" /></label></>}
       <label>Email adresa<input required type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" /></label>
@@ -85,6 +90,8 @@ export default function LiveApp() {
   const [paymentDetails, setPaymentDetails] = useState('');
   const [payoutAmount, setPayoutAmount] = useState('');
   const [confirmPayout, setConfirmPayout] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [nextLoginRole, setNextLoginRole] = useState<'korisnik' | 'oglasivac' | null>(null);
   const [taskQuery, setTaskQuery] = useState('');
   const [taskFilter, setTaskFilter] = useState('Svi');
   const [myTab, setMyTab] = useState('U toku');
@@ -138,7 +145,7 @@ export default function LiveApp() {
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Akcija nije uspela.'); return false; }
     finally { setBusy(false); }
   };
-  const go = (next: Screen) => { setScreen(next); setError(''); setNotice(''); };
+  const go = (next: Screen) => { setAccountMenuOpen(false); setScreen(next); setError(''); setNotice(''); };
   const openTask = (task: Task) => { setSelectedTask(task.id); setTestingEmail(task.tester_enrollment?.testing_email || ''); setNote(''); go('detail'); };
   const openChat = (item: ChatInboxItem) => { setSelectedChat(item); setChat(null); setMessage(''); go('chat'); };
   const openTaskChat = (taskId: number, participantId: number, participantName: string) => {
@@ -148,11 +155,23 @@ export default function LiveApp() {
     const ok = await act(() => api.withdraw({ amount_rsd: Number(payoutAmount), payment_method: 'PayPal', payment_details: account?.payment_details || '' }), 'Zahtev za isplatu je poslat.');
     if (ok) { setPayoutAmount(''); setConfirmPayout(false); }
   };
-  const leave = async () => { await api.logout(); setAccount(null); setAdminOnly(false); setDashboard(null); setScreen('home'); };
+  const leave = async (loginAs: 'korisnik' | 'oglasivac' | null = null) => {
+    if (busy) return;
+    setBusy(true); setError('');
+    try {
+      await api.logout();
+      setNextLoginRole(loginAs);
+      setAccount(null); setAdminOnly(false); setDashboard(null); setScreen('home');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Odjava nije uspela. Pokušaj ponovo.');
+    } finally {
+      setAccountMenuOpen(false); setBusy(false);
+    }
+  };
 
   if (loading) return <div className="live-loader"><Logo/><p>Učitavanje naloga...</p></div>;
   if (adminOnly) return <div className="live-app"><div className="phone-shell"><div className="phone-screen"><div className="live-admin-only"><Logo/><Icon name="lock" size={40}/><h1>Admin ostaje u browseru</h1><p>Ovaj nalog nije promenjen. Administraciju otvori preko sajta na računaru ili telefonu.</p><a href="/admin" target="_blank" rel="noreferrer">Otvori admin panel</a><PrimaryButton secondary onClick={() => void leave()}>Odjavi se i promeni nalog</PrimaryButton></div></div></div></div>;
-  if (!account) return <div className="live-app"><div className="phone-shell"><div className="speaker"/><div className="phone-screen"><AuthView onAdmin={() => setAdminOnly(true)} onAuth={user => { setAccount(user); setLoading(true); void refresh(user).catch(cause => setError(cause instanceof Error ? cause.message : 'Podaci nisu dostupni.')).finally(() => setLoading(false)); }}/></div></div></div>;
+  if (!account) return <div className="live-app"><div className="phone-shell"><div className="speaker"/><div className="phone-screen"><AuthView loginAs={nextLoginRole} onAdmin={() => setAdminOnly(true)} onAuth={user => { setNextLoginRole(null); setAccount(user); setLoading(true); void refresh(user).catch(cause => setError(cause instanceof Error ? cause.message : 'Podaci nisu dostupni.')).finally(() => setLoading(false)); }}/></div></div></div>;
   if (!dashboard) return <div className="live-loader"><Logo/><ErrorNote error={error}/><PrimaryButton onClick={() => { setLoading(true); void refresh(account).finally(() => setLoading(false)); }}>Pokušaj ponovo</PrimaryButton></div>;
 
   const nav: Array<[string, string, Screen]> = isUser ? [['Početna','home','home'],['Zadaci','list','tasks'],['Moji','user','my'],['Poruke','chat','messages'],['Novčanik','wallet','wallet']] : [['Pregled','home','home'],['Kampanje','campaign','campaigns'],['Testeri','users','testers'],['Dokazi','proof','proofs'],['Poruke','chat','messages']];
@@ -171,7 +190,8 @@ export default function LiveApp() {
   const shownMyTasks = myTasks.filter(task => myTab === 'U toku' ? ['active', 'invited', 'requested'].includes(userTaskStatus(task)) : myTab === 'Na proveri' ? userTaskStatus(task) === 'pending' : myTab === 'Na doradi' ? userTaskStatus(task) === 'needs_revision' : ['approved', 'completed'].includes(userTaskStatus(task)));
 
   return <div className="live-app"><div className="phone-shell"><div className="speaker"/><div className="phone-screen"><div className="screen">
-    <header className="app-header">{['detail', 'chat', 'notifications', 'profile'].includes(screen) ? <button className="icon-button light" onClick={() => go(screen === 'chat' ? 'messages' : screen === 'detail' ? isUser ? 'tasks' : 'campaigns' : 'home')} aria-label="Nazad"><span className="back">‹</span></button> : <button className="brand-button" onClick={() => go('profile')} aria-label="Otvori profil"><Logo/></button>}{['detail', 'chat', 'notifications', 'profile'].includes(screen) && <div className="header-title">{screen === 'chat' ? selectedChat?.task_title : screen === 'detail' ? isUser ? 'Detalj zadatka' : 'Kampanja' : screen === 'profile' ? 'Profil' : 'Obaveštenja'}</div>}<div className="header-side">{!['detail', 'chat', 'notifications', 'profile'].includes(screen) && <span className="live-role-label">{isUser ? 'Korisnik' : 'Oglašivač'}</span>}<button className="icon-button light" onClick={() => go('notifications')} aria-label="Obaveštenja"><Icon name="bell"/>{unread > 0 && <i/>}</button></div></header>
+    <header className="app-header">{['detail', 'chat', 'notifications', 'profile'].includes(screen) ? <button className="icon-button light" onClick={() => go(screen === 'chat' ? 'messages' : screen === 'detail' ? isUser ? 'tasks' : 'campaigns' : 'home')} aria-label="Nazad"><span className="back">‹</span></button> : <button className="brand-button" onClick={() => go('profile')} aria-label="Otvori profil"><Logo/></button>}{['detail', 'chat', 'notifications', 'profile'].includes(screen) && <div className="header-title">{screen === 'chat' ? selectedChat?.task_title : screen === 'detail' ? isUser ? 'Detalj zadatka' : 'Kampanja' : screen === 'profile' ? 'Profil' : 'Obaveštenja'}</div>}<div className="header-side"><button className={`live-role-label account-trigger ${['detail', 'chat', 'notifications', 'profile'].includes(screen) ? 'compact' : ''}`} onClick={() => setAccountMenuOpen(open => !open)} aria-label="Moj profil i odjava" aria-expanded={accountMenuOpen} aria-haspopup="menu">{['detail', 'chat', 'notifications', 'profile'].includes(screen) ? <Icon name="user" size={18}/> : <>{isUser ? 'Korisnik' : 'Oglašivač'} <span aria-hidden="true">⌄</span></>}</button><button className="icon-button light" onClick={() => go('notifications')} aria-label="Obaveštenja"><Icon name="bell"/>{unread > 0 && <i/>}</button></div>{accountMenuOpen && <div className="account-menu" role="menu"><div className="account-menu-identity"><strong>{account.full_name}</strong><small>{account.email}</small></div><button role="menuitem" onClick={() => go('profile')}><Icon name="user" size={18}/> Moj profil</button><button role="menuitem" disabled={busy} onClick={() => void leave(isUser ? 'oglasivac' : 'korisnik')}><Icon name={isUser ? 'campaign' : 'user'} size={18}/> Prijava kao {isUser ? 'oglašivač' : 'korisnik'}</button><button role="menuitem" className="account-menu-logout" disabled={busy} onClick={() => void leave()}><Icon name="lock" size={18}/> Odjavi se</button></div>}</header>
+    {accountMenuOpen && <button className="account-menu-scrim" aria-label="Zatvori meni naloga" onClick={() => setAccountMenuOpen(false)}/>}
     <main className={screen === 'chat' ? 'chat-page' : 'page-content'} key={screen}>
       <ErrorNote error={error}/>{notice && <div className="live-success" role="status">{notice}</div>}
       {screen === 'home' && (isUser ? <>
