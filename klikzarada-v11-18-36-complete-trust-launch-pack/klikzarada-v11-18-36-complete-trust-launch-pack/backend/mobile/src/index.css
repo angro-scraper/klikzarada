@@ -293,6 +293,29 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 .live-title-action{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .live-title-action .page-title{min-width:0}
 .live-title-action .mini-add{text-decoration:none;flex:none}
+.campaign-stepper{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:2px 0 15px}
+.campaign-stepper span{padding:9px 3px;border-radius:9px;background:#e8eef5;color:#63738a;text-align:center;font-size:10px;font-weight:800;white-space:nowrap}
+.campaign-stepper span.active{background:#e9f1ff;color:var(--blue)}
+.campaign-builder-card{padding:17px 15px;background:#fff;border:1px solid var(--line);border-radius:17px;box-shadow:var(--shadow)}
+.campaign-builder-card h2{margin:0 0 4px;color:var(--navy);font-size:18px;letter-spacing:-.4px}
+.campaign-builder-card>p{font-size:12px;line-height:1.5;color:var(--muted);margin:0 0 18px}
+.campaign-builder-card label:not(.campaign-confirm){display:flex;flex-direction:column;gap:6px;margin-bottom:15px;color:#344b65;font-size:11px;font-weight:800}
+.campaign-builder-card input,.campaign-builder-card textarea,.campaign-builder-card select{width:100%;min-width:0;min-height:44px;padding:10px 11px;border:1px solid #d5e0eb;border-radius:11px;background:#fff;color:var(--ink);font-family:inherit;font-size:13px;font-weight:500}
+.campaign-builder-card textarea{min-height:76px;resize:vertical;line-height:1.4}
+.campaign-builder-card input:focus,.campaign-builder-card textarea:focus,.campaign-builder-card select:focus{outline:2px solid #9fc1ff;border-color:var(--blue)}
+.campaign-template-note{display:flex;align-items:flex-start;gap:8px;padding:11px;margin:-3px 0 16px;background:#edf7f3;border:1px solid #c9eade;border-radius:11px;color:#116b50;font-size:12px;font-weight:800}
+.campaign-template-note small{display:block;margin-top:3px;color:#416f64;font-size:10px;font-weight:500;line-height:1.35}
+.campaign-builder-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.campaign-budget{display:flex;flex-direction:column;gap:3px;margin-top:5px;padding:14px;border-radius:13px;background:#092e52;color:#fff}
+.campaign-budget small,.campaign-budget span{font-size:10px;color:#c7d9ec}.campaign-budget strong{font-size:23px}
+.campaign-review>div{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:11px}
+.campaign-review span{color:var(--muted)}.campaign-review strong{text-align:right;max-width:62%;overflow-wrap:anywhere}
+.campaign-confirm{display:flex;gap:9px;align-items:flex-start;margin:19px 0 1px;color:#263c54;font-size:11px;line-height:1.4;font-weight:600}
+.campaign-confirm input{width:18px;height:18px;min-height:18px;flex:none;margin:0}
+.campaign-builder>.live-error{margin-top:12px}
+.campaign-builder-actions{display:flex;gap:8px;margin:15px 0 24px}
+.campaign-builder-actions button:first-child:not(:last-child){min-width:85px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);font-size:12px;font-weight:800}
+.campaign-builder-actions .btn{flex:1;min-width:0}.campaign-builder-actions .btn:disabled{opacity:.5}
 .notice-row{width:100%;border:0;text-align:left;cursor:pointer}
 .tester-card,.proof-row{background:#fff;border:1px solid var(--line);border-radius:15px;overflow:hidden}
 .tester-card .email-pair b{overflow-wrap:anywhere;white-space:normal}

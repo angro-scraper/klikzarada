@@ -32,7 +32,15 @@ export type Notification = { id: number; title: string; body: string; status: st
 export type ChatInboxItem = { task_id: number; task_title: string; participant_id: number; participant_name: string; last_message: string; last_message_at: string | null };
 export type ChatThread = { task_id: number; task_title: string; participant_id: number; participant_name: string; current_user_id: number; messages: Array<{ id: number; sender_id: number; body: string; created_at: string | null }> };
 export type UserDashboard = { user: Account; tasks: Task[]; my_tasks: Task[]; submissions: Submission[]; min_withdrawal_rsd: number; withdrawals: Array<{ id: number; amount_rsd: number; status: string; created_at: string | null }> };
-export type AdvertiserDashboard = { user: Account; tasks: Task[]; submissions: Submission[]; tester_enrollments: TesterEnrollment[]; tester_checkins: TesterCheckin[] };
+export type AdvertiserDashboard = { user: Account; tasks: Task[]; submissions: Submission[]; tester_enrollments: TesterEnrollment[]; tester_checkins: TesterCheckin[]; pricing: { platform_fee_percent: number; task_categories: string[] } };
+export type CampaignPayload = {
+  title: string; category: string; task_type: string; target_url?: string;
+  description: string; instructions: string; proof_required: string;
+  reward_rsd: number; total_slots: number; campaign_duration_days: number;
+  target_city?: string; target_age_group?: string; target_interests?: string;
+  requires_tester_enrollment: boolean; tester_required_count: number;
+  tester_duration_days: number; tester_daily_minutes: number; tester_daily_reward_rsd: number;
+};
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) { super(message); }
@@ -65,6 +73,7 @@ export const api = {
   publicTasks: () => request<{ tasks: Task[] }>('/public/tasks'),
   userDashboard: () => request<UserDashboard>('/user/dashboard'),
   advertiserDashboard: () => request<AdvertiserDashboard>('/advertiser/dashboard'),
+  createCampaign: (value: CampaignPayload) => request<{ campaign: Task; reserved_rsd: number }>('/advertiser/campaigns', json('POST', value)),
   notifications: () => request<{ notifications: Notification[] }>('/notifications'),
   markNotificationRead: (id: number) => request(`/notifications/${id}/read`, { method: 'PATCH' }),
   chats: (role: 'korisnik' | 'oglasivac') => request<{ threads: ChatInboxItem[] }>(role === 'korisnik' ? '/user/task-chats' : '/advertiser/task-chats'),
