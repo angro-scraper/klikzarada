@@ -1060,28 +1060,38 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     </div>
                   </Card>
                 </div>}
-                {testerCheckins.length > 0 && <div className="mb-5">
-                  <SectionHeader title="Dnevni izveštaji testera" description="Odobri samo stvarno pregledane dnevne izveštaje. Svako odobrenje prebacuje dnevnu nagradu korisniku u raspoloživi saldo." />
-                  <Card>
-                    <Table
-                      headers={['Korisnik', 'Kampanja', 'Dan', 'Izveštaj', 'Nagrada', 'Status', 'Akcija']}
-                      rows={testerCheckins.map(item => {
+                <div className="mb-6">
+                  <SectionHeader title="Dnevni izveštaji testera" description="Ovo su dokazi za dane testiranja. Pročitaj ceo izveštaj pre odluke; odobrenje odmah prenosi dnevnu nagradu korisniku." />
+                  {testerCheckins.length === 0 ? <Card className="p-5 text-sm text-ink-2">Još nema poslatih dnevnih izveštaja za tvoje kampanje.</Card> :
+                    <div className="space-y-4">
+                      {[...testerCheckins].sort((a, b) => Number(b.status === 'pending') - Number(a.status === 'pending')).map(item => {
                         const emailConflict = testerEnrollments.some(enrollment => enrollment.task_id === item.task_id && enrollment.user_id === item.user_id && enrollment.email_conflict)
-                        return [
-                        <span className="font-semibold text-ink">{item.user_name || 'Korisnik'}</span>,
-                        <span className="text-xs text-ink-2">{item.task_title || 'Zadatak'}</span>,
-                        <span className="font-mono font-bold">{item.day_number}</span>,
-                        <span className="max-w-[260px] text-xs text-ink-2">{item.note}</span>,
-                        <span className="font-mono text-emerald-600">{item.reward_rsd} RSD</span>,
-                        <StatusBadge status={item.status === 'pending' ? 'na_proveri' : item.status === 'approved' ? 'odobreno' : 'odbijeno'} />,
-                        item.status === 'pending'
-                          ? <div className="flex flex-wrap items-center gap-2">{emailConflict && <span className="text-xs font-semibold text-red-700">Konflikt test adrese: provera pre odobrenja.</span>}<Btn size="sm" variant="success" disabled={emailConflict} onClick={() => void (async () => { try { await api.reviewTesterCheckin(item.id, 'approved'); await refreshDashboard(); showToast('Dnevni izveštaj je odobren, a nagrada prebačena korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dnevni izveštaj nije obrađen.', 'error') } })()}>Odobri dan</Btn><Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.reviewTesterCheckin(item.id, 'rejected', 'Izveštaj nema dovoljno detalja za ovaj dan.'); await refreshDashboard(); showToast('Dnevni izveštaj je odbijen.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dnevni izveštaj nije obrađen.', 'error') } })()}>Odbij</Btn></div>
-                          : <span className="text-xs text-ink-3">{item.review_note || 'Obrađeno'}</span>,
-                        ]
+                        return <Card key={item.id} className="overflow-hidden">
+                          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-frame bg-mint-50 px-5 py-4">
+                            <div className="min-w-0">
+                              <p className="font-bold text-ink break-words">{item.user_name || 'Korisnik'} <span className="font-normal text-ink-3">· Dan {item.day_number}</span></p>
+                              <p className="mt-1 text-sm text-ink-2 break-words">{item.task_title || 'Zadatak'}</p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3">
+                              <span className="font-mono font-semibold text-emerald-700">{item.reward_rsd} RSD</span>
+                              <StatusBadge status={item.status === 'pending' ? 'na_proveri' : item.status === 'approved' ? 'odobreno' : 'odbijeno'} />
+                            </div>
+                          </div>
+                          <div className="px-5 py-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-ink-3">Poslati izveštaj</p>
+                            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink">{item.note}</p>
+                            {item.checked_in_at && <p className="mt-3 text-xs text-ink-3">Poslato: {new Intl.DateTimeFormat('sr-RS', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.checked_in_at))}</p>}
+                            {emailConflict && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-800">Test adresa je povezana sa drugim nalogom. Proveri vlasništvo pre odobravanja.</p>}
+                            {item.status === 'pending' ? <div className="mt-5 flex flex-wrap gap-2 border-t border-frame pt-4">
+                              <Btn size="sm" variant="success" disabled={emailConflict} onClick={() => void (async () => { try { await api.reviewTesterCheckin(item.id, 'approved'); await refreshDashboard(); showToast('Dnevni izveštaj je odobren, a nagrada prebačena korisniku.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dnevni izveštaj nije obrađen.', 'error') } })()}>Odobri izveštaj i nagradu</Btn>
+                              <Btn size="sm" variant="danger" onClick={() => void (async () => { try { await api.reviewTesterCheckin(item.id, 'rejected', 'Izveštaj nema dovoljno detalja za ovaj dan.'); await refreshDashboard(); showToast('Dnevni izveštaj je odbijen.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Dnevni izveštaj nije obrađen.', 'error') } })()}>Odbij izveštaj</Btn>
+                            </div> : <p className="mt-4 text-xs text-ink-3">{item.review_note || 'Izveštaj je obrađen.'}</p>}
+                          </div>
+                        </Card>
                       })}
-                    />
-                  </Card>
-                </div>}
+                    </div>}
+                </div>
+                <SectionHeader title="Ostali dokazi zadataka" description="Ovaj spisak je odvojen od dnevnih izveštaja testera iznad." />
                 <Tabs
                   tabs={[{ id: 'svi', label: 'Svi' }, { id: 'na_proveri', label: 'Na proveri' }, { id: 'needs_revision', label: 'Na doradi' }, { id: 'odobreno', label: 'Odobreno' }, { id: 'odbijeno', label: 'Odbijeno' }]}
                   active={proofsTab}
