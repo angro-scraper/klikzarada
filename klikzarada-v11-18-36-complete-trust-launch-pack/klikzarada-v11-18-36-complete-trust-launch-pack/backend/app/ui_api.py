@@ -1357,7 +1357,8 @@ def register(payload: Registration, request: Request, response: Response, db: Se
 
 
 @router.post("/auth/logout", status_code=204)
-def logout(response: Response) -> Response:
+def logout() -> Response:
+    response = Response(status_code=204)
     response.delete_cookie("kz_session")
     return response
 
