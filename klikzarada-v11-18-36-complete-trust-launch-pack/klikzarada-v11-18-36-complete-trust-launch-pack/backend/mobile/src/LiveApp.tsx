@@ -7,6 +7,15 @@ type Screen = 'home' | 'tasks' | 'my' | 'detail' | 'wallet' | 'profile' | 'campa
 const money = (value: number) => `${Number(value || 0).toLocaleString('sr-RS')} RSD`;
 const statusTone = (status: string): 'blue' | 'green' | 'orange' | 'red' | 'gray' => status === 'approved' || status === 'active' || status === 'invited' ? 'green' : status === 'rejected' || status === 'declined' ? 'red' : status === 'pending' || status === 'requested' || status === 'needs_revision' ? 'orange' : 'blue';
 const label: Record<string, string> = { requested: 'Prijava poslata', invited: 'Aktivno', declined: 'Odbijeno', pending: 'Na proveri', needs_revision: 'Na doradi', approved: 'Odobreno', rejected: 'Odbijeno', active: 'Aktivno', paused: 'Pauzirano', completed: 'Završeno' };
+const proofLabel = (task: Task) => {
+  if (task.requires_tester_enrollment) return 'Dnevni izveštaj';
+  const proof = task.proof_required.toLocaleLowerCase('sr');
+  if (proof.includes('screenshot') || proof.includes('snimak ekrana')) return 'Snimak ekrana';
+  if (proof.includes('izveštaj')) return 'Izveštaj';
+  if (proof.includes('link') || proof.includes('url')) return 'Link';
+  if (proof.includes('odgovor')) return 'Odgovori';
+  return 'Dokaz zadatka';
+};
 
 function Empty({ children }: { children: ReactNode }) { return <div className="live-empty"><Icon name="file" size={28}/><p>{children}</p></div>; }
 function ErrorNote({ error }: { error: string }) { return error ? <div className="live-error" role="alert">{error}</div> : null; }
@@ -146,7 +155,7 @@ export default function LiveApp() {
   if (!dashboard) return <div className="live-loader"><Logo/><ErrorNote error={error}/><PrimaryButton onClick={() => { setLoading(true); void refresh(account).finally(() => setLoading(false)); }}>Pokušaj ponovo</PrimaryButton></div>;
 
   const nav: Array<[string, string, Screen]> = isUser ? [['Početna','home','home'],['Zadaci','list','tasks'],['Moji','user','my'],['Poruke','chat','messages'],['Novčanik','wallet','wallet']] : [['Pregled','home','home'],['Kampanje','campaign','campaigns'],['Testeri','users','testers'],['Dokazi','proof','proofs'],['Poruke','chat','messages']];
-  const taskList = (items: Task[]) => items.length ? items.map(task => <TaskCard key={task.id} title={task.title} description={task.description} reward={money(task.requires_tester_enrollment ? task.tester_daily_reward_rsd || task.reward_rsd : task.reward_rsd)} time={`${task.estimated_minutes || task.tester_daily_minutes || 5} min`} status={task.tester_enrollment ? label[task.tester_enrollment.status] || task.tester_enrollment.status : task.proof_required} onClick={() => openTask(task)}/>) : <Empty>Ovde trenutno nema zadataka.</Empty>;
+  const taskList = (items: Task[]) => items.length ? items.map(task => <TaskCard key={task.id} title={task.title} description={task.description} reward={money(task.requires_tester_enrollment ? task.tester_daily_reward_rsd || task.reward_rsd : task.reward_rsd)} time={`${task.estimated_minutes || task.tester_daily_minutes || 5} min${task.requires_tester_enrollment ? '/dan' : ''}`} status={proofLabel(task)} onClick={() => openTask(task)}/>) : <Empty>Ovde trenutno nema zadataka.</Empty>;
   const myTasks = data?.my_tasks || [];
   const activeTask = myTasks.find(task => task.tester_enrollment?.status === 'invited') || myTasks[0];
   const recommendedTask = (data?.tasks || []).find(task => !myTasks.some(mine => mine.id === task.id));
