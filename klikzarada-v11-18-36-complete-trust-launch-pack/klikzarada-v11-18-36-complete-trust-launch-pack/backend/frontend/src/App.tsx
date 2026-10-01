@@ -41,7 +41,7 @@ function routeFromPath(pathname: string): Route {
   if (pathname === '/admin/prijava') return 'admin-login'
   if (pathname.startsWith('/admin')) return 'admin'
   if (pathname.startsWith('/korisnik')) return 'dashboard'
-  if (pathname.startsWith('/oglasivac/panel')) return 'advertiser'
+  if (pathname.startsWith('/oglasivac/panel') || pathname === '/oglasivac/testeri') return 'advertiser'
   if (pathname === '/pravila') return 'legal'
   if (pathname === '/pomoc') return 'help'
   if (pathname === '/login') return 'login'

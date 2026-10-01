@@ -29,7 +29,7 @@ class UiContractTests(unittest.TestCase):
             for path in (
                 "/", "/registracija", "/prijava", "/korisnik/panel",
                 "/korisnik/zadaci", "/korisnik/moji-zadaci", "/korisnik/poruke", "/korisnik/zadaci/123",
-                "/korisnik/profil", "/oglasivac/panel", "/admin",
+                "/korisnik/profil", "/oglasivac/panel", "/oglasivac/testeri", "/admin",
             ):
                 with self.subTest(path=path):
                     response = client.get(path, headers={"accept": "text/html"})
@@ -66,6 +66,14 @@ class UiContractTests(unittest.TestCase):
         self.assertIn("{ id: 'poruke', label: 'Poruke'", advertiser)
         self.assertIn("poruke: '/korisnik/poruke'", routes)
         self.assertIn("/api/ui/user/task-chats", app.openapi()["paths"])
+
+    def test_advertiser_testers_and_evidence_have_separate_views(self):
+        advertiser = (BACKEND_DIR / "frontend" / "src" / "pages" / "AdvertiserPanel.tsx").read_text(encoding="utf-8")
+        routes = (BACKEND_DIR / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
+        self.assertIn("{ id: 'testeri', label: 'Prijavljeni testeri'", advertiser)
+        self.assertIn("page === 'testeri'", advertiser)
+        self.assertIn("page === 'dokazi'", advertiser)
+        self.assertIn("'/oglasivac/testeri'", routes)
 
     def test_notifications_are_available_in_every_role_sidebar(self):
         pages = ("UserDashboard.tsx", "AdvertiserPanel.tsx", "AdminHub.tsx")
@@ -118,7 +126,7 @@ class UiContractTests(unittest.TestCase):
 
     def test_tester_enrollments_keep_emails_and_actions_visible(self):
         source = (BACKEND_DIR / "frontend" / "src" / "pages" / "AdvertiserPanel.tsx").read_text(encoding="utf-8")
-        cards = source.split('Prijavljeni testeri</h3>', 1)[1].split("{testerCheckins.length > 0", 1)[0]
+        cards = source.split("{page === 'testeri' && (", 1)[1].split("{page === 'dokazi' && (", 1)[0]
         self.assertNotIn("<Table", cards)
         self.assertIn("2xl:grid-cols-4", cards)
         self.assertIn("break-all select-all", cards)
@@ -127,8 +135,8 @@ class UiContractTests(unittest.TestCase):
 
     def test_advertiser_messages_have_spacing_and_readable_preview(self):
         source = (BACKEND_DIR / "frontend" / "src" / "pages" / "AdvertiserPanel.tsx").read_text(encoding="utf-8")
-        messages = source.split("{unreadChatNotifications.length > 0 && <Card", 1)[1].split("{testerEnrollments.length > 0", 1)[0]
-        self.assertEqual(messages.count("sm:p-6"), 2)
+        messages = source.split("{page === 'poruke' && (", 1)[1].split("{page === 'testeri' && (", 1)[0]
+        self.assertIn('title="Poruke uz zadatke"', messages)
         self.assertIn("Otvori razgovor", messages)
         self.assertIn("line-clamp-2 break-words", messages)
         self.assertNotIn("truncate text-sm", messages)
@@ -250,7 +258,8 @@ class UiContractTests(unittest.TestCase):
         self.assertNotIn("label: 'Moji dokazi', icon: '✅', badge: 2", user_source)
         self.assertNotIn("label: 'Dokazi korisnika', icon: '📎', badge: 5", advertiser_source)
         self.assertIn("badge: proofCount || undefined", user_source)
-        self.assertIn("badge: proofBadge || undefined", advertiser_source)
+        self.assertIn("badge: pendingProofCount || undefined", advertiser_source)
+        self.assertIn("badge: pendingTesterEnrollmentCount || undefined", advertiser_source)
 
     def test_rewards_and_badges_are_not_demo_values(self):
         """Engagement screens must calculate progress on the server, not in JSX."""
