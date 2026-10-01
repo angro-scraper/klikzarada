@@ -236,6 +236,19 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 .task-meta .task-proof svg{flex:none}
 .task-meta .task-proof>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .campaign-row>svg{flex:none}
+.task-hero{align-items:flex-start}
+.task-hero>div:last-child{min-width:0}
+.task-hero p{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;overflow-wrap:anywhere;line-height:1.45}
+.live-task-instructions{background:#fff;border:1px solid var(--line);border-radius:14px;margin:0 0 20px;box-shadow:var(--shadow)}
+.live-task-instructions summary{display:flex;align-items:center;gap:9px;min-height:52px;padding:11px 13px;color:var(--blue);font-size:12px;font-weight:700;cursor:pointer;list-style:none}
+.live-task-instructions summary::-webkit-details-marker{display:none}
+.live-task-instructions summary svg:last-child{margin-left:auto;transition:transform .2s ease}
+.live-task-instructions[open] summary svg:last-child{transform:rotate(90deg)}
+.live-task-instructions>div{border-top:1px solid var(--line);padding:12px 13px}
+.live-task-instructions p{font-size:11px;line-height:1.5;color:var(--ink);overflow-wrap:anywhere;margin:0 0 10px}
+.live-task-instructions p:last-child{margin-bottom:0}
+.requirement>div{min-width:0}
+.requirement p{line-height:1.5;overflow-wrap:anywhere}
 
 /* Live data is placed in the Figma screen structure; these rules only bridge real-data states. */
 .live-welcome{height:100%;overflow-y:auto;scrollbar-width:none}
