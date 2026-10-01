@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { api, type Account, type AdvertiserDashboard, type ChatInboxItem, type ChatThread, type Notification, type Task, type UserDashboard } from './api';
 import { Badge, Icon, Logo, PageTitle, PrimaryButton, TaskCard } from './components';
+import coinLogo from './assets/klikzarada-coins.svg';
 
 type Dashboard = UserDashboard | AdvertiserDashboard;
 type Screen = 'home' | 'tasks' | 'my' | 'detail' | 'wallet' | 'profile' | 'campaigns' | 'testers' | 'proofs' | 'messages' | 'chat' | 'notifications';
@@ -42,7 +43,7 @@ function AuthView({ onAuth, onAdmin }: { onAuth: (user: Account) => void; onAdmi
   };
   if (mode === 'welcome') return <div className="auth-screen live-welcome">
     <div className="auth-top"><Logo/><span className="example-tag">KLIKZARADA</span></div>
-    <div className="welcome-art"><div className="big-k">K</div><span className="spark s1"/><span className="spark s2"/><span className="spark s3"/></div>
+    <div className="welcome-art"><img className="big-k" src={coinLogo} alt="KlikZarada logo sa novčićima"/></div>
     <h1>Vreme je da klikovi<br/>dobiju vrednost.</h1>
     <p className="lead">Pronađi jasne zadatke, prati napredak i gradi svoj saldo — bez komplikacija.</p>
     <div className="benefits"><div><span><Icon name="check"/></span><p><strong>Jednostavni zadaci</strong><small>Sve što ti treba, korak po korak.</small></p></div><div><span><Icon name="chart"/></span><p><strong>Jasan napredak</strong><small>Uvek znaš šta sledi.</small></p></div></div>

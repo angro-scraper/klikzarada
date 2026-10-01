@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import coinLogo from './assets/klikzarada-coins.svg';
 
 export function Icon({ name, size = 20 }: { name: string; size?: number }) {
   const paths: Record<string, ReactNode> = {
@@ -26,7 +27,7 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
-export function Logo() { return <div className="logo"><span className="logo-mark">K</span><span>Klik<span>Zarada</span></span></div>; }
+export function Logo() { return <div className="logo"><span className="logo-mark"><img src={coinLogo} alt=""/></span><span>Klik<span>Zarada</span></span></div>; }
 export function Badge({ tone = 'blue', children }: { tone?: 'blue' | 'green' | 'orange' | 'red' | 'gray'; children: ReactNode }) { return <span className={`badge badge-${tone}`}>{children}</span>; }
 export function PrimaryButton({ children, onClick, secondary = false, disabled = false }: { children: ReactNode; onClick?: () => void; secondary?: boolean; disabled?: boolean }) { return <button className={`btn ${secondary ? 'btn-secondary' : ''}`} onClick={onClick} disabled={disabled}>{children}</button>; }
 export function PageTitle({ children, subtitle }: { children: ReactNode; subtitle?: string }) { return <div className="page-title"><div><h1>{children}</h1>{subtitle && <p>{subtitle}</p>}</div></div>; }
