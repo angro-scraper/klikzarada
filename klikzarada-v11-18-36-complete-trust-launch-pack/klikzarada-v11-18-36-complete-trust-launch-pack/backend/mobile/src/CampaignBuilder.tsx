@@ -146,7 +146,8 @@ export default function CampaignBuilder({ feePercent, balance, onCreated }: { fe
       <div className="campaign-review"><div><span>Naziv</span><strong>{title}</strong></div><div><span>Šablon</span><strong>{template?.label}</strong></div><div><span>Cilj</span><strong>{description}</strong></div>{template?.fields.map(field => <div key={field.key}><span>{field.label}</span><strong>{details[field.key]}</strong></div>)}{targetUrl && <div><span>Link</span><strong>{targetUrl}</strong></div>}<div><span>Dokaz</span><strong>{template?.proof}</strong></div><div><span>Nagrada</span><strong>{money(reward)} {template?.beta ? 'po testeru' : 'po zadatku'}</strong></div><div><span>Mesta</span><strong>{slots}</strong></div><div><span>Rezervacija</span><strong>{money(reserve)}</strong></div><div><span>Budžet nakon slanja</span><strong>{money(balance - reserve)}</strong></div></div>
       <label className="campaign-confirm"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)}/><span>Potvrđujem podatke i rezervaciju prikazanog iznosa za kampanju.</span></label>
     </section>}
-    {error && <div className="live-error" role="alert">{error}</div>}
-    <div className="campaign-builder-actions">{step > 1 && <button type="button" onClick={() => { setError(''); setConfirmed(false); setStep(step - 1); }}>Nazad</button>}<button type="button" className="btn" disabled={submitting || (step === 3 && !confirmed)} onClick={() => { if (step === 3) void submit(); else nextStep(); }}>{submitting ? 'Šaljem...' : step === 3 ? 'Pošalji na moderaciju' : 'Nastavi'}</button></div>
+    <div className="campaign-builder-footer">{error && <div className="live-error" role="alert">{error}</div>}
+      <div className="campaign-builder-actions">{step > 1 && <button type="button" onClick={() => { setError(''); setConfirmed(false); setStep(step - 1); }}>Nazad</button>}<button type="button" className="btn" disabled={submitting || (step === 3 && !confirmed)} onClick={() => { if (step === 3) void submit(); else nextStep(); }}>{submitting ? 'Šaljem...' : step === 3 ? 'Pošalji na moderaciju' : 'Nastavi'}</button></div>
+    </div>
   </div>;
 }
