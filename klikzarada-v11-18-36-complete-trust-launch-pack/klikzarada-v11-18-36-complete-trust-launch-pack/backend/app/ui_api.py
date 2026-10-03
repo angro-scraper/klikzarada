@@ -3886,7 +3886,14 @@ def start_platform_banner_now(
     ).with_for_update().first()
     if not banner or not _is_platform_publisher(banner.advertiser):
         raise HTTPException(404, "Platformski baner nije pronađen.")
-    now = datetime.utcnow()
+    _start_approved_platform_banner(db, banner, admin)
+    return {"banner": _banner_data(banner)}
+
+
+def _start_approved_platform_banner(
+    db: Session, banner: PaidAdBannerV111, admin: User, now: datetime | None = None,
+) -> None:
+    now = now or datetime.utcnow()
     if banner.status != "active" or not banner.starts_at or banner.starts_at <= now:
         raise HTTPException(409, "Samo odobren baner sa budućim početkom može da krene sada.")
     ends_at = now + timedelta(days=max(1, banner.days_count or 7))
@@ -3898,7 +3905,6 @@ def start_platform_banner_now(
     _audit(db, admin, "platform_banner_start_now", "PaidAdBannerV111", banner.id)
     db.commit()
     db.refresh(banner)
-    return {"banner": _banner_data(banner)}
 
 
 @router.patch("/admin/banners/{banner_id}")

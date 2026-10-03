@@ -29,9 +29,9 @@ from .analytics import PUBLIC_PAGEVIEW_PATHS, is_public_pageview_path, start_cle
 from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, TaskSourceV11, SecurityEvent, KycDocument, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
 from .security import create_session_token, hash_password, is_legacy_session, make_referral_code, read_session_token, running_in_production, session_matches_user, verify_password
 from .login_guard import admin_identity_allowed, authenticate_login
-from .ui_api import REFERRAL_INVITER_BONUS_RSD, _banner_public_target, _grant_referral_bonus_if_eligible, router as ui_api_router
+from .ui_api import REFERRAL_INVITER_BONUS_RSD, _banner_public_target, _grant_referral_bonus_if_eligible, _start_approved_platform_banner, router as ui_api_router
 
-app = FastAPI(title="KlikZarada V11.18.62 Banner Delivery", version="11.18.62")
+app = FastAPI(title="KlikZarada V11.18.63 Banner Activation", version="11.18.63")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 SPA_DIR = Path("app/static/app-ui")
 
@@ -2037,7 +2037,7 @@ def ensure_task_delivery_schema():
         pass
 
 @app.on_event("startup")
-def startup(): seed(); ensure_task_source_api_key_column(); ensure_closed_tester_enrollment_schema(); ensure_campaign_schedule_schema(); ensure_task_delivery_schema(); seed_v4_growth(); seed_v5_scale(); seed_v6_enterprise(); seed_v7_ai_marketplace(); seed_v8_command(); seed_v9_launch_os(); seed_v10_automation_os(); seed_v11_real_launch_pack(); seed_v111_ui_ads_pricing(); v11815_startup_banner_slots()
+def startup(): seed(); ensure_task_source_api_key_column(); ensure_closed_tester_enrollment_schema(); ensure_campaign_schedule_schema(); ensure_task_delivery_schema(); seed_v4_growth(); seed_v5_scale(); seed_v6_enterprise(); seed_v7_ai_marketplace(); seed_v8_command(); seed_v9_launch_os(); seed_v10_automation_os(); seed_v11_real_launch_pack(); seed_v111_ui_ads_pricing(); v11815_startup_banner_slots(); v11863_start_platform_banner_once()
 
 @app.get("/favicon.ico")
 def favicon(): return FileResponse("app/static/favicon.svg", media_type="image/svg+xml")
@@ -10565,6 +10565,48 @@ def v11815_startup_banner_slots():
             v11815_ensure_9_banner_slots(db)
     finally:
         db.close()
+
+
+V11863_BANNER_START_KEY = "v11863_klikzarada_ios_banner_start"
+
+
+def v11863_start_platform_banner_once(db: Session | None = None) -> str:
+    """Apply the owner's one-time request without changing any other booking."""
+    owns_session = db is None
+    db = db or SessionLocal()
+    try:
+        if db.query(SystemSetting).filter_by(key=V11863_BANNER_START_KEY).first():
+            return "already_processed"
+        banner = (
+            db.query(PaidAdBannerV111)
+            .join(HomeBannerSlotV111, PaidAdBannerV111.slot_id == HomeBannerSlotV111.id)
+            .join(User, PaidAdBannerV111.advertiser_id == User.id)
+            .filter(
+                PaidAdBannerV111.title == "KlikZarada aplikacija uskoro stiže",
+                PaidAdBannerV111.status == "active",
+                HomeBannerSlotV111.code == "home_dashboard_banner",
+                User.role == "admin",
+            )
+            .order_by(PaidAdBannerV111.id.desc())
+            .with_for_update()
+            .first()
+        )
+        if banner is None or not banner.starts_at or banner.starts_at <= datetime.utcnow():
+            result = "not_scheduled"
+        else:
+            try:
+                db.add(SystemSetting(key=V11863_BANNER_START_KEY, value=str(banner.id)))
+                _start_approved_platform_banner(db, banner, banner.advertiser)
+                return "started"
+            except HTTPException:
+                db.rollback()
+                result = "slot_conflict"
+        db.add(SystemSetting(key=V11863_BANNER_START_KEY, value=result))
+        db.commit()
+        return result
+    finally:
+        if owns_session:
+            db.close()
 
 
 # V11.18.17 banner system helpers
