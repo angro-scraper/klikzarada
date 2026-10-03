@@ -114,6 +114,29 @@ class ContentRevisionTests(unittest.TestCase):
         self.assertEqual(caught.exception.status_code, 404)
         self.assertEqual(self.db.query(ModeratedContentRevision).count(), 0)
 
+    def test_instructions_change_waits_for_review(self):
+        submitted = edit_active_campaign_content(
+            self.task.id,
+            CampaignContentEditPayload(
+                title=self.task.title,
+                description=self.task.description,
+                instructions="Otvori TestFlight link i instaliraj aplikaciju.",
+                target_url=self.task.target_url,
+            ),
+            self.request(self.owner), self.db,
+        )
+        self.db.refresh(self.task)
+        self.assertEqual(self.task.instructions, "Ne menjati uslove testa")
+        pending = admin_content_revisions(self.request(self.admin), self.db)["revisions"][0]
+        self.assertEqual(pending["current"]["instructions"], "Ne menjati uslove testa")
+        self.assertEqual(pending["changes"]["instructions"], "Otvori TestFlight link i instaliraj aplikaciju.")
+        review_content_revision(
+            submitted["revision"]["id"], ContentRevisionReviewPayload(status="approved"),
+            self.request(self.admin), self.db,
+        )
+        self.db.refresh(self.task)
+        self.assertEqual(self.task.instructions, "Otvori TestFlight link i instaliraj aplikaciju.")
+
     def test_active_banner_target_change_is_staged_even_through_legacy_route(self):
         result = update_advertiser_banner_target(
             self.banner.id, BannerTargetUpdatePayload(target_url="https://example.com/new"),

@@ -19,6 +19,7 @@ export type Task = {
   id: number; title: string; description: string; instructions: string; category: string;
   task_type: string; reward_rsd: number; estimated_minutes: number; status: string;
   proof_required: string; requires_tester_enrollment: boolean;
+  tester_store?: 'ios' | 'android' | null;
   tester_enrollment?: TesterEnrollment | null; tester_checkins?: TesterCheckin[];
   tester_progress?: { current_day: number; duration_days: number; can_check_in: boolean; complete: boolean };
   tester_daily_reward_rsd?: number; tester_daily_minutes?: number;

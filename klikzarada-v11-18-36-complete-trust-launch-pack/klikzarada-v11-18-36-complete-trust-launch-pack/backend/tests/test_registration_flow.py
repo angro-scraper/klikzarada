@@ -112,6 +112,7 @@ class RegistrationFlowTests(unittest.TestCase):
             task_type="app_beta",
             description="Testiraj aplikaciju.",
             instructions="Pošalji dnevni izveštaj.",
+            target_url="https://testflight.apple.com/join/example",
             proof_required="Dnevni izveštaj",
             reward_rsd=70,
             total_slots=20,
@@ -126,6 +127,15 @@ class RegistrationFlowTests(unittest.TestCase):
         enrollment = AppTesterEnrollment(task_id=task.id, user_id=tester.id, testing_email="tester@example.com", status="requested")
         self.db.add(enrollment)
         self.db.commit()
+
+        tester_request = Request({
+            "type": "http", "method": "GET", "scheme": "https", "path": "/api/ui/user/dashboard",
+            "headers": [(b"cookie", f"kz_session={create_session_token(tester.id)}".encode())],
+            "client": ("198.51.100.20", 443),
+        })
+        before = user_dashboard(tester_request, self.db)["my_tasks"][0]
+        self.assertIsNone(before["target_url"])
+        self.assertEqual(before["tester_store"], "ios")
 
         request = Request({
             "type": "http",
@@ -149,6 +159,7 @@ class RegistrationFlowTests(unittest.TestCase):
             "client": ("198.51.100.20", 443),
         })
         dashboard = user_dashboard(tester_request, self.db)
+        self.assertEqual(dashboard["my_tasks"][0]["target_url"], "https://testflight.apple.com/join/example")
         self.assertEqual(dashboard["my_tasks"][0]["tester_enrollment"]["status"], "invited")
         self.assertEqual(dashboard["my_tasks"][0]["tester_enrollment"]["testing_email"], "tester@example.com")
         self.assertEqual(dashboard["my_tasks"][0]["tester_enrollment"]["account_email"], "tester@example.com")

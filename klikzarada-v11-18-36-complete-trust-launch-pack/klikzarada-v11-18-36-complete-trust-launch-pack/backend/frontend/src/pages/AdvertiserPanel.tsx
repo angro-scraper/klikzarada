@@ -489,7 +489,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [campaignLifecycleAction, setCampaignLifecycleAction] = useState<{ id: number; title: string; action: 'pause' | 'resume' | 'stop' } | null>(null)
   const [dashboard, setDashboard] = useState<AdvertiserDashboardData | null>(null)
   const [campaignToRevise, setCampaignToRevise] = useState<import('../lib/api').Task | null>(null)
-  const [campaignContentEdit, setCampaignContentEdit] = useState<{ id: number; title: string; description: string; target_url: string } | null>(null)
+  const [campaignContentEdit, setCampaignContentEdit] = useState<{ id: number; title: string; description: string; instructions: string; target_url: string } | null>(null)
   const [contentRevisions, setContentRevisions] = useState<ContentRevision[]>([])
   const [contentSaving, setContentSaving] = useState(false)
   const [dashboardError, setDashboardError] = useState('')
@@ -675,6 +675,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
     try {
       await api.editActiveCampaignContent(campaignContentEdit.id, {
         title: campaignContentEdit.title.trim(), description: campaignContentEdit.description.trim(),
+        instructions: campaignContentEdit.instructions.trim(),
         target_url: campaignContentEdit.target_url.trim() || null,
       })
       await refreshDashboard()
@@ -993,7 +994,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                        ['needs_revision', 'pending'].includes(c.task.status)
                          ? <Btn size="sm" variant="secondary" onClick={() => { setCampaignToRevise(c.task); goTo('nova') }}>Uredi i pošalji na proveru</Btn>
                          : c.task.status === 'active'
-                           ? <div className="flex flex-wrap gap-1.5">{pendingRevision('campaign', c.task.id) ? <span className="text-xs font-semibold text-amber-700">Izmena čeka proveru</span> : <Btn size="sm" variant="secondary" onClick={() => setCampaignContentEdit({ id: c.task.id, title: c.task.title, description: c.task.description, target_url: c.task.target_url || '' })}>Uredi sadržaj</Btn>}<Btn size="sm" variant="secondary" onClick={() => setCampaignLifecycleAction({ id: c.task.id, title: c.task.title, action: 'pause' })}>Pauziraj</Btn><Btn size="sm" variant="danger" onClick={() => setCampaignLifecycleAction({ id: c.task.id, title: c.task.title, action: 'stop' })}>Završi</Btn></div>
+                           ? <div className="flex flex-wrap gap-1.5">{pendingRevision('campaign', c.task.id) ? <span className="text-xs font-semibold text-amber-700">Izmena čeka proveru</span> : <Btn size="sm" variant="secondary" onClick={() => setCampaignContentEdit({ id: c.task.id, title: c.task.title, description: c.task.description, instructions: c.task.instructions, target_url: c.task.target_url || '' })}>Uredi sadržaj</Btn>}<Btn size="sm" variant="secondary" onClick={() => setCampaignLifecycleAction({ id: c.task.id, title: c.task.title, action: 'pause' })}>Pauziraj</Btn><Btn size="sm" variant="danger" onClick={() => setCampaignLifecycleAction({ id: c.task.id, title: c.task.title, action: 'stop' })}>Završi</Btn></div>
                            : c.task.status === 'paused'
                              ? <div className="flex flex-wrap gap-1.5"><Btn size="sm" variant="success" onClick={() => setCampaignLifecycleAction({ id: c.task.id, title: c.task.title, action: 'resume' })}>Nastavi</Btn><Btn size="sm" variant="danger" onClick={() => setCampaignLifecycleAction({ id: c.task.id, title: c.task.title, action: 'stop' })}>Završi</Btn></div>
                              : <span className="text-xs text-ink-3">{c.task.moderation_note || 'Čeka proveru'}</span>,
@@ -1005,8 +1006,10 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                   <Input label="Naslov" value={campaignContentEdit.title} onChange={value => setCampaignContentEdit(current => current ? { ...current, title: value } : null)} />
                   <label className="block text-xs font-semibold uppercase tracking-wide text-ink-2" htmlFor="active-campaign-description">Opis kampanje</label>
                   <textarea id="active-campaign-description" rows={5} value={campaignContentEdit.description} onChange={event => setCampaignContentEdit(current => current ? { ...current, description: event.target.value } : null)} className="w-full rounded-lg border border-frame bg-white p-3 text-sm text-ink focus:border-blue-500 focus:outline-none" />
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-ink-2" htmlFor="active-campaign-instructions">Uputstvo za korisnika</label>
+                  <textarea id="active-campaign-instructions" rows={8} value={campaignContentEdit.instructions} onChange={event => setCampaignContentEdit(current => current ? { ...current, instructions: event.target.value } : null)} className="w-full rounded-lg border border-frame bg-white p-3 text-sm text-ink focus:border-blue-500 focus:outline-none" />
                   <Input label="Link zadatka (opciono)" value={campaignContentEdit.target_url} onChange={value => setCampaignContentEdit(current => current ? { ...current, target_url: value } : null)} />
-                  <div className="flex flex-wrap gap-2"><Btn disabled={contentSaving || campaignContentEdit.title.trim().length < 3 || campaignContentEdit.description.trim().length < 5} onClick={() => void saveCampaignContentEdit()}>{contentSaving ? 'Slanje...' : 'Pošalji izmenu adminu'}</Btn><Btn variant="secondary" onClick={() => setCampaignContentEdit(null)}>Otkaži</Btn></div>
+                  <div className="flex flex-wrap gap-2"><Btn disabled={contentSaving || campaignContentEdit.title.trim().length < 3 || campaignContentEdit.description.trim().length < 5 || campaignContentEdit.instructions.trim().length < 5} onClick={() => void saveCampaignContentEdit()}>{contentSaving ? 'Slanje...' : 'Pošalji izmenu adminu'}</Btn><Btn variant="secondary" onClick={() => setCampaignContentEdit(null)}>Otkaži</Btn></div>
                 </Card>}
               </div>
             )}

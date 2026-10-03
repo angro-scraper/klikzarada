@@ -215,7 +215,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const renderContentRevisions = (entityType: 'campaign' | 'banner') => {
     const revisions = contentRevisions.filter(revision => revision.entity_type === entityType)
     if (!revisions.length) return null
-    const labels: Record<string, string> = { title: 'Naslov', description: 'Opis', body: 'Tekst', image_url: 'Slika', target_url: 'Odredište' }
+    const labels: Record<string, string> = { title: 'Naslov', description: 'Opis', instructions: 'Uputstvo za korisnika', body: 'Tekst', image_url: 'Slika', target_url: 'Odredište' }
     return <section className="mt-6 space-y-3" aria-label="Izmene na proveri">
       <h2 className="text-lg font-bold text-ink">Izmene aktivnih {entityType === 'campaign' ? 'kampanja' : 'bannera'} na proveri ({revisions.length})</h2>
       <p className="text-sm text-ink-2">Stara odobrena verzija ostaje javna dok ne odlučiš o novom sadržaju.</p>

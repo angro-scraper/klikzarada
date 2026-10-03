@@ -763,7 +763,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                   <Alert type="info">Za standardne zadatke server prati vreme, aktivnost i fokus taba. Za zatvoreni beta test šalješ dnevni izveštaj; svaki dan posebno odobrava oglašivač.</Alert>
                   {selectedTask?.tester_enrollment && <div className="rounded-xl border border-blue-200 bg-white p-4 text-sm text-ink-2 space-y-1">
                     <p><strong>KlikZarada nalog:</strong> {dashboard?.user.email}</p>
-                    <p><strong>Email za poziv na testiranje:</strong> {selectedTask.tester_enrollment.testing_email || '—'}</p>
+                    <p><strong>{selectedTask.tester_store === 'ios' ? 'Apple ID email za testiranje' : 'Email za poziv na testiranje'}:</strong> {selectedTask.tester_enrollment.testing_email || '—'}</p>
                     {selectedTask.tester_enrollment.email_conflict && <p className="font-semibold text-red-700">Test adresa je povezana i sa drugim nalogom. Ne šalji nove izveštaje dok preko podrške ne razjasnimo kojoj prijavi pripada.</p>}
                   </div>}
                   {!selectedTask ? <Alert type="warning">Ovaj zadatak nije pronađen na tvom nalogu. Proveri da li si prijavljen/a istim nalogom sa kojeg je prijava poslata.</Alert> : selectedTask.status !== 'active' ? <Alert type="warning">Kampanja trenutno nije aktivna. Tvoja prijava i istorija ostaju sačuvani, ali novi izveštaji nisu dostupni.</Alert> : selectedTask.requires_tester_enrollment && selectedTask.tester_enrollment?.status !== 'invited' ? (
@@ -775,7 +775,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                         <>
                           {selectedTask.tester_enrollment?.status === 'declined' && <p className="text-sm text-red-700">{selectedTask.tester_enrollment.note || 'Prijava nije odobrena. Proveri adresu i pošalji ponovo.'}</p>}
                           {!selectedTask.tester_enrollment && <p className="text-sm text-amber-800">Ako je oglašivač već aktivirao tvoju prijavu, proveri da li si prijavljen/a istim KlikZarada nalogom sa kog si je poslao/la. Email za poziv na testiranje može biti drugačiji od emaila naloga.</p>}
-                          <Input label="Email za poziv na ovaj test" placeholder="ime@gmail.com" value={testerEmail} onChange={setTesterEmail} />
+                          <Input label={selectedTask.tester_store === 'ios' ? 'Apple ID email za ovaj test' : 'Email za poziv na ovaj test'} placeholder="ime@primer.rs" value={testerEmail} onChange={setTesterEmail} />
                           <p className="text-xs text-amber-800">Ovaj email može biti drugačiji od KlikZarada naloga ({dashboard?.user.email}), ali ne sme pripadati drugom korisničkom nalogu.</p>
                           <Btn disabled={saving} onClick={() => { if (!selectedTask) return; if (testerEmail.trim() && testerEmail.trim().toLowerCase() !== dashboard?.user.email.toLowerCase()) setTesterEmailConfirmTask(selectedTask); else void requestTesterAccess(selectedTask) }}>Pošalji email za test</Btn>
                         </>
@@ -789,7 +789,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                       </div>
                       <p className="text-sm leading-6 text-blue-900">Od trenutka poziva imaš {selectedTask.tester_duration_days} uzastopnih dana. Svakog dana testiraj aplikaciju najmanje {selectedTask.tester_daily_minutes} minuta, zatim pošalji kratak izveštaj. Dnevna nagrada od {formatRsd(selectedTask.tester_daily_reward_rsd)} čeka odobrenje oglašivača.</p>
                       {selectedTesterProgress?.days_elapsed && selectedTesterProgress.days_elapsed > selectedTask.tester_duration_days && !selectedTesterProgress.complete && <Alert type="error">Rok od {selectedTask.tester_duration_days} dana je istekao pre nego što su poslati svi dnevni izveštaji. Obrati se oglašivaču kroz podršku.</Alert>}
-                      {selectedTask.target_url && <Btn onClick={() => window.open(selectedTask.target_url || '', '_blank', 'noopener,noreferrer')} variant="secondary">↗ Otvori aplikaciju / test link</Btn>}
+                      {selectedTask.target_url && <Btn onClick={() => window.open(selectedTask.target_url || '', '_blank', 'noopener,noreferrer')} variant="secondary">↗ {selectedTask.tester_store === 'ios' ? 'Instaliraj preko TestFlight-a' : 'Otvori aplikaciju / test link'}</Btn>}
                       {selectedTesterProgress?.can_check_in ? <div className="space-y-2">
                         <label className="block text-xs font-bold uppercase tracking-wide text-blue-900">Dnevni izveštaj, dan {selectedTesterProgress.current_day}</label>
                         <textarea value={testerCheckinNote} onChange={event => setTesterCheckinNote(event.target.value)} rows={3} placeholder="Šta si danas testirao/la, koliko približno minuta i da li si primetio/la problem?" className="w-full resize-none rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-blue-500" />

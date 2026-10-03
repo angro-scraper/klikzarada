@@ -270,6 +270,7 @@ class BannerContentEditPayload(BaseModel):
 class CampaignContentEditPayload(BaseModel):
     title: str = Field(min_length=3, max_length=220)
     description: str = Field(min_length=5, max_length=5000)
+    instructions: str | None = Field(default=None, min_length=5, max_length=10000)
     target_url: str | None = Field(default=None, max_length=500)
 
 
@@ -574,6 +575,7 @@ def _task_data(task: Task) -> dict:
         "category": task.category,
         "task_type": task.task_type,
         "target_url": task.target_url,
+        "tester_store": "ios" if task.requires_tester_enrollment and (task.target_url or "").startswith("https://testflight.apple.com/") else "android" if task.requires_tester_enrollment else None,
         "description": _campaign_summary(task.description, task.instructions),
         "instructions": task.instructions,
         "proof_required": task.proof_required,
@@ -1825,6 +1827,8 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
     def task_for_user(task: Task) -> dict:
         data = _task_data(task)
         enrollment = enrollment_by_task.get(task.id)
+        if task.requires_tester_enrollment and (not enrollment or enrollment.status != "invited"):
+            data["target_url"] = None
         if enrollment:
             data.update({
                 "tester_enrollment": _tester_enrollment_data(enrollment, include_email=True) | {
@@ -3505,13 +3509,18 @@ def edit_active_campaign_content(
         raise HTTPException(409, "Ovu izmenu možeš poslati samo za aktivnu kampanju.")
     changes = {
         "title": payload.title.strip(),
-        "description": _campaign_summary(payload.description, task.instructions),
+        "description": _campaign_summary(payload.description, payload.instructions if payload.instructions is not None else task.instructions),
         "target_url": (payload.target_url or "").strip() or None,
     }
+    if payload.instructions is not None:
+        if len(payload.instructions.strip()) < 5:
+            raise HTTPException(400, "Uputstvo mora imati najmanje 5 znakova.")
+        changes["instructions"] = payload.instructions.strip()
     if changes == {
         "title": task.title,
         "description": _campaign_summary(task.description, task.instructions),
         "target_url": task.target_url,
+        **({"instructions": task.instructions} if payload.instructions is not None else {}),
     }:
         raise HTTPException(400, "Nema promena sadržaja za slanje na proveru.")
     revision = _queue_content_revision(db, user, "campaign", task.id, changes)
@@ -3544,6 +3553,7 @@ def admin_content_revisions(request: Request, db: Session = Depends(get_db)) -> 
         row["current"] = {
             "title": entity.title,
             "description": _campaign_summary(entity.description, entity.instructions),
+            "instructions": entity.instructions,
             "target_url": entity.target_url,
         } if revision.entity_type == "campaign" and entity else {
             "title": entity.title,

@@ -57,6 +57,7 @@ export type Task = {
   min_user_level: string
   featured: boolean
   requires_tester_enrollment: boolean
+  tester_store?: 'ios' | 'android' | null
   tester_required_count: number
   tester_duration_days: number
   tester_daily_minutes: number
@@ -645,7 +646,7 @@ export const api = {
   reviseCampaign: (id: number, payload: CampaignPayload) => request<{ campaign: Task; reserved_rsd: number }>(`/advertiser/campaigns/${id}`, {
     method: 'PUT', body: JSON.stringify(payload),
   }),
-  editActiveCampaignContent: (id: number, payload: { title: string; description: string; target_url?: string | null }) => request<{ campaign: Task; revision: ContentRevision }>(`/advertiser/campaigns/${id}/content`, {
+  editActiveCampaignContent: (id: number, payload: { title: string; description: string; instructions?: string; target_url?: string | null }) => request<{ campaign: Task; revision: ContentRevision }>(`/advertiser/campaigns/${id}/content`, {
     method: 'PUT', body: JSON.stringify(payload),
   }),
   updateCampaignLifecycle: (id: number, action: 'pause' | 'resume' | 'stop') => request<{ campaign: Task }>(`/advertiser/campaigns/${id}/lifecycle`, {

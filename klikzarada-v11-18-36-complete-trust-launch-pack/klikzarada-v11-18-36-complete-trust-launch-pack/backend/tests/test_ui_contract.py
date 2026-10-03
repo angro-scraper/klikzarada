@@ -122,7 +122,7 @@ class UiContractTests(unittest.TestCase):
         """Opening a closed-beta task must not fail because its form component is missing."""
         source = (BACKEND_DIR / "frontend" / "src" / "pages" / "UserDashboard.tsx").read_text(encoding="utf-8")
         self.assertIn("Alert, Input } from '../components/ui'", source)
-        self.assertIn('<Input label="Email za poziv na ovaj test"', source)
+        self.assertIn('<Input label={selectedTask.tester_store === \'ios\'', source)
 
     def test_tester_enrollments_keep_emails_and_actions_visible(self):
         source = (BACKEND_DIR / "frontend" / "src" / "pages" / "AdvertiserPanel.tsx").read_text(encoding="utf-8")
