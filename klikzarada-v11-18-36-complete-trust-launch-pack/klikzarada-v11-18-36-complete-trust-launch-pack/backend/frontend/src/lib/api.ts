@@ -427,6 +427,19 @@ export type PaidBanner = {
   views_count: number
   created_at: string | null
 }
+export type ContentRevision = {
+  id: number
+  entity_type: 'campaign' | 'banner'
+  entity_id: number
+  owner_id: number
+  owner_name?: string
+  changes: Record<string, string | null>
+  current?: Record<string, string | null> | null
+  status: 'pending' | 'approved' | 'rejected'
+  admin_note: string | null
+  created_at: string | null
+  reviewed_at: string | null
+}
 export type BannerSlot = {
   id: number
   code: string
@@ -613,6 +626,10 @@ export const api = {
   updateAdvertiserBannerTarget: (id: number, targetUrl?: string) => request<{ banner: PaidBanner }>(`/advertiser/banners/${id}/target`, {
     method: 'PATCH', body: JSON.stringify({ target_url: targetUrl || null }),
   }),
+  editAdvertiserBanner: (id: number, payload: { title: string; body?: string | null; image_url?: string | null; target_url?: string | null }) => request<{ banner: PaidBanner; revision: ContentRevision | null }>(`/advertiser/banners/${id}`, {
+    method: 'PUT', body: JSON.stringify(payload),
+  }),
+  advertiserContentRevisions: () => request<{ revisions: ContentRevision[] }>('/advertiser/content-revisions'),
   uploadAdvertiserBanner: (file: File) => {
     const data = new FormData()
     data.append('file', file)
@@ -626,6 +643,9 @@ export const api = {
     method: 'POST', body: JSON.stringify(payload),
   }),
   reviseCampaign: (id: number, payload: CampaignPayload) => request<{ campaign: Task; reserved_rsd: number }>(`/advertiser/campaigns/${id}`, {
+    method: 'PUT', body: JSON.stringify(payload),
+  }),
+  editActiveCampaignContent: (id: number, payload: { title: string; description: string; target_url?: string | null }) => request<{ campaign: Task; revision: ContentRevision }>(`/advertiser/campaigns/${id}/content`, {
     method: 'PUT', body: JSON.stringify(payload),
   }),
   updateCampaignLifecycle: (id: number, action: 'pause' | 'resume' | 'stop') => request<{ campaign: Task }>(`/advertiser/campaigns/${id}/lifecycle`, {
@@ -657,6 +677,10 @@ export const api = {
   resetAdminAnalytics: () => request<{ deleted: number; started_at: string; legacy_measurements_hidden: boolean }>('/admin/analytics/reset', { method: 'POST' }),
   adminProductionReadiness: () => request<ProductionReadiness>('/admin/production-readiness'),
   adminBanners: () => request<{ slots: BannerSlot[]; banners: PaidBanner[]; pricing: AdvertisingPricing }>('/admin/banners'),
+  adminContentRevisions: () => request<{ revisions: ContentRevision[] }>('/admin/content-revisions'),
+  reviewContentRevision: (id: number, status: 'approved' | 'rejected', note?: string) => request<{ revision: ContentRevision }>(`/admin/content-revisions/${id}`, {
+    method: 'PATCH', body: JSON.stringify({ status, note }),
+  }),
   adminPromotions: () => request<{ promotions: PaidPromotion[] }>('/admin/promotions'),
   reviewAdminPromotion: (id: number, status: 'active' | 'rejected', note?: string) => request<{ promotion: PaidPromotion }>(`/admin/promotions/${id}`, {
     method: 'PATCH', body: JSON.stringify({ status, note }),

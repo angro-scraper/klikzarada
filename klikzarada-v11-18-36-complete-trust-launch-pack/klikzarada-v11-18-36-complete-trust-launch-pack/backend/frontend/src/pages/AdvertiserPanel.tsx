@@ -5,7 +5,7 @@ import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal } from '../components/Modal'
 import { TaskChat } from '../components/TaskChat'
 import { useToast } from '../components/Toast'
-import { api, type AdvertiserDashboardData, type BannerSlot, type NotificationItem, type PaidBanner, type PaidPromotion, type SupportTicket, type TaskChatInboxItem } from '../lib/api'
+import { api, type AdvertiserDashboardData, type BannerSlot, type ContentRevision, type NotificationItem, type PaidBanner, type PaidPromotion, type SupportTicket, type TaskChatInboxItem } from '../lib/api'
 
 type PayPalSdk = {
   FUNDING: { CARD: unknown }
@@ -490,6 +490,9 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [campaignLifecycleAction, setCampaignLifecycleAction] = useState<{ id: number; title: string; action: 'pause' | 'resume' | 'stop' } | null>(null)
   const [dashboard, setDashboard] = useState<AdvertiserDashboardData | null>(null)
   const [campaignToRevise, setCampaignToRevise] = useState<import('../lib/api').Task | null>(null)
+  const [campaignContentEdit, setCampaignContentEdit] = useState<{ id: number; title: string; description: string; target_url: string } | null>(null)
+  const [contentRevisions, setContentRevisions] = useState<ContentRevision[]>([])
+  const [contentSaving, setContentSaving] = useState(false)
   const [dashboardError, setDashboardError] = useState('')
   const [topupAmount, setTopupAmount] = useState('')
   const [topupError, setTopupError] = useState('')
@@ -512,8 +515,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [bannerError, setBannerError] = useState('')
   const [bannerLoading, setBannerLoading] = useState(false)
   const [bannerUploading, setBannerUploading] = useState(false)
-  const [bannerTargetEdits, setBannerTargetEdits] = useState<Record<number, string>>({})
-  const [bannerTargetSaving, setBannerTargetSaving] = useState<number | null>(null)
+  const [bannerEdit, setBannerEdit] = useState<{ id: number; title: string; body: string; image_url: string; target_url: string } | null>(null)
   const [profileName, setProfileName] = useState('')
   const [profilePhone, setProfilePhone] = useState('')
   const [profileCity, setProfileCity] = useState('')
@@ -535,15 +537,11 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
   const refreshDashboard = async () => {
     try {
-      const [dashboardData, bannerData, promotionData, ticketData, notificationData, chatData] = await Promise.all([api.advertiserDashboard(), api.advertiserBanners(), api.advertiserPromotions(), api.tickets(), api.notifications().catch(() => ({ notifications: [] })), api.advertiserTaskChats().catch(() => ({ threads: [] }))])
+      const [dashboardData, bannerData, promotionData, ticketData, notificationData, chatData, revisionData] = await Promise.all([api.advertiserDashboard(), api.advertiserBanners(), api.advertiserPromotions(), api.tickets(), api.notifications().catch(() => ({ notifications: [] })), api.advertiserTaskChats().catch(() => ({ threads: [] })), api.advertiserContentRevisions()])
       setDashboard(dashboardData)
       setBannerSlots(bannerData.slots)
       setOwnBanners(bannerData.banners)
-      setBannerTargetEdits(current => {
-        const next = { ...current }
-        for (const banner of bannerData.banners) if (next[banner.id] === undefined) next[banner.id] = banner.target_url || ''
-        return next
-      })
+      setContentRevisions(revisionData.revisions)
       setPromotions(promotionData.promotions)
       setTickets(ticketData.tickets)
       setNotifications(notificationData.notifications)
@@ -652,18 +650,55 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
     } finally { setBannerUploading(false) }
   }
 
-  const updateBannerTarget = async (banner: PaidBanner) => {
-    setBannerTargetSaving(banner.id)
+  const pendingRevision = (entityType: 'campaign' | 'banner', entityId: number) => contentRevisions.find(revision => revision.entity_type === entityType && revision.entity_id === entityId && revision.status === 'pending')
+
+  const saveBannerEdit = async () => {
+    if (!bannerEdit) return
+    setContentSaving(true)
     try {
-      const targetUrl = bannerTargetEdits[banner.id]?.trim() || undefined
-      const result = await api.updateAdvertiserBannerTarget(banner.id, targetUrl)
-      setBannerTargetEdits(current => ({ ...current, [banner.id]: result.banner.target_url || '' }))
+      const result = await api.editAdvertiserBanner(bannerEdit.id, {
+        title: bannerEdit.title.trim(), body: bannerEdit.body.trim() || null,
+        image_url: bannerEdit.image_url.trim() || null, target_url: bannerEdit.target_url.trim() || null,
+      })
       await refreshDashboard()
-      showToast(result.banner.target_url ? 'Link bannera je sačuvan.' : 'Link bannera je uklonjen.', 'success')
+      setBannerEdit(null)
+      showToast(result.revision ? 'Izmena bannera je poslata adminu. Odobrena verzija ostaje aktivna do odluke.' : 'Banner je izmenjen i i dalje čeka admin proveru.', 'success')
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Link bannera nije sačuvan.', 'error')
+      showToast(error instanceof Error ? error.message : 'Izmena bannera nije poslata.', 'error')
     } finally {
-      setBannerTargetSaving(null)
+      setContentSaving(false)
+    }
+  }
+
+  const saveCampaignContentEdit = async () => {
+    if (!campaignContentEdit) return
+    setContentSaving(true)
+    try {
+      await api.editActiveCampaignContent(campaignContentEdit.id, {
+        title: campaignContentEdit.title.trim(), description: campaignContentEdit.description.trim(),
+        target_url: campaignContentEdit.target_url.trim() || null,
+      })
+      await refreshDashboard()
+      setCampaignContentEdit(null)
+      showToast('Izmena kampanje je poslata adminu. Dosadašnja verzija ostaje aktivna do odluke.', 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Izmena kampanje nije poslata.', 'error')
+    } finally {
+      setContentSaving(false)
+    }
+  }
+
+  const uploadBannerEdit = async (file: File | undefined) => {
+    if (!file || !bannerEdit) return
+    setBannerUploading(true)
+    try {
+      const uploaded = await api.uploadAdvertiserBanner(file)
+      setBannerEdit(current => current ? { ...current, image_url: uploaded.image_url } : null)
+      showToast('Nova slika je otpremljena. Prikazaće se tek kada admin odobri izmenu.', 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Slika nije otpremljena.', 'error')
+    } finally {
+      setBannerUploading(false)
     }
   }
 
@@ -956,16 +991,24 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                       <span className="font-mono text-amber-700">{c.potrošeno}</span>,
                       <span className="font-mono">{c.dokazi}</span>,
                       <StatusBadge status={c.status} />,
-                       c.task.status === 'needs_revision'
-                         ? <Btn size="sm" variant="secondary" onClick={() => { setCampaignToRevise(c.task); goTo('nova') }}>Doradi</Btn>
+                       ['needs_revision', 'pending'].includes(c.task.status)
+                         ? <Btn size="sm" variant="secondary" onClick={() => { setCampaignToRevise(c.task); goTo('nova') }}>Uredi i pošalji na proveru</Btn>
                          : c.task.status === 'active'
-                           ? <div className="flex flex-wrap gap-1.5"><Btn size="sm" variant="secondary" onClick={() => setCampaignLifecycleAction({ id: c.task.id, title: c.task.title, action: 'pause' })}>Pauziraj</Btn><Btn size="sm" variant="danger" onClick={() => setCampaignLifecycleAction({ id: c.task.id, title: c.task.title, action: 'stop' })}>Završi</Btn></div>
+                           ? <div className="flex flex-wrap gap-1.5">{pendingRevision('campaign', c.task.id) ? <span className="text-xs font-semibold text-amber-700">Izmena čeka proveru</span> : <Btn size="sm" variant="secondary" onClick={() => setCampaignContentEdit({ id: c.task.id, title: c.task.title, description: c.task.description, target_url: c.task.target_url || '' })}>Uredi sadržaj</Btn>}<Btn size="sm" variant="secondary" onClick={() => setCampaignLifecycleAction({ id: c.task.id, title: c.task.title, action: 'pause' })}>Pauziraj</Btn><Btn size="sm" variant="danger" onClick={() => setCampaignLifecycleAction({ id: c.task.id, title: c.task.title, action: 'stop' })}>Završi</Btn></div>
                            : c.task.status === 'paused'
                              ? <div className="flex flex-wrap gap-1.5"><Btn size="sm" variant="success" onClick={() => setCampaignLifecycleAction({ id: c.task.id, title: c.task.title, action: 'resume' })}>Nastavi</Btn><Btn size="sm" variant="danger" onClick={() => setCampaignLifecycleAction({ id: c.task.id, title: c.task.title, action: 'stop' })}>Završi</Btn></div>
                              : <span className="text-xs text-ink-3">{c.task.moderation_note || 'Čeka proveru'}</span>,
                     ])}
                   />
                 </Card>
+                {campaignContentEdit && <Card className="mt-5 space-y-4 border-blue-200 p-5">
+                  <div><h2 className="font-bold text-ink">Izmena aktivne kampanje</h2><p className="mt-1 text-sm text-ink-2">Stari odobreni sadržaj ostaje javno dostupan do admin odluke. Nagradu, broj mesta i uslove postojećih učesnika ovde ne menjamo.</p></div>
+                  <Input label="Naslov" value={campaignContentEdit.title} onChange={value => setCampaignContentEdit(current => current ? { ...current, title: value } : null)} />
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-ink-2" htmlFor="active-campaign-description">Opis kampanje</label>
+                  <textarea id="active-campaign-description" rows={5} value={campaignContentEdit.description} onChange={event => setCampaignContentEdit(current => current ? { ...current, description: event.target.value } : null)} className="w-full rounded-lg border border-frame bg-white p-3 text-sm text-ink focus:border-blue-500 focus:outline-none" />
+                  <Input label="Link zadatka (opciono)" value={campaignContentEdit.target_url} onChange={value => setCampaignContentEdit(current => current ? { ...current, target_url: value } : null)} />
+                  <div className="flex flex-wrap gap-2"><Btn disabled={contentSaving || campaignContentEdit.title.trim().length < 3 || campaignContentEdit.description.trim().length < 5} onClick={() => void saveCampaignContentEdit()}>{contentSaving ? 'Slanje...' : 'Pošalji izmenu adminu'}</Btn><Btn variant="secondary" onClick={() => setCampaignContentEdit(null)}>Otkaži</Btn></div>
+                </Card>}
               </div>
             )}
 
@@ -1290,7 +1333,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     ? <EmptyState icon="🖼️" title={platformPublishing ? 'Još nemaš platformski banner' : 'Još nemaš zakupljen banner'} description={platformPublishing ? 'Izaberi slobodnu poziciju i pošalji platformsku objavu na proveru.' : 'Izaberi slobodnu poziciju i pošalji rezervaciju na proveru.'} />
                     : <Card>
                       <Table
-                        headers={['Reklama', 'Pozicija', 'Trajanje', 'Prikazi', 'Iznos', 'Status', 'Odredište', 'Napomena']}
+                        headers={['Reklama', 'Pozicija', 'Trajanje', 'Prikazi', 'Iznos', 'Status', 'Izmena', 'Napomena']}
                         rows={ownBanners.map(banner => [
                           <span className="font-semibold text-ink">{banner.title}</span>,
                           <span className="text-xs text-ink-2">{banner.slot_title}</span>,
@@ -1298,11 +1341,18 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                           <span className="font-mono text-xs">{banner.views_count}</span>,
                           <span className="font-mono text-xs">{platformPublishing ? '0 RSD' : `${new Intl.NumberFormat('sr-RS').format(banner.price_rsd)} RSD`}</span>,
                           <StatusBadge status={banner.status} />,
-                          <div className="min-w-64 space-y-2"><Input label="" placeholder="https://..." value={bannerTargetEdits[banner.id] ?? banner.target_url ?? ''} onChange={value => setBannerTargetEdits(current => ({ ...current, [banner.id]: value }))} /><Btn size="sm" variant="secondary" disabled={bannerTargetSaving === banner.id || !['aktivno', 'active', 'na_cekanju', 'pending'].includes(banner.status)} onClick={() => void updateBannerTarget(banner)}>{bannerTargetSaving === banner.id ? 'Čuvanje...' : 'Sačuvaj link'}</Btn>{platformPublishing && <p className="text-[11px] leading-4 text-ink-3">Za interni zadatak koristi puni link, npr. <code>{window.location.origin}/zadaci?task=7</code>.</p>}</div>,
+                          <div className="min-w-40 space-y-2">{banner.target_url && <p className="max-w-56 truncate text-xs text-ink-3" title={banner.target_url}>{banner.target_url}</p>}{pendingRevision('banner', banner.id) ? <span className="text-xs font-semibold text-amber-700">Izmena čeka proveru</span> : ['aktivno', 'active', 'na_cekanju', 'pending'].includes(banner.status) ? <Btn size="sm" variant="secondary" onClick={() => setBannerEdit({ id: banner.id, title: banner.title, body: banner.body || '', image_url: banner.image_url || '', target_url: banner.target_url || '' })}>Uredi banner</Btn> : <span className="text-xs text-ink-3">Nije moguće uređivanje</span>}</div>,
                           <span className="text-xs text-ink-3">{banner.admin_note || '—'}</span>,
                         ])}
                       />
                     </Card>}
+                  {bannerEdit && <Card className="mt-5 space-y-4 border-blue-200 p-5">
+                    <div><h3 className="font-bold text-ink">Uredi postojeći banner</h3><p className="mt-1 text-sm text-ink-2">Pozicija, cena i trajanje ostaju isti. Ako je banner već aktivan, stara verzija ostaje javna dok admin ne odobri novu.</p></div>
+                    <div className="grid gap-3 sm:grid-cols-2"><Input label="Naslov" value={bannerEdit.title} onChange={value => setBannerEdit(current => current ? { ...current, title: value } : null)} /><Input label="Link (opciono)" value={bannerEdit.target_url} onChange={value => setBannerEdit(current => current ? { ...current, target_url: value } : null)} /><Input label="Kratak opis" value={bannerEdit.body} onChange={value => setBannerEdit(current => current ? { ...current, body: value } : null)} /><Input label="URL slike (opciono)" value={bannerEdit.image_url} onChange={value => setBannerEdit(current => current ? { ...current, image_url: value } : null)} /></div>
+                    {bannerEdit.image_url && <img src={bannerEdit.image_url} alt="Pregled izmene bannera" className="max-h-44 w-full rounded-lg border border-frame object-contain" />}
+                    <label className="block text-sm font-semibold text-ink-2">Otpremi novu sliku<input type="file" accept="image/jpeg,image/png,image/webp" disabled={bannerUploading} onChange={event => void uploadBannerEdit(event.target.files?.[0])} className="mt-2 block w-full text-sm font-normal" /></label>
+                    <div className="flex flex-wrap gap-2"><Btn disabled={contentSaving || bannerUploading || bannerEdit.title.trim().length < 3} onClick={() => void saveBannerEdit()}>{contentSaving ? 'Slanje...' : 'Pošalji izmenu adminu'}</Btn><Btn variant="secondary" onClick={() => setBannerEdit(null)}>Otkaži</Btn></div>
+                  </Card>}
                 </div>
               </div>
             )}

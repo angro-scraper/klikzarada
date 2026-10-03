@@ -181,8 +181,8 @@ export function Table({ headers, rows }: { headers: string[]; rows: ReactNode[][
 }
 
 // ── Inputs ─────────────────────────────────────────────────────────────────────
-export function Input({ label, placeholder, type = 'text', value, onChange, min, max, step, autoComplete }: {
-  label?: string; placeholder?: string; type?: string; value?: string; onChange?: (v: string) => void; min?: number | string; max?: number | string; step?: number; autoComplete?: string
+export function Input({ label, placeholder, type = 'text', value, onChange, min, max, step, autoComplete, error }: {
+  label?: string; placeholder?: string; type?: string; value?: string; onChange?: (v: string) => void; min?: number | string; max?: number | string; step?: number; autoComplete?: string; error?: string
 }) {
   const id = useId()
   const [passwordVisible, setPasswordVisible] = useState(false)
@@ -196,6 +196,8 @@ export function Input({ label, placeholder, type = 'text', value, onChange, min,
         placeholder={placeholder}
         value={value}
         autoComplete={autoComplete}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${id}-error` : undefined}
         min={min}
         max={max}
         step={step}
@@ -204,6 +206,7 @@ export function Input({ label, placeholder, type = 'text', value, onChange, min,
       />
       {type === 'password' && <button type="button" onClick={() => setPasswordVisible(visible => !visible)} aria-label={passwordVisible ? 'Sakrij lozinku' : 'Prikaži lozinku'} className="absolute right-1 top-1/2 -translate-y-1/2 rounded px-2 py-2 text-xs font-semibold text-blue-700 focus-visible:outline-2 focus-visible:outline-blue-600">{passwordVisible ? 'Sakrij' : 'Prikaži'}</button>}
       </div>
+      {error && <p id={`${id}-error`} className="text-xs font-semibold text-red-600">{error}</p>}
     </div>
   )
 }

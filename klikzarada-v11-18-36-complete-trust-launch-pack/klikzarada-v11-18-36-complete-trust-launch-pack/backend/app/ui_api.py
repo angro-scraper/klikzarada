@@ -46,6 +46,7 @@ from .models import (
     FraudSignalV11,
     HomeBannerSlotV111,
     LaunchWaitlist,
+    ModeratedContentRevision,
     Notification,
     PasswordResetTokenV11,
     PayPalCheckout,
@@ -257,6 +258,24 @@ class BannerReservationPayload(BaseModel):
 
 class BannerTargetUpdatePayload(BaseModel):
     target_url: str | None = Field(default=None, max_length=500)
+
+
+class BannerContentEditPayload(BaseModel):
+    title: str = Field(min_length=3, max_length=180)
+    body: str | None = Field(default=None, max_length=1000)
+    image_url: str | None = Field(default=None, max_length=500)
+    target_url: str | None = Field(default=None, max_length=500)
+
+
+class CampaignContentEditPayload(BaseModel):
+    title: str = Field(min_length=3, max_length=220)
+    description: str = Field(min_length=5, max_length=5000)
+    target_url: str | None = Field(default=None, max_length=500)
+
+
+class ContentRevisionReviewPayload(BaseModel):
+    status: Literal["approved", "rejected"]
+    note: str | None = Field(default=None, max_length=1000)
 
 
 class AdminBannerStatusPayload(BaseModel):
@@ -2899,14 +2918,51 @@ def reserve_advertiser_banner(
     return {"banner": _banner_data(banner), "reserved_rsd": price_rsd}
 
 
-@router.patch("/advertiser/banners/{banner_id}/target")
-def update_advertiser_banner_target(
+def _content_revision_data(revision: ModeratedContentRevision) -> dict:
+    return {
+        "id": revision.id,
+        "entity_type": revision.entity_type,
+        "entity_id": revision.entity_id,
+        "owner_id": revision.owner_id,
+        "changes": json.loads(revision.payload_json),
+        "status": revision.status,
+        "admin_note": revision.admin_note,
+        "created_at": _iso(revision.created_at),
+        "reviewed_at": _iso(revision.reviewed_at),
+    }
+
+
+def _queue_content_revision(db: Session, user: User, entity_type: str, entity_id: int, changes: dict) -> ModeratedContentRevision:
+    pending = db.query(ModeratedContentRevision.id).filter(
+        ModeratedContentRevision.entity_type == entity_type,
+        ModeratedContentRevision.entity_id == entity_id,
+        ModeratedContentRevision.status == "pending",
+    ).first()
+    if pending:
+        raise HTTPException(409, "Izmena već čeka administrativnu proveru.")
+    revision = ModeratedContentRevision(
+        entity_type=entity_type, entity_id=entity_id, owner_id=user.id,
+        payload_json=json.dumps(changes, ensure_ascii=False), status="pending",
+    )
+    db.add(revision)
+    db.flush()
+    db.add(Notification(
+        role_target="admin",
+        title="Izmena sadržaja čeka proveru",
+        body=f"{user.full_name} je poslao/la izmenu {'kampanje' if entity_type == 'campaign' else 'bannera'} #{entity_id}.",
+        status="unread",
+    ))
+    _audit(db, user, "content_revision_requested", entity_type, entity_id, f"revision={revision.id}")
+    return revision
+
+
+@router.put("/advertiser/banners/{banner_id}")
+def edit_advertiser_banner(
     banner_id: int,
-    payload: BannerTargetUpdatePayload,
+    payload: BannerContentEditPayload,
     request: Request,
     db: Session = Depends(get_db),
 ) -> dict:
-    """Allow an owner to correct where an already-approved banner opens."""
     user = _require_user(request, db, {"oglasivac", "admin"})
     banner = db.query(PaidAdBannerV111).filter(
         PaidAdBannerV111.id == banner_id,
@@ -2915,12 +2971,45 @@ def update_advertiser_banner_target(
     if not banner:
         raise HTTPException(404, "Banner nije pronađen.")
     if banner.status not in {"pending", "active"}:
-        raise HTTPException(409, "Link možeš menjati samo dok banner čeka objavu ili je aktivan.")
-    banner.target_url = _validate_banner_target_url(payload.target_url)
-    _audit(db, user, "advertiser_banner_target_updated", "PaidAdBannerV111", banner.id, banner.target_url or "bez linka")
+        raise HTTPException(409, "Samo banner na proveri ili aktivan banner može da se uredi.")
+    changes = {
+        "title": payload.title.strip(),
+        "body": (payload.body or "").strip() or None,
+        "image_url": _validate_banner_image_url(payload.image_url) if payload.image_url and payload.image_url.strip() else None,
+        "target_url": _validate_banner_target_url(payload.target_url),
+    }
+    if banner.status == "active":
+        revision = _queue_content_revision(db, user, "banner", banner.id, changes)
+        db.commit()
+        return {"banner": _banner_data(banner), "revision": _content_revision_data(revision)}
+    for field, value in changes.items():
+        setattr(banner, field, value)
+    banner.admin_note = "Izmenjeni banner čeka administrativnu proveru."
+    _audit(db, user, "advertiser_banner_edited_pending", "PaidAdBannerV111", banner.id)
     db.commit()
     db.refresh(banner)
-    return {"banner": _banner_data(banner)}
+    return {"banner": _banner_data(banner), "revision": None}
+
+
+@router.patch("/advertiser/banners/{banner_id}/target")
+def update_advertiser_banner_target(
+    banner_id: int,
+    payload: BannerTargetUpdatePayload,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    """Keep older clients on the same moderation path as the full editor."""
+    user = _require_user(request, db, {"oglasivac", "admin"})
+    banner = db.query(PaidAdBannerV111).filter(
+        PaidAdBannerV111.id == banner_id, PaidAdBannerV111.advertiser_id == user.id,
+    ).first()
+    if not banner:
+        raise HTTPException(404, "Banner nije pronađen.")
+    return edit_advertiser_banner(
+        banner_id,
+        BannerContentEditPayload(title=banner.title, body=banner.body, image_url=banner.image_url, target_url=payload.target_url),
+        request, db,
+    )
 
 
 def _paypal_config() -> tuple[str, str, str, Decimal]:
@@ -3321,13 +3410,13 @@ def create_campaign(payload: CampaignPayload, request: Request, db: Session = De
 
 @router.put("/advertiser/campaigns/{task_id}")
 def revise_campaign(task_id: int, payload: CampaignPayload, request: Request, db: Session = Depends(get_db)) -> dict:
-    """Resubmit an admin-requested revision and reconcile its held budget."""
+    """Edit a campaign still awaiting approval and reconcile its held budget."""
     user = _require_user(request, db, {"oglasivac", "admin"})
     task = db.query(Task).filter(Task.id == task_id, Task.advertiser_id == user.id).with_for_update().first()
     if not task:
         raise HTTPException(404, "Kampanja nije pronađena.")
-    if task.status != "needs_revision":
-        raise HTTPException(409, "Samo kampanja vraćena na doradu može ponovo da se pošalje.")
+    if task.status not in {"needs_revision", "pending"}:
+        raise HTTPException(409, "Pune uslove možeš menjati samo dok kampanja čeka proveru ili doradu.")
     category = payload.category.strip()
     if category not in _SAFE_CAMPAIGN_CATEGORIES:
         raise HTTPException(400, "Izaberi jednu od dozvoljenih kategorija zadatka.")
@@ -3375,6 +3464,7 @@ def revise_campaign(task_id: int, payload: CampaignPayload, request: Request, db
     task.tester_daily_reward_rsd = payload.tester_daily_reward_rsd
     task.status = "pending"
     task.moderation_note = "Izmenjena kampanja ponovo čeka administrativnu proveru."
+    _audit(db, user, "advertiser_campaign_edited_pending", "Task", task.id)
     if platform_publishing:
         db.add(AdvertiserBudgetTransaction(advertiser_id=user.id, amount_rsd=0, tx_type="platform_campaign_revised", description=f"Izmenjena platformska kampanja bez naknade: {task.title}"))
     elif difference:
@@ -3387,6 +3477,108 @@ def revise_campaign(task_id: int, payload: CampaignPayload, request: Request, db
     db.commit()
     db.refresh(task)
     return {"campaign": _task_data(task), "reserved_rsd": new_total}
+
+
+@router.put("/advertiser/campaigns/{task_id}/content")
+def edit_active_campaign_content(
+    task_id: int,
+    payload: CampaignContentEditPayload,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    user = _require_user(request, db, {"oglasivac", "admin"})
+    task = db.query(Task).filter(Task.id == task_id, Task.advertiser_id == user.id).with_for_update().first()
+    if not task:
+        raise HTTPException(404, "Kampanja nije pronađena.")
+    if task.status != "active":
+        raise HTTPException(409, "Ovu izmenu možeš poslati samo za aktivnu kampanju.")
+    changes = {
+        "title": payload.title.strip(),
+        "description": payload.description.strip(),
+        "target_url": (payload.target_url or "").strip() or None,
+    }
+    revision = _queue_content_revision(db, user, "campaign", task.id, changes)
+    db.commit()
+    return {"campaign": _task_data(task), "revision": _content_revision_data(revision)}
+
+
+@router.get("/advertiser/content-revisions")
+def advertiser_content_revisions(request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db, {"oglasivac", "admin"})
+    revisions = db.query(ModeratedContentRevision).filter(
+        ModeratedContentRevision.owner_id == user.id,
+    ).order_by(ModeratedContentRevision.id.desc()).limit(100).all()
+    return {"revisions": [_content_revision_data(revision) for revision in revisions]}
+
+
+@router.get("/admin/content-revisions")
+def admin_content_revisions(request: Request, db: Session = Depends(get_db)) -> dict:
+    _require_user(request, db, {"admin"})
+    revisions = db.query(ModeratedContentRevision).filter(
+        ModeratedContentRevision.status == "pending",
+    ).order_by(ModeratedContentRevision.id.asc()).limit(200).all()
+    result = []
+    for revision in revisions:
+        row = _content_revision_data(revision)
+        entity = db.get(Task if revision.entity_type == "campaign" else PaidAdBannerV111, revision.entity_id)
+        owner = db.get(User, revision.owner_id)
+        row["current"] = {
+            "title": entity.title,
+            "description": entity.description,
+            "target_url": entity.target_url,
+        } if revision.entity_type == "campaign" and entity else {
+            "title": entity.title,
+            "body": entity.body,
+            "image_url": entity.image_url,
+            "target_url": entity.target_url,
+        } if entity else None
+        row["owner_name"] = owner.full_name if owner else "Nepoznat nalog"
+        result.append(row)
+    return {"revisions": result}
+
+
+@router.patch("/admin/content-revisions/{revision_id}")
+def review_content_revision(
+    revision_id: int,
+    payload: ContentRevisionReviewPayload,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    admin = _require_user(request, db, {"admin"})
+    revision = db.query(ModeratedContentRevision).filter(
+        ModeratedContentRevision.id == revision_id,
+    ).with_for_update().first()
+    if not revision:
+        raise HTTPException(404, "Izmena nije pronađena.")
+    if revision.status != "pending":
+        raise HTTPException(409, "Ova izmena je već pregledana.")
+    if payload.status == "rejected" and not (payload.note or "").strip():
+        raise HTTPException(400, "Napiši razlog odbijanja da bi oglašivač znao šta da ispravi.")
+    entity_class = Task if revision.entity_type == "campaign" else PaidAdBannerV111
+    entity = db.query(entity_class).filter(entity_class.id == revision.entity_id).with_for_update().first()
+    if not entity or entity.advertiser_id != revision.owner_id:
+        raise HTTPException(409, "Izvorni sadržaj više nije dostupan istom oglašivaču.")
+    if payload.status == "approved":
+        if entity.status != "active":
+            raise HTTPException(409, "Sadržaj više nije aktivan; izmena se ne može objaviti.")
+        for field, value in json.loads(revision.payload_json).items():
+            setattr(entity, field, value)
+    revision.status = payload.status
+    revision.admin_note = (payload.note or "").strip() or None
+    revision.reviewed_at = datetime.utcnow()
+    revision.reviewed_by = admin.id
+    kind = "kampanje" if revision.entity_type == "campaign" else "bannera"
+    result = "odobrena i objavljena" if payload.status == "approved" else "odbijena"
+    db.add(Notification(
+        user_id=revision.owner_id,
+        title=f"Izmena {kind} je {result}",
+        body=revision.admin_note or "Izmena je pregledana. Stara verzija je ostala aktivna do odluke.",
+        status="unread",
+    ))
+    _audit(db, admin, "content_revision_review", revision.entity_type, revision.entity_id, f"revision={revision.id};status={payload.status}")
+    db.commit()
+    db.refresh(revision)
+    return {"revision": _content_revision_data(revision)}
 
 
 @router.patch("/advertiser/campaigns/{task_id}/lifecycle")

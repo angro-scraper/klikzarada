@@ -4,12 +4,12 @@ import { Btn, Card, StatCard, SectionHeader, EmptyState, Table, StatusBadge, Tab
 import { PageHeader } from '../components/PageHeader'
 import { ConfirmModal, InfoModal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminUserProfile, type AdminWithdrawal, type AdminSetting, type BannerSlot, type FraudOverview, type NotificationItem, type PaidBanner, type PaidPromotion, type ProductionReadiness, type SupportTicket, type TaskSource } from '../lib/api'
+import { api, type AdminCampaign, type AdminMetrics, type AdminSubmission, type AdminUser, type AdminUserProfile, type AdminWithdrawal, type AdminSetting, type BannerSlot, type ContentRevision, type FraudOverview, type NotificationItem, type PaidBanner, type PaidPromotion, type ProductionReadiness, type SupportTicket, type TaskSource } from '../lib/api'
 
-function adminNavigation(metrics: AdminMetrics | null, tickets: SupportTicket[], unreadNotifications: number) {
+function adminNavigation(metrics: AdminMetrics | null, tickets: SupportTicket[], unreadNotifications: number, revisions: ContentRevision[]) {
   const pendingWithdrawals = metrics?.pending_withdrawals ?? 0
-  const pendingCampaigns = metrics?.pending_campaigns ?? 0
-  const pendingBanners = metrics?.pending_banners ?? 0
+  const pendingCampaigns = (metrics?.pending_campaigns ?? 0) + revisions.filter(revision => revision.entity_type === 'campaign').length
+  const pendingBanners = (metrics?.pending_banners ?? 0) + revisions.filter(revision => revision.entity_type === 'banner').length
   const pendingSubmissions = metrics?.pending_submissions ?? 0
   const openTickets = tickets.filter(ticket => ticket.status !== 'closed').length
 
@@ -121,6 +121,8 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   const [fraudOverview, setFraudOverview] = useState<FraudOverview | null>(null)
   const [bannerSlots, setBannerSlots] = useState<BannerSlot[]>([])
   const [banners, setBanners] = useState<PaidBanner[]>([])
+  const [contentRevisions, setContentRevisions] = useState<ContentRevision[]>([])
+  const [revisionNotes, setRevisionNotes] = useState<Record<number, string>>({})
   const [promotions, setPromotions] = useState<PaidPromotion[]>([])
   const [productionReadiness, setProductionReadiness] = useState<ProductionReadiness | null>(null)
   const [settingDrafts, setSettingDrafts] = useState<Record<string, string>>({})
@@ -163,6 +165,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
       }),
       load('anti-fraud', api.adminFraudOverview(), data => setFraudOverview(data)),
       load('banneri', api.adminBanners(), data => { setBannerSlots(data.slots); setBanners(data.banners) }),
+      load('izmene sadržaja', api.adminContentRevisions(), data => setContentRevisions(data.revisions)),
       load('promocije', api.adminPromotions(), data => setPromotions(data.promotions)),
       load('produkcijska provera', api.adminProductionReadiness(), data => setProductionReadiness(data)),
     ])
@@ -192,6 +195,39 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
   }, [])
 
   function goTo(p: AdminPage) { setPage(p) }
+  const reviewPendingContent = async (revision: ContentRevision, status: 'approved' | 'rejected') => {
+    const note = revisionNotes[revision.id]?.trim() || ''
+    if (status === 'rejected' && !note) {
+      showToast('Napiši razlog odbijanja da bi oglašivač znao šta da ispravi.', 'error')
+      return
+    }
+    setSavingAction(true)
+    try {
+      await api.reviewContentRevision(revision.id, status, note)
+      await refreshAdmin()
+      showToast(status === 'approved' ? 'Izmena je odobrena i sada je javna.' : 'Izmena je odbijena; stara verzija je ostala aktivna.', 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Izmena nije pregledana.', 'error')
+    } finally {
+      setSavingAction(false)
+    }
+  }
+  const renderContentRevisions = (entityType: 'campaign' | 'banner') => {
+    const revisions = contentRevisions.filter(revision => revision.entity_type === entityType)
+    if (!revisions.length) return null
+    const labels: Record<string, string> = { title: 'Naslov', description: 'Opis', body: 'Tekst', image_url: 'Slika', target_url: 'Odredište' }
+    return <section className="mt-6 space-y-3" aria-label="Izmene na proveri">
+      <h2 className="text-lg font-bold text-ink">Izmene aktivnih {entityType === 'campaign' ? 'kampanja' : 'bannera'} na proveri ({revisions.length})</h2>
+      <p className="text-sm text-ink-2">Stara odobrena verzija ostaje javna dok ne odlučiš o novom sadržaju.</p>
+      {revisions.map(revision => <Card key={revision.id} className="space-y-4 p-5">
+        <div><p className="font-bold text-ink">{revision.owner_name} · {revision.current?.title || `Objava #${revision.entity_id}`}</p><p className="text-xs text-ink-3">Zahtev #{revision.id} · {revision.created_at ? new Intl.DateTimeFormat('sr-RS').format(new Date(revision.created_at)) : ''}</p></div>
+        <div className="grid gap-3 md:grid-cols-2">{Object.entries(revision.changes).map(([field, value]) => <div key={field} className="rounded-lg border border-frame bg-mint-50 p-3 text-sm"><p className="font-bold text-ink">{labels[field] || field}</p><p className="mt-2 break-words text-xs text-ink-3">Trenutno: {revision.current?.[field] || 'Nije navedeno'}</p><p className="mt-2 whitespace-pre-wrap break-words text-ink">Predlog: {value || 'Nije navedeno'}</p>{field === 'image_url' && value && <img src={value} alt="Predložena slika bannera" className="mt-3 max-h-40 w-full rounded border border-frame object-contain" />}</div>)}</div>
+        <label className="block text-xs font-semibold text-ink-2" htmlFor={`revision-note-${revision.id}`}>Napomena admina, obavezna kod odbijanja</label>
+        <textarea id={`revision-note-${revision.id}`} rows={2} value={revisionNotes[revision.id] || ''} onChange={event => setRevisionNotes(current => ({ ...current, [revision.id]: event.target.value }))} className="w-full rounded-lg border border-frame p-3 text-sm text-ink focus:border-blue-500 focus:outline-none" />
+        <div className="flex flex-wrap gap-2"><Btn size="sm" variant="success" disabled={savingAction} onClick={() => void reviewPendingContent(revision, 'approved')}>Odobri izmenu</Btn><Btn size="sm" variant="danger" disabled={savingAction} onClick={() => void reviewPendingContent(revision, 'rejected')}>Odbij izmenu</Btn></div>
+      </Card>)}
+    </section>
+  }
   const back = BACK[page]
   const crumbs = CRUMBS[page]
 
@@ -500,11 +536,11 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
       {mobileOpen && <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />}
       <div className="hidden lg:flex shrink-0">
-        <Sidebar groups={adminNavigation(metrics, tickets, notifications.filter(item => item.status === 'unread').length)} active={page} onNavigate={p => goTo(p as AdminPage)} footer={sidebarFooter} />
+        <Sidebar groups={adminNavigation(metrics, tickets, notifications.filter(item => item.status === 'unread').length, contentRevisions)} active={page} onNavigate={p => goTo(p as AdminPage)} footer={sidebarFooter} />
       </div>
       {mobileOpen && (
         <div className="fixed left-0 top-0 h-full z-50 lg:hidden">
-          <Sidebar groups={adminNavigation(metrics, tickets, notifications.filter(item => item.status === 'unread').length)} active={page} onNavigate={p => { goTo(p as AdminPage); setMobileOpen(false) }} footer={sidebarFooter} isMobile onClose={() => setMobileOpen(false)} />
+          <Sidebar groups={adminNavigation(metrics, tickets, notifications.filter(item => item.status === 'unread').length, contentRevisions)} active={page} onNavigate={p => { goTo(p as AdminPage); setMobileOpen(false) }} footer={sidebarFooter} isMobile onClose={() => setMobileOpen(false)} />
         </div>
       )}
 
@@ -714,6 +750,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                     })}
                   />
                 </Card>
+                {renderContentRevisions('campaign')}
               </div>
             )}
 
@@ -801,6 +838,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                   ))}
                 </div>
                 {bannerSlots.length === 0 && <EmptyState icon="🖼️" title="Nema podešenih slotova" description="Slotovi se kreiraju automatski pri prvom otvaranju ovog ekrana." />}
+                {renderContentRevisions('banner')}
                 <div className="mt-6">
                   <SectionHeader title="Zakupi na proveri" description="Odobren zakup se automatski prikazuje na početnoj stranici." />
                   <Card>

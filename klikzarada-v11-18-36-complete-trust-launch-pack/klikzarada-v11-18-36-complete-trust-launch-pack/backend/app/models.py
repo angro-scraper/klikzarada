@@ -1760,6 +1760,20 @@ class PaidAdBannerV111(Base):
     slot = relationship("HomeBannerSlotV111")
 
 
+class ModeratedContentRevision(Base):
+    __tablename__ = "moderated_content_revisions"
+    id = Column(Integer, primary_key=True, index=True)
+    entity_type = Column(String(20), nullable=False, index=True)
+    entity_id = Column(Integer, nullable=False, index=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    payload_json = Column(Text, nullable=False)
+    status = Column(String(20), default="pending", nullable=False)
+    admin_note = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    reviewed_at = Column(DateTime, nullable=True)
+    reviewed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+
 class PaidAdViewV111(Base):
     __tablename__ = "v111_paid_ad_views"
     id = Column(Integer, primary_key=True, index=True)

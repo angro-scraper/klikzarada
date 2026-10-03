@@ -41,12 +41,22 @@ export default function Auth({
   const [resetToken, setResetToken] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [notice, setNotice] = useState('')
 
   const isAdvertiser = mode === 'advertiser-login' || mode === 'advertiser-register'
   const isRegister = mode === 'register' || mode === 'advertiser-register'
   const isAdmin = mode === 'admin-login'
   const selectedTaskId = Number(new URLSearchParams(window.location.search).get('task')) || 0
+
+  function clearFieldError(field: string) {
+    setFieldErrors(current => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
 
   function navigateAuth(destination: string) {
     if (selectedTaskId && (destination === 'login' || destination === 'register')) {
@@ -91,22 +101,23 @@ export default function Auth({
   }, [isAdvertiser, isRegister])
 
   async function handleSubmit() {
-    if (!email.trim() || !password) {
-      setError('Unesi email adresu i lozinku.')
-      return
-    }
+    const missing: Record<string, string> = {}
+    if (!email.trim()) missing.email = 'Unesi email adresu.'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) missing.email = 'Unesi ispravnu email adresu.'
+    if (!password) missing.password = 'Unesi lozinku.'
+    else if (isRegister && password.length < 8) missing.password = 'Lozinka mora imati najmanje 8 znakova.'
     if (isRegister) {
-      const missing = [
-        !name.trim() && 'ime i prezime',
-        !acceptTerms && 'prihvatanje uslova korišćenja',
-      ].filter(Boolean)
-      if (missing.length) {
-        setError(`Za registraciju još nedostaje: ${missing.join(', ')}.`)
-        return
-      }
+      if (!name.trim()) missing.name = isAdvertiser && advertiserType === 'business' ? 'Unesi naziv firme.' : 'Unesi ime i prezime.'
+      if (!acceptTerms) missing.terms = 'Prihvati uslove korišćenja da bi nastavio/la.'
+    }
+    if (Object.keys(missing).length) {
+      setFieldErrors(missing)
+      setError(isRegister ? 'Za registraciju još nedostaje: proveri označena polja.' : 'Proveri označena polja.')
+      return
     }
     setSubmitted(true)
     setError('')
+    setFieldErrors({})
     try {
       if (isRegister) void api.trackPublicFunnel('registration_submitted').catch(() => undefined)
       const result = isRegister
@@ -132,7 +143,12 @@ export default function Auth({
       else if (result.user.role === 'korisnik' && selectedTaskId) window.location.assign(`/korisnik/zadaci/${selectedTaskId}`)
       else onNavigate(result.user.role === 'oglasivac' ? 'advertiser' : 'dashboard')
     } catch (caught) {
-      if (isRegister) void api.trackPublicFunnel('registration_failed', registrationFailureReason(caught)).catch(() => undefined)
+      if (isRegister) {
+        const reason = registrationFailureReason(caught)
+        void api.trackPublicFunnel('registration_failed', registrationFailureReason(caught)).catch(() => undefined)
+        const field = reason === 'email_taken' ? 'email' : ['phone_taken', 'invalid_phone'].includes(reason) ? 'phone' : reason === 'invalid_referral' ? 'referral' : reason === 'terms_missing' ? 'terms' : ''
+        if (field) setFieldErrors({ [field]: caught instanceof Error ? caught.message : 'Proveri ovo polje.' })
+      }
       setError(caught instanceof Error ? caught.message : 'Prijava nije uspela.')
     } finally {
       setSubmitted(false)
@@ -140,7 +156,10 @@ export default function Auth({
   }
 
   async function handlePasswordReset() {
-    if (!password) return
+    if (password.length < 8) {
+      setFieldErrors({ password: 'Nova lozinka mora imati najmanje 8 znakova.' })
+      return
+    }
     setSubmitted(true)
     setError('')
     try {
@@ -156,7 +175,10 @@ export default function Auth({
   }
 
   async function requestReset() {
-    if (!email) return
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setFieldErrors({ email: 'Unesi ispravnu email adresu.' })
+      return
+    }
     setSubmitted(true)
     setError('')
     try {
@@ -229,13 +251,13 @@ export default function Auth({
             {error && <Alert type="error">{error}</Alert>}
             {notice && <Alert type="success">{notice}</Alert>}
 
-            <div className="flex flex-col gap-4">
+            <form noValidate onSubmit={event => { event.preventDefault(); void (resetToken ? handlePasswordReset() : forgotPassword ? requestReset() : handleSubmit()) }} className="flex flex-col gap-4">
               {!resetToken && !forgotPassword && isRegister && isAdvertiser && (
                 <div className="flex flex-col gap-1.5">
                   <span className="text-xs font-semibold text-ink-2 uppercase tracking-wide">Tip oglašivača</span>
                   <div className="grid grid-cols-2 gap-2">
-                    <button onClick={() => setAdvertiserType('business')} className={`rounded-lg border px-3 py-2 text-sm font-semibold cursor-pointer transition-colors ${advertiserType === 'business' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-frame bg-white text-ink-2 hover:border-blue-200'}`}>Firma</button>
-                    <button onClick={() => setAdvertiserType('private')} className={`rounded-lg border px-3 py-2 text-sm font-semibold cursor-pointer transition-colors ${advertiserType === 'private' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-frame bg-white text-ink-2 hover:border-blue-200'}`}>Privatno lice</button>
+                    <button type="button" onClick={() => setAdvertiserType('business')} className={`rounded-lg border px-3 py-2 text-sm font-semibold cursor-pointer transition-colors ${advertiserType === 'business' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-frame bg-white text-ink-2 hover:border-blue-200'}`}>Firma</button>
+                    <button type="button" onClick={() => setAdvertiserType('private')} className={`rounded-lg border px-3 py-2 text-sm font-semibold cursor-pointer transition-colors ${advertiserType === 'private' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-frame bg-white text-ink-2 hover:border-blue-200'}`}>Privatno lice</button>
                   </div>
                   <p className="text-xs text-ink-3">Privatno lice koristi svoje ime i prezime; firma koristi registrovani naziv.</p>
                 </div>
@@ -245,19 +267,20 @@ export default function Auth({
                   label={isAdvertiser ? advertiserType === 'business' ? 'Naziv firme' : 'Ime i prezime' : 'Ime i prezime'}
                   placeholder={isAdvertiser && advertiserType === 'business' ? 'Moja Firma d.o.o.' : 'Marko Marković'}
                   value={name}
-                  onChange={setName}
+                  onChange={value => { setName(value); clearFieldError('name') }}
                   autoComplete={isAdvertiser && advertiserType === 'business' ? 'organization' : 'name'}
+                  error={fieldErrors.name}
                 />
               )}
-              {!resetToken && <Input label="Email adresa" type="email" placeholder="email@primer.rs" value={email} onChange={setEmail} autoComplete="email" />}
+              {!resetToken && <Input label="Email adresa" type="email" placeholder="email@primer.rs" value={email} onChange={value => { setEmail(value); clearFieldError('email') }} autoComplete="email" error={fieldErrors.email} />}
               {!resetToken && !forgotPassword && isRegister && !isAdvertiser && (
-                <Input label="Telefon (opciono)" type="tel" placeholder="npr. +381 60 123 4567" value={phone} onChange={setPhone} autoComplete="tel" />
+                <Input label="Telefon (opciono)" type="tel" placeholder="npr. +381 60 123 4567" value={phone} onChange={value => { setPhone(value); clearFieldError('phone') }} autoComplete="tel" error={fieldErrors.phone} />
               )}
-              {!forgotPassword && <Input label={resetToken ? 'Nova lozinka' : 'Lozinka'} type="password" placeholder="••••••••" value={password} onChange={setPassword} autoComplete={resetToken || isRegister ? 'new-password' : 'current-password'} />}
+              {!forgotPassword && <Input label={resetToken ? 'Nova lozinka' : 'Lozinka'} type="password" placeholder="••••••••" value={password} onChange={value => { setPassword(value); clearFieldError('password') }} autoComplete={resetToken || isRegister ? 'new-password' : 'current-password'} error={fieldErrors.password} />}
               {(resetToken || isRegister) && !forgotPassword && <p className="-mt-2 text-xs text-slate-400">Lozinka mora imati najmanje 8 znakova.</p>}
               {!resetToken && !forgotPassword && isRegister && !isAdvertiser && (
                 <>
-                  <Input label="Referral kod (opciono)" placeholder="Unesi kod iz referral linka ili ostavi prazno" value={referral} onChange={value => { setReferral(value.toUpperCase()); setReferralFromLink(false) }} />
+                  <Input label="Referral kod (opciono)" placeholder="Unesi kod iz referral linka ili ostavi prazno" value={referral} onChange={value => { setReferral(value.toUpperCase()); setReferralFromLink(false); clearFieldError('referral') }} error={fieldErrors.referral} />
                   {referralFromLink && <p className="-mt-2 text-xs text-emerald-700">Referral kod je preuzet iz prijateljevog linka i biće proveren pri kreiranju naloga.</p>}
                   {!referralFromLink && <p className="-mt-2 text-xs text-ink-3">Nemaš kod? Ostavi polje prazno. Ne unosi primer ili nasumičan tekst.</p>}
                 </>
@@ -271,13 +294,14 @@ export default function Auth({
               )}
               {!resetToken && !forgotPassword && isRegister && (
                 <label className="flex gap-2 items-start text-xs text-slate-400 cursor-pointer">
-                  <input type="checkbox" checked={acceptTerms} onChange={event => setAcceptTerms(event.target.checked)} className="mt-0.5" />
-                  <span>Prihvatam <button type="button" onClick={() => onNavigate('legal')} className="text-blue-400 hover:text-blue-300">Uslove korišćenja i Politiku privatnosti</button>.</span>
+                  <input type="checkbox" checked={acceptTerms} onChange={event => { setAcceptTerms(event.target.checked); clearFieldError('terms') }} className="mt-0.5" aria-invalid={Boolean(fieldErrors.terms)} />
+                  <span>Prihvatam <a href="/pravila" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Uslove korišćenja i Politiku privatnosti</a>.</span>
                 </label>
               )}
+              {fieldErrors.terms && <p className="-mt-2 text-xs font-semibold text-red-500">{fieldErrors.terms}</p>}
 
               <Btn
-                onClick={resetToken ? handlePasswordReset : forgotPassword ? requestReset : handleSubmit}
+                type="submit"
                 disabled={submitted}
                 className="w-full justify-center"
               >
@@ -285,7 +309,7 @@ export default function Auth({
                   ? '⏳ Učitavam...'
                   : resetToken ? 'Sačuvaj novu lozinku' : forgotPassword ? 'Pošalji link za reset' : isRegister ? 'Kreiraj nalog' : 'Prijavi se'}
               </Btn>
-            </div>
+            </form>
 
             <div className="mt-5 pt-5 border-t border-border text-center">
               {resetToken || forgotPassword ? (
@@ -319,9 +343,9 @@ export default function Auth({
 
           <p className="text-center text-xs text-slate-600 mt-4">
             Prijavom prihvataš{' '}
-            <span className="text-slate-500 cursor-pointer hover:text-slate-400">Uslove korišćenja</span>
+            <a href="/pravila" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-400">Uslove korišćenja</a>
             {' '}i{' '}
-            <span className="text-slate-500 cursor-pointer hover:text-slate-400">Politiku privatnosti</span>.
+            <a href="/pravila" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-400">Politiku privatnosti</a>.
           </p>
         </div>
       </div>
