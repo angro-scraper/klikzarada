@@ -97,7 +97,7 @@ def _public_spa_document(path: str, index: Path) -> str:
     document = re.sub(r"<title>.*?</title>", f"<title>{html.escape(title)}</title>", document, count=1, flags=re.DOTALL)
     document = re.sub(r'<meta name="description"[^>]*>', f'<meta name="description" content="{html.escape(description, quote=True)}" />', document, count=1)
     metadata = (
-        f'<meta name="robots" content="{"index, follow" if public and os.getenv("APP_ENV") == "production" else "noindex, nofollow"}" />'
+        f'<meta name="robots" content="{"index, follow" if public and running_in_production() else "noindex, nofollow"}" />'
         f'<link rel="canonical" href="{html.escape(canonical, quote=True)}" />'
         f'<meta property="og:type" content="website" />'
         f'<meta property="og:title" content="{html.escape(title, quote=True)}" />'
@@ -3170,7 +3170,7 @@ def admin_marketing(request:Request, db:Session=Depends(get_db)):
 
 @app.get("/robots.txt")
 def robots(request: Request):
-    if os.getenv("APP_ENV", "development").lower() != "production":
+    if not running_in_production():
         return Response("User-agent: *\nDisallow: /\n", media_type="text/plain")
     origin = (os.getenv("PUBLIC_APP_URL") or str(request.base_url)).rstrip("/")
     body = "User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /korisnik/\nDisallow: /oglasivac/\nDisallow: /admin\nDisallow: /mobilna\n"
@@ -3178,7 +3178,7 @@ def robots(request: Request):
 
 @app.get("/sitemap.xml")
 def sitemap(request: Request, db: Session = Depends(get_db)):
-    if os.getenv("APP_ENV", "development").lower() != "production":
+    if not running_in_production():
         return Response(status_code=404)
     origin = (os.getenv("PUBLIC_APP_URL") or str(request.base_url)).rstrip("/")
     urls = ["/", "/zadaci", "/pomoc", "/pravila", "/oglasavanje"]

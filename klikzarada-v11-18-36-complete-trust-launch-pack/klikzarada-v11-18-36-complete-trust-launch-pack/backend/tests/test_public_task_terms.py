@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT))
 
 from app.models import Task, User  # noqa: E402
 from app.ui_api import _public_task_data, public_advertising_info  # noqa: E402
-from app.main import _public_spa_document  # noqa: E402
+from app.main import _public_spa_document, robots  # noqa: E402
 
 
 class PublicTaskTermsTests(unittest.TestCase):
@@ -92,13 +92,16 @@ class PublicTaskTermsTests(unittest.TestCase):
     def test_public_advertising_metadata_and_private_noindex(self):
         index = Mock()
         index.read_text.return_value = '<html><head><title>Old</title></head><body><div id="root"></div></body></html>'
-        with patch.dict(os.environ, {"APP_ENV": "production", "PUBLIC_APP_URL": "https://klikzarada.onrender.com"}):
+        with patch.dict(os.environ, {"APP_ENV": "development", "RENDER": "true", "PUBLIC_APP_URL": "https://klikzarada.onrender.com"}):
             public = _public_spa_document("/oglasavanje", index)
             private = _public_spa_document("/korisnik/panel", index)
+            robots_body = robots(Mock()).body.decode()
         self.assertIn("Oglašavanje i testeri | KlikZarada", public)
         self.assertIn('content="index, follow"', public)
         self.assertIn('href="https://klikzarada.onrender.com/oglasavanje"', public)
         self.assertIn('content="noindex, nofollow"', private)
+        self.assertIn("Sitemap: https://klikzarada.onrender.com/sitemap.xml", robots_body)
+        self.assertNotIn("Disallow: /\n", robots_body)
 
 
 if __name__ == "__main__":
