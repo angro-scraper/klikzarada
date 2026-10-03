@@ -33,6 +33,9 @@ const trustPoints = [
 ]
 
 function optimizedBannerImageUrl(imageUrl: string): string {
+  // Keep the original booking URL while moving Stock Radar to its refreshed creative.
+  if (imageUrl.endsWith('/stock-radar-beta.png')) return `${imageUrl.slice(0, -4)}-v2.webp`
+
   // Platform creatives have a compressed WebP twin; uploaded advertiser files keep their original URL.
   return imageUrl.includes('/app-ui/banner-creatives/') && imageUrl.endsWith('.png')
     ? `${imageUrl.slice(0, -4)}.webp`

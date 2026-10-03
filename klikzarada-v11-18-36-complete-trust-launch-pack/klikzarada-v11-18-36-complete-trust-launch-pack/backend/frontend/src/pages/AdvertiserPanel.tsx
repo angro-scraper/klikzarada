@@ -27,6 +27,13 @@ function calendarDate(value: string | Date | null | undefined): string {
   return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10)
 }
 
+function firstBookableBannerDate(now = new Date()): string {
+  const start = new Date(now)
+  start.setHours(12, 0, 0, 0)
+  if (start <= now) start.setDate(start.getDate() + 1)
+  return calendarDate(start)
+}
+
 function displayDate(value: string | null | undefined): string {
   if (!value) return 'nije određen'
   const date = new Date(value)
@@ -501,7 +508,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [bannerImageUrl, setBannerImageUrl] = useState('')
   const [bannerUrl, setBannerUrl] = useState('')
   const [bannerDays, setBannerDays] = useState('7')
-  const [bannerStartDate, setBannerStartDate] = useState(() => calendarDate(new Date()))
+  const [bannerStartDate, setBannerStartDate] = useState(() => firstBookableBannerDate())
   const [bannerError, setBannerError] = useState('')
   const [bannerLoading, setBannerLoading] = useState(false)
   const [bannerUploading, setBannerUploading] = useState(false)
@@ -1227,7 +1234,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                       }))}
                     />
                     <Input label="Trajanje u danima" type="number" min={1} max={bannerMaxDays} step={1} value={String(normalizedBannerDays)} onChange={value => setBannerDays(String(Math.min(bannerMaxDays, Math.max(1, Math.floor(Number(value) || 1))))) } />
-                    <Input label="Željeni početak prikaza" type="date" min={calendarDate(new Date())} value={bannerStartDate} onChange={setBannerStartDate} />
+                    <Input label="Željeni početak prikaza" type="date" min={firstBookableBannerDate()} value={bannerStartDate} onChange={setBannerStartDate} />
                     <Input label="Naslov reklame" placeholder="npr. Jesenja ponuda" value={bannerTitle} onChange={setBannerTitle} />
                     <Input label="Link na koji vodi banner (opciono)" placeholder="Dodaj kasnije kada aplikacija bude javna" value={bannerUrl} onChange={setBannerUrl} />
                     <Input label="URL slike banera (opciono)" placeholder="https://vas-sajt.rs/banner.jpg" value={bannerImageUrl} onChange={setBannerImageUrl} />
