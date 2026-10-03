@@ -596,8 +596,8 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
   const reserveBanner = async () => {
     const daysCount = Number(bannerDays)
-    if (!bannerSlotId || !bannerStartDate || !bannerTitle.trim() || !bannerUrl.trim() || !Number.isInteger(daysCount) || daysCount < 1 || daysCount > 31) {
-      setBannerError('Izaberi slot i datum početka, unesi naslov i link, pa trajanje od 1 do 31 dana.')
+    if (!bannerSlotId || !bannerStartDate || !bannerTitle.trim() || !Number.isInteger(daysCount) || daysCount < 1 || daysCount > 31) {
+      setBannerError('Izaberi slot i datum početka, unesi naslov, pa trajanje od 1 do 31 dana.')
       return
     }
     setBannerLoading(true)
@@ -608,7 +608,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
         title: bannerTitle.trim(),
         body: bannerBody.trim() || undefined,
         image_url: bannerImageUrl.trim() || undefined,
-        target_url: bannerUrl.trim(),
+        target_url: bannerUrl.trim() || undefined,
         days_count: daysCount,
         requested_start_at: `${bannerStartDate}T12:00:00`,
       })
@@ -1229,7 +1229,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     <Input label="Trajanje u danima" type="number" min={1} max={bannerMaxDays} step={1} value={String(normalizedBannerDays)} onChange={value => setBannerDays(String(Math.min(bannerMaxDays, Math.max(1, Math.floor(Number(value) || 1))))) } />
                     <Input label="Željeni početak prikaza" type="date" min={calendarDate(new Date())} value={bannerStartDate} onChange={setBannerStartDate} />
                     <Input label="Naslov reklame" placeholder="npr. Jesenja ponuda" value={bannerTitle} onChange={setBannerTitle} />
-                    <Input label="Link na koji vodi banner" placeholder="https://vas-sajt.rs/ponuda" value={bannerUrl} onChange={setBannerUrl} />
+                    <Input label="Link na koji vodi banner (opciono)" placeholder="Dodaj kasnije kada aplikacija bude javna" value={bannerUrl} onChange={setBannerUrl} />
                     <Input label="URL slike banera (opciono)" placeholder="https://vas-sajt.rs/banner.jpg" value={bannerImageUrl} onChange={setBannerImageUrl} />
                   </div>
                   <div className="mt-3 rounded-lg border border-frame bg-mint-50 p-3">

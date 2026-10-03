@@ -602,7 +602,7 @@ export const api = {
   }),
   advertiserDashboard: () => request<AdvertiserDashboardData>('/advertiser/dashboard'),
   advertiserBanners: () => request<{ slots: BannerSlot[]; banners: PaidBanner[]; pricing: AdvertisingPricing }>('/advertiser/banners'),
-  reserveAdvertiserBanner: (payload: { slot_id: number; title: string; body?: string; image_url?: string; target_url: string; days_count: number; requested_start_at?: string }) => request<{ banner: PaidBanner; reserved_rsd: number }>('/advertiser/banners', {
+  reserveAdvertiserBanner: (payload: { slot_id: number; title: string; body?: string; image_url?: string; target_url?: string; days_count: number; requested_start_at?: string }) => request<{ banner: PaidBanner; reserved_rsd: number }>('/advertiser/banners', {
     method: 'POST', body: JSON.stringify(payload),
   }),
   uploadAdvertiserBanner: (file: File) => {

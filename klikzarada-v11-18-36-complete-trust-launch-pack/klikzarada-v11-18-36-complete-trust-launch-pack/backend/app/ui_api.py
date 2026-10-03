@@ -250,7 +250,7 @@ class BannerReservationPayload(BaseModel):
     title: str = Field(min_length=3, max_length=180)
     body: str | None = Field(default=None, max_length=1000)
     image_url: str | None = Field(default=None, max_length=500)
-    target_url: str = Field(min_length=1, max_length=500)
+    target_url: str | None = Field(default=None, max_length=500)
     days_count: int = Field(default=7, ge=1, le=31)
     requested_start_at: datetime | None = None
 
@@ -904,8 +904,10 @@ def _banner_slot_data(slot: HomeBannerSlotV111, banners: list[PaidAdBannerV111])
     }
 
 
-def _validate_banner_target_url(value: str) -> str:
-    url = value.strip()
+def _validate_banner_target_url(value: str | None) -> str | None:
+    url = (value or "").strip()
+    if not url:
+        return None
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise HTTPException(400, "Link banera mora biti pun http:// ili https:// URL.")
