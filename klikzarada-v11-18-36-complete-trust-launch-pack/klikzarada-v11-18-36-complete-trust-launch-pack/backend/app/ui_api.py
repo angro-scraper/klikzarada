@@ -896,6 +896,13 @@ def _is_legacy_demo_banner(banner: PaidAdBannerV111) -> bool:
 
 
 def _banner_data(banner: PaidAdBannerV111) -> dict:
+    target_url = banner.target_url
+    if (
+        banner.title == "KlikZarada aplikacija uskoro stiže"
+        and _is_platform_publisher(banner.advertiser)
+    ):
+        # The platform's iOS creative always leads to the task, never to the private install link.
+        target_url = "/zadaci/7"
     return {
         "id": banner.id,
         "slot_id": banner.slot_id,
@@ -907,7 +914,7 @@ def _banner_data(banner: PaidAdBannerV111) -> dict:
         "title": banner.title,
         "body": banner.body,
         "image_url": banner.image_url,
-        "target_url": banner.target_url,
+        "target_url": target_url,
         "price_rsd": _money(banner.price_rsd),
         "days_count": banner.days_count,
         "status": _banner_status(banner.status),
@@ -1036,13 +1043,14 @@ def _banner_slot_conflict(
     slot_id: int,
     starts_at: datetime,
     ends_at: datetime,
+    exclude_banner_id: int | None = None,
 ) -> bool:
     candidates = db.query(PaidAdBannerV111).filter(
         PaidAdBannerV111.slot_id == slot_id,
         PaidAdBannerV111.status.in_(("pending", "active")),
     ).all()
     for banner in candidates:
-        if _is_legacy_demo_banner(banner):
+        if banner.id == exclude_banner_id or _is_legacy_demo_banner(banner):
             continue
         existing_start = banner.starts_at or banner.created_at or datetime.utcnow()
         existing_end = banner.ends_at or existing_start + timedelta(days=max(1, banner.days_count or 7))
@@ -3860,6 +3868,34 @@ def admin_banners(request: Request, db: Session = Depends(get_db)) -> dict:
         "banners": [_banner_data(banner) for banner in visible_banners],
         "pricing": _pricing_data(),
     }
+
+
+@router.post("/advertiser/banners/{banner_id}/start-now")
+def start_platform_banner_now(
+    banner_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    admin = _require_user(request, db, {"admin"})
+    banner = db.query(PaidAdBannerV111).filter(
+        PaidAdBannerV111.id == banner_id,
+        PaidAdBannerV111.advertiser_id == admin.id,
+    ).with_for_update().first()
+    if not banner or not _is_platform_publisher(banner.advertiser):
+        raise HTTPException(404, "Platformski baner nije pronađen.")
+    now = datetime.utcnow()
+    if banner.status != "active" or not banner.starts_at or banner.starts_at <= now:
+        raise HTTPException(409, "Samo odobren baner sa budućim početkom može da krene sada.")
+    ends_at = now + timedelta(days=max(1, banner.days_count or 7))
+    if banner.slot_id and _banner_slot_conflict(db, banner.slot_id, now, ends_at, exclude_banner_id=banner.id):
+        raise HTTPException(409, "Pozicija je zauzeta u novom terminu. Postojeći raspored nije promenjen.")
+    banner.starts_at = now
+    banner.ends_at = ends_at
+    banner.admin_note = "Platformski baner je pokrenut odmah na zahtev vlasnika."
+    _audit(db, admin, "platform_banner_start_now", "PaidAdBannerV111", banner.id)
+    db.commit()
+    db.refresh(banner)
+    return {"banner": _banner_data(banner)}
 
 
 @router.patch("/admin/banners/{banner_id}")

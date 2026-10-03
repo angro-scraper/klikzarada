@@ -4,6 +4,7 @@ import os
 import sys
 import unittest
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -18,7 +19,7 @@ os.chdir(BACKEND_DIR)
 sys.path.insert(0, str(BACKEND_DIR))
 
 from app.database import Base  # noqa: E402
-from app.models import ModeratedContentRevision, PaidAdBannerV111, Task, User  # noqa: E402
+from app.models import HomeBannerSlotV111, ModeratedContentRevision, PaidAdBannerV111, Task, User  # noqa: E402
 from app.security import create_session_token  # noqa: E402
 from app.ui_api import (  # noqa: E402
     BannerContentEditPayload,
@@ -31,6 +32,9 @@ from app.ui_api import (  # noqa: E402
     edit_advertiser_banner,
     review_content_revision,
     update_advertiser_banner_target,
+    public_banners,
+    start_platform_banner_now,
+    _banner_data,
     _task_data,
 )
 
@@ -152,6 +156,59 @@ class ContentRevisionTests(unittest.TestCase):
         self.db.refresh(self.banner)
         self.assertEqual(self.banner.target_url, "https://example.com/old")
         self.assertEqual(self.db.query(ModeratedContentRevision).first().status, "rejected")
+
+    def test_platform_ios_banner_leads_to_task_not_private_testflight_link(self):
+        banner = PaidAdBannerV111(
+            advertiser_id=self.admin.id, title="KlikZarada aplikacija uskoro stiže",
+            target_url="https://klikzarada.onrender.com/zadaci?task=99", status="active", days_count=7,
+        )
+        self.db.add(banner)
+        self.db.commit()
+        self.assertEqual(_banner_data(banner)["target_url"], "/zadaci/7")
+        banner.target_url = "https://testflight.apple.com/join/aFqfk5Am"
+        self.assertEqual(_banner_data(banner)["target_url"], "/zadaci/7")
+        self.assertEqual(_banner_data(self.banner)["target_url"], "https://example.com/old")
+
+    def test_platform_banner_can_start_early_without_shortening_its_term(self):
+        now = datetime.utcnow()
+        slot = HomeBannerSlotV111(code="test_slot", title="Test pozicija", is_active=True)
+        self.db.add(slot)
+        self.db.flush()
+        banner = PaidAdBannerV111(
+            advertiser_id=self.admin.id, slot_id=slot.id, title="KlikZarada aplikacija uskoro stiže",
+            status="active", days_count=7, starts_at=now + timedelta(days=1), ends_at=now + timedelta(days=8),
+        )
+        self.db.add(banner)
+        self.db.commit()
+        self.assertNotIn(banner.id, [item["id"] for item in public_banners(self.db)["banners"]])
+        with self.assertRaises(HTTPException) as forbidden:
+            start_platform_banner_now(banner.id, self.request(self.owner), self.db)
+        self.assertEqual(forbidden.exception.status_code, 403)
+        result = start_platform_banner_now(banner.id, self.request(self.admin), self.db)
+        self.assertEqual(result["banner"]["target_url"], "/zadaci/7")
+        self.assertAlmostEqual((banner.ends_at - banner.starts_at).total_seconds(), 7 * 86400, delta=1)
+        self.assertIn(banner.id, [item["id"] for item in public_banners(self.db)["banners"]])
+
+    def test_platform_banner_cannot_start_over_another_booking(self):
+        now = datetime.utcnow()
+        slot = HomeBannerSlotV111(code="test_slot", title="Test pozicija", is_active=True)
+        self.db.add(slot)
+        self.db.flush()
+        current = PaidAdBannerV111(
+            advertiser_id=self.owner.id, slot_id=slot.id, title="Drugi baner", status="active",
+            starts_at=now - timedelta(hours=1), ends_at=now + timedelta(hours=1),
+        )
+        future = PaidAdBannerV111(
+            advertiser_id=self.admin.id, slot_id=slot.id, title="KlikZarada aplikacija uskoro stiže",
+            status="active", starts_at=now + timedelta(days=1), ends_at=now + timedelta(days=8),
+        )
+        self.db.add_all([current, future])
+        self.db.commit()
+        with self.assertRaises(HTTPException) as conflict:
+            start_platform_banner_now(future.id, self.request(self.admin), self.db)
+        self.assertEqual(conflict.exception.status_code, 409)
+        self.db.refresh(future)
+        self.assertEqual(future.starts_at, now + timedelta(days=1))
 
     def test_pending_banner_can_be_edited_but_stays_pending(self):
         self.banner.status = "pending"

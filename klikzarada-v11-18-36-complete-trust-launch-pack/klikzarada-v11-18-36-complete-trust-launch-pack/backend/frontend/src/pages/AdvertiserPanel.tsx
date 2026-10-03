@@ -40,6 +40,28 @@ function displayDate(value: string | null | undefined): string {
   return Number.isNaN(date.getTime()) ? 'nije određen' : new Intl.DateTimeFormat('sr-RS', { dateStyle: 'medium' }).format(date)
 }
 
+function bannerDate(value: string | null): Date | null {
+  if (!value) return null
+  const date = new Date(/[zZ]|[+-]\d\d:\d\d$/.test(value) ? value : `${value}Z`)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function bannerVisibility(banner: PaidBanner): { label: string; className: string; detail: string } {
+  if (!['aktivno', 'active'].includes(banner.status)) {
+    return { label: banner.status === 'na_cekanju' ? 'Na proveri' : banner.status === 'odbijeno' ? 'Odbijeno' : 'Obustavljeno', className: 'bg-slate-100 text-slate-700', detail: 'Baner nije javno prikazan.' }
+  }
+  const start = bannerDate(banner.starts_at)
+  const end = bannerDate(banner.ends_at)
+  if (start && start > new Date()) return { label: 'Zakazano', className: 'bg-amber-100 text-amber-800', detail: 'Odobren je, ali još nije počeo javni prikaz.' }
+  if (end && end <= new Date()) return { label: 'Završeno', className: 'bg-slate-100 text-slate-700', detail: 'Period prikazivanja je istekao.' }
+  return { label: 'Prikazuje se', className: 'bg-emerald-100 text-emerald-800', detail: 'Baner je trenutno dostupan posetiocima početne stranice.' }
+}
+
+function bannerDateTime(value: string | null): string {
+  const date = bannerDate(value)
+  return date ? new Intl.DateTimeFormat('sr-RS', { dateStyle: 'medium', timeStyle: 'short' }).format(date) : 'Nije određen'
+}
+
 function loadPayPalSdk(clientId: string): Promise<PayPalSdk> {
   if (window.paypal) return Promise.resolve(window.paypal)
   const scriptId = 'paypal-standard-checkout-sdk'
@@ -513,6 +535,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [bannerStartDate, setBannerStartDate] = useState(() => firstBookableBannerDate())
   const [bannerError, setBannerError] = useState('')
   const [bannerLoading, setBannerLoading] = useState(false)
+  const [startingBannerId, setStartingBannerId] = useState<number | null>(null)
   const [bannerUploading, setBannerUploading] = useState(false)
   const [bannerEdit, setBannerEdit] = useState<{ id: number; title: string; body: string; image_url: string; target_url: string } | null>(null)
   const [profileName, setProfileName] = useState('')
@@ -621,7 +644,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
         image_url: bannerImageUrl.trim() || undefined,
         target_url: bannerUrl.trim() || undefined,
         days_count: daysCount,
-        requested_start_at: `${bannerStartDate}T12:00:00`,
+        requested_start_at: new Date(`${bannerStartDate}T12:00:00`).toISOString(),
       })
       setBannerTitle('')
       setBannerBody('')
@@ -650,6 +673,19 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   }
 
   const pendingRevision = (entityType: 'campaign' | 'banner', entityId: number) => contentRevisions.find(revision => revision.entity_type === entityType && revision.entity_id === entityId && revision.status === 'pending')
+
+  const startPlatformBannerNow = async (id: number) => {
+    setStartingBannerId(id)
+    try {
+      await api.startPlatformBannerNow(id)
+      await refreshDashboard()
+      showToast('Baner se sada prikazuje. Period zakupa počinje od ovog trenutka.', 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Baner nije mogao da krene sada.', 'error')
+    } finally {
+      setStartingBannerId(null)
+    }
+  }
 
   const saveBannerEdit = async () => {
     if (!bannerEdit) return
@@ -1301,7 +1337,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                       }))}
                     />
                     <Input label="Trajanje u danima" type="number" min={1} max={bannerMaxDays} step={1} value={String(normalizedBannerDays)} onChange={value => setBannerDays(String(Math.min(bannerMaxDays, Math.max(1, Math.floor(Number(value) || 1))))) } />
-                    <Input label="Željeni početak prikaza" type="date" min={firstBookableBannerDate()} value={bannerStartDate} onChange={setBannerStartDate} />
+                    <div><Input label="Željeni početak prikaza" type="date" min={firstBookableBannerDate()} value={bannerStartDate} onChange={setBannerStartDate} /><p className="mt-1 text-xs text-ink-3">Prikaz počinje izabranog dana u 12:00 po tvom lokalnom vremenu.</p></div>
                     <Input label="Naslov reklame" placeholder="npr. Jesenja ponuda" value={bannerTitle} onChange={setBannerTitle} />
                     <Input label="Link na koji vodi banner (opciono)" placeholder="Dodaj kasnije kada aplikacija bude javna" value={bannerUrl} onChange={setBannerUrl} />
                     <Input label="URL slike banera (opciono)" placeholder="https://vas-sajt.rs/banner.jpg" value={bannerImageUrl} onChange={setBannerImageUrl} />
@@ -1333,21 +1369,38 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                   <SectionHeader title="Moji zakupi" />
                   {ownBanners.length === 0
                     ? <EmptyState icon="🖼️" title={platformPublishing ? 'Još nemaš platformski banner' : 'Još nemaš zakupljen banner'} description={platformPublishing ? 'Izaberi slobodnu poziciju i pošalji platformsku objavu na proveru.' : 'Izaberi slobodnu poziciju i pošalji rezervaciju na proveru.'} />
-                    : <Card>
-                      <Table
-                        headers={['Reklama', 'Pozicija', 'Trajanje', 'Prikazi', 'Iznos', 'Status', 'Izmena', 'Napomena']}
-                        rows={ownBanners.map(banner => [
-                          <span className="font-semibold text-ink">{banner.title}</span>,
-                          <span className="text-xs text-ink-2">{banner.slot_title}</span>,
-                          <span>{banner.days_count} dana</span>,
-                          <span className="font-mono text-xs">{banner.views_count}</span>,
-                          <span className="font-mono text-xs">{platformPublishing ? '0 RSD' : `${new Intl.NumberFormat('sr-RS').format(banner.price_rsd)} RSD`}</span>,
-                          <StatusBadge status={banner.status} />,
-                          <div className="min-w-40 space-y-2">{banner.target_url && <p className="max-w-56 truncate text-xs text-ink-3" title={banner.target_url}>{banner.target_url}</p>}{pendingRevision('banner', banner.id) ? <span className="text-xs font-semibold text-amber-700">Izmena čeka proveru</span> : ['aktivno', 'active', 'na_cekanju', 'pending'].includes(banner.status) ? <Btn size="sm" variant="secondary" onClick={() => setBannerEdit({ id: banner.id, title: banner.title, body: banner.body || '', image_url: banner.image_url || '', target_url: banner.target_url || '' })}>Uredi banner</Btn> : <span className="text-xs text-ink-3">Nije moguće uređivanje</span>}</div>,
-                          <span className="text-xs text-ink-3">{banner.admin_note || '—'}</span>,
-                        ])}
-                      />
-                    </Card>}
+                    : <div className="grid gap-3">
+                      {ownBanners.map(banner => {
+                        const visibility = bannerVisibility(banner)
+                        const revisionPending = pendingRevision('banner', banner.id)
+                        return <Card key={banner.id} className="p-4 sm:p-5">
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+                            {banner.image_url && <img src={banner.image_url} alt="" className="h-24 w-full rounded-xl border border-frame bg-mint-50 object-contain lg:w-40" />}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="text-base font-bold text-ink">{banner.title}</h3>
+                                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${visibility.className}`}>{visibility.label}</span>
+                              </div>
+                              <p className="mt-1 text-sm text-ink-2">{banner.slot_title}</p>
+                              <p className="mt-2 text-xs text-ink-3">{visibility.detail}</p>
+                              <div className="mt-3 grid gap-2 rounded-xl bg-mint-50 p-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                                <p><span className="block text-xs text-ink-3">Početak</span><strong>{bannerDateTime(banner.starts_at)}</strong></p>
+                                <p><span className="block text-xs text-ink-3">Kraj</span><strong>{bannerDateTime(banner.ends_at)}</strong></p>
+                                <p><span className="block text-xs text-ink-3">Prikazi</span><strong>{banner.views_count}</strong></p>
+                                <p><span className="block text-xs text-ink-3">Zakup</span><strong>{banner.days_count} dana · {platformPublishing ? '0 RSD' : `${new Intl.NumberFormat('sr-RS').format(banner.price_rsd)} RSD`}</strong></p>
+                              </div>
+                              <div className="mt-3 flex flex-wrap items-center gap-3">
+                                {banner.target_url ? <a href={banner.target_url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-blue-700 hover:underline">Otvori odredište ↗</a> : <span className="text-xs text-amber-700">Odredište nije postavljeno.</span>}
+                                {platformPublishing && visibility.label === 'Zakazano' && <Btn size="sm" disabled={startingBannerId !== null} onClick={() => void startPlatformBannerNow(banner.id)}>{startingBannerId === banner.id ? 'Pokretanje...' : 'Pokreni sada'}</Btn>}
+                                {revisionPending ? <span className="text-xs font-semibold text-amber-700">Izmena čeka proveru</span> : ['aktivno', 'active', 'na_cekanju', 'pending'].includes(banner.status) ? <Btn size="sm" variant="secondary" onClick={() => setBannerEdit({ id: banner.id, title: banner.title, body: banner.body || '', image_url: banner.image_url || '', target_url: banner.target_url || '' })}>Uredi baner</Btn> : null}
+                              </div>
+                              {banner.target_url && <p className="mt-2 break-all text-xs text-ink-3">{banner.target_url}</p>}
+                              {banner.admin_note && <details className="mt-3 text-xs text-ink-2"><summary className="cursor-pointer font-semibold">Napomena administratora</summary><p className="mt-1">{banner.admin_note}</p></details>}
+                            </div>
+                          </div>
+                        </Card>
+                      })}
+                    </div>}
                   {bannerEdit && <Card className="mt-5 space-y-4 border-blue-200 p-5">
                     <div><h3 className="font-bold text-ink">Uredi postojeći banner</h3><p className="mt-1 text-sm text-ink-2">Pozicija, cena i trajanje ostaju isti. Ako je banner već aktivan, stara verzija ostaje javna dok admin ne odobri novu.</p></div>
                     <div className="grid gap-3 sm:grid-cols-2"><Input label="Naslov" value={bannerEdit.title} onChange={value => setBannerEdit(current => current ? { ...current, title: value } : null)} /><Input label="Link (opciono)" value={bannerEdit.target_url} onChange={value => setBannerEdit(current => current ? { ...current, target_url: value } : null)} /><Input label="Kratak opis" value={bannerEdit.body} onChange={value => setBannerEdit(current => current ? { ...current, body: value } : null)} /><Input label="URL slike (opciono)" value={bannerEdit.image_url} onChange={value => setBannerEdit(current => current ? { ...current, image_url: value } : null)} /></div>
