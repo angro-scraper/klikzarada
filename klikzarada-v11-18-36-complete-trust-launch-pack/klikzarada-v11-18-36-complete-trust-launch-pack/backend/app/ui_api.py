@@ -562,8 +562,6 @@ _LEGACY_SPECIFICATION = re.compile(r"\n\s*\nSpecifikacija(?: zadatka)?:\s*\n", r
 
 def _campaign_summary(description: str | None, instructions: str | None) -> str:
     text = (description or "").strip()
-    if "Koraci i pravila:" not in (instructions or ""):
-        return text
     match = _LEGACY_SPECIFICATION.search(text)
     return text[:match.start()].strip() if match else text
 

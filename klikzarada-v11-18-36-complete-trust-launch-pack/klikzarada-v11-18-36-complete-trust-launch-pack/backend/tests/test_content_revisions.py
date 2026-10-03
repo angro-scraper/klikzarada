@@ -243,6 +243,19 @@ class ContentRevisionTests(unittest.TestCase):
         self.assertEqual(self.task.description, "Kratak opis zadatka.")
         self.assertIn("Uređaj: iPhone", self.task.instructions)
 
+    def test_legacy_summary_is_short_even_without_new_instruction_heading(self):
+        self.task.description = (
+            "Testiraj WorkTime QR.\n\nSpecifikacija zadatka:\n"
+            "- Proveri QR prijavu.\n\nPlan zatvorenog beta testiranja:\n"
+            "- Šalji dnevni izveštaj."
+        )
+        self.task.instructions = (
+            "- Proveri QR prijavu.\n\nPlan zatvorenog beta testiranja:\n"
+            "- Šalji dnevni izveštaj."
+        )
+        self.assertEqual(_task_data(self.task)["description"], "Testiraj WorkTime QR.")
+        self.assertIn("Plan zatvorenog beta testiranja", _task_data(self.task)["instructions"])
+
     def test_redundant_active_edit_is_not_queued(self):
         with self.assertRaises(HTTPException) as caught:
             edit_active_campaign_content(
