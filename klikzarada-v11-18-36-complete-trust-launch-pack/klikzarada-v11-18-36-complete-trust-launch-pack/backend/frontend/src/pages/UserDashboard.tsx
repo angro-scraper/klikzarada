@@ -141,7 +141,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const [proofTab, setProofTab] = useState('svi')
   const [confirmPayout, setConfirmPayout] = useState(false)
   const [submitProofModal, setSubmitProofModal] = useState<number | null>(null)
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(() => Number(window.location.pathname.match(/^\/korisnik\/zadaci\/(\d+)$/)?.[1]) || null)
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(() => Number(window.location.pathname.match(/^\/korisnik\/zadaci\/(\d+)$/)?.[1]) || Number(new URLSearchParams(window.location.search).get('task')) || null)
   const [chatTaskId, setChatTaskId] = useState<number | null>(null)
   const [logoutConfirm, setLogoutConfirm] = useState(false)
   const [dashboard, setDashboard] = useState<UserDashboardData | null>(null)
@@ -762,7 +762,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                   <Alert type="info">Za standardne zadatke server prati vreme, aktivnost i fokus taba. Za zatvoreni beta test šalješ dnevni izveštaj; svaki dan posebno odobrava oglašivač.</Alert>
                   {selectedTask?.tester_enrollment && <div className="rounded-xl border border-blue-200 bg-white p-4 text-sm text-ink-2 space-y-1">
                     <p><strong>KlikZarada nalog:</strong> {dashboard?.user.email}</p>
-                    <p><strong>Google Play email za ovaj test:</strong> {selectedTask.tester_enrollment.testing_email || '—'}</p>
+                    <p><strong>Email za poziv na testiranje:</strong> {selectedTask.tester_enrollment.testing_email || '—'}</p>
                     {selectedTask.tester_enrollment.email_conflict && <p className="font-semibold text-red-700">Test adresa je povezana i sa drugim nalogom. Ne šalji nove izveštaje dok preko podrške ne razjasnimo kojoj prijavi pripada.</p>}
                   </div>}
                   {!selectedTask ? <Alert type="warning">Ovaj zadatak nije pronađen na tvom nalogu. Proveri da li si prijavljen/a istim nalogom sa kojeg je prijava poslata.</Alert> : selectedTask.status !== 'active' ? <Alert type="warning">Kampanja trenutno nije aktivna. Tvoja prijava i istorija ostaju sačuvani, ali novi izveštaji nisu dostupni.</Alert> : selectedTask.requires_tester_enrollment && selectedTask.tester_enrollment?.status !== 'invited' ? (
@@ -773,10 +773,10 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                       ) : (
                         <>
                           {selectedTask.tester_enrollment?.status === 'declined' && <p className="text-sm text-red-700">{selectedTask.tester_enrollment.note || 'Prijava nije odobrena. Proveri adresu i pošalji ponovo.'}</p>}
-                          {!selectedTask.tester_enrollment && <p className="text-sm text-amber-800">Ako je oglašivač već aktivirao tvoju prijavu, proveri da li si prijavljen/a istim KlikZarada nalogom sa kog si je poslao/la. Email za Google Play pristup može biti drugačiji od emaila naloga.</p>}
-                          <Input label="Tvoj Google Play email za ovaj test" placeholder="ime@gmail.com" value={testerEmail} onChange={setTesterEmail} />
+                          {!selectedTask.tester_enrollment && <p className="text-sm text-amber-800">Ako je oglašivač već aktivirao tvoju prijavu, proveri da li si prijavljen/a istim KlikZarada nalogom sa kog si je poslao/la. Email za poziv na testiranje može biti drugačiji od emaila naloga.</p>}
+                          <Input label="Email za poziv na ovaj test" placeholder="ime@gmail.com" value={testerEmail} onChange={setTesterEmail} />
                           <p className="text-xs text-amber-800">Ovaj email može biti drugačiji od KlikZarada naloga ({dashboard?.user.email}), ali ne sme pripadati drugom korisničkom nalogu.</p>
-                          <Btn disabled={saving} onClick={() => { if (!selectedTask) return; if (testerEmail.trim() && testerEmail.trim().toLowerCase() !== dashboard?.user.email.toLowerCase()) setTesterEmailConfirmTask(selectedTask); else void requestTesterAccess(selectedTask) }}>Pošalji Google Play email</Btn>
+                          <Btn disabled={saving} onClick={() => { if (!selectedTask) return; if (testerEmail.trim() && testerEmail.trim().toLowerCase() !== dashboard?.user.email.toLowerCase()) setTesterEmailConfirmTask(selectedTask); else void requestTesterAccess(selectedTask) }}>Pošalji email za test</Btn>
                         </>
                       )}
                     </div>

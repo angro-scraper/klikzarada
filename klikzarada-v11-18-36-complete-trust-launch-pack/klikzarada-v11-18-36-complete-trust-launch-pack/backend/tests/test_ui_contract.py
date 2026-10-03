@@ -122,7 +122,7 @@ class UiContractTests(unittest.TestCase):
         """Opening a closed-beta task must not fail because its form component is missing."""
         source = (BACKEND_DIR / "frontend" / "src" / "pages" / "UserDashboard.tsx").read_text(encoding="utf-8")
         self.assertIn("Alert, Input } from '../components/ui'", source)
-        self.assertIn('<Input label="Tvoj Google Play email za ovaj test"', source)
+        self.assertIn('<Input label="Email za poziv na ovaj test"', source)
 
     def test_tester_enrollments_keep_emails_and_actions_visible(self):
         source = (BACKEND_DIR / "frontend" / "src" / "pages" / "AdvertiserPanel.tsx").read_text(encoding="utf-8")
@@ -130,7 +130,7 @@ class UiContractTests(unittest.TestCase):
         self.assertNotIn("<Table", cards)
         self.assertIn("2xl:grid-cols-4", cards)
         self.assertIn("break-all select-all", cards)
-        self.assertIn("Google Play email za test", cards)
+        self.assertIn("Email za testiranje", cards)
         self.assertIn("Status i akcije", cards)
 
     def test_advertiser_messages_have_spacing_and_readable_preview(self):

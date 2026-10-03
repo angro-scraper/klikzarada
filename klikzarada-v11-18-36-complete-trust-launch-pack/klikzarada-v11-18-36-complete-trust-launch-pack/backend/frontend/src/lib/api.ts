@@ -605,6 +605,9 @@ export const api = {
   reserveAdvertiserBanner: (payload: { slot_id: number; title: string; body?: string; image_url?: string; target_url?: string; days_count: number; requested_start_at?: string }) => request<{ banner: PaidBanner; reserved_rsd: number }>('/advertiser/banners', {
     method: 'POST', body: JSON.stringify(payload),
   }),
+  updateAdvertiserBannerTarget: (id: number, targetUrl?: string) => request<{ banner: PaidBanner }>(`/advertiser/banners/${id}/target`, {
+    method: 'PATCH', body: JSON.stringify({ target_url: targetUrl || null }),
+  }),
   uploadAdvertiserBanner: (file: File) => {
     const data = new FormData()
     data.append('file', file)

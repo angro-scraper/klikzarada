@@ -211,9 +211,9 @@ const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     { key: 'scenarios', label: 'Scenariji testiranja', placeholder: '1. Pronađi proizvod. 2. Dodaj u korpu. 3. Opiši gde je nastao problem.' },
     { key: 'report', label: 'Format izveštaja', placeholder: 'Očekivano/stvarno ponašanje, koraci i screenshot ako postoji greška.' },
   ] },
-  { id: 'closed-beta', label: 'Zatvoreni beta test aplikacije', category: 'Testiranje sajta ili aplikacije', taskType: 'Zatvoreni beta test aplikacije', subjectLabel: 'Naziv aplikacije', subjectPlaceholder: 'npr. Stock Radar', title: subject => `${subject || 'Nova aplikacija'}: zatvoreno beta testiranje`, description: 'Okupi testere za zatvoreni beta kanal i prikupi iskrene dnevne izveštaje tokom testiranja.', instructionLead: 'Najpre pošalji Google Play email za poziv. Nakon ručnog dodavanja u tester listu, koristi aplikaciju svakog dana po zadatom planu i pošalji istinit dnevni izveštaj.', proof: 'Dnevni izveštaj o korišćenju; screenshot samo kada prijavljuješ grešku', requiresTesterEnrollment: true, fields: [
-    { key: 'store', label: 'Google Play aplikacija ili pristupni link', placeholder: 'Nalepi Play Store link ili interni link za testere.' },
-    { key: 'device', label: 'Uređaj za testiranje', placeholder: 'npr. Android 13+, telefon; navedi posebne uslove ako postoje.' },
+  { id: 'closed-beta', label: 'Zatvoreni beta test aplikacije', category: 'Testiranje sajta ili aplikacije', taskType: 'Zatvoreni beta test aplikacije', subjectLabel: 'Naziv aplikacije', subjectPlaceholder: 'npr. Stock Radar', title: subject => `${subject || 'Nova aplikacija'}: zatvoreno beta testiranje`, description: 'Okupi testere za zatvoreni beta kanal i prikupi iskrene dnevne izveštaje tokom testiranja.', instructionLead: 'Najpre pošalji email na koji želiš da primiš poziv za testiranje. Nakon ručnog dodavanja u tester listu, koristi aplikaciju svakog dana po zadatom planu i pošalji istinit dnevni izveštaj.', proof: 'Dnevni izveštaj o korišćenju; screenshot samo kada prijavljuješ grešku', requiresTesterEnrollment: true, fields: [
+    { key: 'store', label: 'Aplikacija ili pristupni link', placeholder: 'Nalepi App Store, Play Store ili interni link za testere.' },
+    { key: 'device', label: 'Uređaj za testiranje', placeholder: 'npr. iPhone ili Android telefon; navedi posebne uslove ako postoje.' },
     { key: 'daily_scenarios', label: 'Šta tester radi svakog dana', placeholder: 'npr. otvori listu akcija, pretraži akciju, sačuvaj je i proveri obaveštenje.' },
     { key: 'report', label: 'Šta mora da sadrži dnevni izveštaj', placeholder: 'npr. datum, korišćene funkcije, trajanje i svaka uočena greška.' },
   ] },
@@ -512,6 +512,8 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
   const [bannerError, setBannerError] = useState('')
   const [bannerLoading, setBannerLoading] = useState(false)
   const [bannerUploading, setBannerUploading] = useState(false)
+  const [bannerTargetEdits, setBannerTargetEdits] = useState<Record<number, string>>({})
+  const [bannerTargetSaving, setBannerTargetSaving] = useState<number | null>(null)
   const [profileName, setProfileName] = useState('')
   const [profilePhone, setProfilePhone] = useState('')
   const [profileCity, setProfileCity] = useState('')
@@ -537,6 +539,11 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
       setDashboard(dashboardData)
       setBannerSlots(bannerData.slots)
       setOwnBanners(bannerData.banners)
+      setBannerTargetEdits(current => {
+        const next = { ...current }
+        for (const banner of bannerData.banners) if (next[banner.id] === undefined) next[banner.id] = banner.target_url || ''
+        return next
+      })
       setPromotions(promotionData.promotions)
       setTickets(ticketData.tickets)
       setNotifications(notificationData.notifications)
@@ -643,6 +650,21 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
     } catch (error) {
       setBannerError(error instanceof Error ? error.message : 'Upload bannera nije uspeo.')
     } finally { setBannerUploading(false) }
+  }
+
+  const updateBannerTarget = async (banner: PaidBanner) => {
+    setBannerTargetSaving(banner.id)
+    try {
+      const targetUrl = bannerTargetEdits[banner.id]?.trim() || undefined
+      const result = await api.updateAdvertiserBannerTarget(banner.id, targetUrl)
+      setBannerTargetEdits(current => ({ ...current, [banner.id]: result.banner.target_url || '' }))
+      await refreshDashboard()
+      showToast(result.banner.target_url ? 'Link bannera je sačuvan.' : 'Link bannera je uklonjen.', 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Link bannera nije sačuvan.', 'error')
+    } finally {
+      setBannerTargetSaving(null)
+    }
   }
 
   const reservePromotion = async () => {
@@ -983,13 +1005,13 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
 
             {page === 'testeri' && (
               <div>
-                <SectionHeader title="Prijavljeni testeri" description="Prijave za zatvoreno testiranje, Google Play adrese i aktivacija pristupa na jednom mestu." action={<Btn size="sm" variant="secondary" onClick={() => goTo('dokazi')}>Otvori dokaze →</Btn>} />
+                <SectionHeader title="Prijavljeni testeri" description="Prijave za zatvoreno testiranje, adrese za poziv i aktivacija pristupa na jednom mestu." action={<Btn size="sm" variant="secondary" onClick={() => goTo('dokazi')}>Otvori dokaze →</Btn>} />
                 {testerEnrollments.length === 0 && <Card className="p-5 text-sm text-ink-2">Još nema prijava za zatvoreno testiranje.</Card>}
                 {testerEnrollments.length > 0 && <div className="mb-5">
                   <div className="mb-4 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-emerald-50 p-5 shadow-sm">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700">Kontrola zatvorenog testiranja</p>
                     <h2 className="mt-1 text-xl font-extrabold text-ink">Prijave za zatvoreno testiranje</h2>
-                    <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">Ne čeka se ciljnih 20 prijava. Čim email testera dodaš u Google Play tester listu, aktiviraj ga ovde i njegov lični period od 14 dana počinje odmah.</p>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">Ne čeka se ciljnih 20 prijava. Čim email testera dodaš u odgovarajuću tester listu, aktiviraj ga ovde i njegov lični period od 14 dana počinje odmah.</p>
                   </div>
                   <div className="mb-5 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
                     {(dashboard?.tasks ?? []).filter(task => task.requires_tester_enrollment).map(task => {
@@ -1027,7 +1049,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
                       <div>
                         <h3 className="font-bold text-ink">Prijavljeni testeri</h3>
-                        <p className="mt-1 text-xs text-ink-3">KlikZarada nalog i Google Play email su odvojeni podaci.</p>
+                        <p className="mt-1 text-xs text-ink-3">KlikZarada nalog i email za testiranje su odvojeni podaci.</p>
                       </div>
                       <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">{testerEnrollments.length} prijava</span>
                     </div>
@@ -1044,7 +1066,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                           <p className="text-sm leading-5 text-ink-2 break-words">{item.task_title || 'Zadatak'}</p>
                         </div>
                         <div className="min-w-0">
-                          <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-ink-3">Google Play email za test</p>
+                          <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-ink-3">Email za testiranje</p>
                           <p className="font-mono text-xs leading-5 text-ink break-all select-all">{item.testing_email || '—'}</p>
                           {item.email_conflict && <p className="mt-2 rounded-lg bg-red-100 px-2.5 py-2 text-xs font-semibold leading-5 text-red-800">Adresa je povezana i sa drugim nalogom. Proveri vlasništvo pre odobravanja.</p>}
                           {!item.email_conflict && item.account_email && item.testing_email?.toLowerCase() !== item.account_email.toLowerCase() && <p className="mt-2 text-xs leading-5 text-amber-700">Druga adresa koju je tester uneo.</p>}
@@ -1268,7 +1290,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     ? <EmptyState icon="🖼️" title={platformPublishing ? 'Još nemaš platformski banner' : 'Još nemaš zakupljen banner'} description={platformPublishing ? 'Izaberi slobodnu poziciju i pošalji platformsku objavu na proveru.' : 'Izaberi slobodnu poziciju i pošalji rezervaciju na proveru.'} />
                     : <Card>
                       <Table
-                        headers={['Reklama', 'Pozicija', 'Trajanje', 'Prikazi', 'Iznos', 'Status', 'Napomena']}
+                        headers={['Reklama', 'Pozicija', 'Trajanje', 'Prikazi', 'Iznos', 'Status', 'Odredište', 'Napomena']}
                         rows={ownBanners.map(banner => [
                           <span className="font-semibold text-ink">{banner.title}</span>,
                           <span className="text-xs text-ink-2">{banner.slot_title}</span>,
@@ -1276,6 +1298,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                           <span className="font-mono text-xs">{banner.views_count}</span>,
                           <span className="font-mono text-xs">{platformPublishing ? '0 RSD' : `${new Intl.NumberFormat('sr-RS').format(banner.price_rsd)} RSD`}</span>,
                           <StatusBadge status={banner.status} />,
+                          <div className="min-w-64 space-y-2"><Input label="" placeholder="https://..." value={bannerTargetEdits[banner.id] ?? banner.target_url ?? ''} onChange={value => setBannerTargetEdits(current => ({ ...current, [banner.id]: value }))} /><Btn size="sm" variant="secondary" disabled={bannerTargetSaving === banner.id || !['aktivno', 'active', 'na_cekanju', 'pending'].includes(banner.status)} onClick={() => void updateBannerTarget(banner)}>{bannerTargetSaving === banner.id ? 'Čuvanje...' : 'Sačuvaj link'}</Btn>{platformPublishing && <p className="text-[11px] leading-4 text-ink-3">Za interni zadatak koristi puni link, npr. <code>{window.location.origin}/zadaci?task=7</code>.</p>}</div>,
                           <span className="text-xs text-ink-3">{banner.admin_note || '—'}</span>,
                         ])}
                       />

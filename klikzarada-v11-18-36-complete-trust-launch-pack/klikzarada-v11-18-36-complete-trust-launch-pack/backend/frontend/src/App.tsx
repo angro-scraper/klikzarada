@@ -91,7 +91,10 @@ export default function App() {
     const nextRoute = id as Route
     if (!routePaths[nextRoute]) return
     const nextPath = routePaths[nextRoute]
-    window.history.pushState({}, '', nextPath)
+    const taskId = new URLSearchParams(window.location.search).get('task')
+    const keepsTaskContext = Boolean(taskId) && ['tasks-public', 'login', 'register', 'dashboard'].includes(nextRoute)
+    const nextUrl = keepsTaskContext ? `${nextPath}?task=${encodeURIComponent(taskId || '')}` : nextPath
+    window.history.pushState({}, '', nextUrl)
     setPathname(nextPath)
     window.scrollTo(0, 0)
   }, [])
@@ -110,7 +113,10 @@ export default function App() {
   if (route === 'advertiser-login') return <Auth key="advertiser-login" initialMode="advertiser-login" onNavigate={go} />
   if (route === 'advertiser-register') return <Auth key="advertiser-register" initialMode="advertiser-register" onNavigate={go} />
   if (route === 'admin-login') return <Auth key="admin-login" initialMode="admin-login" onNavigate={go} />
-  if (route === 'dashboard') return <ProtectedRoute key="user" roles={['korisnik']} section="Korisnički panel" loginRoute="login" onNavigate={go}><UserDashboard initialPage={userDashboardPageFromPath(pathname)} onNavigate={go} /></ProtectedRoute>
+  if (route === 'dashboard') {
+    const directTaskId = Number(new URLSearchParams(window.location.search).get('task')) || 0
+    return <ProtectedRoute key="user" roles={['korisnik']} section="Korisnički panel" loginRoute="login" onNavigate={go}><UserDashboard initialPage={directTaskId ? 'zadatak-detalj' : userDashboardPageFromPath(pathname)} onNavigate={go} /></ProtectedRoute>
+  }
   if (route === 'advertiser') return <ProtectedRoute key="advertiser" roles={['oglasivac', 'admin']} section="Oglašivački panel" loginRoute="advertiser-login" onNavigate={go}><AdvertiserPanel onNavigate={go} /></ProtectedRoute>
   if (route === 'admin') return <ProtectedRoute key="admin" roles={['admin']} section="Admin panel" loginRoute="admin-login" onNavigate={go}><AdminHub onNavigate={go} /></ProtectedRoute>
   if (route === 'legal') return <Legal onNavigate={go} />

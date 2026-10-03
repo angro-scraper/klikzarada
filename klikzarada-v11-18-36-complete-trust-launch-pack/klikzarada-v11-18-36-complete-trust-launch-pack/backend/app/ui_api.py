@@ -255,6 +255,10 @@ class BannerReservationPayload(BaseModel):
     requested_start_at: datetime | None = None
 
 
+class BannerTargetUpdatePayload(BaseModel):
+    target_url: str | None = Field(default=None, max_length=500)
+
+
 class AdminBannerStatusPayload(BaseModel):
     status: Literal["active", "rejected"]
     note: str | None = Field(default=None, max_length=1000)
@@ -2023,7 +2027,7 @@ def request_tester_enrollment(task_id: int, payload: TesterEnrollmentPayload, re
     if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
         raise HTTPException(400, "Unesi važeću email adresu za pristup testiranju.")
     if _tester_email_conflict(db, email, user.id):
-        raise HTTPException(409, "Ovu test adresu nije moguće vezati za tvoj nalog. Proveri da li koristiš sopstveni Google Play email ili se obrati podršci.")
+        raise HTTPException(409, "Ovu test adresu nije moguće vezati za tvoj nalog. Proveri da li koristiš sopstveni email za testiranje ili se obrati podršci.")
     enrollment = db.query(AppTesterEnrollment).filter(
         AppTesterEnrollment.task_id == task.id,
         AppTesterEnrollment.user_id == user.id,
@@ -2835,6 +2839,30 @@ def reserve_advertiser_banner(
     db.commit()
     db.refresh(banner)
     return {"banner": _banner_data(banner), "reserved_rsd": price_rsd}
+
+
+@router.patch("/advertiser/banners/{banner_id}/target")
+def update_advertiser_banner_target(
+    banner_id: int,
+    payload: BannerTargetUpdatePayload,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    """Allow an owner to correct where an already-approved banner opens."""
+    user = _require_user(request, db, {"oglasivac", "admin"})
+    banner = db.query(PaidAdBannerV111).filter(
+        PaidAdBannerV111.id == banner_id,
+        PaidAdBannerV111.advertiser_id == user.id,
+    ).with_for_update().first()
+    if not banner:
+        raise HTTPException(404, "Banner nije pronađen.")
+    if banner.status not in {"pending", "active"}:
+        raise HTTPException(409, "Link možeš menjati samo dok banner čeka objavu ili je aktivan.")
+    banner.target_url = _validate_banner_target_url(payload.target_url)
+    _audit(db, user, "advertiser_banner_target_updated", "PaidAdBannerV111", banner.id, banner.target_url or "bez linka")
+    db.commit()
+    db.refresh(banner)
+    return {"banner": _banner_data(banner)}
 
 
 def _paypal_config() -> tuple[str, str, str, Decimal]:
