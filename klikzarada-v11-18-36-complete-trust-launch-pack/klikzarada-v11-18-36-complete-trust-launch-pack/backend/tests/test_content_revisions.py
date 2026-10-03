@@ -3,6 +3,7 @@
 import os
 import sys
 import unittest
+import json
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -30,6 +31,7 @@ from app.ui_api import (  # noqa: E402
     edit_advertiser_banner,
     review_content_revision,
     update_advertiser_banner_target,
+    _task_data,
 )
 
 
@@ -192,6 +194,44 @@ class ContentRevisionTests(unittest.TestCase):
         self.assertEqual(caught.exception.status_code, 400)
         self.db.refresh(self.task)
         self.assertEqual(self.task.title, "Stara kampanja")
+
+    def test_legacy_duplicate_specification_is_not_sent_to_site_or_app(self):
+        self.task.description = "Kratak opis zadatka.\n\nSpecifikacija zadatka:\n- Uređaj: iPhone\n\nPlan zatvorenog beta testiranja:\n- Svaki dan po 5 minuta."
+        self.task.instructions = "Prati uputstvo.\n\nKoraci i pravila:\n- Uređaj: iPhone\n\nPlan zatvorenog beta testiranja:\n- Svaki dan po 5 minuta."
+        self.db.add(ModeratedContentRevision(
+            entity_type="campaign", entity_id=self.task.id, owner_id=self.owner.id,
+            payload_json=json.dumps({
+                "title": self.task.title,
+                "description": self.task.description,
+                "target_url": self.task.target_url,
+            }),
+            status="pending",
+        ))
+        self.db.commit()
+        self.assertEqual(_task_data(self.task)["description"], "Kratak opis zadatka.")
+        pending = admin_content_revisions(self.request(self.admin), self.db)["revisions"][0]
+        self.assertEqual(pending["current"]["description"], "Kratak opis zadatka.")
+        self.assertEqual(pending["changes"]["description"], "Kratak opis zadatka.")
+        review_content_revision(
+            pending["id"], ContentRevisionReviewPayload(status="approved"),
+            self.request(self.admin), self.db,
+        )
+        self.db.refresh(self.task)
+        self.assertEqual(self.task.description, "Kratak opis zadatka.")
+        self.assertIn("Uređaj: iPhone", self.task.instructions)
+
+    def test_redundant_active_edit_is_not_queued(self):
+        with self.assertRaises(HTTPException) as caught:
+            edit_active_campaign_content(
+                self.task.id,
+                CampaignContentEditPayload(
+                    title=self.task.title, description=self.task.description,
+                    target_url=self.task.target_url,
+                ),
+                self.request(self.owner), self.db,
+            )
+        self.assertEqual(caught.exception.status_code, 400)
+        self.assertEqual(self.db.query(ModeratedContentRevision).count(), 0)
 
 
 if __name__ == "__main__":

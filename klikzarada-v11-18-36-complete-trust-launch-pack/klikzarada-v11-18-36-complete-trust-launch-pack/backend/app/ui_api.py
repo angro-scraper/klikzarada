@@ -556,6 +556,17 @@ def _new_referral_code(db: Session, full_name: str) -> str:
     raise HTTPException(503, "Referral kod trenutno nije moguće generisati. Pokušaj ponovo.")
 
 
+_LEGACY_SPECIFICATION = re.compile(r"\n\s*\nSpecifikacija(?: zadatka)?:\s*\n", re.IGNORECASE)
+
+
+def _campaign_summary(description: str | None, instructions: str | None) -> str:
+    text = (description or "").strip()
+    if "Koraci i pravila:" not in (instructions or ""):
+        return text
+    match = _LEGACY_SPECIFICATION.search(text)
+    return text[:match.start()].strip() if match else text
+
+
 def _task_data(task: Task) -> dict:
     return {
         "id": task.id,
@@ -563,7 +574,7 @@ def _task_data(task: Task) -> dict:
         "category": task.category,
         "task_type": task.task_type,
         "target_url": task.target_url,
-        "description": task.description,
+        "description": _campaign_summary(task.description, task.instructions),
         "instructions": task.instructions,
         "proof_required": task.proof_required,
         "reward_rsd": _money(task.reward_rsd),
@@ -3494,9 +3505,15 @@ def edit_active_campaign_content(
         raise HTTPException(409, "Ovu izmenu možeš poslati samo za aktivnu kampanju.")
     changes = {
         "title": payload.title.strip(),
-        "description": payload.description.strip(),
+        "description": _campaign_summary(payload.description, task.instructions),
         "target_url": (payload.target_url or "").strip() or None,
     }
+    if changes == {
+        "title": task.title,
+        "description": _campaign_summary(task.description, task.instructions),
+        "target_url": task.target_url,
+    }:
+        raise HTTPException(400, "Nema promena sadržaja za slanje na proveru.")
     revision = _queue_content_revision(db, user, "campaign", task.id, changes)
     db.commit()
     return {"campaign": _task_data(task), "revision": _content_revision_data(revision)}
@@ -3522,9 +3539,11 @@ def admin_content_revisions(request: Request, db: Session = Depends(get_db)) -> 
         row = _content_revision_data(revision)
         entity = db.get(Task if revision.entity_type == "campaign" else PaidAdBannerV111, revision.entity_id)
         owner = db.get(User, revision.owner_id)
+        if revision.entity_type == "campaign" and entity:
+            row["changes"]["description"] = _campaign_summary(row["changes"].get("description"), entity.instructions)
         row["current"] = {
             "title": entity.title,
-            "description": entity.description,
+            "description": _campaign_summary(entity.description, entity.instructions),
             "target_url": entity.target_url,
         } if revision.entity_type == "campaign" and entity else {
             "title": entity.title,
@@ -3562,6 +3581,8 @@ def review_content_revision(
         if entity.status != "active":
             raise HTTPException(409, "Sadržaj više nije aktivan; izmena se ne može objaviti.")
         for field, value in json.loads(revision.payload_json).items():
+            if revision.entity_type == "campaign" and field == "description":
+                value = _campaign_summary(value, entity.instructions)
             setattr(entity, field, value)
     revision.status = payload.status
     revision.admin_note = (payload.note or "").strip() or None

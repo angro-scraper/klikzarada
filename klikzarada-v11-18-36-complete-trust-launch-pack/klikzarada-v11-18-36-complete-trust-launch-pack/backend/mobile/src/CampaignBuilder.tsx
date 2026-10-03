@@ -106,7 +106,7 @@ export default function CampaignBuilder({ feePercent, balance, allowTopupLink = 
     const payload: CampaignPayload = {
       title: title.trim(), category: template.category, task_type: template.taskType,
       target_url: targetUrl.trim() || undefined,
-      description: `${description.trim()}\n\nSpecifikacija:\n${detailLines.map(line => `- ${line}`).join('\n')}${betaPlan}`,
+      description: description.trim(),
       instructions: `${template.instruction}\n\nKoraci i pravila:\n${detailLines.map(line => `- ${line}`).join('\n')}${betaPlan}`,
       proof_required: template.proof, reward_rsd: reward, total_slots: slots,
       campaign_duration_days: duration, target_city: city.trim() || 'Srbija', target_age_group: age,

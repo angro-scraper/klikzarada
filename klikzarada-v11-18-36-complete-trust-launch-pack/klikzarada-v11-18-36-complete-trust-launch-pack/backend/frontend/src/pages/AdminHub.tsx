@@ -219,13 +219,15 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
     return <section className="mt-6 space-y-3" aria-label="Izmene na proveri">
       <h2 className="text-lg font-bold text-ink">Izmene aktivnih {entityType === 'campaign' ? 'kampanja' : 'bannera'} na proveri ({revisions.length})</h2>
       <p className="text-sm text-ink-2">Stara odobrena verzija ostaje javna dok ne odlučiš o novom sadržaju.</p>
-      {revisions.map(revision => <Card key={revision.id} className="space-y-4 p-5">
+      {revisions.map(revision => {
+        const changedFields = Object.entries(revision.changes).filter(([field, value]) => (value || '') !== (revision.current?.[field] || ''))
+        return <Card key={revision.id} className="space-y-4 p-5">
         <div><p className="font-bold text-ink">{revision.owner_name} · {revision.current?.title || `Objava #${revision.entity_id}`}</p><p className="text-xs text-ink-3">Zahtev #{revision.id} · {revision.created_at ? new Intl.DateTimeFormat('sr-RS').format(new Date(revision.created_at)) : ''}</p></div>
-        <div className="grid gap-3 md:grid-cols-2">{Object.entries(revision.changes).map(([field, value]) => <div key={field} className="rounded-lg border border-frame bg-mint-50 p-3 text-sm"><p className="font-bold text-ink">{labels[field] || field}</p><p className="mt-2 break-words text-xs text-ink-3">Trenutno: {revision.current?.[field] || 'Nije navedeno'}</p><p className="mt-2 whitespace-pre-wrap break-words text-ink">Predlog: {value || 'Nije navedeno'}</p>{field === 'image_url' && value && <img src={value} alt="Predložena slika bannera" className="mt-3 max-h-40 w-full rounded border border-frame object-contain" />}</div>)}</div>
+        {changedFields.length ? <div className="grid gap-3 md:grid-cols-2">{changedFields.map(([field, value]) => <div key={field} className="rounded-lg border border-frame bg-mint-50 p-3 text-sm"><p className="font-bold text-ink">{labels[field] || field}</p><p className="mt-2 break-words text-xs text-ink-3">Trenutno: {revision.current?.[field] || 'Nije navedeno'}</p><p className="mt-2 whitespace-pre-wrap break-words text-ink">Predlog: {value || 'Nije navedeno'}</p>{field === 'image_url' && value && <img src={value} alt="Predložena slika bannera" className="mt-3 max-h-40 w-full rounded border border-frame object-contain" />}</div>)}</div> : <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Javni sažetak nema sadržinsku promenu. Ako odobriš ovaj ranije poslati zahtev, duplirana specifikacija se uklanja iz polja opisa, a uputstvo zadatka ostaje sačuvano.</p>}
         <label className="block text-xs font-semibold text-ink-2" htmlFor={`revision-note-${revision.id}`}>Napomena admina, obavezna kod odbijanja</label>
         <textarea id={`revision-note-${revision.id}`} rows={2} value={revisionNotes[revision.id] || ''} onChange={event => setRevisionNotes(current => ({ ...current, [revision.id]: event.target.value }))} className="w-full rounded-lg border border-frame p-3 text-sm text-ink focus:border-blue-500 focus:outline-none" />
         <div className="flex flex-wrap gap-2"><Btn size="sm" variant="success" disabled={savingAction} onClick={() => void reviewPendingContent(revision, 'approved')}>Odobri izmenu</Btn><Btn size="sm" variant="danger" disabled={savingAction} onClick={() => void reviewPendingContent(revision, 'rejected')}>Odbij izmenu</Btn></div>
-      </Card>)}
+      </Card>})}
     </section>
   }
   const back = BACK[page]
