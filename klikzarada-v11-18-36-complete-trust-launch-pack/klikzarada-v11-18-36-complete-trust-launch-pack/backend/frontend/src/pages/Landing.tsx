@@ -129,8 +129,6 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
     return summary
   }, {})).sort(([left], [right]) => left.localeCompare(right, 'sr'))
   const featuredTasks = tasks.slice(0, 3)
-  const allBetaTests = tasks.length > 0 && tasks.every(task => task.requires_tester_enrollment)
-  const formatRsd = (amount: number) => `${amount.toLocaleString('sr-RS')} RSD`
 
   const joinWaitlist = async () => {
     setWaitlistMessage('')
@@ -178,18 +176,18 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
 
       <main>
         <section className="landing-dot-grid overflow-hidden border-b border-blue-100 bg-[radial-gradient(circle_at_top_right,_#dbeafe,_transparent_38%),linear-gradient(135deg,#f7fdf9_0%,#eff9f3_52%,#eef5ff_100%)]">
-          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 md:py-14 lg:grid-cols-[1.2fr_.8fr] lg:items-center">
+          <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:py-24 lg:grid-cols-[1.2fr_.8fr] lg:items-center">
             <div className="landing-reveal">
               <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">Platforma za proverljive mikro-zadatke</span>
               <h1 className="mt-5 max-w-3xl text-4xl font-extrabold leading-[1.06] tracking-tight text-ink md:text-6xl">
-                {allBetaTests ? <>Testiraj Android aplikacije.<br /><span className="text-blue-600">Zaradi za koristan izveštaj.</span></> : <>Zaradi na stvarnom radu.<br /><span className="text-blue-600">Bez praznih obećanja.</span></>}
+                Zaradi na stvarnom radu.<br /><span className="text-blue-600">Bez prečica i bez praznih obećanja.</span>
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-2">
-                {allBetaTests ? 'Odaberi aplikaciju, testiraj je prema uslovima zadatka i šalji dnevne izveštaje. Nagrada se obračunava za odobrene aktivnosti.' : 'Biraj zadatke sa jasnim dokazom, pošalji rezultat i prati stanje nagrade pre isplate.'}
+                Biraj dostupne zadatke sa jasnim uslovima: testiranje Android i iOS aplikacija, sajtova, ankete i druge proverljive aktivnosti kada ih oglašivači objave. Pošalji traženi rezultat i prati nagradu pre isplate.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <a href="/zadaci" className="inline-flex min-h-11 items-center rounded-md bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">Pogledaj dostupne zadatke →</a>
-                <a href="/oglasavanje#testeri" className="inline-flex min-h-11 items-center rounded-md border border-frame bg-white px-5 text-sm font-semibold text-ink shadow-sm hover:bg-gray-50">Potrebni su ti testeri?</a>
+                <a href="#kako-funkcionise" className="inline-flex min-h-11 items-center rounded-md bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">Pogledaj kako se zarađuje →</a>
+                <a href="/oglasavanje" className="inline-flex min-h-11 items-center rounded-md border border-frame bg-white px-5 text-sm font-semibold text-ink shadow-sm hover:bg-gray-50">Objavi zadatak ili banner</a>
               </div>
               <div className="mt-9 grid max-w-xl grid-cols-3 gap-3">
                 <div className="rounded-xl border border-emerald-200 bg-white/80 p-3"><p className="font-mono text-2xl font-bold text-emerald-700">{loading || taskLoadError ? '—' : overview?.active_tasks ?? tasks.length}</p><p className="mt-1 text-xs font-semibold text-ink-2">dostupnih zadataka</p></div>
@@ -262,7 +260,7 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
 
         {sponsorBanners.length > 0 && <section className="mx-auto max-w-6xl px-4 py-14"><div className="mb-5 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700">Zakup reklame</p><h2 className="mt-2 text-2xl font-extrabold text-ink">Sponzorisane ponude</h2></div><a href="/oglasavanje#baneri" className="text-sm font-bold text-blue-700">Kako zakupiti poziciju →</a></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{sponsorBanners.map(banner => <BannerCard key={banner.id} banner={banner} />)}</div></section>}
 
-        <section className="border-y border-frame bg-blue-50/60"><div className="mx-auto max-w-6xl px-4 py-16"><div className="grid gap-10 lg:grid-cols-[.9fr_1.1fr]"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Za korisnike</p><h2 className="mt-2 text-3xl font-extrabold text-ink">Od zadatka do odobrene nagrade.</h2><p className="mt-4 max-w-md leading-7 text-ink-2">Nema plaćenog klika, automatskog kredita ili obećanja bez provere. Svaki korak ostavlja trag koji admin može da proveri.</p><Btn onClick={() => onNavigate('register')} className="mt-7">Napravi besplatan nalog</Btn></div><div className="grid gap-3 sm:grid-cols-2">{userSteps.map(([step, title, description]) => <Card key={step} className="p-5"><p className="font-mono text-xs font-bold text-blue-600">{step}</p><h3 className="mt-3 font-bold text-ink">{title}</h3><p className="mt-2 text-sm leading-6 text-ink-2">{description}</p></Card>)}</div></div></div></section>
+        <section id="kako-funkcionise" className="scroll-mt-20 border-y border-frame bg-blue-50/60"><div className="mx-auto max-w-6xl px-4 py-16"><div className="grid gap-10 lg:grid-cols-[.9fr_1.1fr]"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Za korisnike</p><h2 className="mt-2 text-3xl font-extrabold text-ink">Od zadatka do odobrene nagrade.</h2><p className="mt-4 max-w-md leading-7 text-ink-2">Nema plaćenog klika, automatskog kredita ili obećanja bez provere. Svaki korak ostavlja trag koji admin može da proveri.</p><Btn onClick={() => onNavigate('register')} className="mt-7">Napravi besplatan nalog</Btn></div><div className="grid gap-3 sm:grid-cols-2">{userSteps.map(([step, title, description]) => <Card key={step} className="p-5"><p className="font-mono text-xs font-bold text-blue-600">{step}</p><h3 className="mt-3 font-bold text-ink">{title}</h3><p className="mt-2 text-sm leading-6 text-ink-2">{description}</p></Card>)}</div></div></div></section>
 
         <section className="mx-auto max-w-6xl px-4 py-16"><div className="overflow-hidden rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-7 md:p-10"><div className="grid gap-8 lg:grid-cols-[1.1fr_.9fr] lg:items-center"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Za oglašivače</p><h2 className="mt-2 text-3xl font-extrabold text-ink">Objavi merljiv posao ili zakup banner pozicije.</h2><p className="mt-4 max-w-xl leading-7 text-ink-2">Definiši nagradu, dokaz i publiku. Kampanja ide na moderaciju, a budžet se troši samo za odobrene rezultate. Banner zakup ima tačno određenu poziciju i trajanje.</p><div className="mt-7 flex flex-wrap gap-3"><Btn onClick={() => onNavigate('advertiser-register')}>Kreiraj kampanju</Btn><Btn onClick={() => onNavigate('advertiser-login')} variant="secondary">Uđi u oglašivački panel</Btn></div></div><div className="grid gap-3"><Card className="p-4"><p className="font-bold text-ink">01. Zadatak sa dokazom</p><p className="mt-1 text-sm text-ink-2">Anketa, testiranje, provera podataka ili feedback.</p></Card><Card className="p-4"><p className="font-bold text-ink">02. Admin moderacija</p><p className="mt-1 text-sm text-ink-2">Pregled cilja, teksta, budžeta i bezbednosti kampanje.</p></Card><Card className="p-4"><p className="font-bold text-ink">03. Rezultat koji možeš da proveriš</p><p className="mt-1 text-sm text-ink-2">Statusi, dokazi i potrošnja budžeta ostaju u panelu.</p></Card></div></div></div></section>
 
