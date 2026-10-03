@@ -46,6 +46,13 @@ export default function Auth({
   const isAdvertiser = mode === 'advertiser-login' || mode === 'advertiser-register'
   const isRegister = mode === 'register' || mode === 'advertiser-register'
   const isAdmin = mode === 'admin-login'
+  const selectedTaskId = Number(new URLSearchParams(window.location.search).get('task')) || 0
+
+  function navigateAuth(destination: string) {
+    if (selectedTaskId && (destination === 'login' || destination === 'register')) {
+      window.location.assign(`/${destination === 'login' ? 'prijava' : 'registracija'}?task=${selectedTaskId}`)
+    } else onNavigate(destination)
+  }
 
   // Route changes reuse this component, so its selected role must follow the URL.
   useEffect(() => {
@@ -122,6 +129,7 @@ export default function Auth({
         return
       }
       if (result.user.role === 'admin') onNavigate('admin')
+      else if (result.user.role === 'korisnik' && selectedTaskId) window.location.assign(`/korisnik/zadaci/${selectedTaskId}`)
       else onNavigate(result.user.role === 'oglasivac' ? 'advertiser' : 'dashboard')
     } catch (caught) {
       if (isRegister) void api.trackPublicFunnel('registration_failed', registrationFailureReason(caught)).catch(() => undefined)
@@ -183,7 +191,7 @@ export default function Auth({
             </div>
           ) : <div className="flex rounded-lg border border-border overflow-hidden mb-6">
             <button
-              onClick={() => onNavigate(isRegister ? 'register' : 'login')}
+              onClick={() => navigateAuth(isRegister ? 'register' : 'login')}
               className={`flex-1 py-2 text-sm font-medium transition-colors cursor-pointer ${
                 !isAdvertiser ? 'bg-blue-500 text-white' : 'bg-navy-800 text-slate-400 hover:text-slate-200'
               }`}
@@ -238,13 +246,15 @@ export default function Auth({
                   placeholder={isAdvertiser && advertiserType === 'business' ? 'Moja Firma d.o.o.' : 'Marko Marković'}
                   value={name}
                   onChange={setName}
+                  autoComplete={isAdvertiser && advertiserType === 'business' ? 'organization' : 'name'}
                 />
               )}
-              {!resetToken && <Input label="Email adresa" type="email" placeholder="email@primer.rs" value={email} onChange={setEmail} />}
+              {!resetToken && <Input label="Email adresa" type="email" placeholder="email@primer.rs" value={email} onChange={setEmail} autoComplete="email" />}
               {!resetToken && !forgotPassword && isRegister && !isAdvertiser && (
-                <Input label="Telefon (opciono)" type="tel" placeholder="npr. +381 60 123 4567" value={phone} onChange={setPhone} />
+                <Input label="Telefon (opciono)" type="tel" placeholder="npr. +381 60 123 4567" value={phone} onChange={setPhone} autoComplete="tel" />
               )}
-              {!forgotPassword && <Input label={resetToken ? 'Nova lozinka' : 'Lozinka'} type="password" placeholder="••••••••" value={password} onChange={setPassword} />}
+              {!forgotPassword && <Input label={resetToken ? 'Nova lozinka' : 'Lozinka'} type="password" placeholder="••••••••" value={password} onChange={setPassword} autoComplete={resetToken || isRegister ? 'new-password' : 'current-password'} />}
+              {(resetToken || isRegister) && !forgotPassword && <p className="-mt-2 text-xs text-slate-400">Lozinka mora imati najmanje 8 znakova.</p>}
               {!resetToken && !forgotPassword && isRegister && !isAdvertiser && (
                 <>
                   <Input label="Referral kod (opciono)" placeholder="Unesi kod iz referral linka ili ostavi prazno" value={referral} onChange={value => { setReferral(value.toUpperCase()); setReferralFromLink(false) }} />
@@ -286,7 +296,7 @@ export default function Auth({
                 <p className="text-sm text-slate-400">
                   Već imaš nalog?{' '}
                   <button
-                    onClick={() => onNavigate(isAdvertiser ? 'advertiser-login' : 'login')}
+                    onClick={() => navigateAuth(isAdvertiser ? 'advertiser-login' : 'login')}
                     className="text-blue-400 hover:text-blue-300 cursor-pointer"
                   >
                     Prijavi se
@@ -296,7 +306,7 @@ export default function Auth({
                 <p className="text-sm text-slate-400">
                   Nemaš nalog?{' '}
                   <button
-                    onClick={() => onNavigate(isAdvertiser ? 'advertiser-register' : 'register')}
+                    onClick={() => navigateAuth(isAdvertiser ? 'advertiser-register' : 'register')}
                     className="text-blue-400 hover:text-blue-300 cursor-pointer"
                   >
                     Registruj se

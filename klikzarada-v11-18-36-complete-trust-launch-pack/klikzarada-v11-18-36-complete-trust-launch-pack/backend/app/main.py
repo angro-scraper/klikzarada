@@ -31,7 +31,7 @@ from .security import create_session_token, hash_password, is_legacy_session, ma
 from .login_guard import admin_identity_allowed, authenticate_login
 from .ui_api import REFERRAL_INVITER_BONUS_RSD, _grant_referral_bonus_if_eligible, router as ui_api_router
 
-app = FastAPI(title="KlikZarada V11.18.56 Beta Task Banner Link", version="11.18.56")
+app = FastAPI(title="KlikZarada V11.18.57 Public Task Clarity", version="11.18.57")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 SPA_DIR = Path("app/static/app-ui")
 
@@ -71,6 +71,58 @@ if MOBILE_DIR.exists():
 app.include_router(ui_api_router)
 
 
+def _public_spa_document(path: str, index: Path) -> str:
+    """Set per-page metadata while keeping private account routes out of search."""
+    document = index.read_text(encoding="utf-8")
+    titles = {
+        "/": "KlikZarada | Proverljivi zadaci",
+        "/zadaci": "Dostupni zadaci | KlikZarada",
+        "/pravila": "Pravila i privatnost | KlikZarada",
+        "/pomoc": "Pomoć i podrška | KlikZarada",
+        "/oglasavanje": "Oglašavanje i testeri | KlikZarada",
+    }
+    title = titles.get(path, "KlikZarada")
+    description = "Pogledaj dostupne zadatke, uslove i nagradu pre registracije."
+    task_match = re.fullmatch(r"/zadaci/(\d+)/?", path)
+    task = None
+    if task_match:
+        with SessionLocal() as db:
+            task = db.query(Task).filter(Task.id == int(task_match.group(1)), Task.status == "active").first()
+            if task:
+                title = f"{task.title} | KlikZarada"
+                description = "Pogledaj trajanje, dokaz i nagradu za ovaj zadatak pre prijave."
+    public = path in titles or task is not None
+    origin = (os.getenv("PUBLIC_APP_URL") or "https://klikzarada.onrender.com").rstrip("/")
+    canonical = origin + path
+    document = re.sub(r"<title>.*?</title>", f"<title>{html.escape(title)}</title>", document, count=1, flags=re.DOTALL)
+    document = re.sub(r'<meta name="description"[^>]*>', f'<meta name="description" content="{html.escape(description, quote=True)}" />', document, count=1)
+    metadata = (
+        f'<meta name="robots" content="{"index, follow" if public and os.getenv("APP_ENV") == "production" else "noindex, nofollow"}" />'
+        f'<link rel="canonical" href="{html.escape(canonical, quote=True)}" />'
+        f'<meta property="og:type" content="website" />'
+        f'<meta property="og:title" content="{html.escape(title, quote=True)}" />'
+        f'<meta property="og:description" content="{html.escape(description, quote=True)}" />'
+        f'<meta property="og:image" content="{html.escape(origin, quote=True)}/static/favicon.svg" />'
+    )
+    document = document.replace("</head>", metadata + "</head>", 1)
+    if task:
+        summary = f"{task.title}. "
+        if task.requires_tester_enrollment:
+            days = int(task.tester_duration_days or 0)
+            daily_reward = float(task.tester_daily_reward_rsd or 0)
+            total = float(task.reward_rsd or 0)
+            if days > 0 and daily_reward > 0 and abs(days * daily_reward - total) < 0.01:
+                summary += f"{total:.0f} RSD za {days} dana; {daily_reward:.0f} RSD po odobrenom danu."
+            else:
+                summary += "Proveri dnevnu nagradu i trajanje u uslovima zadatka."
+            if task.tester_daily_minutes and task.tester_daily_minutes > 0:
+                summary += f" {task.tester_daily_minutes} minuta dnevno."
+        elif task.reward_rsd and task.reward_rsd > 0:
+            summary += f"Nagrada {task.reward_rsd:.0f} RSD po odobrenom izvršenju."
+        document = document.replace('<div id="root"></div>', f'<div id="root"><main><h1>{html.escape(task.title)}</h1><p>{html.escape(summary)}</p><a href="/registracija?task={task.id}">Registruj se</a></main></div>', 1)
+    return document
+
+
 @app.get("/mobilna", include_in_schema=False)
 def mobile_application():
     index = MOBILE_DIR / "index.html"
@@ -105,11 +157,11 @@ async def serve_react_application(request: Request, call_next):
                 return JSONResponse({"detail": "Zahtev nije poslat sa ovog sajta."}, status_code=403)
         if request.headers.get("sec-fetch-site", "").lower() == "cross-site":
             return JSONResponse({"detail": "Zahtev nije poslat sa ovog sajta."}, status_code=403)
-    excluded = ("/api/", "/static/", "/app-ui/", "/mobile-ui/", "/mobilna", "/docs", "/openapi.json", "/favicon.ico", "/sw.js", "/logout", "/r/", "/kyc/files/")
+    excluded = ("/api/", "/static/", "/app-ui/", "/mobile-ui/", "/mobilna", "/docs", "/openapi.json", "/favicon.ico", "/robots.txt", "/sitemap.xml", "/sw.js", "/logout", "/r/", "/kyc/files/")
     index = SPA_DIR / "index.html"
     wants_html = "text/html" in request.headers.get("accept", "")
     if request.method == "GET" and wants_html and index.exists() and not path.startswith(excluded):
-        response = FileResponse(index, media_type="text/html")
+        response = HTMLResponse(_public_spa_document(path, index))
         # The document must always point to the current hashed JavaScript bundle.
         response.headers["Cache-Control"] = "no-store, max-age=0, must-revalidate"
     else:
@@ -120,6 +172,8 @@ async def serve_react_application(request: Request, call_next):
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    if path.startswith(("/korisnik/", "/oglasivac/", "/admin", "/mobilna")):
+        response.headers.setdefault("X-Robots-Tag", "noindex, nofollow")
     if request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https":
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return response
@@ -3115,13 +3169,22 @@ def admin_marketing(request:Request, db:Session=Depends(get_db)):
     return templates.TemplateResponse("marketing_v4.html", {"request":request,"user":u})
 
 @app.get("/robots.txt")
-def robots():
-    return Response("User-agent: *\nAllow: /\nSitemap: http://127.0.0.1:8000/sitemap.xml\n", media_type="text/plain")
+def robots(request: Request):
+    if os.getenv("APP_ENV", "development").lower() != "production":
+        return Response("User-agent: *\nDisallow: /\n", media_type="text/plain")
+    origin = (os.getenv("PUBLIC_APP_URL") or str(request.base_url)).rstrip("/")
+    body = "User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /korisnik/\nDisallow: /oglasivac/\nDisallow: /admin\nDisallow: /mobilna\n"
+    return Response(body + f"Sitemap: {origin}/sitemap.xml\n", media_type="text/plain")
 
 @app.get("/sitemap.xml")
-def sitemap():
-    urls=["/","/zadaci","/za-korisnike","/za-oglasivace","/cenovnik","/faq","/pravila","/kontakt"]
-    body='<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + ''.join([f"<url><loc>http://127.0.0.1:8000{u}</loc></url>" for u in urls]) + '</urlset>'
+def sitemap(request: Request, db: Session = Depends(get_db)):
+    if os.getenv("APP_ENV", "development").lower() != "production":
+        return Response(status_code=404)
+    origin = (os.getenv("PUBLIC_APP_URL") or str(request.base_url)).rstrip("/")
+    urls = ["/", "/zadaci", "/pomoc", "/pravila", "/oglasavanje"]
+    task_ids = db.query(Task.id).filter(Task.status == "active").all()
+    urls.extend(f"/zadaci/{task_id}" for (task_id,) in task_ids)
+    body = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + ''.join(f"<url><loc>{html.escape(origin + path, quote=True)}</loc></url>" for path in urls) + '</urlset>'
     return Response(body, media_type="application/xml")
 
 

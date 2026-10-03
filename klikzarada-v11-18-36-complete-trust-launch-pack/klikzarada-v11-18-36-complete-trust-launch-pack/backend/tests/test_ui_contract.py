@@ -219,7 +219,7 @@ class UiContractTests(unittest.TestCase):
         auth_source = (BACKEND_DIR / "frontend" / "src" / "pages" / "Auth.tsx").read_text(encoding="utf-8")
         app_source = (BACKEND_DIR / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
         self.assertIn("setMode(initialMode)", auth_source)
-        self.assertIn("onNavigate(isRegister ? 'register' : 'login')", auth_source)
+        self.assertIn("navigateAuth(isRegister ? 'register' : 'login')", auth_source)
         self.assertIn("onNavigate(isRegister ? 'advertiser-register' : 'advertiser-login')", auth_source)
         self.assertIn('key="register" initialMode="register"', app_source)
         self.assertIn('key="advertiser-register" initialMode="advertiser-register"', app_source)

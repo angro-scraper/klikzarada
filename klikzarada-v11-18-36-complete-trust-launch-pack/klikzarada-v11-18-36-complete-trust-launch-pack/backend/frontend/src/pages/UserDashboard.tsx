@@ -7,6 +7,7 @@ import { TaskChat } from '../components/TaskChat'
 import { useToast } from '../components/Toast'
 import { api, deviceFingerprint, type NotificationItem, type SessionUser, type SupportTicket, type Task, type TaskChatInboxItem, type TaskVerification, type UserDashboardData } from '../lib/api'
 import { type UserDashboardPage, userDashboardPageFromPath, userDashboardPath } from '../lib/userDashboardRoutes'
+import { taskRewardDetails } from '../lib/taskPresentation'
 
 const navGroups = [
   { items: [
@@ -731,7 +732,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                           <p className="text-xs text-ink-3 mt-1">⏱ {t.estimated_minutes} min · 📎 {t.proof_required || 'Dokaz potreban'}</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="font-mono font-bold text-emerald-600 text-lg">{t.requires_tester_enrollment ? `${formatRsd(t.tester_daily_reward_rsd)}/dan` : formatRsd(t.reward_rsd)}</p>
+                          <p className="max-w-[180px] text-right text-sm font-bold text-emerald-700">{taskRewardDetails(t).total}</p>
                           <Btn size="sm" className="mt-2" onClick={() => openTask(t.id)}>Detalji →</Btn>
                         </div>
                       </div>

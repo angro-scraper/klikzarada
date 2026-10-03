@@ -7,6 +7,7 @@ import AdvertiserPanel from './pages/AdvertiserPanel'
 import AdminHub from './pages/AdminHub'
 import Legal from './pages/Legal'
 import HelpCenter from './pages/HelpCenter'
+import AdvertisePublic from './pages/AdvertisePublic'
 import { api, type SessionUser } from './lib/api'
 import { userDashboardPageFromPath } from './lib/userDashboardRoutes'
 
@@ -21,6 +22,7 @@ type Route =
   | 'admin'
   | 'legal'
   | 'help'
+  | 'advertising-public'
 
 const routePaths: Record<Route, string> = {
   home: '/',
@@ -35,9 +37,11 @@ const routePaths: Record<Route, string> = {
   admin: '/admin',
   legal: '/pravila',
   help: '/pomoc',
+  'advertising-public': '/oglasavanje',
 }
 
 function routeFromPath(pathname: string): Route {
+  if (/^\/zadaci\/\d+\/?$/.test(pathname)) return 'tasks-public'
   if (pathname === '/admin/prijava') return 'admin-login'
   if (pathname.startsWith('/admin')) return 'admin'
   if (pathname.startsWith('/korisnik')) return 'dashboard'
@@ -121,6 +125,7 @@ export default function App() {
   if (route === 'admin') return <ProtectedRoute key="admin" roles={['admin']} section="Admin panel" loginRoute="admin-login" onNavigate={go}><AdminHub onNavigate={go} /></ProtectedRoute>
   if (route === 'legal') return <Legal onNavigate={go} />
   if (route === 'help') return <HelpCenter onNavigate={go} />
+  if (route === 'advertising-public') return <AdvertisePublic />
 
   return <Landing onNavigate={go} />
 }

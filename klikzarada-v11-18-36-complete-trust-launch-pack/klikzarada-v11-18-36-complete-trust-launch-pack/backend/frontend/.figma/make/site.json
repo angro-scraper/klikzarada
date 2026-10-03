@@ -1,7 +1,8 @@
 {
-  "description": "Streamline your development workflow by integrating real-time updates directly into your connected GitHub repository, enhancing collaboration and efficiency.",
+  "title": "",
+  "description": "",
   "robots": {
-    "index": false
+    "index": true
   },
   "accessibility": {
     "addBypassLinks": false,

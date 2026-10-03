@@ -577,6 +577,23 @@ def _task_data(task: Task) -> dict:
     }
 
 
+def _public_task_data(task: Task) -> dict:
+    """Expose campaign terms without private links or moderation data."""
+    data = _task_data(task)
+    for field in ("target_url", "moderation_note", "paused_at", "stopped_at"):
+        data[field] = None
+    if task.requires_tester_enrollment:
+        data["instructions"] = ""
+    advertiser = task.advertiser
+    data["advertiser_name"] = (
+        advertiser.company_name.strip()
+        if advertiser and advertiser.company_name and advertiser.company_name.strip()
+        else "KlikZarada platforma" if _is_platform_publisher(advertiser) else "Oglašivač na platformi"
+    )
+    data["example_proof"] = task.example_proof or None
+    return data
+
+
 def _campaign_remaining_reservation(task: Task) -> float:
     """Return only the still-held amount; pending/approved executions stay funded."""
     remaining_slots = max(0, int(task.total_slots or 0) - int(task.used_slots or 0))
@@ -1513,12 +1530,21 @@ def public_tasks(db: Session = Depends(get_db)) -> dict:
     payload = []
     for task in tasks:
         item = promotion_by_task.get(task.id)
-        data = _task_data(task)
+        data = _public_task_data(task)
         data["sponsored"] = bool(item)
         data["promotion_type"] = item.promotion_type if item else None
         payload.append(data)
     payload.sort(key=lambda item: (0 if item.get("promotion_type") == "featured" else 1 if item.get("promotion_type") == "priority" else 2, -item["reward_rsd"]))
     return {"tasks": payload}
+
+
+@router.get("/public/tasks/{task_id}")
+def public_task_detail(task_id: int, db: Session = Depends(get_db)) -> dict:
+    _expire_campaigns(db)
+    task = db.query(Task).filter(Task.id == task_id, Task.status == "active").first()
+    if not task:
+        raise HTTPException(404, "Zadatak nije dostupan.")
+    return {"task": _public_task_data(task)}
 
 
 @router.get("/public/overview")
@@ -1543,6 +1569,38 @@ def public_overview(db: Session = Depends(get_db)) -> dict:
         "active_advertisers": int(advertiser_count),
         "approved_results": approved_results,
         "average_minutes": round(float(average_minutes or 0), 1),
+    }
+
+
+@router.get("/public/service-terms")
+def public_service_terms() -> dict:
+    return {
+        "min_withdrawal_rsd": MIN_WITHDRAWAL_RSD,
+        "wallet_currency": "RSD",
+        "payout_destination": "PayPal",
+        "support_email": "trajkoff@yahoo.com",
+        "proof_review_deadline": None,
+        "withdrawal_processing_deadline": None,
+    }
+
+
+@router.get("/public/advertising-info")
+def public_advertising_info(db: Session = Depends(get_db)) -> dict:
+    slots = db.query(HomeBannerSlotV111).filter(HomeBannerSlotV111.is_active.is_(True)).order_by(HomeBannerSlotV111.price_rsd.desc()).all()
+    return {
+        "platform_fee_percent": PLATFORM_FEE_PERCENT,
+        "banner_price_basis_days": 7,
+        "banner_max_days": 31,
+        "slots": [
+            {
+                "id": slot.id,
+                "title": slot.title,
+                "placement": slot.placement,
+                "width_label": slot.width_label,
+                "price_rsd": _money(slot.price_rsd),
+            }
+            for slot in slots
+        ],
     }
 
 

@@ -39,6 +39,8 @@ export type Task = {
   description: string
   instructions: string
   proof_required: string
+  example_proof?: string | null
+  advertiser_name?: string
   reward_rsd: number
   total_slots: number
   used_slots: number
@@ -548,7 +550,10 @@ export const api = {
     method: 'POST', body: JSON.stringify({ token, new_password: newPassword }),
   }),
   publicTasks: () => request<{ tasks: Task[] }>('/public/tasks'),
+  publicTask: (taskId: number) => request<{ task: Task }>(`/public/tasks/${taskId}`),
   publicOverview: () => request<PublicOverview>('/public/overview'),
+  publicServiceTerms: () => request<{ min_withdrawal_rsd: number; wallet_currency: string; payout_destination: string; support_email: string; proof_review_deadline: string | null; withdrawal_processing_deadline: string | null }>('/public/service-terms'),
+  publicAdvertisingInfo: () => request<{ platform_fee_percent: number; banner_price_basis_days: number; banner_max_days: number; slots: { id: number; title: string; placement: string; width_label: string; price_rsd: number }[] }>('/public/advertising-info'),
   publicBanners: () => request<{ banners: PaidBanner[] }>('/public/banners'),
   joinWaitlist: (email: string) => request<{ saved: boolean; already_registered: boolean }>('/public/waitlist', {
     method: 'POST', body: JSON.stringify({ email }),

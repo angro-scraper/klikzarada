@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode, useId, useState } from 'react'
 
 // ── Status badges ──────────────────────────────────────────────────────────────
 const statusMap: Record<string, { label: string; cls: string }> = {
@@ -181,22 +181,29 @@ export function Table({ headers, rows }: { headers: string[]; rows: ReactNode[][
 }
 
 // ── Inputs ─────────────────────────────────────────────────────────────────────
-export function Input({ label, placeholder, type = 'text', value, onChange, min, max, step }: {
-  label?: string; placeholder?: string; type?: string; value?: string; onChange?: (v: string) => void; min?: number | string; max?: number | string; step?: number
+export function Input({ label, placeholder, type = 'text', value, onChange, min, max, step, autoComplete }: {
+  label?: string; placeholder?: string; type?: string; value?: string; onChange?: (v: string) => void; min?: number | string; max?: number | string; step?: number; autoComplete?: string
 }) {
+  const id = useId()
+  const [passwordVisible, setPasswordVisible] = useState(false)
   return (
     <div className="flex flex-col gap-1.5">
-      {label && <label className="text-xs font-semibold text-ink-2 uppercase tracking-wide">{label}</label>}
+      {label && <label htmlFor={id} className="text-xs font-semibold text-ink-2 uppercase tracking-wide">{label}</label>}
+      <div className="relative">
       <input
-        type={type}
+        id={id}
+        type={type === 'password' && passwordVisible ? 'text' : type}
         placeholder={placeholder}
         value={value}
+        autoComplete={autoComplete}
         min={min}
         max={max}
         step={step}
         onChange={e => onChange?.(e.target.value)}
-        className="bg-white border border-frame text-ink placeholder-ink-4 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all"
+        className={`w-full min-h-11 bg-white border border-frame text-ink placeholder-ink-4 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all ${type === 'password' ? 'pr-16' : ''}`}
       />
+      {type === 'password' && <button type="button" onClick={() => setPasswordVisible(visible => !visible)} aria-label={passwordVisible ? 'Sakrij lozinku' : 'Prikaži lozinku'} className="absolute right-1 top-1/2 -translate-y-1/2 rounded px-2 py-2 text-xs font-semibold text-blue-700 focus-visible:outline-2 focus-visible:outline-blue-600">{passwordVisible ? 'Sakrij' : 'Prikaži'}</button>}
+      </div>
     </div>
   )
 }
@@ -204,10 +211,12 @@ export function Input({ label, placeholder, type = 'text', value, onChange, min,
 export function Select({ label, options, value, onChange }: {
   label?: string; options: { value: string; label: string }[]; value?: string; onChange?: (v: string) => void
 }) {
+  const id = useId()
   return (
     <div className="flex flex-col gap-1.5">
-      {label && <label className="text-xs font-semibold text-ink-2 uppercase tracking-wide">{label}</label>}
+      {label && <label htmlFor={id} className="text-xs font-semibold text-ink-2 uppercase tracking-wide">{label}</label>}
       <select
+        id={id}
         value={value}
         onChange={e => onChange?.(e.target.value)}
         className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all"
