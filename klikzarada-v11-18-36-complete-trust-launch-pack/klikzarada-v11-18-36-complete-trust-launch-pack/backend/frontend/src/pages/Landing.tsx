@@ -65,9 +65,13 @@ function BannerCard({ banner, variant = 'card' }: { banner: PaidBanner; variant?
       ref={cardRef}
       className={`group relative block overflow-hidden rounded-2xl border border-blue-200 bg-slate-100 shadow-sm transition-all ${targetUrl ? 'cursor-pointer hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-lg' : 'cursor-default'} ${isHero ? 'min-h-[230px] md:min-h-[290px]' : 'min-h-[190px]'}`}
     >
-      {imageUrl && <img src={imageUrl} alt="" loading={isHero ? 'eager' : 'lazy'} fetchPriority={isHero ? 'high' : 'low'} decoding="async" className="absolute inset-0 h-full w-full bg-slate-100 object-cover object-center transition-transform duration-500 group-hover:scale-[1.015]" />}
+      {imageUrl && <>
+        <img src={imageUrl} alt="" aria-hidden="true" className="absolute -inset-5 h-[calc(100%+2.5rem)] w-[calc(100%+2.5rem)] object-cover object-center opacity-35 blur-2xl" />
+        <div className="absolute inset-0 bg-slate-950/10" />
+        <img src={imageUrl} alt="" loading={isHero ? 'eager' : 'lazy'} fetchPriority={isHero ? 'high' : 'low'} decoding="async" className="absolute inset-0 h-full w-full object-contain object-center transition-transform duration-500 group-hover:scale-[1.015]" />
+      </>}
       {!imageUrl && <div className="absolute inset-0 bg-gradient-to-br from-blue-700 via-blue-600 to-violet-700" />}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-slate-950/45 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-slate-950/55 to-transparent" />
       <div className="relative flex h-full min-h-[inherit] flex-col justify-end">
         <div className="flex items-center gap-2 border-t border-white/15 bg-slate-950/78 px-3 py-2 text-white backdrop-blur-sm sm:px-4">
           <span className="shrink-0 rounded-full border border-white/25 bg-white/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-white/90">Sponzorisano</span>
