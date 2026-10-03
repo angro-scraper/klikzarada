@@ -7,7 +7,7 @@
 
   <section class="kz1189-top-ads kz-clean-top-ads">
     {% set b = banner_map.get('home_top_left') if banner_map else none %}
-    <a class="kz-clean-banner kz-clean-banner-top" href="{{ b.target_url if b else '/za-oglasivace' }}">
+    <a class="kz-clean-banner kz-clean-banner-top" href="{{ b.target_url if b else '/za-oglasivace' }}" {% if b %}data-banner-id="{{ b.id }}"{% endif %}>
       <img class="kz-clean-banner-bg" src="{{ b.image_url if b and b.image_url else '/static/img/promo_top_shopping.svg' }}" alt="{{ b.title if b else 'Izložbeni baner' }}">
       <div class="kz-clean-banner-copy">
         <span class="kz-premium-kicker">Istaknuta kampanja</span>
@@ -18,7 +18,7 @@
     </a>
 
     {% set b = banner_map.get('home_top_right') if banner_map else none %}
-    <a class="kz-clean-banner kz-clean-banner-top" href="{{ b.target_url if b else '/registracija?role=oglasivac' }}">
+    <a class="kz-clean-banner kz-clean-banner-top" href="{{ b.target_url if b else '/registracija?role=oglasivac' }}" {% if b %}data-banner-id="{{ b.id }}"{% endif %}>
       <img class="kz-clean-banner-bg" src="{{ b.image_url if b and b.image_url else '/static/img/promo_top_business.svg' }}" alt="{{ b.title if b else 'Vrhunski oglasni prostor' }}">
       <div class="kz-clean-banner-copy">
         <span class="kz-premium-kicker">Najbolja pozicija</span>
@@ -129,7 +129,7 @@
       <a class="withdraw" href="/login">Isplati sredstva →</a>
 
       {% set dashboard_banner = banner_map.get('home_dashboard_banner') if banner_map else none %}
-        <a class="dashboard-banner" href="{{ dashboard_banner.target_url if dashboard_banner else '/za-oglasivace' }}">
+        <a class="dashboard-banner" href="{{ banner_public_target(dashboard_banner) if dashboard_banner else '/za-oglasivace' }}" {% if dashboard_banner %}data-banner-id="{{ dashboard_banner.id }}"{% endif %}>
           <img src="{{ dashboard_banner.image_url if dashboard_banner and dashboard_banner.image_url else '/static/img/banner_generic.svg' }}" alt="{{ dashboard_banner.title if dashboard_banner else 'Rezerviši banner prostor' }}">
           <div>
             <small>{{ dashboard_banner.slot.title if dashboard_banner and dashboard_banner.slot else 'Premium prostor' }}</small>
@@ -169,7 +169,7 @@
     ] %}
     {% for code, fallback, title, body, cta in promo_items %}
       {% set b = banner_map.get(code) if banner_map else none %}
-      <a class="kz-promo-final-card" href="{{ b.target_url if b else '/za-oglasivace' }}">
+      <a class="kz-promo-final-card" href="{{ b.target_url if b else '/za-oglasivace' }}" {% if b %}data-banner-id="{{ b.id }}"{% endif %}>
         <img src="{{ b.image_url if b and b.image_url else fallback }}" alt="{{ b.title if b else title }}">
         <div class="kz-promo-final-copy">
           <h3>{{ b.title if b else title }}</h3>
@@ -240,7 +240,7 @@
     ] %}
     {% for code, fallback, title, body in bottom_items %}
       {% set b = banner_map.get(code) if banner_map else none %}
-      <a class="kz-clean-banner kz-clean-banner-bottom" href="{{ b.target_url if b else '/za-oglasivace' }}">
+      <a class="kz-clean-banner kz-clean-banner-bottom" href="{{ b.target_url if b else '/za-oglasivace' }}" {% if b %}data-banner-id="{{ b.id }}"{% endif %}>
         <img class="kz-clean-banner-bg" src="{{ b.image_url if b and b.image_url else fallback }}" alt="{{ b.title if b else title }}">
         <div class="kz-clean-banner-copy">
           <b>{{ b.title if b else title }}</b>
@@ -258,4 +258,23 @@
     <div><b>PRATITE NAS</b><p>Prijavite se za novosti, premium kampanje i posebne ponude.</p><form class="newsletter" action="/kontakt" method="get"><input name="email" placeholder="Vaša email adresa"><button type="submit">➤</button></form><a href="mailto:kontakt@klik-zarada.rs" style="display:inline-flex;margin-top:12px;font-weight:800;color:#fff;text-decoration:none;">kontakt@klik-zarada.rs</a></div>
   </footer>
 </div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!('IntersectionObserver' in window)) return;
+    var seen = new Set();
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting || entry.intersectionRatio < 0.5) return;
+        var id = entry.target.dataset.bannerId;
+        observer.unobserve(entry.target);
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+        fetch('/api/ui/public/banners/' + encodeURIComponent(id) + '/impression', {
+          method: 'POST', keepalive: true, credentials: 'omit'
+        }).catch(function () {});
+      });
+    }, { threshold: 0.5 });
+    document.querySelectorAll('[data-banner-id]').forEach(function (banner) { observer.observe(banner); });
+  });
+</script>
 {% endblock %}

@@ -29,9 +29,9 @@ from .analytics import PUBLIC_PAGEVIEW_PATHS, is_public_pageview_path, start_cle
 from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, TaskSourceV11, SecurityEvent, KycDocument, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
 from .security import create_session_token, hash_password, is_legacy_session, make_referral_code, read_session_token, running_in_production, session_matches_user, verify_password
 from .login_guard import admin_identity_allowed, authenticate_login
-from .ui_api import REFERRAL_INVITER_BONUS_RSD, _grant_referral_bonus_if_eligible, router as ui_api_router
+from .ui_api import REFERRAL_INVITER_BONUS_RSD, _banner_public_target, _grant_referral_bonus_if_eligible, router as ui_api_router
 
-app = FastAPI(title="KlikZarada V11.18.61 Banner Visibility", version="11.18.61")
+app = FastAPI(title="KlikZarada V11.18.62 Banner Delivery", version="11.18.62")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 SPA_DIR = Path("app/static/app-ui")
 
@@ -10044,6 +10044,7 @@ def premium_home_v1161(request: Request, db: Session = Depends(get_db)):
             "user": user,
             "tasks": tasks,
             "banner_map": banner_map,
+            "banner_public_target": _banner_public_target,
             "pricing_summary": pricing_summary,
             "finance_accounts": v11836_public_accounts(db),
             "stats": stats,
@@ -10576,10 +10577,16 @@ def v11817_active_banner_map(db: Session):
     expected_codes = [x[0] for x in v11815_banner_slot_definitions()] if "v11815_banner_slot_definitions" in globals() else []
     slots = db.query(HomeBannerSlotV111).filter(HomeBannerSlotV111.code.in_(expected_codes)).all() if expected_codes else []
     out = {}
+    now = datetime.utcnow()
     for slot in slots:
         banner = (
             db.query(PaidAdBannerV111)
-            .filter(PaidAdBannerV111.slot_id == slot.id, PaidAdBannerV111.status == "active")
+            .filter(
+                PaidAdBannerV111.slot_id == slot.id,
+                PaidAdBannerV111.status == "active",
+                (PaidAdBannerV111.starts_at == None) | (PaidAdBannerV111.starts_at <= now),
+                (PaidAdBannerV111.ends_at == None) | (PaidAdBannerV111.ends_at > now),
+            )
             .order_by(PaidAdBannerV111.created_at.desc())
             .first()
         )

@@ -895,14 +895,17 @@ def _is_legacy_demo_banner(banner: PaidAdBannerV111) -> bool:
     return banner.title == "Demo plaćeni banner" and banner.target_url == "/registracija"
 
 
-def _banner_data(banner: PaidAdBannerV111) -> dict:
-    target_url = banner.target_url
+def _banner_public_target(banner: PaidAdBannerV111) -> str | None:
     if (
         banner.title == "KlikZarada aplikacija uskoro stiže"
         and _is_platform_publisher(banner.advertiser)
     ):
         # The platform's iOS creative always leads to the task, never to the private install link.
-        target_url = "/zadaci/7"
+        return "/zadaci/7"
+    return banner.target_url
+
+
+def _banner_data(banner: PaidAdBannerV111) -> dict:
     return {
         "id": banner.id,
         "slot_id": banner.slot_id,
@@ -914,7 +917,7 @@ def _banner_data(banner: PaidAdBannerV111) -> dict:
         "title": banner.title,
         "body": banner.body,
         "image_url": banner.image_url,
-        "target_url": target_url,
+        "target_url": _banner_public_target(banner),
         "price_rsd": _money(banner.price_rsd),
         "days_count": banner.days_count,
         "status": _banner_status(banner.status),
