@@ -65,15 +65,14 @@ function BannerCard({ banner, variant = 'card' }: { banner: PaidBanner; variant?
       ref={cardRef}
       className={`group relative block overflow-hidden rounded-2xl border border-blue-200 bg-slate-100 shadow-sm transition-all ${targetUrl ? 'cursor-pointer hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-lg' : 'cursor-default'} ${isHero ? 'min-h-[230px] md:min-h-[290px]' : 'min-h-[190px]'}`}
     >
-      {imageUrl && <img src={imageUrl} alt="" loading={isHero ? 'eager' : 'lazy'} fetchPriority={isHero ? 'high' : 'low'} decoding="async" className="absolute inset-0 h-full w-full bg-slate-100 object-contain p-2 transition-transform duration-500 group-hover:scale-[1.015]" />}
+      {imageUrl && <img src={imageUrl} alt="" loading={isHero ? 'eager' : 'lazy'} fetchPriority={isHero ? 'high' : 'low'} decoding="async" className="absolute inset-0 h-full w-full bg-slate-100 object-cover object-center transition-transform duration-500 group-hover:scale-[1.015]" />}
       {!imageUrl && <div className="absolute inset-0 bg-gradient-to-br from-blue-700 via-blue-600 to-violet-700" />}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-slate-950/35 to-transparent" />
-      <div className="relative flex h-full min-h-[inherit] flex-col justify-end p-3 sm:p-4">
-        <div className="w-fit max-w-full rounded-xl border border-white/20 bg-slate-950/78 px-3 py-2.5 text-white shadow-lg backdrop-blur-sm">
-          <span className="block w-fit rounded-full border border-white/25 bg-white/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-white/90">Sponzorisano</span>
-          <h3 className={`mt-2 line-clamp-2 font-extrabold leading-tight ${isHero ? 'text-xl md:text-2xl' : 'text-base md:text-lg'}`}>{banner.title}</h3>
-          {banner.body && <p className="mt-1 line-clamp-1 text-xs leading-5 text-white/85">{banner.body}</p>}
-          <p className="mt-2 text-[11px] font-bold text-emerald-200">{targetUrl ? 'Otvori ponudu →' : 'Link stiže uskoro'}</p>
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-slate-950/45 to-transparent" />
+      <div className="relative flex h-full min-h-[inherit] flex-col justify-end">
+        <div className="flex items-center gap-2 border-t border-white/15 bg-slate-950/78 px-3 py-2 text-white backdrop-blur-sm sm:px-4">
+          <span className="shrink-0 rounded-full border border-white/25 bg-white/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-white/90">Sponzorisano</span>
+          <h3 className={`min-w-0 flex-1 truncate font-extrabold leading-tight ${isHero ? 'text-base md:text-lg' : 'text-sm md:text-base'}`}>{banner.title}</h3>
+          <span className="shrink-0 text-[11px] font-bold text-emerald-200">{targetUrl ? 'Otvori →' : 'Uskoro'}</span>
         </div>
       </div>
     </div>
