@@ -292,6 +292,11 @@ class SupportTicketMessagePayload(BaseModel):
     body: str = Field(min_length=2, max_length=5000)
 
 
+class AccountDeletionPayload(BaseModel):
+    password: str = Field(min_length=1, max_length=256)
+    confirmation: Literal["OBRIŠI NALOG"]
+
+
 class PromotionPayload(BaseModel):
     task_id: int
     promotion_type: Literal["featured", "priority"]
@@ -1224,6 +1229,55 @@ def session(request: Request, db: Session = Depends(get_db)) -> dict:
     return {"authenticated": bool(user), "user": _user_data(user) if user else None}
 
 
+@router.get("/account/deletion-request")
+def account_deletion_request_status(request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db, {"korisnik", "oglasivac"})
+    ticket = db.query(SupportTicket).filter(
+        SupportTicket.user_id == user.id,
+        SupportTicket.category == "account_deletion",
+        SupportTicket.status.in_(("open", "waiting")),
+    ).order_by(SupportTicket.id.desc()).first()
+    return {"requested": ticket is not None, "requested_at": _iso(ticket.created_at) if ticket else None}
+
+
+@router.post("/account/deletion-request", status_code=201)
+def request_account_deletion(payload: AccountDeletionPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db, {"korisnik", "oglasivac"})
+    throttle_public_action(db, request, "account_deletion", user.email, 5, 15)
+    if not verify_password(payload.password, user.password_hash):
+        raise HTTPException(400, "Lozinka nije ispravna.")
+    existing = db.query(SupportTicket).filter(
+        SupportTicket.user_id == user.id,
+        SupportTicket.category == "account_deletion",
+        SupportTicket.status.in_(("open", "waiting")),
+    ).order_by(SupportTicket.id.desc()).first()
+    if existing:
+        return {"requested": True, "requested_at": _iso(existing.created_at)}
+    ticket = SupportTicket(
+        user_id=user.id,
+        subject="Zahtev za trajno brisanje naloga",
+        category="account_deletion",
+        priority="high",
+        status="open",
+    )
+    db.add(ticket)
+    db.flush()
+    db.add(SupportMessage(
+        ticket_id=ticket.id,
+        sender_id=user.id,
+        body="Tražim brisanje naloga i povezanih ličnih podataka. Proveriti otvorene isplate, kampanje i obavezno čuvanje finansijske evidencije pre završetka.",
+    ))
+    db.add(Notification(
+        user_id=user.id,
+        title="Zahtev za brisanje naloga je primljen",
+        body="Zahtev je prosleđen na obradu. Nalog i sredstva nisu automatski obrisani. O ishodu ćeš dobiti obaveštenje.",
+        status="unread",
+    ))
+    _audit(db, user, "account_deletion_requested", "SupportTicket", ticket.id)
+    db.commit()
+    return {"requested": True, "requested_at": _iso(ticket.created_at)}
+
+
 @router.post("/account/role/correct-to-user")
 def correct_account_role_to_user(request: Request, db: Session = Depends(get_db)) -> dict:
     """Let an accidentally-created advertiser account safely become a worker account."""
@@ -1835,6 +1889,8 @@ def my_support_tickets(request: Request, db: Session = Depends(get_db)) -> dict:
 @router.post("/tickets", status_code=201)
 def create_support_ticket(payload: SupportTicketPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db)
+    if payload.category.strip().lower() == "account_deletion":
+        raise HTTPException(400, "Za brisanje naloga koristi opciju u profilu i potvrdi lozinku.")
     ticket = SupportTicket(user_id=user.id, subject=payload.subject.strip(), category=payload.category.strip() or "Opšte", status="open")
     db.add(ticket)
     db.flush()
@@ -3878,6 +3934,8 @@ def update_admin_ticket(ticket_id: int, payload: AdminStatusPayload, request: Re
         raise HTTPException(404, "Tiket nije pronađen.")
     if payload.status not in {"open", "waiting", "closed"}:
         raise HTTPException(400, "Status tiketa mora biti open, waiting ili closed.")
+    if ticket.category == "account_deletion" and payload.status == "closed":
+        raise HTTPException(409, "Zahtev za brisanje ne zatvaraj pre dokumentovanog završetka brisanja podataka.")
     ticket.status = payload.status
     ticket.updated_at = datetime.utcnow()
     if payload.note:
