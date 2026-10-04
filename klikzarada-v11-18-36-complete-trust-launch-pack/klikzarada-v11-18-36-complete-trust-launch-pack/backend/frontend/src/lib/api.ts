@@ -569,7 +569,7 @@ export const api = {
   publicTask: (taskId: number) => request<{ task: Task }>(`/public/tasks/${taskId}`),
   publicOverview: () => request<PublicOverview>('/public/overview'),
   publicServiceTerms: () => request<{ min_withdrawal_rsd: number; wallet_currency: string; payout_destination: string; support_email: string; proof_review_deadline: string | null; withdrawal_processing_deadline: string | null }>('/public/service-terms'),
-  publicAdvertisingInfo: () => request<{ platform_fee_percent: number; banner_price_basis_days: number; banner_max_days: number; slots: { id: number; title: string; placement: string; width_label: string; price_rsd: number }[] }>('/public/advertising-info'),
+  publicAdvertisingInfo: () => request<{ platform_fee_percent: number; banner_price_basis_days: number; banner_max_days: number; banner_upload_max_mb: number; banner_image_min_size: string; banner_image_max_size: string; banner_image_formats: string[]; slots: { id: number; title: string; placement: string; width_label: string; price_rsd: number }[] }>('/public/advertising-info'),
   publicBanners: () => request<{ banners: PaidBanner[] }>('/public/banners'),
   joinWaitlist: (email: string) => request<{ saved: boolean; already_registered: boolean }>('/public/waitlist', {
     method: 'POST', body: JSON.stringify({ email }),

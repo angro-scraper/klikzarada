@@ -1639,6 +1639,10 @@ def public_advertising_info(db: Session = Depends(get_db)) -> dict:
         "platform_fee_percent": PLATFORM_FEE_PERCENT,
         "banner_price_basis_days": 7,
         "banner_max_days": 31,
+        "banner_upload_max_mb": _BANNER_MAX_BYTES // (1024 * 1024),
+        "banner_image_min_size": "200 x 80 px",
+        "banner_image_max_size": "6000 x 6000 px",
+        "banner_image_formats": ["JPG", "PNG", "WEBP"],
         "slots": [
             {
                 "id": slot.id,

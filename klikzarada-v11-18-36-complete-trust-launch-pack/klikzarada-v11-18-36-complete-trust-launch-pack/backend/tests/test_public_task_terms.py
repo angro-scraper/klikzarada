@@ -88,6 +88,9 @@ class PublicTaskTermsTests(unittest.TestCase):
         result = public_advertising_info(db)
         self.assertEqual(result["slots"][0]["price_rsd"], 1200)
         self.assertEqual(result["banner_price_basis_days"], 7)
+        self.assertEqual(result["banner_upload_max_mb"], 5)
+        self.assertEqual(result["banner_image_min_size"], "200 x 80 px")
+        self.assertIn("WEBP", result["banner_image_formats"])
         self.assertNotIn("schedule", result["slots"][0])
         self.assertNotIn("advertiser_id", result["slots"][0])
 
