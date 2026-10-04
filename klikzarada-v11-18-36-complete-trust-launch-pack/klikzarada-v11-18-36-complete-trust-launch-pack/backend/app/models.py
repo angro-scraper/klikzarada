@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, LargeBinary, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -169,6 +169,20 @@ class AppTesterDailyCheckin(Base):
 
     task = relationship("Task", back_populates="tester_daily_checkins")
     user = relationship("User")
+    attachment = relationship("AppTesterDailyAttachment", back_populates="checkin", uselist=False, cascade="all, delete-orphan")
+
+
+class AppTesterDailyAttachment(Base):
+    """Private, durable screenshot belonging to one daily report."""
+    __tablename__ = "app_tester_daily_attachments"
+
+    id = Column(Integer, primary_key=True)
+    checkin_id = Column(Integer, ForeignKey("app_tester_daily_checkins.id"), unique=True, nullable=False, index=True)
+    image_data = Column(LargeBinary, nullable=False)
+    media_type = Column(String(40), default="image/webp", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    checkin = relationship("AppTesterDailyCheckin", back_populates="attachment")
 
 
 class TaskChatMessage(Base):

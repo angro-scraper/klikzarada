@@ -115,6 +115,7 @@ export type TesterDailyCheckin = {
   user_name?: string
   day_number: number
   note: string
+  attachment_url: string | null
   reward_rsd: number
   status: string
   review_note: string | null
@@ -602,9 +603,17 @@ export const api = {
   requestTesterEnrollment: (taskId: number, testingEmail: string) => request<{ enrollment: TesterEnrollment }>(`/user/tasks/${taskId}/tester-enrollments`, {
     method: 'POST', body: JSON.stringify({ testing_email: testingEmail }),
   }),
-  createTesterCheckin: (taskId: number, note: string) => request<{ checkin: TesterDailyCheckin }>(`/user/tasks/${taskId}/tester-checkins`, {
-    method: 'POST', body: JSON.stringify({ note }),
-  }),
+  createTesterCheckin: (taskId: number, note: string, image?: File | null) => {
+    if (image) {
+      const body = new FormData()
+      body.append('note', note)
+      body.append('image', image)
+      return request<{ checkin: TesterDailyCheckin }>(`/user/tasks/${taskId}/tester-checkins/with-image`, { method: 'POST', body })
+    }
+    return request<{ checkin: TesterDailyCheckin }>(`/user/tasks/${taskId}/tester-checkins`, {
+      method: 'POST', body: JSON.stringify({ note }),
+    })
+  },
   requestWithdrawal: (payload: { amount_rsd: number; payment_method: string; payment_details: string }) => request<{ withdrawal: Withdrawal }>('/user/withdrawals', {
     method: 'POST', body: JSON.stringify(payload),
   }),

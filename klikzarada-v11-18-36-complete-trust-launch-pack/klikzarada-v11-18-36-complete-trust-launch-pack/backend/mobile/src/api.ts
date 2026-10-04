@@ -13,6 +13,7 @@ export type TesterEnrollment = {
 export type TesterCheckin = {
   id: number; task_id: number; user_id?: number; task_title?: string; user_name?: string;
   day_number: number; note: string; reward_rsd: number; status: string;
+  attachment_url: string | null;
   review_note: string | null; checked_in_at: string | null;
 };
 export type Task = {
@@ -51,7 +52,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   try {
     response = await fetch(`/api/ui${path}`, {
       ...init, credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', ...init.headers },
+      headers: { ...(init.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }), ...init.headers },
     });
   } catch {
     throw new ApiError('Nema veze sa serverom. Proveri internet i pokušaj ponovo.', 0);
@@ -81,7 +82,15 @@ export const api = {
   chat: (taskId: number, participantId: number) => request<ChatThread>(`/task-chat/${taskId}/${participantId}`),
   sendChat: (taskId: number, participantId: number, body: string) => request(`/task-chat/${taskId}/${participantId}`, json('POST', { body })),
   enrollTester: (taskId: number, testingEmail: string) => request<{ enrollment: TesterEnrollment }>(`/user/tasks/${taskId}/tester-enrollments`, json('POST', { testing_email: testingEmail })),
-  checkIn: (taskId: number, note: string) => request<{ checkin: TesterCheckin }>(`/user/tasks/${taskId}/tester-checkins`, json('POST', { note })),
+  checkIn: (taskId: number, note: string, image?: File | null) => {
+    if (image) {
+      const body = new FormData();
+      body.append('note', note);
+      body.append('image', image);
+      return request<{ checkin: TesterCheckin }>(`/user/tasks/${taskId}/tester-checkins/with-image`, { method: 'POST', body });
+    }
+    return request<{ checkin: TesterCheckin }>(`/user/tasks/${taskId}/tester-checkins`, json('POST', { note }));
+  },
   decideEnrollment: (id: number, status: 'invited' | 'declined', note?: string) => request(`/advertiser/tester-enrollments/${id}`, json('PATCH', { status, note })),
   decideCheckin: (id: number, status: 'approved' | 'rejected', note?: string) => request(`/advertiser/tester-checkins/${id}`, json('PATCH', { status, note })),
   decideSubmission: (id: number, status: 'approved' | 'rejected' | 'needs_revision', note?: string) => request(`/advertiser/submissions/${id}`, json('PATCH', { status, note })),

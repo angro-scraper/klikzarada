@@ -86,6 +86,7 @@ export default function LiveApp() {
   const [notice, setNotice] = useState('');
   const [testingEmail, setTestingEmail] = useState('');
   const [note, setNote] = useState('');
+  const [reportScreenshot, setReportScreenshot] = useState<File | null>(null);
   const [reportDevice, setReportDevice] = useState('');
   const [reportFeature, setReportFeature] = useState('');
   const [loadedReportDraftKey, setLoadedReportDraftKey] = useState<string | null>(null);
@@ -235,10 +236,12 @@ export default function LiveApp() {
       setError('Dnevni izveštaj je predugačak. Skrati tekst na najviše 1000 znakova ukupno.');
       return;
     }
-    const ok = await act(() => api.checkIn(task.id, report), 'Dnevni izveštaj je poslat na proveru.');
+    const ok = await act(() => api.checkIn(task.id, report, reportScreenshot), 'Dnevni izveštaj je poslat na proveru.');
     if (ok) {
       if (reportDraftKey) { try { sessionStorage.removeItem(reportDraftKey); } catch { /* Slanje je već uspelo. */ } }
-      setLoadedReportDraftKey(null); setNote(''); setReportDevice(''); setReportFeature('');
+      setLoadedReportDraftKey(null); setNote(''); setReportDevice(''); setReportFeature(''); setReportScreenshot(null);
+      const screenshotInput = document.getElementById('live-report-screenshot') as HTMLInputElement | null;
+      if (screenshotInput) screenshotInput.value = '';
     }
   };
   const go = (next: Screen) => { setAccountMenuOpen(false); setScreen(next); setError(''); setNotice(''); };
@@ -346,11 +349,12 @@ export default function LiveApp() {
               <label className="field"><span>Uređaj i sistem</span><div><Icon name="file"/><input placeholder="npr. iPhone 14, iOS 18" value={reportDevice} onChange={event => setReportDevice(event.target.value)}/></div></label>
               <label className="field"><span>Testirana funkcija</span><div><Icon name="file"/><input placeholder="npr. prijava i otvaranje zadataka" value={reportFeature} onChange={event => setReportFeature(event.target.value)}/></div></label>
               <label className="field textarea"><span>Rezultat i eventualni problem</span><textarea placeholder="Šta je radilo, šta nije i koliko približno minuta si testirao/la?" value={note} onChange={event => setNote(event.target.value)}/></label>
+              <label className="field"><span>Snimak ekrana (ako je potreban)</span><input id="live-report-screenshot" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => setReportScreenshot(event.target.files?.[0] || null)}/><small>Do 5 MB. Vidljiv samo tebi, oglašivaču ove kampanje i adminu. Ukloni lične podatke pre slanja.</small></label>
               <div className="info-box blue"><Icon name="file"/><div><strong>Svaki izveštaj se pregleda</strong><p>Slanje ne znači automatsko odobrenje ili zaradu.</p></div></div>
               <PrimaryButton disabled={busy || !reportDevice.trim() || !reportFeature.trim() || note.trim().length < 3} onClick={() => void submitDailyCheckin(currentTask)}>Pošalji izveštaj <Icon name="send"/></PrimaryButton>
             </>}
             {!currentTask.tester_progress?.can_check_in && <p className="center-note">Današnji izveštaj još nije dostupan ili je već poslat.</p>}
-            {(currentTask.tester_checkins || []).length > 0 && <div className="live-card"><strong>Poslati dnevni izveštaji</strong>{[...(currentTask.tester_checkins || [])].sort((a, b) => a.day_number - b.day_number).map(item => <div className="proof-text" key={item.id}><small>Dan {item.day_number}: {label[item.status] || item.status}</small><p className="live-preline">{item.note}</p>{item.review_note && <p className="feedback orange">Obrazloženje oglašivača: {item.review_note}</p>}</div>)}</div>}
+            {(currentTask.tester_checkins || []).length > 0 && <div className="live-card"><strong>Poslati dnevni izveštaji</strong>{[...(currentTask.tester_checkins || [])].sort((a, b) => a.day_number - b.day_number).map(item => <div className="proof-text" key={item.id}><small>Dan {item.day_number}: {label[item.status] || item.status}</small><p className="live-preline">{item.note}</p>{item.attachment_url && <a href={item.attachment_url} target="_blank" rel="noreferrer">Pregledaj poslati snimak</a>}{item.review_note && <p className="feedback orange">Obrazloženje oglašivača: {item.review_note}</p>}</div>)}</div>}
           </>}
           </> : <><PageTitle subtitle="Unesi email na koji možeš da primiš poziv za testiranje.">Još jedan korak</PageTitle><label className="field"><span>Email za testiranje</span><div><Icon name="mail"/><input type="email" placeholder="email@primer.rs" value={testingEmail} onChange={event => setTestingEmail(event.target.value)}/></div><small>Ne mora biti isti kao email KlikZarada naloga.</small></label><div className="info-box blue"><Icon name="lock"/><div><strong>Privatnost pre svega</strong><p>Email koristimo samo da oglašivač odobri pristup zatvorenom testu.</p></div></div><PrimaryButton disabled={busy || !testingEmail.includes('@')} onClick={() => void act(() => api.enrollTester(currentTask.id, testingEmail.trim()), 'Prijava za testiranje je poslata.')}>Pošalji prijavu</PrimaryButton></>}</div>}
         {isUser && !currentTask.requires_tester_enrollment && <div className="live-detail-action"><div className="info-box blue"><Icon name="lock"/><div><strong>Sigurna provera zadatka</strong><p>Server proverava aktivnost i vreme. Dokaz i saldo ostaju isti na sajtu i u aplikaciji.</p></div></div><a className="btn live-full-link" href={`/korisnik/zadaci/${currentTask.id}`}>Otvori proveru zadatka <Icon name="arrow"/></a></div>}
@@ -375,7 +379,7 @@ export default function LiveApp() {
       {screen === 'proofs' && <><PageTitle subtitle="Na proveri su uvek prvi.">Dokazi korisnika</PageTitle><div className="proof-toolbar"><div className="tabs"><button className={proofTab === 'Na proveri' ? 'active' : ''} onClick={() => setProofTab('Na proveri')}>Na proveri <b>{pendingProofCount}</b></button><button className={proofTab === 'Svi' ? 'active' : ''} onClick={() => setProofTab('Svi')}>Svi</button></div></div>
         {(advertiser?.tester_checkins || []).filter(item => proofTab === 'Svi' || item.status === 'pending').map(item => <div className={`proof-row ${openProof === `check-${item.id}` ? 'open' : ''}`} key={`check-${item.id}`}>
           <button className="proof-summary" onClick={() => setOpenProof(openProof === `check-${item.id}` ? null : `check-${item.id}`)}><div className="avatar small">{(item.user_name || 'T').slice(0, 2).toUpperCase()}</div><div><strong>{item.task_title || `Zadatak #${item.task_id}`} · Dan {item.day_number}</strong><p>{item.user_name || 'Tester'}</p></div><Badge tone={statusTone(item.status)}>{label[item.status] || item.status}</Badge><span className="rotate">⌄</span></button>
-          {openProof === `check-${item.id}` && <div className="proof-detail"><div className="proof-text"><small>DNEVNI IZVEŠTAJ</small><p className="live-preline">{item.note}</p></div>{item.review_note && <div className="feedback orange">{item.review_note}</div>}{item.status === 'pending' && <div className="proof-actions"><button className="approve" disabled={busy} onClick={() => void act(() => api.decideCheckin(item.id, 'approved'), 'Izveštaj je odobren.')}><Icon name="check"/> Odobri</button><button className="reject" disabled={busy} onClick={() => void act(() => api.decideCheckin(item.id, 'rejected'), 'Izveštaj je odbijen.')}>Odbij</button></div>}</div>}
+          {openProof === `check-${item.id}` && <div className="proof-detail"><div className="proof-text"><small>DNEVNI IZVEŠTAJ</small><p className="live-preline">{item.note}</p>{item.attachment_url && <a href={item.attachment_url} target="_blank" rel="noreferrer">Pregledaj snimak ekrana</a>}</div>{item.review_note && <div className="feedback orange">{item.review_note}</div>}{item.status === 'pending' && <div className="proof-actions"><button className="approve" disabled={busy} onClick={() => void act(() => api.decideCheckin(item.id, 'approved'), 'Izveštaj je odobren.')}><Icon name="check"/> Odobri</button><button className="reject" disabled={busy} onClick={() => void act(() => api.decideCheckin(item.id, 'rejected'), 'Izveštaj je odbijen.')}>Odbij</button></div>}</div>}
         </div>)}
         {(advertiser?.submissions || []).filter(item => proofTab === 'Svi' || item.status === 'pending').map(item => <div className={`proof-row ${openProof === `proof-${item.id}` ? 'open' : ''}`} key={`proof-${item.id}`}>
           <button className="proof-summary" onClick={() => setOpenProof(openProof === `proof-${item.id}` ? null : `proof-${item.id}`)}><div className="avatar small">{(item.user_name || 'K').slice(0, 2).toUpperCase()}</div><div><strong>{item.task_title}</strong><p>{item.user_name || 'Korisnik'}</p></div><Badge tone={statusTone(item.status)}>{label[item.status] || item.status}</Badge><span className="rotate">⌄</span></button>

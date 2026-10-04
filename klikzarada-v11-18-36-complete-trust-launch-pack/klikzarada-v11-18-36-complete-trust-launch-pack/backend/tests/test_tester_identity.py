@@ -3,10 +3,13 @@
 import os
 import sys
 import unittest
+import asyncio
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
+from PIL import Image
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -18,7 +21,7 @@ os.chdir(BACKEND_DIR)
 sys.path.insert(0, str(BACKEND_DIR))
 
 from app.database import Base  # noqa: E402
-from app.models import AppTesterDailyCheckin, AppTesterEnrollment, Task, User, WalletTransaction  # noqa: E402
+from app.models import AppTesterDailyAttachment, AppTesterDailyCheckin, AppTesterEnrollment, Task, User, WalletTransaction  # noqa: E402
 from app.security import create_session_token  # noqa: E402
 from app.ui_api import (  # noqa: E402
     TesterCohortStartPayload,
@@ -28,6 +31,8 @@ from app.ui_api import (  # noqa: E402
     AdminStatusPayload,
     advertiser_dashboard,
     create_tester_daily_checkin,
+    create_tester_daily_checkin_with_image,
+    get_tester_daily_attachment,
     request_tester_enrollment,
     review_tester_daily_checkin,
     start_tester_cohort,
@@ -146,6 +151,54 @@ class TesterIdentityTests(unittest.TestCase):
         self.db.refresh(self.first)
         self.assertEqual(self.db.query(AppTesterDailyCheckin).count(), 1)
         self.assertEqual(self.first.pending_rsd, 20)
+
+    def test_daily_screenshot_is_private_and_survives_rejected_report_retry(self):
+        self.tasks[0].tester_daily_reward_rsd = 20
+        self.db.add(AppTesterEnrollment(
+            task_id=self.tasks[0].id, user_id=self.first.id,
+            testing_email=self.first.email, status="invited", invited_at=datetime.utcnow(),
+        ))
+        self.db.commit()
+        screenshot = BytesIO()
+        Image.new("RGB", (64, 64), "blue").save(screenshot, format="PNG")
+        screenshot.seek(0)
+        result = asyncio.run(create_tester_daily_checkin_with_image(
+            self.tasks[0].id, self.request(self.first), "Proverio sam prijavu",
+            UploadFile(file=screenshot, filename="screen.png"), self.db,
+        ))
+        checkin_id = result["checkin"]["id"]
+        self.assertEqual(result["checkin"]["attachment_url"], f"/api/ui/tester-checkins/{checkin_id}/attachment")
+        self.assertEqual(self.db.query(AppTesterDailyAttachment).count(), 1)
+        self.assertEqual(self.first.pending_rsd, 20)
+        self.assertEqual(get_tester_daily_attachment(checkin_id, self.request(self.first), self.db).media_type, "image/webp")
+        self.assertEqual(get_tester_daily_attachment(checkin_id, self.request(self.owner), self.db).headers["cache-control"], "private, no-store")
+        with self.assertRaises(HTTPException) as caught:
+            get_tester_daily_attachment(checkin_id, self.request(self.second), self.db)
+        self.assertEqual(caught.exception.status_code, 404)
+
+        review_tester_daily_checkin(checkin_id, AdminStatusPayload(status="rejected", note="Pošalji jasniji izveštaj"), self.request(self.owner), self.db)
+        retry = create_tester_daily_checkin(self.tasks[0].id, TesterDailyCheckinPayload(note="Ispravljen izveštaj"), self.request(self.first), self.db)
+        self.assertIsNone(retry["checkin"]["attachment_url"])
+        self.assertEqual(self.db.query(AppTesterDailyAttachment).count(), 0)
+        self.db.refresh(self.first)
+        self.assertEqual(self.first.pending_rsd, 20)
+
+    def test_invalid_screenshot_does_not_create_report_or_reserve_reward(self):
+        self.tasks[0].tester_daily_reward_rsd = 20
+        self.db.add(AppTesterEnrollment(
+            task_id=self.tasks[0].id, user_id=self.first.id,
+            testing_email=self.first.email, status="invited", invited_at=datetime.utcnow(),
+        ))
+        self.db.commit()
+        with self.assertRaises(HTTPException) as caught:
+            asyncio.run(create_tester_daily_checkin_with_image(
+                self.tasks[0].id, self.request(self.first), "Proverio sam prijavu",
+                UploadFile(file=BytesIO(b"not an image"), filename="fake.png"), self.db,
+            ))
+        self.assertEqual(caught.exception.status_code, 422)
+        self.assertEqual(self.db.query(AppTesterDailyCheckin).count(), 0)
+        self.db.refresh(self.first)
+        self.assertEqual(self.first.pending_rsd, 0)
 
     def test_invited_tester_sees_today_deadline_in_utc(self):
         self.db.add(AppTesterEnrollment(

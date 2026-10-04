@@ -151,6 +151,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const [testerEmail, setTesterEmail] = useState('')
   const [testerEmailConfirmTask, setTesterEmailConfirmTask] = useState<Task | null>(null)
   const [testerCheckinNote, setTesterCheckinNote] = useState('')
+  const [testerScreenshot, setTesterScreenshot] = useState<File | null>(null)
   const [testerDevice, setTesterDevice] = useState('')
   const [testerFeature, setTesterFeature] = useState('')
   const [loadedTesterDraftKey, setLoadedTesterDraftKey] = useState<string | null>(null)
@@ -387,12 +388,15 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
     }
     setSaving(true)
     try {
-      await api.createTesterCheckin(task.id, report)
+      await api.createTesterCheckin(task.id, report, testerScreenshot)
       if (testerDraftKey) { try { sessionStorage.removeItem(testerDraftKey) } catch { /* Slanje je već uspelo. */ } }
       setLoadedTesterDraftKey(null)
       setTesterCheckinNote('')
       setTesterDevice('')
       setTesterFeature('')
+      setTesterScreenshot(null)
+      const screenshotInput = document.getElementById('tester-checkin-screenshot') as HTMLInputElement | null
+      if (screenshotInput) screenshotInput.value = ''
       await refreshDashboard()
       showToast('Dnevni izveštaj je poslat oglašivaču na odobrenje.', 'success')
     } catch (error) {
@@ -828,9 +832,12 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                         <Input label="Testirana funkcija" placeholder="npr. prijava i otvaranje zadataka" value={testerFeature} onChange={setTesterFeature} />
                         <label className="block text-xs font-bold uppercase tracking-wide text-blue-900" htmlFor="tester-checkin-result">Rezultat i eventualni problem</label>
                         <textarea id="tester-checkin-result" value={testerCheckinNote} onChange={event => setTesterCheckinNote(event.target.value)} rows={3} placeholder="Napiši šta je radilo, šta nije i približno koliko minuta si testirao/la." className="w-full resize-y rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-blue-500" />
+                        <label className="block text-xs font-bold uppercase tracking-wide text-blue-900" htmlFor="tester-checkin-screenshot">Snimak ekrana (ako ga zadatak traži ili prijavljuješ grešku)</label>
+                        <input id="tester-checkin-screenshot" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => setTesterScreenshot(event.target.files?.[0] || null)} className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-blue-950" />
+                        <p className="text-xs text-blue-900">PNG, JPG ili WebP do 5 MB. Prilog mogu videti samo ti, oglašivač ove kampanje i admin. Ukloni lične podatke sa snimka pre slanja.</p>
                         <Btn disabled={saving} onClick={() => selectedTask && void submitTesterCheckin(selectedTask)} variant="success">Pošalji dnevni izveštaj</Btn>
                       </div> : <p className="text-sm font-medium text-blue-800">{selectedTesterProgress?.complete ? 'Poslao/la si sve potrebne dnevne izveštaje. Sačekaj odobrenja oglašivača.' : 'Današnji izveštaj je već poslat ili se otključava sledećeg dana.'}</p>}
-                      {(selectedTask.tester_checkins || []).length > 0 && <div className="border-t border-blue-200 pt-3 text-xs text-blue-900"><p className="mb-1 font-bold">Evidencija dana</p>{[...(selectedTask.tester_checkins || [])].sort((a, b) => a.day_number - b.day_number).map(checkin => <div key={checkin.id} className="py-1"><p>Dan {checkin.day_number}: {checkin.status === 'approved' ? 'odobreno' : checkin.status === 'rejected' ? 'odbijeno' : 'čeka odobrenje'}</p>{checkin.review_note && <p className="mt-1 rounded-md bg-white p-2">Obrazloženje oglašivača: {checkin.review_note}</p>}</div>)}</div>}
+                      {(selectedTask.tester_checkins || []).length > 0 && <div className="border-t border-blue-200 pt-3 text-xs text-blue-900"><p className="mb-1 font-bold">Evidencija dana</p>{[...(selectedTask.tester_checkins || [])].sort((a, b) => a.day_number - b.day_number).map(checkin => <div key={checkin.id} className="py-1"><p>Dan {checkin.day_number}: {checkin.status === 'approved' ? 'odobreno' : checkin.status === 'rejected' ? 'odbijeno' : 'čeka odobrenje'}</p>{checkin.attachment_url && <a className="font-semibold underline" href={checkin.attachment_url} target="_blank" rel="noreferrer">Pregledaj poslati snimak</a>}{checkin.review_note && <p className="mt-1 rounded-md bg-white p-2">Obrazloženje oglašivača: {checkin.review_note}</p>}</div>)}</div>}
                     </div>
                   ) : (
                     <div className="flex gap-2">

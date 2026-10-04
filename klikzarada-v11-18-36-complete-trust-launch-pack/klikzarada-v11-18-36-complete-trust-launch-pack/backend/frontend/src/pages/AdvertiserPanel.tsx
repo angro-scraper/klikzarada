@@ -817,13 +817,13 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
       taskId: item.task_id, userId: item.user_id, userName: item.user_name || 'Korisnik',
       taskTitle: item.task_title || 'Zadatak', body: item.note, rewardRsd: item.reward_rsd,
       status: item.status === 'pending' ? 'na_proveri' : item.status === 'approved' ? 'odobreno' : 'odbijeno',
-      submittedAt: item.checked_in_at, dayNumber: item.day_number, reviewNote: item.review_note,
+      submittedAt: item.checked_in_at, dayNumber: item.day_number, reviewNote: item.review_note, attachmentUrl: item.attachment_url,
     })),
     ...proofs.map(item => ({
       kind: 'proof' as const, key: `proof-${item.id}`, id: item.id,
       taskId: item.submission.task_id, userId: item.submission.user_id, userName: item.korisnik,
       taskTitle: item.zadatak, body: item.submission.proof, rewardRsd: item.submission.reward_rsd,
-      status: item.status, submittedAt: item.submission.created_at, reviewNote: item.submission.review_note,
+      status: item.status, submittedAt: item.submission.created_at, reviewNote: item.submission.review_note, attachmentUrl: null,
     })),
   ].sort((a, b) => Number(b.status === 'na_proveri') - Number(a.status === 'na_proveri') || new Date(b.submittedAt || 0).getTime() - new Date(a.submittedAt || 0).getTime())
   const filteredEvidence = submittedEvidence.filter(item => proofsTab === 'svi' || item.status === proofsTab)
@@ -1197,6 +1197,7 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                           <div className="border-t border-frame bg-mint-50/60 px-4 py-4">
                             <p className="text-xs font-bold uppercase tracking-wide text-ink-3">{item.kind === 'checkin' ? 'Dnevni izveštaj' : 'Poslati dokaz'}</p>
                             <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink">{item.body || 'Nema tekstualnog dokaza.'}</p>
+                            {item.attachmentUrl && <a className="mt-3 inline-block text-sm font-semibold text-blue-700 underline" href={item.attachmentUrl} target="_blank" rel="noreferrer">Pregledaj snimak ekrana</a>}
                             {item.submittedAt && <p className="mt-3 text-xs text-ink-3">Poslato: {new Intl.DateTimeFormat('sr-RS', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.submittedAt))}</p>}
                             {emailConflict && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-800">Test adresa je povezana sa drugim nalogom. Proveri vlasništvo pre odobravanja.</p>}
                             {item.status === 'na_proveri' ? <div className="mt-4 flex flex-wrap gap-2 border-t border-frame pt-4">

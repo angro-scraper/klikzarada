@@ -25,18 +25,19 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from .database import get_db
 from .login_guard import admin_identity_allowed, authenticate_login, throttle_public_action
 from .analytics import PUBLIC_PAGEVIEW_PATHS, start_clean_pageview_measurement
 from .models import (
     AppTesterDailyCheckin,
+    AppTesterDailyAttachment,
     AppTesterEnrollment,
     AdvertiserBudgetTransaction,
     AntiFraudDeviceV1,
@@ -729,6 +730,7 @@ def _tester_checkin_data(item: AppTesterDailyCheckin) -> dict:
         "review_note": item.review_note,
         "reviewed_at": _iso(item.reviewed_at),
         "checked_in_at": _iso(item.checked_in_at),
+        "attachment_url": f"/api/ui/tester-checkins/{item.id}/attachment" if item.attachment else None,
     }
 
 
@@ -1839,7 +1841,7 @@ def user_dashboard(request: Request, db: Session = Depends(get_db)) -> dict:
         if task.id in enrollment_by_task or task.id in verification_by_task or _task_access_error(task, user, latest, now) is None:
             tasks.append(task)
     checkins_by_task: dict[int, list[AppTesterDailyCheckin]] = {}
-    for item in db.query(AppTesterDailyCheckin).filter(AppTesterDailyCheckin.user_id == user.id).all():
+    for item in db.query(AppTesterDailyCheckin).options(selectinload(AppTesterDailyCheckin.attachment)).filter(AppTesterDailyCheckin.user_id == user.id).all():
         checkins_by_task.setdefault(item.task_id, []).append(item)
     submissions = db.query(TaskSubmission).filter(TaskSubmission.user_id == user.id).order_by(TaskSubmission.created_at.desc()).limit(100).all()
     my_task_ids = set(enrollment_by_task) | set(verification_by_task) | {item.task_id for item in submissions}
@@ -2171,6 +2173,58 @@ def request_tester_enrollment(task_id: int, payload: TesterEnrollmentPayload, re
 @router.post("/user/tasks/{task_id}/tester-checkins", status_code=201)
 def create_tester_daily_checkin(task_id: int, payload: TesterDailyCheckinPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     """Record a daily test report. It is a user declaration, not third-party telemetry."""
+    return _create_tester_daily_checkin(task_id, payload.note, request, db)
+
+
+async def _validated_tester_screenshot(upload: UploadFile) -> bytes:
+    raw = await upload.read(5 * 1024 * 1024 + 1)
+    if len(raw) > 5 * 1024 * 1024:
+        raise HTTPException(413, "Snimak ekrana može imati najviše 5 MB.")
+    try:
+        with Image.open(BytesIO(raw)) as image:
+            if image.format not in {"PNG", "JPEG", "WEBP"} or image.width < 1 or image.height < 1 or image.width * image.height > 20_000_000:
+                raise HTTPException(422, "Pošalji PNG, JPG ili WebP snimak ekrana do 20 megapiksela.")
+            image = ImageOps.exif_transpose(image)
+            image.thumbnail((1600, 1600))
+            converted = image.convert("RGB")
+            for quality in (78, 62, 46):
+                output = BytesIO()
+                converted.save(output, format="WEBP", quality=quality, method=4)
+                if output.tell() <= 600 * 1024:
+                    return output.getvalue()
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
+        raise HTTPException(422, "Datoteka nije ispravan PNG, JPG ili WebP snimak ekrana.") from exc
+    raise HTTPException(413, "Snimak je prevelik posle obrade. Pošalji manju sliku.")
+
+
+@router.post("/user/tasks/{task_id}/tester-checkins/with-image", status_code=201)
+async def create_tester_daily_checkin_with_image(
+    task_id: int, request: Request, note: str = Form(...), image: UploadFile = File(...), db: Session = Depends(get_db),
+) -> dict:
+    note = note.strip()
+    if not 3 <= len(note) <= 1000:
+        raise HTTPException(422, "Dnevni izveštaj mora imati od 3 do 1000 znakova.")
+    _require_user(request, db, {"korisnik"})
+    image_data = await _validated_tester_screenshot(image)
+    return _create_tester_daily_checkin(task_id, note, request, db, image_data)
+
+
+@router.get("/tester-checkins/{checkin_id}/attachment")
+def get_tester_daily_attachment(checkin_id: int, request: Request, db: Session = Depends(get_db)) -> Response:
+    actor = _require_user(request, db, {"korisnik", "oglasivac", "admin"})
+    checkin = db.query(AppTesterDailyCheckin).filter(AppTesterDailyCheckin.id == checkin_id).first()
+    if not checkin or not checkin.attachment or (
+        actor.id != checkin.user_id and actor.id != checkin.task.advertiser_id and actor.role != "admin"
+    ):
+        raise HTTPException(404, "Prilog nije pronađen.")
+    return Response(
+        content=checkin.attachment.image_data,
+        media_type=checkin.attachment.media_type,
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+def _create_tester_daily_checkin(task_id: int, note: str, request: Request, db: Session, image_data: bytes | None = None) -> dict:
     user = _require_user(request, db, {"korisnik"})
     _expire_campaigns(db)
     task = db.query(Task).filter(Task.id == task_id, Task.status == "active").first()
@@ -2199,7 +2253,7 @@ def create_tester_daily_checkin(task_id: int, payload: TesterDailyCheckinPayload
     if checkin and checkin.status != "rejected":
         raise HTTPException(409, "Današnji test je već prijavljen.")
     if checkin:
-        checkin.note = payload.note.strip()
+        checkin.note = note.strip()
         checkin.reward_rsd = task.tester_daily_reward_rsd or 0
         checkin.status = "pending"
         checkin.review_note = None
@@ -2210,10 +2264,19 @@ def create_tester_daily_checkin(task_id: int, payload: TesterDailyCheckinPayload
             task_id=task.id,
             user_id=user.id,
             day_number=day_number,
-            note=payload.note.strip(),
+            note=note.strip(),
             reward_rsd=task.tester_daily_reward_rsd or 0,
         )
         db.add(checkin)
+    if checkin.attachment:
+        if image_data is None:
+            db.delete(checkin.attachment)
+        else:
+            checkin.attachment.image_data = image_data
+            checkin.attachment.created_at = datetime.utcnow()
+    elif image_data is not None:
+        db.flush()
+        db.add(AppTesterDailyAttachment(checkin_id=checkin.id, image_data=image_data))
     user.pending_rsd = _money(user.pending_rsd + (task.tester_daily_reward_rsd or 0))
     if task.advertiser_id:
         db.add(Notification(
@@ -2460,7 +2523,7 @@ def advertiser_dashboard(request: Request, db: Session = Depends(get_db)) -> dic
         AppTesterEnrollment.status.in_(("requested", "invited")),
     ).all():
         tester_email_owners.setdefault(email, set()).add(owner_id)
-    tester_checkins = db.query(AppTesterDailyCheckin).join(Task).filter(Task.advertiser_id == user.id).order_by(AppTesterDailyCheckin.checked_in_at.desc()).limit(500).all()
+    tester_checkins = db.query(AppTesterDailyCheckin).options(selectinload(AppTesterDailyCheckin.attachment)).join(Task).filter(Task.advertiser_id == user.id).order_by(AppTesterDailyCheckin.checked_in_at.desc()).limit(500).all()
     transactions = db.query(AdvertiserBudgetTransaction).filter(AdvertiserBudgetTransaction.advertiser_id == user.id).order_by(AdvertiserBudgetTransaction.created_at.desc()).limit(100).all()
     task_payload = []
     for task in tasks:
