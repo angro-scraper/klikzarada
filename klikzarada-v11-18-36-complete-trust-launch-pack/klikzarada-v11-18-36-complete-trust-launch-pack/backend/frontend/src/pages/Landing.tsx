@@ -34,11 +34,19 @@ const trustPoints = [
   ['03', 'Nagrada pod kontrolom', 'Oglašivač pregleda dokaz, a admin rešava sporove i sumnjive aktivnosti.'],
 ]
 
+const webpCreatives = new Set([
+  'briefai-beta.png',
+  'parkiraj-me-beta.png',
+  'slovolov-beta.png',
+  'wortwelt-beta.png',
+  'worktime-qr-beta.png',
+])
+
 function optimizedBannerImageUrl(imageUrl: string): string {
   if (imageUrl.endsWith('/stock-radar-beta.png')) return `${imageUrl.slice(0, -4)}-v2.webp`
 
-  // Platform creatives have a compressed WebP twin; uploaded advertiser files keep their original URL.
-  return imageUrl.includes('/app-ui/banner-creatives/') && imageUrl.endsWith('.png')
+  const filename = imageUrl.split('/').pop() || ''
+  return imageUrl.includes('/app-ui/banner-creatives/') && webpCreatives.has(filename)
     ? `${imageUrl.slice(0, -4)}.webp`
     : imageUrl
 }
