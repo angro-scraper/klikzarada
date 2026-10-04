@@ -26,12 +26,12 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from urllib.request import Request as UrlRequest, urlopen
 from .database import Base, engine, get_db, SessionLocal
 from .analytics import PUBLIC_PAGEVIEW_PATHS, is_public_pageview_path, start_clean_pageview_measurement
-from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, TaskSourceV11, SecurityEvent, KycDocument, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
+from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, SubmissionProofAsset, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, TaskSourceV11, SecurityEvent, KycDocument, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
 from .security import create_session_token, hash_password, is_legacy_session, make_referral_code, read_session_token, running_in_production, session_matches_user, verify_password
 from .login_guard import admin_identity_allowed, authenticate_login
 from .ui_api import REFERRAL_INVITER_BONUS_RSD, _banner_public_target, _grant_referral_bonus_if_eligible, _save_banner_asset, _start_approved_platform_banner, router as ui_api_router
 
-app = FastAPI(title="KlikZarada V11.18.72 Durable Banner Images", version="11.18.72")
+app = FastAPI(title="KlikZarada V11.18.73 Durable Proof Files", version="11.18.73")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 SPA_DIR = Path("app/static/app-ui")
 
@@ -167,7 +167,7 @@ async def serve_react_application(request: Request, call_next):
                 return JSONResponse({"detail": "Zahtev nije poslat sa ovog sajta."}, status_code=403)
         if request.headers.get("sec-fetch-site", "").lower() == "cross-site":
             return JSONResponse({"detail": "Zahtev nije poslat sa ovog sajta."}, status_code=403)
-    excluded = ("/api/", "/static/", "/app-ui/", "/mobile-ui/", "/mobilna", "/docs", "/openapi.json", "/favicon.ico", "/robots.txt", "/sitemap.xml", "/sw.js", "/logout", "/r/", "/kyc/files/")
+    excluded = ("/api/", "/static/", "/proof-assets/", "/app-ui/", "/mobile-ui/", "/mobilna", "/docs", "/openapi.json", "/favicon.ico", "/robots.txt", "/sitemap.xml", "/sw.js", "/logout", "/r/", "/kyc/files/")
     index = SPA_DIR / "index.html"
     wants_html = "text/html" in request.headers.get("accept", "")
     if request.method == "GET" and wants_html and index.exists() and not path.startswith(excluded):
@@ -2381,16 +2381,34 @@ def upsert_system_setting(db: Session, key: str, value: str, description: str | 
     db.flush()
     return item
 
-def save_file(file: Optional[UploadFile]):
+def save_file(file: Optional[UploadFile], db: Session | None = None):
     if not file or not file.filename: return None
     data = file.file.read(5 * 1024 * 1024 + 1)
     if not data or len(data) > 5 * 1024 * 1024:
         raise HTTPException(400, "Fajl je prazan ili prevelik.")
     ext = _verified_image_suffix(data)
+    if db is None:
+        raise RuntimeError("Saving a proof requires a database session.")
     name = f"{uuid.uuid4().hex}{ext}"
-    path = UPLOAD_DIR / name
-    path.write_bytes(data)
-    return f"/static/uploads/{name}"
+    media_type = {".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}[ext]
+    db.add(SubmissionProofAsset(filename=name, image_data=data, media_type=media_type))
+    return f"/proof-assets/{name}"
+
+
+@app.get("/proof-assets/{filename}")
+def submission_proof_asset(filename: str, request: Request, db: Session = Depends(get_db)):
+    if not re.fullmatch(r"[a-f0-9]{32}\.(?:jpg|png|webp)", filename):
+        raise HTTPException(404, "Dokaz nije pronađen.")
+    user = current_user(request, db)
+    proof_url = f"/proof-assets/{filename}"
+    submission = db.query(TaskSubmission).filter(TaskSubmission.proof_file == proof_url).first() if user else None
+    task = db.get(Task, submission.task_id) if submission else None
+    if not user or not submission or not task or not (user.role == "admin" or user.id in (submission.user_id, task.advertiser_id)):
+        raise HTTPException(404, "Dokaz nije pronađen.")
+    asset = db.query(SubmissionProofAsset).filter(SubmissionProofAsset.filename == filename).first()
+    if not asset:
+        raise HTTPException(404, "Dokaz nije pronađen.")
+    return Response(content=asset.image_data, media_type=asset.media_type, headers={"Cache-Control": "private, no-store", "Vary": "Cookie", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex"})
 
 
 def _verified_image_suffix(data: bytes) -> str:
@@ -2594,7 +2612,7 @@ def submit_proof(task_id:int, request:Request, proof:str=Form(...), proof_file:O
     if not t: raise HTTPException(404,"Zadatak nije pronađen.")
     if db.query(TaskSubmission).filter(TaskSubmission.user_id==u.id,TaskSubmission.task_id==t.id,TaskSubmission.status.in_(["pending","approved"])).first():
         return RedirectResponse(f"/zadaci/{task_id}?msg=already",303)
-    file_path=save_file(proof_file)
+    file_path=save_file(proof_file,db)
     if t.proof_file_required and not file_path: raise HTTPException(400,"Fajl dokaz je obavezan.")
     total, fee = cost_one(t.reward_rsd, t.platform_fee_percent)
     s=TaskSubmission(user_id=u.id,task_id=t.id,proof=proof.strip(),proof_file=file_path,reward_rsd=t.reward_rsd,platform_fee_rsd=fee,advertiser_cost_rsd=total,status="pending")

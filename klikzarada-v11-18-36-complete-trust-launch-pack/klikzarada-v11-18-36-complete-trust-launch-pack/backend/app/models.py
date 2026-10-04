@@ -130,6 +130,15 @@ class TaskSubmission(Base):
     task = relationship("Task", back_populates="submissions")
 
 
+class SubmissionProofAsset(Base):
+    __tablename__ = "submission_proof_assets"
+    id = Column(Integer, primary_key=True)
+    filename = Column(String(40), unique=True, index=True, nullable=False)
+    media_type = Column(String(40), nullable=False)
+    image_data = Column(LargeBinary, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class AppTesterEnrollment(Base):
     """Private tester access request for a closed Android/iOS beta campaign."""
     __tablename__ = "app_tester_enrollments"
