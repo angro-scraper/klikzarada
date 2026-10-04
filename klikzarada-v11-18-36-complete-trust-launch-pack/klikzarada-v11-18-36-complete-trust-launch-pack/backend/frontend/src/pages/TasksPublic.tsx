@@ -83,7 +83,7 @@ export default function TasksPublic() {
         {/* Filters */}
           <div className="grid gap-3 mb-5 sm:grid-cols-2 lg:grid-cols-4">
           <label className="sr-only" htmlFor="task-search">Pretraži zadatke</label>
-          <input id="task-search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Pretraži zadatke" className="w-full rounded-lg border border-frame bg-white px-3 py-2 text-sm text-ink outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+          <input id="task-search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Pretraži zadatke" className="min-h-11 w-full rounded-lg border border-frame bg-white px-3 py-2 text-sm text-ink outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
           <Select
             label="Kategorija"
             options={[
@@ -119,7 +119,7 @@ export default function TasksPublic() {
         {/* Task list */}
         {loading ? (
           <div className="py-14 text-center text-sm text-ink-2">Učitavanje zadataka...</div>
-        ) : error ? <button onClick={() => window.location.reload()} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Pokušaj ponovo</button> : filtered.length === 0 ? (
+        ) : error ? <button onClick={() => window.location.reload()} className="min-h-11 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Pokušaj ponovo</button> : filtered.length === 0 ? (
           <EmptyState
             icon="📭"
             title={hasFilters ? 'Nema zadataka za odabrane filtere' : 'Trenutno nema dostupnih zadataka'}
