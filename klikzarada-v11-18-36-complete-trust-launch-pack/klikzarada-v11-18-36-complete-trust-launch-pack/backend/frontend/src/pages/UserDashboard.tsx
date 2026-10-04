@@ -429,7 +429,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
       <ConfirmModal
         open={confirmPayout}
         title="Zatražiti isplatu?"
-        description={`Iznos od ${formatRsd(Number(payoutAmount) || balance)} biće prosleđen na tvoj PayPal e-mail. Zahtev prvo prolazi administrativnu proveru.`}
+        description={`Iznos od ${formatRsd(Number(payoutAmount) || balance)} biće rezervisan iz RSD salda i poslat na administrativnu proveru. Eventualna PayPal isplata obrađuje se u EUR; kurs nije zaključan pri slanju zahteva.`}
         confirmLabel="Zatraži isplatu"
         cancelLabel="Otkaži"
         variant="success"
@@ -646,12 +646,12 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${categoryColor(t.category)}`}>{t.category}</span>
-                            <span className="text-[11px] text-ink-3">⏱ {t.estimated_minutes} min</span>
+                            <span className="text-[11px] text-ink-3">⏱ {taskRewardDetails(t).time}</span>
                           </div>
                           <p className="font-semibold text-ink text-sm truncate">{t.title}</p>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className="font-mono font-bold text-emerald-600">{t.requires_tester_enrollment ? `${formatRsd(t.tester_daily_reward_rsd)}/dan` : formatRsd(t.reward_rsd)}</span>
+                          <span className="max-w-[180px] text-right font-mono font-bold text-emerald-600">{taskRewardDetails(t).total}</span>
                           <Btn size="sm" onClick={() => openTask(t.id)}>Detalji</Btn>
                         </div>
                       </Card>
@@ -729,7 +729,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                             <StatusBadge status="aktivno" />
                           </div>
                           <h3 className="font-semibold text-ink">{t.title}</h3>
-                          <p className="text-xs text-ink-3 mt-1">⏱ {t.estimated_minutes} min · 📎 {t.proof_required || 'Dokaz potreban'}</p>
+                          <p className="text-xs text-ink-3 mt-1">⏱ {taskRewardDetails(t).time} · 📎 {t.proof_required || 'Dokaz potreban'}</p>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="max-w-[180px] text-right text-sm font-bold text-emerald-700">{taskRewardDetails(t).total}</p>
@@ -754,8 +754,9 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                   <p className="text-sm text-ink-2">{selectedTask?.description || 'Izaberi dostupni zadatak sa liste.'}</p>
                   {selectedTask?.instructions && <Alert type="info">{selectedTask.instructions}</Alert>}
                   <div className="bg-mint-50 border border-frame rounded-lg p-3 text-sm space-y-1">
-                    <p><span className="text-ink-3 font-medium">Nagrada:</span> <span className="font-mono font-bold text-emerald-600">{selectedTask?.requires_tester_enrollment ? `${formatRsd(selectedTask.tester_daily_reward_rsd)} dnevno` : formatRsd(selectedTask?.reward_rsd || 0)}</span></p>
-                    <p><span className="text-ink-3 font-medium">Vreme:</span> oko {selectedTask?.estimated_minutes || 0} min</p>
+                    <p><span className="text-ink-3 font-medium">Nagrada:</span> <span className="font-mono font-bold text-emerald-600">{selectedTask ? taskRewardDetails(selectedTask).total : 'Nagrada nije navedena'}</span></p>
+                    {selectedTask?.requires_tester_enrollment && <p><span className="text-ink-3 font-medium">Po danu:</span> {taskRewardDetails(selectedTask).unit}</p>}
+                    <p><span className="text-ink-3 font-medium">Vreme:</span> {selectedTask ? taskRewardDetails(selectedTask).time : 'Trajanje proveri u uslovima'}</p>
                     <p><span className="text-ink-3 font-medium">Dokaz:</span> {selectedTask?.proof_required || '—'}</p>
                     <p><span className="text-ink-3 font-medium">Nivo:</span> {selectedTask?.min_user_level || 'Bronza'} i više</p>
                     {!selectedTask?.requires_tester_enrollment && <><p><span className="text-ink-3 font-medium">Ponavljanje:</span> {selectedTask?.repeat_interval_hours ? `na svakih ${selectedTask.repeat_interval_hours} h nakon odobrenja` : 'samo jednom'}</p><p><span className="text-ink-3 font-medium">Kvalitet:</span> {selectedTask?.min_quality_score ? `najmanje ${selectedTask.min_quality_score}%` : 'bez dodatnog uslova'}</p></>}
@@ -827,10 +828,10 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                         <div>
                             <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${categoryColor(t.category)} inline-block mb-2`}>{t.category}</span>
                           <h3 className="font-semibold text-ink">{t.title}</h3>
-                          <p className="text-xs text-ink-3 mt-1">⏱ {t.estimated_minutes} min</p>
+                          <p className="text-xs text-ink-3 mt-1">⏱ {taskRewardDetails(t).time}</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="font-mono font-bold text-emerald-600 text-lg">{t.requires_tester_enrollment ? `${formatRsd(t.tester_daily_reward_rsd)}/dan` : formatRsd(t.reward_rsd)}</p>
+                          <p className="max-w-[180px] font-mono font-bold text-emerald-600 text-sm">{taskRewardDetails(t).total}</p>
                           <Btn size="sm" className="mt-2" onClick={() => openTask(t.id)}>Detalji</Btn>
                         </div>
                       </div>
@@ -897,6 +898,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                 <Alert type="warning">
                   Minimalni iznos za isplatu je <strong>{formatRsd(minWithdrawal)}</strong>. Tvoj balans: <strong className="font-mono">{formatRsd(balance)}</strong>. {payoutGap > 0 ? <>Nedostaje još <strong className="font-mono text-amber-700">{formatRsd(payoutGap)}</strong>.</> : 'Možeš poslati zahtev za isplatu.'}
                 </Alert>
+                <p className="text-sm text-ink-2">Saldo je u RSD. PayPal isplata se obrađuje u EUR po kursu utvrđenom pri obradi; za tačan iznos i moguće troškove konverzije kontaktiraj podršku pre zahteva.</p>
                 <Card className="p-5">
                   <h3 className="font-bold text-ink mb-4">Podaci za isplatu</h3>
                   <div className="divide-y divide-frame">

@@ -19,9 +19,9 @@ os.chdir(BACKEND_DIR)
 sys.path.insert(0, str(BACKEND_DIR))
 
 from app.database import Base  # noqa: E402
-from app.models import AppTesterEnrollment, EmailOutboxV8, EmailVerificationTokenV11, Task, TaskVerificationSessionV1, User, UserConsentV11  # noqa: E402
-from app.security import create_session_token  # noqa: E402
-from app.ui_api import ProfilePayload, Registration, TesterCohortStartPayload as CohortStartPayload, TesterEnrollmentPayload as EnrollmentPayload, advertiser_dashboard, correct_account_role_to_user, enable_advertiser_workspace, register, request_tester_enrollment, save_user_profile, start_tester_cohort, user_dashboard  # noqa: E402
+from app.models import AppTesterEnrollment, EmailOutboxV8, EmailVerificationTokenV11, PasswordResetTokenV11, Task, TaskVerificationSessionV1, User, UserConsentV11  # noqa: E402
+from app.security import create_session_token, verify_password  # noqa: E402
+from app.ui_api import PasswordResetConfirmPayload, ProfilePayload, Registration, TesterCohortStartPayload as CohortStartPayload, TesterEnrollmentPayload as EnrollmentPayload, _queue_password_reset, advertiser_dashboard, confirm_password_reset, correct_account_role_to_user, enable_advertiser_workspace, register, request_tester_enrollment, save_user_profile, start_tester_cohort, user_dashboard  # noqa: E402
 
 
 class RegistrationFlowTests(unittest.TestCase):
@@ -80,6 +80,41 @@ class RegistrationFlowTests(unittest.TestCase):
             with self.subTest(changes=changes), self.assertRaises(HTTPException) as caught:
                 self._register(**changes)
             self.assertEqual(caught.exception.status_code, status_code)
+
+    def test_password_reset_link_is_single_use(self):
+        self._register()
+        user = self.db.query(User).filter(User.email == "test@example.com").one()
+        _queue_password_reset(self.db, user)
+        self.db.commit()
+        token = self.db.query(PasswordResetTokenV11).filter_by(user_id=user.id).one()
+
+        result = confirm_password_reset(
+            PasswordResetConfirmPayload(token=token.token, new_password="nova-sigurna-lozinka"), self.db
+        )
+        self.assertTrue(result["reset"])
+        self.assertTrue(verify_password("nova-sigurna-lozinka", user.password_hash))
+        with self.assertRaises(HTTPException) as caught:
+            confirm_password_reset(
+                PasswordResetConfirmPayload(token=token.token, new_password="treca-sigurna-lozinka"), self.db
+            )
+        self.assertEqual(caught.exception.status_code, 400)
+
+    def test_password_reset_link_expires_after_one_hour(self):
+        self._register()
+        user = self.db.query(User).filter(User.email == "test@example.com").one()
+        _queue_password_reset(self.db, user)
+        self.db.commit()
+        token = self.db.query(PasswordResetTokenV11).filter_by(user_id=user.id).one()
+        token.created_at = datetime.utcnow() - timedelta(minutes=61)
+        self.db.commit()
+
+        with self.assertRaises(HTTPException) as caught:
+            confirm_password_reset(
+                PasswordResetConfirmPayload(token=token.token, new_password="nova-sigurna-lozinka"), self.db
+            )
+        self.assertEqual(caught.exception.status_code, 400)
+        self.assertEqual(token.status, "expired")
+        self.assertTrue(verify_password("sigurna-lozinka", user.password_hash))
 
     def test_generated_referral_code_can_be_used_by_another_registration(self):
         self._register(email="referrer@example.com", full_name="Referral Vlasnik")

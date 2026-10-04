@@ -25,7 +25,7 @@ class PublicTaskTermsTests(unittest.TestCase):
             reward_rsd=280, total_slots=20, used_slots=1, estimated_minutes=5,
             requires_tester_enrollment=True, tester_duration_days=14,
             tester_daily_minutes=5, tester_daily_reward_rsd=20,
-            status="active", moderation_note="Interna beleška",
+            status="active", moderation_note="Interna beleška", deadline_text="Prijave do popune mesta",
         )
         task.advertiser = User(full_name="Vlasnik", email="private@example.test", role="oglasivac")
         data = _public_task_data(task)
@@ -34,6 +34,8 @@ class PublicTaskTermsTests(unittest.TestCase):
         self.assertEqual(data["instructions"], "")
         self.assertNotIn("private@example.test", str(data))
         self.assertEqual(data["tester_daily_reward_rsd"], 20)
+        self.assertEqual(data["deadline_text"], "Prijave do popune mesta")
+        self.assertEqual(data["tester_store"], "android")
 
     def test_shareable_task_html_shows_daily_terms_without_private_data(self):
         task = SimpleNamespace(

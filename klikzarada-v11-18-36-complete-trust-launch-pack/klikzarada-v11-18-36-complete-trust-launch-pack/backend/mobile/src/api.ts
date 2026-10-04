@@ -22,7 +22,7 @@ export type Task = {
   tester_store?: 'ios' | 'android' | null;
   tester_enrollment?: TesterEnrollment | null; tester_checkins?: TesterCheckin[];
   tester_progress?: { current_day: number; duration_days: number; can_check_in: boolean; complete: boolean };
-  tester_daily_reward_rsd?: number; tester_daily_minutes?: number;
+  tester_duration_days?: number; tester_daily_reward_rsd?: number; tester_daily_minutes?: number;
   target_url: string | null; submission_pending?: number; submission_approved?: number;
 };
 export type Submission = {

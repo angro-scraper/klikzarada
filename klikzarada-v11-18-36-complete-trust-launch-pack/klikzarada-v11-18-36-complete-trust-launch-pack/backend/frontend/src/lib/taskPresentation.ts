@@ -15,6 +15,15 @@ export function formatRsd(amount: number): string {
   return `${amount.toLocaleString('sr-RS')} RSD`
 }
 
+export function taskMinimumMinutes(task: RewardTask): number {
+  if (task.requires_tester_enrollment) {
+    return task.tester_duration_days > 0 && task.tester_daily_minutes > 0
+      ? task.tester_duration_days * task.tester_daily_minutes
+      : Number.POSITIVE_INFINITY
+  }
+  return task.estimated_minutes > 0 ? task.estimated_minutes : Number.POSITIVE_INFINITY
+}
+
 export function taskRewardDetails(task: RewardTask) {
   const places = Math.max(0, task.total_slots - task.used_slots)
   const available = task.status === 'active' && places > 0

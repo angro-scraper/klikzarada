@@ -15,7 +15,7 @@ const categoryIcons: Record<string, string> = {
 
 const userSteps = [
   ['01', 'Odaberi zadatak', 'Vidiš nagradu, dokaz i procenjeno vreme pre početka.'],
-  ['02', 'Uradi ga pažljivo', 'Timer i provera aktivnosti štite i korisnike i oglašivače.'],
+  ['02', 'Uradi ga pažljivo', 'Kod browser zadatka prati se aktivnost taba; kod testa aplikacije proverava se dnevni izveštaj.'],
   ['03', 'Pošalji dokaz', 'Prilažeš traženi dokaz; nagrada ne ide automatski.'],
   ['04', 'Sačekaj odobrenje', 'Odobren rezultat ulazi u raspoloživ saldo za PayPal isplatu.'],
 ]
@@ -26,12 +26,6 @@ const faqs = [
   ['Kada mogu da zatražim isplatu?', 'Kada dostigneš minimalni iznos prikazan u novčaniku i sačuvaš svoju PayPal email adresu za isplatu.'],
   ['Da li je registracija besplatna?', 'Da. Korisnik ne plaća registraciju ni pregled aktivnih zadataka.'],
   ['Kako oglašivač plaća?', 'Oglašivač dopunjuje budžet preko PayPal Checkout-a. Budžet se troši samo za odobrene rezultate, a banner i VIP zakup imaju jasno trajanje.'],
-]
-
-const trustPoints = [
-  ['01', 'Precizan zadatak', 'Pre početka vidiš nagradu, procenjeno vreme i dokaz koji se očekuje.'],
-  ['02', 'Proverljiv proces', 'Aktivnost i vreme rada se proveravaju pre nego što rezultat ode na pregled.'],
-  ['03', 'Nagrada pod kontrolom', 'Oglašivač pregleda dokaz, a admin rešava sporove i sumnjive aktivnosti.'],
 ]
 
 const webpCreatives = new Set([
@@ -156,16 +150,16 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
     <div className="min-h-screen bg-mint-50 text-ink">
       <nav className="sticky top-0 z-50 border-b border-frame bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
-          <button onClick={() => onNavigate('home')} className="flex items-center gap-2 rounded-lg font-bold text-ink transition-colors hover:text-blue-700">
+          <a href="/" className="flex items-center gap-2 rounded-lg font-bold text-ink transition-colors hover:text-blue-700">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-sm text-white shadow-sm">K</span>
             <span>KlikZarada</span>
-          </button>
+          </a>
           <div className="flex-1" />
           <div className="hidden items-center gap-1 md:flex">
-            <button onClick={() => onNavigate('tasks-public')} className="rounded-lg px-3 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-mint-100 hover:text-ink">Zadaci</button>
+            <a href="/zadaci" className="rounded-lg px-3 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-mint-100 hover:text-ink">Zadaci</a>
             <a href="/oglasavanje" className="rounded-lg px-3 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-mint-100 hover:text-ink">Oglašavanje</a>
-            <button onClick={() => onNavigate('help')} className="rounded-lg px-3 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-mint-100 hover:text-ink">Pomoć</button>
-            <button onClick={() => onNavigate('login')} className="rounded-lg px-3 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-mint-100 hover:text-ink">Prijava</button>
+            <a href="/pomoc" className="rounded-lg px-3 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-mint-100 hover:text-ink">Pomoć</a>
+            <a href="/prijava" className="rounded-lg px-3 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-mint-100 hover:text-ink">Prijava</a>
             <Btn onClick={() => onNavigate('register')} size="sm">Pokreni zaradu</Btn>
           </div>
           <button onClick={() => setMobileMenuOpen(open => !open)} className="rounded-lg p-2 text-xl text-ink-2 md:hidden" aria-label="Otvori meni">☰</button>
@@ -173,9 +167,9 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
         {mobileMenuOpen && (
           <div className="border-t border-frame bg-white px-4 py-3 md:hidden">
             <div className="mx-auto flex max-w-6xl flex-col gap-2">
-              <button onClick={() => { onNavigate('tasks-public'); setMobileMenuOpen(false) }} className="rounded-lg px-3 py-2 text-left font-semibold text-ink">Zadaci</button>
+              <a href="/zadaci" className="rounded-lg px-3 py-2 text-left font-semibold text-ink">Zadaci</a>
               <a href="/oglasavanje" className="rounded-lg px-3 py-2 text-left font-semibold text-ink">Oglašavanje</a>
-              <button onClick={() => { onNavigate('help'); setMobileMenuOpen(false) }} className="rounded-lg px-3 py-2 text-left font-semibold text-ink">Pomoć i pravila</button>
+              <a href="/pomoc" className="rounded-lg px-3 py-2 text-left font-semibold text-ink">Pomoć i pravila</a>
               <Btn onClick={() => onNavigate('register')} className="justify-center">Pokreni zaradu</Btn>
             </div>
           </div>
@@ -240,30 +234,9 @@ export default function Landing({ onNavigate }: { onNavigate: (id: string) => vo
         {midBanners.length > 0 && <section className="border-y border-frame bg-white"><div className="mx-auto max-w-6xl px-4 py-10"><div className="mb-5"><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700">Izdvojeno za testere</p><h2 className="mt-2 text-2xl font-extrabold text-ink">Aktuelne aplikacije za testiranje</h2></div><div className="grid gap-4 md:grid-cols-2">{midBanners.map(banner => <BannerCard key={banner.id} banner={banner} />)}</div></div></section>}
 
 
-        <section className="landing-dot-grid overflow-hidden bg-white">
-          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-16 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Bez sivih zona</p>
-              <h2 className="mt-2 max-w-xl text-3xl font-extrabold text-ink">Nije klasičan sajt za klikove.</h2>
-              <p className="mt-4 max-w-xl leading-7 text-ink-2">KlikZarada je organizovana oko jasnog zadatka, merljivog rezultata i pregleda pre nagrade. Tako korisnik zna šta radi, a oglašivač šta plaća.</p>
-              <div className="mt-7 grid gap-3">{trustPoints.map(([number, title, description]) => <div key={number} className="flex gap-4 rounded-2xl border border-frame bg-mint-50/70 p-4"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 font-mono text-xs font-bold text-white">{number}</span><div><h3 className="font-bold text-ink">{title}</h3><p className="mt-1 text-sm leading-6 text-ink-2">{description}</p></div></div>)}</div>
-            </div>
-            <Card className="landing-float relative overflow-hidden border-emerald-200 bg-[linear-gradient(145deg,#effdf4_0%,#ffffff_58%,#eef6ff_100%)] p-6 shadow-md">
-              <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-emerald-100/80" />
-              <p className="relative text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Tok na platformi</p>
-              <h3 className="relative mt-2 text-2xl font-extrabold text-ink">Od jasnog cilja do salda.</h3>
-              <div className="relative mt-6 space-y-3">
-                {['Odaberi aktivan zadatak', 'Radi uz proveru vremena i aktivnosti', 'Pošalji dokaz oglašivaču', 'Prati odluku i stanje nagrade'].map((label, index) => <div key={label} className="flex items-center gap-3"><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${index === 3 ? 'bg-emerald-600 text-white' : 'bg-white text-blue-700 ring-1 ring-blue-200'}`}>{index + 1}</span><span className="text-sm font-semibold text-ink">{label}</span></div>)}
-              </div>
-              <div className="relative mt-7 grid grid-cols-2 gap-3 border-t border-emerald-100 pt-5"><div><p className="font-mono text-xl font-bold text-blue-700">{loading || taskLoadError ? '—' : overview?.active_tasks ?? tasks.length}</p><p className="mt-1 text-xs text-ink-2">aktivnih zadataka</p></div><div><p className="font-mono text-xl font-bold text-emerald-700">{loading ? '—' : overview?.approved_results ?? '—'}</p><p className="mt-1 text-xs text-ink-2">odobrenih rezultata</p></div></div>
-              <Btn onClick={() => onNavigate('tasks-public')} variant="secondary" className="relative mt-6 w-full justify-center">Istraži dostupne zadatke →</Btn>
-            </Card>
-          </div>
-        </section>
-
         <section className="bg-[linear-gradient(135deg,#f0fdf4_0%,#eff6ff_100%)]"><div className="mx-auto max-w-6xl space-y-6 px-4 py-12"><div><h2 className="text-2xl font-extrabold text-ink">Nagrada zavisi od zadatka i odobrenih rezultata.</h2><p className="mt-3 max-w-3xl leading-7 text-ink-2">Ne prikazujemo mesečnu projekciju: broj slobodnih mesta, trajanje i pravo na učešće su ograničeni. Na svakoj kartici vidiš moguću nagradu i obavezu, a odobrena zarada i raspoloživ saldo prikazuju se na nalogu.</p></div><ServiceTerms /></div></section>
 
-        {categorySummary.length > 0 && <section className="border-y border-frame bg-white"><div className="mx-auto max-w-6xl px-4 py-14"><div className="flex items-center justify-between gap-4"><div><h2 className="text-2xl font-extrabold text-ink">Vrste posla</h2><p className="mt-1 text-sm text-ink-2">Sve kategorije su određene stvarno dostupnim zadacima.</p></div><button onClick={() => onNavigate('tasks-public')} className="text-sm font-bold text-blue-700">Filtriraj zadatke →</button></div><div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">{categorySummary.map(([category, count]) => <button key={category} onClick={() => onNavigate('tasks-public')} className="rounded-xl border border-frame bg-mint-50 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50"><span className="text-2xl">{categoryIcons[category] ?? '📌'}</span><p className="mt-3 text-sm font-bold leading-5 text-ink">{category}</p><p className="mt-2 font-mono text-xs text-emerald-700">{count} aktivno</p></button>)}</div></div></section>}
+        {categorySummary.length > 1 && <section className="border-y border-frame bg-white"><div className="mx-auto max-w-6xl px-4 py-14"><div className="flex items-center justify-between gap-4"><div><h2 className="text-2xl font-extrabold text-ink">Vrste posla</h2><p className="mt-1 text-sm text-ink-2">Sve kategorije su određene stvarno dostupnim zadacima.</p></div><a href="/zadaci" className="text-sm font-bold text-blue-700">Filtriraj zadatke →</a></div><div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">{categorySummary.map(([category, count]) => <a key={category} href={`/zadaci?category=${encodeURIComponent(category)}`} className="rounded-xl border border-frame bg-mint-50 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50"><span className="text-2xl">{categoryIcons[category] ?? '📌'}</span><p className="mt-3 text-sm font-bold leading-5 text-ink">{category}</p><p className="mt-2 font-mono text-xs text-emerald-700">{count} aktivno</p></a>)}</div></div></section>}
 
 
         {sponsorBanners.length > 0 && <section className="mx-auto max-w-6xl px-4 py-14"><div className="mb-5 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700">Zakup reklame</p><h2 className="mt-2 text-2xl font-extrabold text-ink">Sponzorisane ponude</h2></div><a href="/oglasavanje#baneri" className="text-sm font-bold text-blue-700">Kako zakupiti poziciju →</a></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{sponsorBanners.map(banner => <BannerCard key={banner.id} banner={banner} />)}</div></section>}

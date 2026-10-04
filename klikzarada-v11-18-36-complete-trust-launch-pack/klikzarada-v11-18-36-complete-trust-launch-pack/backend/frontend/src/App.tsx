@@ -111,7 +111,7 @@ export default function App() {
 
   if (route === 'home') return <Landing onNavigate={go} />
 
-  if (route === 'tasks-public') return <TasksPublic onNavigate={go} />
+  if (route === 'tasks-public') return <TasksPublic />
   if (route === 'login') return <Auth key="login" initialMode="login" onNavigate={go} />
   if (route === 'register') return <Auth key="register" initialMode="register" onNavigate={go} />
   if (route === 'advertiser-login') return <Auth key="advertiser-login" initialMode="advertiser-login" onNavigate={go} />
@@ -123,7 +123,7 @@ export default function App() {
   }
   if (route === 'advertiser') return <ProtectedRoute key="advertiser" roles={['oglasivac', 'admin']} section="Oglašivački panel" loginRoute="advertiser-login" onNavigate={go}><AdvertiserPanel onNavigate={go} /></ProtectedRoute>
   if (route === 'admin') return <ProtectedRoute key="admin" roles={['admin']} section="Admin panel" loginRoute="admin-login" onNavigate={go}><AdminHub onNavigate={go} /></ProtectedRoute>
-  if (route === 'legal') return <Legal onNavigate={go} />
+  if (route === 'legal') return <Legal />
   if (route === 'help') return <HelpCenter onNavigate={go} />
   if (route === 'advertising-public') return <AdvertisePublic />
 

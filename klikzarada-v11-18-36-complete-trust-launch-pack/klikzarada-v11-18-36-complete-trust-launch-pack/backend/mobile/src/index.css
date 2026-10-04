@@ -261,6 +261,9 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
   overflow-wrap:anywhere;
 }
 .task-meta{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center}
+.task-reward{display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 8px;margin-top:10px;color:var(--green);text-align:left;font-size:12px}
+.task-reward small{color:var(--muted);font-size:10px}
+.task-meta{grid-template-columns:minmax(0,1fr) auto;margin-top:7px}
 .task-meta>span{min-width:0;white-space:nowrap}
 .task-meta .task-proof{justify-self:end;max-width:100%;overflow:hidden}
 .task-meta .task-proof svg{flex:none}

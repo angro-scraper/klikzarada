@@ -52,6 +52,7 @@ export type Task = {
   estimated_minutes: number
   repeat_interval_hours: number
   submission_deadline_hours: number
+  deadline_text?: string | null
   max_proof_revisions: number
   min_quality_score: number
   min_user_level: string

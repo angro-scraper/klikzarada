@@ -1,13 +1,13 @@
-import { Btn, Card, SectionHeader } from '../components/ui'
+import { Card, SectionHeader } from '../components/ui'
 import { ServiceTerms } from '../components/ServiceTerms'
 
-export default function Legal({ onNavigate }: { onNavigate: (id: string) => void }) {
+export default function Legal() {
   return (
     <main className="min-h-screen bg-mint-50 px-4 py-10">
       <div className="mx-auto max-w-3xl">
         <div className="mb-8 flex items-center justify-between gap-4">
-          <button onClick={() => onNavigate('home')} className="flex items-center gap-2 font-bold text-ink"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-xs text-white">K</span>KlikZarada</button>
-          <Btn variant="secondary" size="sm" onClick={() => onNavigate('home')}>Nazad na početnu</Btn>
+          <a href="/" className="flex items-center gap-2 font-bold text-ink"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-xs text-white">K</span>KlikZarada</a>
+          <a href="/" className="inline-flex min-h-11 items-center rounded-lg border border-blue-200 px-3 text-sm font-semibold text-blue-700">Nazad na početnu</a>
         </div>
         <SectionHeader title="Pravila i privatnost" description="Operativni sažetak pravila platforme. Rokovi i puni pravni tekstovi zahtevaju zasebnu potvrdu pre predstavljanja kao konačni uslovi." />
         <div className="space-y-4">

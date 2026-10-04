@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Btn, Card, EmptyState, Select } from '../components/ui'
 import { api, type Task } from '../lib/api'
 import PublicTaskDetail, { proofName } from './PublicTaskDetail'
-import { taskRewardDetails } from '../lib/taskPresentation'
+import { taskMinimumMinutes, taskRewardDetails } from '../lib/taskPresentation'
 
 const categoryColors = ['bg-blue-100 text-blue-700', 'bg-violet-100 text-violet-700', 'bg-teal-100 text-teal-700', 'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-700']
 
@@ -18,8 +18,8 @@ function taskView(task: Task) {
   }
 }
 
-export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) => void }) {
-  const [cat, setCat] = useState('')
+export default function TasksPublic() {
+  const [cat, setCat] = useState(() => new URLSearchParams(window.location.search).get('category') || '')
   const [level, setLevel] = useState('')
   const [query, setQuery] = useState('')
   // Banneri mogu voditi direktno na jedan objavljen zadatak.
@@ -51,7 +51,7 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
     return true
   }).sort((left, right) => {
     if (sort === 'reward') return right.reward_rsd - left.reward_rsd
-    if (sort === 'time') return left.estimated_minutes - right.estimated_minutes
+    if (sort === 'time') return taskMinimumMinutes(left) - taskMinimumMinutes(right)
     return Number(right.sponsored) - Number(left.sponsored) || Number(right.featured) - Number(left.featured) || right.reward_rsd - left.reward_rsd
   })
   const categories = [...new Set(tasks.map(task => task.category).filter(Boolean))].sort()
@@ -64,13 +64,13 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
     <div className="min-h-screen bg-mint-50 text-ink">
       <header className="bg-white border-b border-frame sticky top-0 z-40 shadow-sm">
         <div className="w-full max-w-none px-4 sm:px-6 xl:px-8 2xl:px-10 h-14 flex items-center gap-3">
-          <button onClick={() => onNavigate('home')} className="flex items-center gap-2 cursor-pointer">
+          <a href="/" className="flex items-center gap-2">
             <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-xs shadow-sm">K</div>
             <span className="font-bold text-ink text-sm">KlikZarada</span>
-          </button>
+          </a>
           <div className="flex-1" />
-          <Btn onClick={() => onNavigate('login')} variant="ghost" size="sm">Prijava</Btn>
-          <Btn onClick={() => onNavigate('register')} size="sm">Registruj se</Btn>
+          <a href="/prijava" className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold text-blue-700">Prijava</a>
+          <a href="/registracija" className="inline-flex min-h-11 items-center rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white">Registruj se</a>
         </div>
       </header>
 
@@ -110,7 +110,7 @@ export default function TasksPublic({ onNavigate }: { onNavigate: (id: string) =
           <span className="text-blue-800 text-sm flex-1">
             🔐 <strong>Prijavljivanje obavezno.</strong> Registruj se besplatno da bi mogao/la da preuzimaš zadatke, pratiš dokaze i zatražiš isplatu na sačuvanu PayPal adresu.
           </span>
-          <Btn onClick={() => onNavigate('register')} size="sm">Registruj se besplatno</Btn>
+          <a href="/registracija" className="inline-flex min-h-11 items-center rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white">Registruj se besplatno</a>
         </div>
 
         {error && <div className="mb-5 rounded-xl border border-coral-200 bg-coral-50 p-4 text-sm text-coral-700" role="alert">{error}</div>}

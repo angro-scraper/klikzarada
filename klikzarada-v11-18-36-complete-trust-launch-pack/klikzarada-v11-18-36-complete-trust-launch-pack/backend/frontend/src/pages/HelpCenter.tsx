@@ -3,7 +3,7 @@ import { Btn, Card } from '../components/ui'
 import { ServiceTerms } from '../components/ServiceTerms'
 
 const guides = [
-  { audience: 'Korisnici', icon: '📋', title: 'Kako preuzeti i završiti zadatak', body: 'Izaberi zadatak, pročitaj instrukcije i dokaz pre početka. Radi u aktivnom tabu, pošalji traženi rezultat, pa prati odluku oglašivača u svojim dokazima.' },
+  { audience: 'Korisnici', icon: '📋', title: 'Kako preuzeti i završiti zadatak', body: 'Izaberi zadatak i pročitaj uslove pre početka. Kod zadatka u browseru prati pravilo aktivnog taba ako je navedeno. Kod testa aplikacije koristi samu aplikaciju, a zatim pošalji traženi dnevni izveštaj. Odluku prati u svojim dokazima.' },
   { audience: 'Korisnici', icon: '💸', title: 'Kada je nagrada raspoloživa', body: 'Nagrada najpre ima status na čekanju. Kada oglašivač odobri dokaz, prelazi u raspoloživ saldo. Isplatu možeš zatražiti tek po dostizanju minimalnog iznosa i uz sačuvanu PayPal adresu.' },
   { audience: 'Oglašivači', icon: '🎯', title: 'Kako postaviti dobar zadatak', body: 'Navedi poslovni cilj, tačne korake, ko može da radi zadatak, šta je prihvatljiv dokaz i koliko vremena realno traje. Ne objavljuj zahteve za lažne recenzije, klikove ili pratioce.' },
   { audience: 'Oglašivači', icon: '🖼️', title: 'Banner i VIP pozicije', body: 'Izaberi poziciju, period od 1 do 31 dana i kreativni materijal. Rezervacija se vidi pre slanja, a banner ili isticanje postaje vidljivo tek nakon administrativne provere.' },
@@ -23,9 +23,9 @@ export default function HelpCenter({ onNavigate }: { onNavigate: (id: string) =>
     <main className="min-h-screen bg-mint-50 text-ink">
       <header className="sticky top-0 z-40 border-b border-frame bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
-          <button onClick={() => onNavigate('home')} className="flex items-center gap-2 font-bold"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-sm text-white">K</span>KlikZarada</button>
+          <a href="/" className="flex items-center gap-2 font-bold"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-sm text-white">K</span>KlikZarada</a>
           <div className="flex-1" />
-          <Btn size="sm" variant="secondary" onClick={() => onNavigate('home')}>Nazad na početnu</Btn>
+          <a href="/" className="inline-flex min-h-11 items-center rounded-lg border border-blue-200 px-3 text-sm font-semibold text-blue-700">Nazad na početnu</a>
         </div>
       </header>
 

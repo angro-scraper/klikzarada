@@ -31,7 +31,7 @@ from .security import create_session_token, hash_password, is_legacy_session, ma
 from .login_guard import admin_identity_allowed, authenticate_login
 from .ui_api import REFERRAL_INVITER_BONUS_RSD, _banner_public_target, _grant_referral_bonus_if_eligible, _start_approved_platform_banner, router as ui_api_router
 
-app = FastAPI(title="KlikZarada V11.18.64 Banner Image Fix", version="11.18.64")
+app = FastAPI(title="KlikZarada V11.18.65 Task Terms and Payment Integrity", version="11.18.65")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 SPA_DIR = Path("app/static/app-ui")
 

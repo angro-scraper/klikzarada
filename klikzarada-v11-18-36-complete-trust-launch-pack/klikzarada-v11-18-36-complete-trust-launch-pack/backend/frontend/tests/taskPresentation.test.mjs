@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { taskRewardDetails } from '../src/lib/taskPresentation.ts'
+import { taskMinimumMinutes, taskRewardDetails } from '../src/lib/taskPresentation.ts'
 
 const beta = {
   reward_rsd: 280, estimated_minutes: 5, total_slots: 20, used_slots: 2,
@@ -14,6 +14,12 @@ test('beta test separates total, daily payout, and daily effort', () => {
   assert.match(result.unit, /20 RSD po odobrenom danu/)
   assert.equal(result.time, 'Najmanje 5 min dnevno tokom 14 dana')
   assert.equal(result.places, 18)
+})
+
+test('shortest-duration sorting compares the full beta commitment', () => {
+  assert.equal(taskMinimumMinutes(beta), 70)
+  assert.equal(taskMinimumMinutes({ ...beta, requires_tester_enrollment: false, estimated_minutes: 8 }), 8)
+  assert.equal(taskMinimumMinutes({ ...beta, tester_daily_minutes: 0 }), Number.POSITIVE_INFINITY)
 })
 
 test('one-off task has one approval, not a daily projection', () => {

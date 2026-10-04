@@ -588,6 +588,7 @@ def _task_data(task: Task) -> dict:
         "estimated_minutes": task.estimated_minutes,
         "repeat_interval_hours": max(0, int(task.repeat_interval_hours or 0)),
         "submission_deadline_hours": max(1, int(task.submission_deadline_hours or 24)),
+        "deadline_text": task.deadline_text,
         "max_proof_revisions": max(0, int(task.max_proof_revisions or 0)),
         "min_quality_score": _money(task.min_quality_score or 0),
         "min_user_level": task.min_user_level or "Bronza",
@@ -3170,6 +3171,8 @@ def _complete_paypal_checkout(db: Session, checkout: PayPalCheckout, order: dict
     db.refresh(checkout, with_for_update=True)
     if checkout.status == "completed":
         return False
+    if str(order.get("id") or "") != str(checkout.paypal_order_id or ""):
+        raise HTTPException(400, "PayPal potvrda ne pripada očekivanoj porudžbini. Uplata nije knjižena.")
     capture = _paypal_capture_data(order)
     expected = Decimal(str(checkout.amount_eur)).quantize(Decimal("0.01"))
     if not capture or capture[1].quantize(Decimal("0.01")) != expected:

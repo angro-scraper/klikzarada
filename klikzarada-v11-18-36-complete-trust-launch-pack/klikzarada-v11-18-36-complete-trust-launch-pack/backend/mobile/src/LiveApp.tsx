@@ -3,6 +3,7 @@ import { api, type Account, type AdvertiserDashboard, type ChatInboxItem, type C
 import { Badge, Icon, Logo, PageTitle, PrimaryButton, TaskCard } from './components';
 import CampaignBuilder from './CampaignBuilder';
 import coinLogo from './assets/klikzarada-coins.svg';
+import { taskTerms } from './taskTerms';
 
 type Dashboard = UserDashboard | AdvertiserDashboard;
 type Screen = 'home' | 'tasks' | 'my' | 'detail' | 'wallet' | 'profile' | 'campaigns' | 'campaign-new' | 'testers' | 'proofs' | 'messages' | 'chat' | 'notifications';
@@ -234,7 +235,7 @@ export default function LiveApp() {
   if (!dashboard) return <div className="live-loader"><Logo/><ErrorNote error={error}/><PrimaryButton onClick={() => { setLoading(true); void refresh(account).finally(() => setLoading(false)); }}>Pokušaj ponovo</PrimaryButton></div>;
 
   const nav: Array<[string, string, Screen]> = isUser ? [['Početna','home','home'],['Zadaci','list','tasks'],['Moji','user','my'],['Poruke','chat','messages'],['Novčanik','wallet','wallet']] : [['Pregled','home','home'],['Kampanje','campaign','campaigns'],['Testeri','users','testers'],['Dokazi','proof','proofs'],['Poruke','chat','messages']];
-  const taskList = (items: Task[]) => items.length ? items.map(task => <TaskCard key={task.id} title={task.title} description={task.description} reward={money(task.requires_tester_enrollment ? task.tester_daily_reward_rsd || task.reward_rsd : task.reward_rsd)} time={`${task.estimated_minutes || task.tester_daily_minutes || 5} min${task.requires_tester_enrollment ? '/dan' : ''}`} status={proofLabel(task)} onClick={() => openTask(task)}/>) : <Empty>Ovde trenutno nema zadataka.</Empty>;
+  const taskList = (items: Task[]) => items.length ? items.map(task => { const terms = taskTerms(task); return <TaskCard key={task.id} title={task.title} description={task.description} reward={terms.total} daily={terms.daily} time={terms.time} status={proofLabel(task)} onClick={() => openTask(task)}/>; }) : <Empty>Ovde trenutno nema zadataka.</Empty>;
   const myTasks = data?.my_tasks || [];
   const activeTask = myTasks.find(task => task.tester_enrollment?.status === 'invited') || myTasks[0];
   const recommendedTask = (data?.tasks || []).find(task => !myTasks.some(mine => mine.id === task.id));
@@ -287,12 +288,12 @@ export default function LiveApp() {
       </>}
       {screen === 'detail' && currentTask && <div className="detail"><button className="live-back" onClick={() => go(isUser ? 'tasks' : 'campaigns')}>‹ Nazad</button>
         <div className="task-hero"><div className="task-logo chart"><Icon name={currentTask.requires_tester_enrollment ? 'chart' : 'file'} size={26}/></div><div><span className="eyebrow">{currentTask.requires_tester_enrollment ? 'ZATVORENI BETA TEST' : currentTask.category.toLocaleUpperCase('sr')}</span><h1>{currentTask.title}</h1><p>{currentTask.description}</p></div></div>
-        {isUser && <><div className="reward-strip"><div><small>Nagrada</small><strong>{money(currentTask.requires_tester_enrollment ? currentTask.tester_daily_reward_rsd || currentTask.reward_rsd : currentTask.reward_rsd)}</strong></div><div><small>Potrebno vreme</small><strong>{currentTask.estimated_minutes || currentTask.tester_daily_minutes || 5} min{currentTask.requires_tester_enrollment ? '/dan' : ''}</strong></div></div><div className="safe-note"><Icon name="lock"/><span>Nagrada ulazi u saldo tek nakon pregleda i odobrenja dokaza.</span></div></>}
+        {isUser && <><div className="reward-strip"><div><small>Ukupna nagrada</small><strong>{taskTerms(currentTask).total}</strong>{taskTerms(currentTask).daily && <small>{taskTerms(currentTask).daily}</small>}</div><div><small>Potrebno vreme</small><strong>{taskTerms(currentTask).time}</strong></div></div><div className="safe-note"><Icon name="lock"/><span>Nagrada ulazi u saldo tek nakon pregleda i odobrenja dokaza.</span></div></>}
         <h2>{isUser ? 'Kako funkcioniše' : 'Uputstvo kampanje'}</h2>
         {isUser && currentTask.requires_tester_enrollment ? <ol className="steps">
           <li><span>1</span><div><strong>Prijavi email za test</strong><p>Može biti drugačiji od emaila tvog KlikZarada naloga.</p></div></li>
           <li><span>2</span><div><strong>Sačekaj aktivaciju</strong><p>Oglašivač potvrđuje pristup testu.</p></div></li>
-          <li><span>3</span><div><strong>Testiraj {currentTask.tester_progress?.duration_days || 14} dana</strong><p>Koristi aplikaciju najmanje {currentTask.tester_daily_minutes || currentTask.estimated_minutes || 5} minuta dnevno.</p></div></li>
+          <li><span>3</span><div><strong>Testiraj prema uslovima kampanje</strong><p>{taskTerms(currentTask).time}</p></div></li>
           <li><span>4</span><div><strong>Pošalji dnevni izveštaj</strong><p>Svaki dokaz se pregleda zasebno.</p></div></li>
         </ol> : <div className="requirement"><Icon name="file"/><div><strong>Šta treba uraditi</strong><p className="live-preline">{currentTask.instructions}</p></div></div>}
         {isUser && currentTask.requires_tester_enrollment && <details className="live-task-instructions"><summary><Icon name="file" size={18}/> Pročitaj detaljna uputstva kampanje <Icon name="chevron" size={17}/></summary><div><p className="live-preline">{currentTask.instructions}</p></div></details>}

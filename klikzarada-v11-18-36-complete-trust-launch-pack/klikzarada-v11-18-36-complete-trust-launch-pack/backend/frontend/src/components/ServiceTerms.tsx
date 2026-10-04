@@ -21,7 +21,8 @@ export function ServiceTerms() {
   return <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-5 text-sm leading-6 text-ink-2" role="status">
     <h2 className="text-lg font-bold text-ink">Nagrade i isplate</h2>
     {terms ? <>
-      <p className="mt-2">Saldo se vodi u {terms.wallet_currency}. Minimalni iznos za zahtev za isplatu je <strong className="text-ink">{terms.min_withdrawal_rsd.toLocaleString('sr-RS')} RSD</strong>; potrebna je sačuvana PayPal adresa. Dnevna nagrada prelazi u raspoloživ saldo tek po odobrenju dokaza.</p>
+      <p className="mt-2">Saldo se vodi u {terms.wallet_currency}. Minimalni iznos za zahtev za isplatu je <strong className="text-ink">{terms.min_withdrawal_rsd.toLocaleString('sr-RS')} RSD</strong>; potrebna je sačuvana PayPal adresa. Nagrada prelazi u raspoloživ saldo tek po odobrenju dokaza.</p>
+      <p className="mt-2">Zahtev rezerviše iznos u RSD i ide na administrativnu proveru. Ako se isplata šalje preko PayPal-a, platforma je obrađuje u EUR; kurs i eventualni troškovi konverzije nisu unapred zaključani pri podnošenju zahteva. Za tačan obračun obrati se podršci pre podnošenja.</p>
       <p className="mt-2">Rok pregleda dokaza i rok obrade isplate još nisu objavljeni kao garantovani rokovi. Za status, prigovor ili problem sa pristupom piši na <a className="font-semibold text-blue-700 underline" href={`mailto:${terms.support_email}`}>{terms.support_email}</a>.</p>
     </> : <p className="mt-2">{error ? 'Trenutno ne možemo učitati pravila isplate. Proveri u novčaniku ili kontaktiraj podršku.' : 'Učitavanje potvrđenih pravila isplate...'}</p>}
   </div>
