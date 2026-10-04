@@ -67,7 +67,7 @@ function BannerCard({ banner, variant = 'card' }: { banner: PaidBanner; variant?
   const imageUrl = banner.image_url ? optimizedBannerImageUrl(banner.image_url) : ''
   const targetUrl = banner.target_url?.trim()
   const bannerCard = (
-    <div ref={cardRef} className={`group relative block aspect-[3/1] overflow-hidden rounded-2xl border border-blue-200 bg-slate-100 shadow-sm transition-all ${targetUrl ? 'cursor-pointer hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-lg' : 'cursor-default'}`}>
+    <div ref={cardRef} className={`group relative block min-w-0 aspect-[3/1] overflow-hidden rounded-2xl border border-blue-200 bg-slate-100 shadow-sm transition-all ${targetUrl ? 'cursor-pointer hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-lg' : 'cursor-default'}`}>
       {imageUrl && <>
         <img src={imageUrl} alt="" aria-hidden="true" className="absolute -inset-5 h-[calc(100%+2.5rem)] w-[calc(100%+2.5rem)] object-cover object-center opacity-35 blur-2xl" />
         <div className="absolute inset-0 bg-slate-950/10" />
@@ -85,7 +85,7 @@ function BannerCard({ banner, variant = 'card' }: { banner: PaidBanner; variant?
     </div>
   )
 
-  return targetUrl ? <a href={targetUrl} target="_blank" rel="noopener noreferrer sponsored" className="block rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600">{bannerCard}</a> : bannerCard
+  return targetUrl ? <a href={targetUrl} target="_blank" rel="noopener noreferrer sponsored" className="block min-w-0 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600">{bannerCard}</a> : bannerCard
 }
 
 export default function Landing({ onNavigate }: { onNavigate: (id: string) => void }) {

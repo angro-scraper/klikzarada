@@ -18,7 +18,7 @@ os.chdir(BACKEND_DIR)
 sys.path.insert(0, str(BACKEND_DIR))
 
 from app.database import Base  # noqa: E402
-from app.models import AppTesterDailyCheckin, AppTesterEnrollment, Task, User  # noqa: E402
+from app.models import AppTesterDailyCheckin, AppTesterEnrollment, Task, User, WalletTransaction  # noqa: E402
 from app.security import create_session_token  # noqa: E402
 from app.ui_api import (  # noqa: E402
     TesterCohortStartPayload,
@@ -130,6 +130,56 @@ class TesterIdentityTests(unittest.TestCase):
         self.db.refresh(pending)
         self.assertEqual(pending.status, "pending")
         self.assertEqual(self.first.balance_rsd, 0)
+
+    def test_daily_checkin_cannot_be_submitted_twice(self):
+        self.tasks[0].tester_daily_reward_rsd = 20
+        self.db.add(AppTesterEnrollment(
+            task_id=self.tasks[0].id, user_id=self.first.id,
+            testing_email=self.first.email, status="invited", invited_at=datetime.utcnow(),
+        ))
+        self.db.commit()
+        payload = TesterDailyCheckinPayload(note="Testirao sam prijavu i navigaciju")
+        create_tester_daily_checkin(self.tasks[0].id, payload, self.request(self.first), self.db)
+        with self.assertRaises(HTTPException) as caught:
+            create_tester_daily_checkin(self.tasks[0].id, payload, self.request(self.first), self.db)
+        self.assertEqual(caught.exception.status_code, 409)
+        self.db.refresh(self.first)
+        self.assertEqual(self.db.query(AppTesterDailyCheckin).count(), 1)
+        self.assertEqual(self.first.pending_rsd, 20)
+
+    def test_invited_tester_sees_today_deadline_in_utc(self):
+        self.db.add(AppTesterEnrollment(
+            task_id=self.tasks[0].id, user_id=self.first.id,
+            testing_email=self.first.email, status="invited", invited_at=datetime.utcnow(),
+        ))
+        self.db.commit()
+        progress = user_dashboard(self.request(self.first), self.db)["my_tasks"][0]["tester_progress"]
+        self.assertEqual(progress["current_day"], 1)
+        self.assertTrue(progress["can_check_in"])
+        deadline = datetime.fromisoformat(progress["day_ends_at"].replace("Z", "+00:00"))
+        self.assertEqual((deadline - datetime.utcnow().astimezone(deadline.tzinfo)).days, 0)
+        self.assertEqual((deadline.hour, deadline.minute), (0, 0))
+
+    def test_another_advertiser_cannot_review_checkin_or_credit_wallet(self):
+        stranger = User(full_name="Drugi oglašivač", email="stranger@example.com", password_hash="hash", role="oglasivac")
+        self.db.add(stranger)
+        self.db.flush()
+        checkin = AppTesterDailyCheckin(
+            task_id=self.tasks[0].id, user_id=self.first.id, day_number=1,
+            note="Dnevni izveštaj", reward_rsd=20, status="pending",
+        )
+        self.db.add(checkin)
+        self.db.commit()
+        with self.assertRaises(HTTPException) as caught:
+            review_tester_daily_checkin(
+                checkin.id, AdminStatusPayload(status="approved"), self.request(stranger), self.db,
+            )
+        self.assertEqual(caught.exception.status_code, 404)
+        self.db.refresh(checkin)
+        self.db.refresh(self.first)
+        self.assertEqual(checkin.status, "pending")
+        self.assertEqual(self.first.balance_rsd, 0)
+        self.assertEqual(self.db.query(WalletTransaction).count(), 0)
 
 
 if __name__ == "__main__":

@@ -21,7 +21,7 @@ export type Task = {
   proof_required: string; requires_tester_enrollment: boolean;
   tester_store?: 'ios' | 'android' | null;
   tester_enrollment?: TesterEnrollment | null; tester_checkins?: TesterCheckin[];
-  tester_progress?: { current_day: number; duration_days: number; can_check_in: boolean; complete: boolean };
+  tester_progress?: { current_day: number; duration_days: number; day_ends_at?: string | null; can_check_in: boolean; complete: boolean };
   tester_duration_days?: number; tester_daily_reward_rsd?: number; tester_daily_minutes?: number;
   target_url: string | null; submission_pending?: number; submission_approved?: number;
 };

@@ -129,6 +129,7 @@ export type TesterProgress = {
   started_at: string | null
   current_day: number
   days_elapsed: number
+  day_ends_at: string | null
   duration_days: number
   checkin_total: number
   checked_days: number[]

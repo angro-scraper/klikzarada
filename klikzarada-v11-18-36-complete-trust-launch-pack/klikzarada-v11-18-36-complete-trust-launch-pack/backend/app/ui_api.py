@@ -734,17 +734,23 @@ def _tester_checkin_data(item: AppTesterDailyCheckin) -> dict:
 
 def _tester_window_progress(task: Task, enrollment: AppTesterEnrollment | None, checkins: list[AppTesterDailyCheckin] | None = None) -> dict:
     """Expose user-declared progress without claiming visibility into app activity."""
+    now = datetime.utcnow()
     duration = task.tester_duration_days or 14
     started_at = enrollment.invited_at if enrollment and enrollment.status == "invited" else None
     checked_days = sorted({item.day_number for item in (checkins or []) if item.status in {"pending", "approved"}})
     current_day = 0
     if started_at:
-        current_day = max(1, (datetime.utcnow().date() - started_at.date()).days + 1)
+        current_day = max(1, (now.date() - started_at.date()).days + 1)
+    day_ends_at = None
+    if 1 <= current_day <= duration:
+        next_midnight_utc = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+        day_ends_at = next_midnight_utc.isoformat() + "Z"
     return {
         "started": bool(started_at),
         "started_at": _iso(started_at),
         "current_day": min(current_day, duration),
         "days_elapsed": current_day,
+        "day_ends_at": day_ends_at,
         "duration_days": duration,
         "checkin_total": len(checked_days),
         "checked_days": checked_days,
