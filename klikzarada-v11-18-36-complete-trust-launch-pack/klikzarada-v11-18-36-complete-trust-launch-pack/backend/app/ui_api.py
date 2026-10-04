@@ -39,6 +39,7 @@ from .models import (
     AppTesterDailyCheckin,
     AppTesterDailyAttachment,
     AppTesterEnrollment,
+    BannerImageAsset,
     AdvertiserBudgetTransaction,
     AntiFraudDeviceV1,
     AuditLog,
@@ -998,6 +999,15 @@ _BANNER_IMAGE_FORMATS = {"JPEG": ".jpg", "PNG": ".png", "WEBP": ".webp"}
 
 def _banner_upload_url(filename: str) -> str:
     return f"/api/ui/public/banner-files/{filename}"
+
+
+def _save_banner_asset(db: Session, content: bytes, media_type: str) -> str:
+    suffix = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/svg+xml": ".svg"}.get(media_type)
+    if not suffix:
+        raise ValueError("Unsupported banner media type")
+    filename = f"{uuid4().hex}{suffix}"
+    db.add(BannerImageAsset(filename=filename, image_data=content, media_type=media_type))
+    return _banner_upload_url(filename)
 
 
 def _promotion_price(promotion_type: str, days_count: int) -> float:
@@ -2882,16 +2892,23 @@ async def upload_advertiser_banner(
         raise HTTPException(400, "Podržani su samo JPG, PNG i WEBP banneri.")
     if width < 200 or height < 80 or width > 6000 or height > 6000:
         raise HTTPException(400, "Dimenzije bannera moraju biti između 200x80 i 6000x6000 px.")
-    _BANNER_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    filename = f"{uuid4().hex}{suffix}"
-    (_BANNER_UPLOAD_DIR / filename).write_bytes(content)
-    return {"image_url": _banner_upload_url(filename), "width": width, "height": height, "warning": "Fajl je sačuvan na disku aplikacije. Za trajno čuvanje posle redeploy-a podesi BANNER_UPLOAD_DIR na persistent disk ili object storage."}
+    image_url = _save_banner_asset(db, content, {".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}[suffix])
+    db.commit()
+    return {"image_url": image_url, "width": width, "height": height}
 
 
 @router.get("/public/banner-files/{filename}")
-def uploaded_banner_file(filename: str) -> FileResponse:
+def uploaded_banner_file(filename: str, db: Session = Depends(get_db)) -> Response:
     safe_name = Path(filename).name
-    if safe_name != filename or not re.fullmatch(r"[a-f0-9]{32}\.(?:jpg|png|webp)", safe_name):
+    if safe_name != filename or not re.fullmatch(r"[a-f0-9]{32}\.(?:jpg|png|webp|svg)", safe_name):
+        raise HTTPException(404, "Banner nije pronađen.")
+    asset = db.query(BannerImageAsset).filter(BannerImageAsset.filename == safe_name).first()
+    if asset:
+        headers = {"Cache-Control": "public, max-age=86400", "X-Content-Type-Options": "nosniff"}
+        if asset.media_type == "image/svg+xml":
+            headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+        return Response(content=asset.image_data, media_type=asset.media_type, headers=headers)
+    if safe_name.endswith(".svg"):
         raise HTTPException(404, "Banner nije pronađen.")
     path = _BANNER_UPLOAD_DIR / safe_name
     if not path.is_file():

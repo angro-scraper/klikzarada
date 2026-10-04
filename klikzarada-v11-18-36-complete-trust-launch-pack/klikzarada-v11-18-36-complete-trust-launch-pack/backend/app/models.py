@@ -1774,6 +1774,15 @@ class PaidAdBannerV111(Base):
     slot = relationship("HomeBannerSlotV111")
 
 
+class BannerImageAsset(Base):
+    __tablename__ = "banner_image_assets"
+    id = Column(Integer, primary_key=True)
+    filename = Column(String(40), unique=True, index=True, nullable=False)
+    media_type = Column(String(40), nullable=False)
+    image_data = Column(LargeBinary, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class ModeratedContentRevision(Base):
     __tablename__ = "moderated_content_revisions"
     id = Column(Integer, primary_key=True, index=True)

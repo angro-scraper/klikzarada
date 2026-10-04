@@ -29,9 +29,9 @@ from .analytics import PUBLIC_PAGEVIEW_PATHS, is_public_pageview_path, start_cle
 from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, TaskSourceV11, SecurityEvent, KycDocument, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
 from .security import create_session_token, hash_password, is_legacy_session, make_referral_code, read_session_token, running_in_production, session_matches_user, verify_password
 from .login_guard import admin_identity_allowed, authenticate_login
-from .ui_api import REFERRAL_INVITER_BONUS_RSD, _banner_public_target, _grant_referral_bonus_if_eligible, _start_approved_platform_banner, router as ui_api_router
+from .ui_api import REFERRAL_INVITER_BONUS_RSD, _banner_public_target, _grant_referral_bonus_if_eligible, _save_banner_asset, _start_approved_platform_banner, router as ui_api_router
 
-app = FastAPI(title="KlikZarada V11.18.71 Private Daily Screenshots", version="11.18.71")
+app = FastAPI(title="KlikZarada V11.18.72 Durable Banner Images", version="11.18.72")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 SPA_DIR = Path("app/static/app-ui")
 
@@ -7348,7 +7348,7 @@ async def advertiser_ad_create_v111(request: Request, slot_id: int = Form(...), 
 
     db.add(PaidAdBannerV111(
         advertiser_id=u.id, slot_id=slot.id, title=title.strip(), body=body.strip() or None,
-        image_url=(await v11828_final_banner_image(slot, title.strip(), upload_image, image_url, image_fit, v11818_default_banner_image(slot.code))), target_url=target_url.strip() or "/",
+        image_url=(await v11828_final_banner_image(slot, title.strip(), upload_image, image_url, image_fit, v11818_default_banner_image(slot.code), db=db)), target_url=target_url.strip() or "/",
         price_rsd=price, view_cost_rsd=v111_price_rsd(db, "ad_view_cost_rsd", 8),
         viewer_reward_rsd=v111_price_rsd(db, "ad_view_reward_rsd", 5),
         days_count=days_count, status="pending",
@@ -7489,7 +7489,7 @@ async def admin_banner_edit_v1142(
     banner.title = title.strip()
     banner.body = body.strip() or None
     banner.target_url = target_url.strip() or "/"
-    banner.image_url = (await v11828_final_banner_image(banner.slot, title.strip(), upload_image, image_url, image_fit if 'image_fit' in locals() else 'cover', None)) or banner.image_url or (v11818_default_banner_image(banner.slot.code) if banner.slot else None)
+    banner.image_url = (await v11828_final_banner_image(banner.slot, title.strip(), upload_image, image_url, image_fit if 'image_fit' in locals() else 'cover', None, db=db)) or banner.image_url or (v11818_default_banner_image(banner.slot.code) if banner.slot else None)
     banner.price_rsd = price_rsd
     banner.view_cost_rsd = view_cost_rsd
     banner.viewer_reward_rsd = viewer_reward_rsd
@@ -7569,7 +7569,7 @@ async def admin_quick_banner_v1142(
         slot_id=slot.id,
         title=title.strip(),
         body=body.strip() or None,
-        image_url=(await v11828_final_banner_image(slot, title.strip(), upload_image, image_url, image_fit, v11818_default_banner_image(slot.code))),
+        image_url=(await v11828_final_banner_image(slot, title.strip(), upload_image, image_url, image_fit, v11818_default_banner_image(slot.code), db=db)),
         target_url=target_url.strip() or "/",
         price_rsd=daily_price * days_count,
         view_cost_rsd=v111_price_rsd(db, "ad_view_cost_rsd", 8) if "v111_price_rsd" in globals() else 8,
@@ -10719,7 +10719,7 @@ def v11819_theme_colors(theme: str | None, accent: str | None = None):
         "pink": ("#db2777", "#f472b6", "#ffffff"),
     }
     c1, c2, text = palette.get((theme or "blue").strip().lower(), palette["blue"])
-    if accent and accent.strip():
+    if accent and re.fullmatch(r"#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?", accent.strip()):
         text = accent.strip()
     return c1, c2, text
 
@@ -10793,13 +10793,9 @@ def v11819_make_banner_svg(slot_code: str | None, title: str, body: str, cta: st
     return svg
 
 
-def v11819_save_banner_svg(slot_code: str | None, title: str, body: str, cta: str = "Saznaj više", theme: str = "blue", accent: str = "#ffffff", icon: str = "megaphone"):
-    slug = "".join(ch.lower() if ch.isalnum() else "-" for ch in (title or "banner"))
-    slug = "-".join([x for x in slug.split("-") if x])[:50] or "banner"
-    name = f"{slug}-{int(time.time()*1000)}.svg"
-    path = GENERATED_BANNERS_DIR / name
-    path.write_text(v11819_make_banner_svg(slot_code, title, body, cta=cta, theme=theme, accent=accent, icon=icon), encoding="utf-8")
-    return f"/static/generated_banners/{name}"
+def v11819_save_banner_svg(slot_code: str | None, title: str, body: str, cta: str = "Saznaj više", theme: str = "blue", accent: str = "#ffffff", icon: str = "megaphone", *, db: Session):
+    content = v11819_make_banner_svg(slot_code, title, body, cta=cta, theme=theme, accent=accent, icon=icon).encode("utf-8")
+    return _save_banner_asset(db, content, "image/svg+xml")
 
 
 @app.post("/oglasivac/reklame-v111/maker")
@@ -10838,7 +10834,7 @@ async def advertiser_banner_maker_v11819(
         u.advertiser_budget_rsd -= price
         u.advertiser_reserved_rsd = float(getattr(u, "advertiser_reserved_rsd", 0) or 0) + price
         add_budget_tx(db, u, -price, "reserve_banner", f"Rezervisan budžet za banner: {title.strip()}")
-    image_url = (await v11828_final_banner_image(slot, title.strip(), upload_image, '', image_fit, None)) or v11819_save_banner_svg(slot.code, title.strip(), body.strip() or "Profesionalna reklama za vašu ponudu.", cta=cta, theme=theme, accent=accent, icon=icon)
+    image_url = (await v11828_final_banner_image(slot, title.strip(), upload_image, '', image_fit, None, db=db)) or v11819_save_banner_svg(slot.code, title.strip(), body.strip() or "Profesionalna reklama za vašu ponudu.", cta=cta, theme=theme, accent=accent, icon=icon, db=db)
     banner = PaidAdBannerV111(
         advertiser_id=u.id,
         slot_id=slot.id,
@@ -10962,7 +10958,7 @@ async def admin_banner_maker_v11819(
     }.get(status, status)
     if status not in ["active", "pending", "rejected", "expired"]:
         status = "pending"
-    image_url = (await v11828_final_banner_image(slot, title.strip(), upload_image, '', image_fit, None)) or v11819_save_banner_svg(slot.code, title.strip(), body.strip() or "Profesionalna reklama za vašu ponudu.", cta=cta, theme=theme, accent=accent, icon=icon)
+    image_url = (await v11828_final_banner_image(slot, title.strip(), upload_image, '', image_fit, None, db=db)) or v11819_save_banner_svg(slot.code, title.strip(), body.strip() or "Profesionalna reklama za vašu ponudu.", cta=cta, theme=theme, accent=accent, icon=icon, db=db)
     days_count = max(1, int(days_count or 7))
     daily_price = float(price_rsd or 0) if float(price_rsd or 0) > 0 else (float(slot.price_rsd or 0) / 7 if float(slot.price_rsd or 0) else 0)
     price_total = daily_price * days_count
@@ -11399,7 +11395,7 @@ def v11828_contain_resize(img, target_w: int, target_h: int):
     base.paste(img, (left, top))
     return base
 
-async def v11828_save_uploaded_banner_packed(slot, title: str, upload_image: UploadFile | None = None, image_fit: str = "cover"):
+async def v11828_save_uploaded_banner_packed(slot, title: str, upload_image: UploadFile | None = None, image_fit: str = "cover", *, db: Session):
     if not upload_image or not upload_image.filename:
         return None
 
@@ -11416,13 +11412,6 @@ async def v11828_save_uploaded_banner_packed(slot, title: str, upload_image: Upl
     _verified_image_suffix(data)
 
     target_w, target_h = v11828_slot_size(getattr(slot, "code", None))
-    upload_dir = Path("app/static/uploads/banners")
-    upload_dir.mkdir(parents=True, exist_ok=True)
-
-    safe_prefix = "".join(ch.lower() if ch.isalnum() else "-" for ch in (title or "banner"))[:42].strip("-") or "banner"
-    name = f"{safe_prefix}-packed-{target_w}x{target_h}-{int(time.time()*1000)}-{secrets.token_hex(4)}.jpg"
-    path = upload_dir / name
-
     from io import BytesIO
     img = Image.open(BytesIO(data))
     if img.mode in ("RGBA", "LA", "P"):
@@ -11440,11 +11429,12 @@ async def v11828_save_uploaded_banner_packed(slot, title: str, upload_image: Upl
     else:
         out = v11828_cover_resize(img, target_w, target_h)
 
-    out.save(path, "JPEG", quality=92, optimize=True)
-    return f"/static/uploads/banners/{name}"
+    output = BytesIO()
+    out.save(output, "JPEG", quality=92, optimize=True)
+    return _save_banner_asset(db, output.getvalue(), "image/jpeg")
 
-async def v11828_final_banner_image(slot, title: str, upload_image: UploadFile | None = None, image_url: str = "", image_fit: str = "cover", fallback_url: str | None = None):
-    packed = await v11828_save_uploaded_banner_packed(slot, title, upload_image, image_fit)
+async def v11828_final_banner_image(slot, title: str, upload_image: UploadFile | None = None, image_url: str = "", image_fit: str = "cover", fallback_url: str | None = None, *, db: Session):
+    packed = await v11828_save_uploaded_banner_packed(slot, title, upload_image, image_fit, db=db)
     if packed:
         return packed
     raw = (image_url or "").strip()
