@@ -86,6 +86,9 @@ export default function LiveApp() {
   const [notice, setNotice] = useState('');
   const [testingEmail, setTestingEmail] = useState('');
   const [note, setNote] = useState('');
+  const [reportDevice, setReportDevice] = useState('');
+  const [reportFeature, setReportFeature] = useState('');
+  const [loadedReportDraftKey, setLoadedReportDraftKey] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
@@ -108,6 +111,23 @@ export default function LiveApp() {
   const advertiser = dashboard && !isUser ? dashboard as AdvertiserDashboard : null;
   const tasks = dashboard?.tasks || [];
   const currentTask = tasks.find(task => task.id === selectedTask) || (data?.my_tasks || []).find(task => task.id === selectedTask);
+  const reportDraftKey = account && currentTask?.requires_tester_enrollment && currentTask.tester_progress?.can_check_in
+    ? `klikzarada:tester-report:${account.id}:${currentTask.id}:${currentTask.tester_progress.current_day}` : null;
+  useEffect(() => {
+    setLoadedReportDraftKey(null);
+    if (!reportDraftKey) return;
+    try {
+      const draft = JSON.parse(sessionStorage.getItem(reportDraftKey) || '{}') as { device?: string; feature?: string; result?: string };
+      setReportDevice(typeof draft.device === 'string' ? draft.device : '');
+      setReportFeature(typeof draft.feature === 'string' ? draft.feature : '');
+      setNote(typeof draft.result === 'string' ? draft.result : '');
+    } catch { setReportDevice(''); setReportFeature(''); setNote(''); }
+    setLoadedReportDraftKey(reportDraftKey);
+  }, [reportDraftKey]);
+  useEffect(() => {
+    if (!reportDraftKey || loadedReportDraftKey !== reportDraftKey) return;
+    try { sessionStorage.setItem(reportDraftKey, JSON.stringify({ device: reportDevice, feature: reportFeature, result: note })); } catch { /* Privatni režim može onemogućiti čuvanje nacrta. */ }
+  }, [reportDraftKey, loadedReportDraftKey, reportDevice, reportFeature, note]);
   const unread = notifications.filter(item => item.status !== 'read').length;
   const unreadMessages = notifications.filter(item => item.status !== 'read' && item.title === 'Nova poruka uz zadatak').length;
 
@@ -205,8 +225,24 @@ export default function LiveApp() {
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Akcija nije uspela.'); return false; }
     finally { setBusy(false); }
   };
+  const submitDailyCheckin = async (task: Task) => {
+    if (!reportDevice.trim() || !reportFeature.trim() || note.trim().length < 3) {
+      setError('Unesi uređaj, testiranu funkciju i rezultat (najmanje 3 znaka).');
+      return;
+    }
+    const report = `Datum: ${new Date().toLocaleDateString('sr-RS')}\nUređaj: ${reportDevice.trim()}\nTestirana funkcija: ${reportFeature.trim()}\nRezultat: ${note.trim()}`;
+    if (report.length > 1000) {
+      setError('Dnevni izveštaj je predugačak. Skrati tekst na najviše 1000 znakova ukupno.');
+      return;
+    }
+    const ok = await act(() => api.checkIn(task.id, report), 'Dnevni izveštaj je poslat na proveru.');
+    if (ok) {
+      if (reportDraftKey) { try { sessionStorage.removeItem(reportDraftKey); } catch { /* Slanje je već uspelo. */ } }
+      setLoadedReportDraftKey(null); setNote(''); setReportDevice(''); setReportFeature('');
+    }
+  };
   const go = (next: Screen) => { setAccountMenuOpen(false); setScreen(next); setError(''); setNotice(''); };
-  const openTask = (task: Task) => { setSelectedTask(task.id); setTestingEmail(task.tester_enrollment?.testing_email || ''); setNote(''); go('detail'); };
+  const openTask = (task: Task) => { setSelectedTask(task.id); setTestingEmail(task.tester_enrollment?.testing_email || ''); go('detail'); };
   const openChat = (item: ChatInboxItem) => { setSelectedChat(item); setChat(null); setMessage(''); go('chat'); };
   const openTaskChat = (taskId: number, participantId: number, participantName: string) => {
     openChat({ task_id: taskId, task_title: tasks.find(task => task.id === taskId)?.title || `Zadatak #${taskId}`, participant_id: participantId, participant_name: participantName, last_message: '', last_message_at: null });
@@ -282,6 +318,7 @@ export default function LiveApp() {
       {screen === 'my' && <><PageTitle subtitle="Nastavi gde si stao/la.">Moji zadaci</PageTitle><div className="tabs scroll">{['U toku', 'Na proveri', 'Na doradi', 'Završeno'].map(value => <button key={value} className={myTab === value ? 'active' : ''} onClick={() => setMyTab(value)}>{value}</button>)}</div>
         {shownMyTasks.map(task => <div className="active-card featured" key={task.id}><div className="task-main"><div className="task-logo chart"><Icon name="chart" size={26}/></div><div className="grow"><span className="eyebrow">{task.requires_tester_enrollment ? 'BETA TEST' : 'ZADATAK'}</span><strong>{task.title}</strong><p>{task.tester_enrollment?.status === 'invited' ? 'Dnevni izveštaj i napredak' : label[userTaskStatus(task)] || task.category}</p></div><Badge tone={statusTone(userTaskStatus(task))}>{label[userTaskStatus(task)] || 'U toku'}</Badge></div>
           {task.tester_enrollment?.status === 'invited' && <><div className="progress-label"><span>Dan {task.tester_progress?.current_day || 1} od {task.tester_progress?.duration_days || 14}</span><b>{Math.round(((task.tester_progress?.current_day || 1) / (task.tester_progress?.duration_days || 14)) * 100)}%</b></div><div className="progress"><i style={{width: `${Math.min(100, ((task.tester_progress?.current_day || 1) / (task.tester_progress?.duration_days || 14)) * 100)}%`}}/></div></>}
+          {task.tester_checkins?.some(item => item.status === 'rejected') && <p className="feedback orange">Jedan ili više dnevnih izveštaja je odbijeno. Otvori zadatak da vidiš razlog.</p>}
           <PrimaryButton onClick={() => openTask(task)}>{task.tester_enrollment?.status === 'invited' ? 'Nastavi i pošalji izveštaj' : 'Otvori zadatak'}</PrimaryButton></div>)}
         {!shownMyTasks.length && <div className="empty"><div><Icon name="file" size={30}/></div><h2>Nema zadataka u ovoj grupi</h2><p>Prijave i zadaci sa tvog naloga pojaviće se ovde.</p><PrimaryButton secondary onClick={() => go('tasks')}>Pronađi zadatak</PrimaryButton></div>}
         {myTab === 'U toku' && (data?.submissions || []).length > 0 && <><div className="section-head"><h2>Poslati dokazi</h2></div>{data?.submissions.map(item => <div className="review-card" key={item.id}><div className="task-main"><div className="task-logo chart"><Icon name="file"/></div><div className="grow"><strong>{item.task_title}</strong><p>{item.proof}</p></div><Badge tone={statusTone(item.status)}>{label[item.status] || item.status}</Badge></div>{item.review_note && <div className="feedback orange">{item.review_note}</div>}</div>)}</>}
@@ -300,7 +337,21 @@ export default function LiveApp() {
         <h2>Traženi dokaz</h2><div className="requirement"><Icon name="proof"/><div><strong>{proofLabel(currentTask)}</strong><p className="live-preline">{currentTask.proof_required}</p></div></div>
         {currentTask.target_url && (!isUser || !currentTask.requires_tester_enrollment || currentTask.tester_enrollment?.status === 'invited') && <a className="btn live-full-link" href={currentTask.target_url} target="_blank" rel="noreferrer">{currentTask.tester_store === 'ios' ? 'Instaliraj preko TestFlight-a' : 'Otvori odredišnu stranicu'} <Icon name="arrow"/></a>}
         {isUser && currentTask.requires_tester_enrollment && <div className="live-detail-action">{currentTask.tester_enrollment ? <><div className="context-card"><div className="task-logo chart"><Icon name="chart"/></div><div><strong>Status testiranja</strong><p>{currentTask.tester_store === 'ios' ? 'Apple ID' : 'Google Play'}: {currentTask.tester_enrollment.testing_email}</p></div><Badge tone={statusTone(currentTask.tester_enrollment.status)}>{label[currentTask.tester_enrollment.status] || currentTask.tester_enrollment.status}</Badge></div>
-          {currentTask.tester_enrollment.status === 'invited' && <><div className="deadline"><Icon name="clock"/><div><small>Dnevni izveštaj</small><strong>Dan {currentTask.tester_progress?.current_day || 1} od {currentTask.tester_progress?.duration_days || 14}</strong></div></div>{currentTask.tester_progress?.day_ends_at && <p className="center-note">Rok danas: {new Intl.DateTimeFormat('sr-RS', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(currentTask.tester_progress.day_ends_at))} po vremenu tvog uređaja.</p>}<label className="field textarea"><span>Šta si danas testirao/la?</span><textarea placeholder="Opiši korake, rezultat i eventualni problem..." value={note} onChange={event => setNote(event.target.value)}/></label><div className="info-box blue"><Icon name="file"/><div><strong>Svaki izveštaj se pregleda</strong><p>Slanje ne znači automatsko odobrenje ili zaradu.</p></div></div><PrimaryButton disabled={busy || !note.trim() || !currentTask.tester_progress?.can_check_in} onClick={() => void act(() => api.checkIn(currentTask.id, note.trim()), 'Dnevni izveštaj je poslat na proveru.')}>Pošalji izveštaj <Icon name="send"/></PrimaryButton>{!currentTask.tester_progress?.can_check_in && <p className="center-note">Današnji izveštaj još nije dostupan ili je već poslat.</p>}</>}
+          {currentTask.tester_enrollment.status === 'invited' && <>
+            <div className="deadline"><Icon name="clock"/><div><small>Dnevni izveštaj</small><strong>Dan {currentTask.tester_progress?.current_day || 1} od {currentTask.tester_progress?.duration_days || 14}</strong></div></div>
+            <p className="center-note">Dani se računaju po UTC kalendaru; prvi dan posle potvrde može biti kraći.</p>
+            {currentTask.tester_progress?.day_ends_at && <p className="center-note">Rok danas: {new Intl.DateTimeFormat('sr-RS', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(currentTask.tester_progress.day_ends_at))} po vremenu tvog uređaja.</p>}
+            {currentTask.tester_progress?.can_check_in && <>
+              <p className="center-note">Datum izveštaja: {new Date().toLocaleDateString('sr-RS')} po vremenu tvog uređaja.</p>
+              <label className="field"><span>Uređaj i sistem</span><div><Icon name="file"/><input placeholder="npr. iPhone 14, iOS 18" value={reportDevice} onChange={event => setReportDevice(event.target.value)}/></div></label>
+              <label className="field"><span>Testirana funkcija</span><div><Icon name="file"/><input placeholder="npr. prijava i otvaranje zadataka" value={reportFeature} onChange={event => setReportFeature(event.target.value)}/></div></label>
+              <label className="field textarea"><span>Rezultat i eventualni problem</span><textarea placeholder="Šta je radilo, šta nije i koliko približno minuta si testirao/la?" value={note} onChange={event => setNote(event.target.value)}/></label>
+              <div className="info-box blue"><Icon name="file"/><div><strong>Svaki izveštaj se pregleda</strong><p>Slanje ne znači automatsko odobrenje ili zaradu.</p></div></div>
+              <PrimaryButton disabled={busy || !reportDevice.trim() || !reportFeature.trim() || note.trim().length < 3} onClick={() => void submitDailyCheckin(currentTask)}>Pošalji izveštaj <Icon name="send"/></PrimaryButton>
+            </>}
+            {!currentTask.tester_progress?.can_check_in && <p className="center-note">Današnji izveštaj još nije dostupan ili je već poslat.</p>}
+            {(currentTask.tester_checkins || []).length > 0 && <div className="live-card"><strong>Poslati dnevni izveštaji</strong>{[...(currentTask.tester_checkins || [])].sort((a, b) => a.day_number - b.day_number).map(item => <div className="proof-text" key={item.id}><small>Dan {item.day_number}: {label[item.status] || item.status}</small><p className="live-preline">{item.note}</p>{item.review_note && <p className="feedback orange">Obrazloženje oglašivača: {item.review_note}</p>}</div>)}</div>}
+          </>}
           </> : <><PageTitle subtitle="Unesi email na koji možeš da primiš poziv za testiranje.">Još jedan korak</PageTitle><label className="field"><span>Email za testiranje</span><div><Icon name="mail"/><input type="email" placeholder="email@primer.rs" value={testingEmail} onChange={event => setTestingEmail(event.target.value)}/></div><small>Ne mora biti isti kao email KlikZarada naloga.</small></label><div className="info-box blue"><Icon name="lock"/><div><strong>Privatnost pre svega</strong><p>Email koristimo samo da oglašivač odobri pristup zatvorenom testu.</p></div></div><PrimaryButton disabled={busy || !testingEmail.includes('@')} onClick={() => void act(() => api.enrollTester(currentTask.id, testingEmail.trim()), 'Prijava za testiranje je poslata.')}>Pošalji prijavu</PrimaryButton></>}</div>}
         {isUser && !currentTask.requires_tester_enrollment && <div className="live-detail-action"><div className="info-box blue"><Icon name="lock"/><div><strong>Sigurna provera zadatka</strong><p>Server proverava aktivnost i vreme. Dokaz i saldo ostaju isti na sajtu i u aplikaciji.</p></div></div><a className="btn live-full-link" href={`/korisnik/zadaci/${currentTask.id}`}>Otvori proveru zadatka <Icon name="arrow"/></a></div>}
         {isUser && (currentTask.tester_enrollment || (data?.submissions || []).some(item => item.task_id === currentTask.id)) && <PrimaryButton secondary onClick={() => openTaskChat(currentTask.id, account.id, 'Oglašivač')}>Poruke uz zadatak</PrimaryButton>}

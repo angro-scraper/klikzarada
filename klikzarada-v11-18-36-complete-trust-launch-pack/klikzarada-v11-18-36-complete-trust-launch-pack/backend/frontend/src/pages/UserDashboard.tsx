@@ -151,6 +151,9 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const [testerEmail, setTesterEmail] = useState('')
   const [testerEmailConfirmTask, setTesterEmailConfirmTask] = useState<Task | null>(null)
   const [testerCheckinNote, setTesterCheckinNote] = useState('')
+  const [testerDevice, setTesterDevice] = useState('')
+  const [testerFeature, setTesterFeature] = useState('')
+  const [loadedTesterDraftKey, setLoadedTesterDraftKey] = useState<string | null>(null)
   const [verification, setVerification] = useState<TaskVerification | null>(null)
   const [payoutAmount, setPayoutAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('PayPal')
@@ -283,6 +286,23 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const payoutGap = Math.max(0, minWithdrawal - balance)
   const selectedTask = [...myTasks, ...activeTasks].find(task => task.id === selectedTaskId || task.id === submitProofModal)
   const selectedTesterProgress = selectedTask?.tester_progress
+  const testerDraftKey = user && selectedTask?.requires_tester_enrollment && selectedTesterProgress?.can_check_in
+    ? `klikzarada:tester-report:${user.id}:${selectedTask.id}:${selectedTesterProgress.current_day}` : null
+  useEffect(() => {
+    setLoadedTesterDraftKey(null)
+    if (!testerDraftKey) return
+    try {
+      const draft = JSON.parse(sessionStorage.getItem(testerDraftKey) || '{}') as { device?: string; feature?: string; result?: string }
+      setTesterDevice(typeof draft.device === 'string' ? draft.device : '')
+      setTesterFeature(typeof draft.feature === 'string' ? draft.feature : '')
+      setTesterCheckinNote(typeof draft.result === 'string' ? draft.result : '')
+    } catch { setTesterDevice(''); setTesterFeature(''); setTesterCheckinNote('') }
+    setLoadedTesterDraftKey(testerDraftKey)
+  }, [testerDraftKey])
+  useEffect(() => {
+    if (!testerDraftKey || loadedTesterDraftKey !== testerDraftKey) return
+    try { sessionStorage.setItem(testerDraftKey, JSON.stringify({ device: testerDevice, feature: testerFeature, result: testerCheckinNote })) } catch { /* Privatni režim može onemogućiti čuvanje nacrta. */ }
+  }, [testerDraftKey, loadedTesterDraftKey, testerDevice, testerFeature, testerCheckinNote])
   const selectedTaskRevision = selectedTask ? (dashboard?.submissions ?? []).find(submission => submission.task_id === selectedTask.id && submission.status === 'needs_revision') : undefined
   const canChatOnSelectedTask = Boolean(selectedTask && (
     ['requested', 'invited'].includes(selectedTask.tester_enrollment?.status || '') ||
@@ -356,14 +376,23 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   }
 
   async function submitTesterCheckin(task: Task) {
-    if (testerCheckinNote.trim().length < 3) {
-      showToast('Napiši kratko šta si danas testirao/la i da li si primetio/la problem.', 'error')
+    if (!testerDevice.trim() || !testerFeature.trim() || testerCheckinNote.trim().length < 3) {
+      showToast('Unesi uređaj, testiranu funkciju i rezultat (najmanje 3 znaka).', 'error')
+      return
+    }
+    const report = `Datum: ${new Date().toLocaleDateString('sr-RS')}\nUređaj: ${testerDevice.trim()}\nTestirana funkcija: ${testerFeature.trim()}\nRezultat: ${testerCheckinNote.trim()}`
+    if (report.length > 1000) {
+      showToast('Dnevni izveštaj je predugačak. Skrati tekst na najviše 1000 znakova ukupno.', 'error')
       return
     }
     setSaving(true)
     try {
-      await api.createTesterCheckin(task.id, testerCheckinNote)
+      await api.createTesterCheckin(task.id, report)
+      if (testerDraftKey) { try { sessionStorage.removeItem(testerDraftKey) } catch { /* Slanje je već uspelo. */ } }
+      setLoadedTesterDraftKey(null)
       setTesterCheckinNote('')
+      setTesterDevice('')
+      setTesterFeature('')
       await refreshDashboard()
       showToast('Dnevni izveštaj je poslat oglašivaču na odobrenje.', 'success')
     } catch (error) {
@@ -788,16 +817,20 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                         <p className="font-bold text-blue-950">Tvoj lični plan zatvorenog testa</p>
                         <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-blue-800">{selectedTesterProgress?.checkin_total || 0}/{selectedTask.tester_duration_days} dana prijavljeno</span>
                       </div>
-                      <p className="text-sm leading-6 text-blue-900">Od trenutka poziva imaš {selectedTask.tester_duration_days} uzastopnih dana. Svakog dana testiraj aplikaciju najmanje {selectedTask.tester_daily_minutes} minuta, zatim pošalji kratak izveštaj. Dnevna nagrada od {formatRsd(selectedTask.tester_daily_reward_rsd)} čeka odobrenje oglašivača.</p>
+                      <p className="text-sm leading-6 text-blue-900">Test traje {selectedTask.tester_duration_days} kalendarskih dana od dana potvrde pristupa. Dan se završava u ponoć po UTC vremenu, zato prvi dan može biti kraći. Svakog dana testiraj najmanje {selectedTask.tester_daily_minutes} minuta i pošalji izveštaj. Dnevna nagrada od {formatRsd(selectedTask.tester_daily_reward_rsd)} čeka odobrenje oglašivača.</p>
                       {selectedTesterProgress?.day_ends_at && <p className="text-sm font-semibold text-blue-900">Rok za današnji izveštaj: {new Intl.DateTimeFormat('sr-RS', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(selectedTesterProgress.day_ends_at))} po vremenu tvog uređaja.</p>}
                       {selectedTesterProgress?.days_elapsed && selectedTesterProgress.days_elapsed > selectedTask.tester_duration_days && !selectedTesterProgress.complete && <Alert type="error">Rok od {selectedTask.tester_duration_days} dana je istekao pre nego što su poslati svi dnevni izveštaji. Obrati se oglašivaču kroz podršku.</Alert>}
                       {selectedTask.target_url && <Btn onClick={() => window.open(selectedTask.target_url || '', '_blank', 'noopener,noreferrer')} variant="secondary">↗ {selectedTask.tester_store === 'ios' ? 'Instaliraj preko TestFlight-a' : 'Otvori aplikaciju / test link'}</Btn>}
                       {selectedTesterProgress?.can_check_in ? <div className="space-y-2">
                         <label className="block text-xs font-bold uppercase tracking-wide text-blue-900">Dnevni izveštaj, dan {selectedTesterProgress.current_day}</label>
-                        <textarea value={testerCheckinNote} onChange={event => setTesterCheckinNote(event.target.value)} rows={3} placeholder="Šta si danas testirao/la, koliko približno minuta i da li si primetio/la problem?" className="w-full resize-none rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-blue-500" />
+                        <p className="text-xs text-blue-900">Datum: {new Date().toLocaleDateString('sr-RS')} po vremenu tvog uređaja. Server proverava kome pripada izveštaj i koji je dan testa.</p>
+                        <Input label="Uređaj i sistem" placeholder="npr. Samsung A54, Android 15" value={testerDevice} onChange={setTesterDevice} />
+                        <Input label="Testirana funkcija" placeholder="npr. prijava i otvaranje zadataka" value={testerFeature} onChange={setTesterFeature} />
+                        <label className="block text-xs font-bold uppercase tracking-wide text-blue-900" htmlFor="tester-checkin-result">Rezultat i eventualni problem</label>
+                        <textarea id="tester-checkin-result" value={testerCheckinNote} onChange={event => setTesterCheckinNote(event.target.value)} rows={3} placeholder="Napiši šta je radilo, šta nije i približno koliko minuta si testirao/la." className="w-full resize-y rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-blue-500" />
                         <Btn disabled={saving} onClick={() => selectedTask && void submitTesterCheckin(selectedTask)} variant="success">Pošalji dnevni izveštaj</Btn>
                       </div> : <p className="text-sm font-medium text-blue-800">{selectedTesterProgress?.complete ? 'Poslao/la si sve potrebne dnevne izveštaje. Sačekaj odobrenja oglašivača.' : 'Današnji izveštaj je već poslat ili se otključava sledećeg dana.'}</p>}
-                      {(selectedTask.tester_checkins || []).length > 0 && <div className="border-t border-blue-200 pt-3 text-xs text-blue-900"><p className="mb-1 font-bold">Evidencija dana</p>{selectedTask.tester_checkins?.sort((a, b) => a.day_number - b.day_number).map(checkin => <p key={checkin.id}>Dan {checkin.day_number}: {checkin.status === 'approved' ? 'odobreno' : checkin.status === 'rejected' ? 'potrebna dorada' : 'čeka odobrenje'}</p>)}</div>}
+                      {(selectedTask.tester_checkins || []).length > 0 && <div className="border-t border-blue-200 pt-3 text-xs text-blue-900"><p className="mb-1 font-bold">Evidencija dana</p>{[...(selectedTask.tester_checkins || [])].sort((a, b) => a.day_number - b.day_number).map(checkin => <div key={checkin.id} className="py-1"><p>Dan {checkin.day_number}: {checkin.status === 'approved' ? 'odobreno' : checkin.status === 'rejected' ? 'odbijeno' : 'čeka odobrenje'}</p>{checkin.review_note && <p className="mt-1 rounded-md bg-white p-2">Obrazloženje oglašivača: {checkin.review_note}</p>}</div>)}</div>}
                     </div>
                   ) : (
                     <div className="flex gap-2">
