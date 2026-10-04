@@ -579,6 +579,16 @@ class KycDocument(Base):
     user = relationship("User")
 
 
+class KycDocumentAsset(Base):
+    __tablename__ = "kyc_document_assets"
+    id = Column(Integer, primary_key=True)
+    document_id = Column(Integer, ForeignKey("kyc_documents.id"), unique=True, nullable=False, index=True)
+    media_type = Column(String(40), nullable=False)
+    suffix = Column(String(8), nullable=False)
+    file_data = Column(LargeBinary, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class DataExportRequest(Base):
     __tablename__ = "data_export_requests"
     id = Column(Integer, primary_key=True, index=True)

@@ -26,12 +26,12 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from urllib.request import Request as UrlRequest, urlopen
 from .database import Base, engine, get_db, SessionLocal
 from .analytics import PUBLIC_PAGEVIEW_PATHS, is_public_pageview_path, start_clean_pageview_measurement
-from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, SubmissionProofAsset, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, TaskSourceV11, SecurityEvent, KycDocument, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
+from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, SubmissionProofAsset, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, TaskSourceV11, SecurityEvent, KycDocument, KycDocumentAsset, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
 from .security import create_session_token, hash_password, is_legacy_session, make_referral_code, read_session_token, running_in_production, session_matches_user, verify_password
 from .login_guard import admin_identity_allowed, authenticate_login
 from .ui_api import REFERRAL_INVITER_BONUS_RSD, _banner_public_target, _grant_referral_bonus_if_eligible, _save_banner_asset, _start_approved_platform_banner, router as ui_api_router
 
-app = FastAPI(title="KlikZarada V11.18.73 Durable Proof Files", version="11.18.73")
+app = FastAPI(title="KlikZarada V11.18.74 Durable Private Documents", version="11.18.74")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 SPA_DIR = Path("app/static/app-ui")
 
@@ -3770,8 +3770,6 @@ def user_kyc_page(request: Request, msg: str | None = None, db: Session = Depend
 def user_kyc_upload(request: Request, doc_type: str = Form("identity"), proof_file: UploadFile | None = File(None), db: Session = Depends(get_db)):
     u = require(request, db)
     check_role(u, ["korisnik", "admin"])
-    if running_in_production() and not os.getenv("KYC_UPLOAD_DIR", "").strip():
-        raise HTTPException(503, "Privatna pohrana dokumenata nije podešena.")
     if doc_type not in {"identity", "payment", "company"}:
         raise HTTPException(400, "Nepoznat tip dokumenta.")
     if not proof_file or not proof_file.filename:
@@ -3786,8 +3784,8 @@ def user_kyc_upload(request: Request, doc_type: str = Form("identity"), proof_fi
     doc = KycDocument(user_id=u.id, doc_type=doc_type, status="pending")
     db.add(doc)
     db.flush()
-    KYC_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    (KYC_UPLOAD_DIR / f"{doc.id}{suffix}").write_bytes(data)
+    media_type = "application/pdf" if suffix == ".pdf" else {".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp"}[suffix]
+    db.add(KycDocumentAsset(document_id=doc.id, media_type=media_type, suffix=suffix, file_data=data))
     doc.file_path = f"/kyc/files/{doc.id}"
     notify(db, None, "admin", "Nova KYC provera", f"Korisnik {u.full_name} je poslao dokument za verifikaciju.")
     create_security_event(db, u, "kyc_upload", "medium", "Korisnik je poslao KYC dokument.", request)
@@ -3801,11 +3799,20 @@ def kyc_file(doc_id: int, request: Request, db: Session = Depends(get_db)):
     doc = db.query(KycDocument).filter(KycDocument.id == doc_id).first()
     if not doc or (doc.user_id != u.id and u.role != "admin"):
         raise HTTPException(404)
+    asset = db.query(KycDocumentAsset).filter(KycDocumentAsset.document_id == doc.id).first()
+    if asset:
+        return Response(content=asset.file_data, media_type="application/octet-stream", headers={
+            "Cache-Control": "private, no-store",
+            "Content-Disposition": f'attachment; filename="dokument-{doc.id}{asset.suffix}"',
+            "X-Content-Type-Options": "nosniff",
+            "X-Robots-Tag": "noindex",
+            "Vary": "Cookie",
+        })
     for suffix in (".pdf", ".png", ".jpg", ".webp"):
         path = KYC_UPLOAD_DIR / f"{doc.id}{suffix}"
         if path.is_file():
             response = FileResponse(path, filename=f"dokument-{doc.id}{suffix}", media_type="application/octet-stream")
-            response.headers["Cache-Control"] = "no-store"
+            response.headers.update({"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex", "Vary": "Cookie"})
             return response
     raise HTTPException(404)
 

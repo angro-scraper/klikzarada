@@ -185,7 +185,7 @@ class SecurityHardeningTests(unittest.TestCase):
             self.assertEqual(result(proof_path, tokens["Advertiser"]).status_code, 200)
             self.assertEqual(result("/static/uploads/banners/public.png").status_code, 200)
 
-    def test_kyc_document_is_private_and_legacy_upload_works(self):
+    def test_kyc_document_is_private_and_database_upload_works(self):
         with self.sessions() as db:
             owner = User(full_name="Owner", email="owner@example.com", password_hash=hash_password("ownerpassword"), role="korisnik", status="active", referral_code="OWNER")
             stranger = User(full_name="Stranger", email="stranger@example.com", password_hash=hash_password("strangerpassword"), role="korisnik", status="active", referral_code="STRANGER")
@@ -201,15 +201,17 @@ class SecurityHardeningTests(unittest.TestCase):
             response = self.client.post("/korisnik/verifikacija", data={"doc_type": "identity"}, files={"proof_file": ("id.png", image.getvalue(), "image/png")}, headers={"cookie": f"kz_session={owner_cookie}"}, follow_redirects=False)
             self.assertEqual(response.status_code, 303, response.text)
             with self.sessions() as db:
-                from app.models import KycDocument
+                from app.models import KycDocument, KycDocumentAsset
                 doc = db.query(KycDocument).filter(KycDocument.user_id == owner_id).one()
                 self.assertEqual(doc.file_path, f"/kyc/files/{doc.id}")
+                self.assertEqual(db.query(KycDocumentAsset).filter(KycDocumentAsset.document_id == doc.id).count(), 1)
                 url = doc.file_path
+            self.assertEqual(list(Path(directory).iterdir()), [])
             self.assertEqual(self.client.get(url).status_code, 401)
             self.assertEqual(self.client.get(url, headers={"cookie": f"kz_session={stranger_cookie}"}).status_code, 404)
             downloaded = self.client.get(url, headers={"cookie": f"kz_session={owner_cookie}"})
             self.assertEqual(downloaded.status_code, 200)
-            self.assertEqual(downloaded.headers["cache-control"], "no-store")
+            self.assertEqual(downloaded.headers["cache-control"], "private, no-store")
             self.assertEqual(downloaded.content, image.getvalue())
 
 
