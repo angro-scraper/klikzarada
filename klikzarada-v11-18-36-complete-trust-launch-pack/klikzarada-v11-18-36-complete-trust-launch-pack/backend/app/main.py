@@ -31,7 +31,7 @@ from .security import create_session_token, hash_password, is_legacy_session, ma
 from .login_guard import admin_identity_allowed, authenticate_login
 from .ui_api import REFERRAL_INVITER_BONUS_RSD, _banner_public_target, _grant_referral_bonus_if_eligible, _start_approved_platform_banner, router as ui_api_router
 
-app = FastAPI(title="KlikZarada V11.18.69 Tester Report Clarity", version="11.18.69")
+app = FastAPI(title="KlikZarada V11.18.70 Private Proof Files", version="11.18.70")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 SPA_DIR = Path("app/static/app-ui")
 
@@ -149,6 +149,16 @@ async def serve_react_application(request: Request, call_next):
     path = request.url.path
     if path.startswith("/static/uploads/") and Path(path).suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp", ".pdf"}:
         return Response(status_code=404)
+    upload_name = path.removeprefix("/static/uploads/")
+    if path.startswith("/static/uploads/") and upload_name and "/" not in upload_name:
+        with SessionLocal() as db:
+            user = current_user(request, db)
+            submission = db.query(TaskSubmission).filter(TaskSubmission.proof_file == path).first() if user else None
+            task = db.get(Task, submission.task_id) if submission else None
+            if not user or not submission or not task or not (
+                user.role == "admin" or user.id == submission.user_id or user.id == task.advertiser_id
+            ):
+                return Response(status_code=404, headers={"Cache-Control": "no-store"})
     if request.method not in {"GET", "HEAD", "OPTIONS"}:
         origin = request.headers.get("origin", "")
         if origin:
@@ -172,6 +182,9 @@ async def serve_react_application(request: Request, call_next):
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    if path.startswith("/static/uploads/") and upload_name and "/" not in upload_name:
+        response.headers["Cache-Control"] = "private, no-store"
+        response.headers["Vary"] = "Cookie"
     if path.startswith(("/korisnik/", "/oglasivac/", "/admin", "/mobilna")):
         response.headers.setdefault("X-Robots-Tag", "noindex, nofollow")
     if request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https":

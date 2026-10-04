@@ -1,6 +1,7 @@
 """Security regression checks using only an isolated in-memory database."""
 
 import base64
+import asyncio
 import hashlib
 import hmac
 import io
@@ -12,7 +13,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 from fastapi import UploadFile
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -29,7 +30,7 @@ from app.database import Base, get_db  # noqa: E402
 from app import main, security  # noqa: E402
 from app.login_guard import authenticate_login  # noqa: E402
 from app.login_guard import admin_identity_allowed  # noqa: E402
-from app.models import LoginAttemptV11, User, UserConsentV11  # noqa: E402
+from app.models import LoginAttemptV11, Task, TaskSubmission, User, UserConsentV11  # noqa: E402
 from app.security import create_session_token, hash_password, read_session_token, session_matches_user  # noqa: E402
 
 
@@ -148,6 +149,41 @@ class SecurityHardeningTests(unittest.TestCase):
             main.save_file(file)
         self.assertEqual(caught.exception.status_code, 400)
         self.assertEqual(self.client.get("/static/uploads/old-banner.svg").status_code, 404)
+
+    def test_uploaded_proof_is_private_to_participants(self):
+        password_hash = hash_password("strongpassword")
+        with self.sessions() as db:
+            owner = User(full_name="Owner", email="proof-owner@example.com", password_hash=password_hash, role="korisnik", status="active")
+            advertiser = User(full_name="Advertiser", email="proof-advertiser@example.com", password_hash=password_hash, role="oglasivac", status="active")
+            stranger = User(full_name="Stranger", email="proof-stranger@example.com", password_hash=password_hash, role="korisnik", status="active")
+            db.add_all([owner, advertiser, stranger])
+            db.flush()
+            task = Task(advertiser_id=advertiser.id, title="Proof task", task_type="test", description="Description", instructions="Instructions", proof_required="Screenshot", reward_rsd=20, total_slots=1, status="active")
+            db.add(task)
+            db.flush()
+            proof_path = "/static/uploads/private-proof-test.png"
+            db.add(TaskSubmission(user_id=owner.id, task_id=task.id, proof="Done", proof_file=proof_path, reward_rsd=20, status="pending"))
+            db.commit()
+            tokens = {user.full_name: create_session_token(user.id, user.password_hash) for user in (owner, advertiser, stranger)}
+
+        async def allowed(_request):
+            return Response(status_code=200)
+
+        def result(path, token=None):
+            headers = [(b"cookie", f"kz_session={token}".encode())] if token else []
+            request = Request({"type": "http", "method": "GET", "scheme": "https", "path": path, "query_string": b"", "headers": headers, "server": ("testserver", 443), "client": ("127.0.0.1", 12345)})
+            return asyncio.run(main.serve_react_application(request, allowed))
+
+        with patch.object(main, "SessionLocal", self.sessions):
+            self.assertEqual(result(proof_path).status_code, 404)
+            self.assertEqual(result(proof_path, tokens["Stranger"]).status_code, 404)
+            self.assertEqual(result("/static/uploads/unknown.png", tokens["Owner"]).status_code, 404)
+            owner_response = result(proof_path, tokens["Owner"])
+            self.assertEqual(owner_response.status_code, 200)
+            self.assertEqual(owner_response.headers["cache-control"], "private, no-store")
+            self.assertEqual(owner_response.headers["vary"], "Cookie")
+            self.assertEqual(result(proof_path, tokens["Advertiser"]).status_code, 200)
+            self.assertEqual(result("/static/uploads/banners/public.png").status_code, 200)
 
     def test_kyc_document_is_private_and_legacy_upload_works(self):
         with self.sessions() as db:
