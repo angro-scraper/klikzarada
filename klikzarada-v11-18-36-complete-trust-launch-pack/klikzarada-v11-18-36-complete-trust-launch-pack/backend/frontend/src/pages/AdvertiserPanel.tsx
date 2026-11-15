@@ -1275,6 +1275,11 @@ export default function AdvertiserPanel({ onNavigate }: { onNavigate: (id: strin
                     </div>
                   </div>
                   <p className="text-xs text-ink-3 mt-3">Karticu obrađuje PayPal. Prikaz kartične opcije zavisi od PayPal odobrenja, zemlje i provere kupca; KlikZarada ne prima niti čuva podatke kartice.</p>
+                  <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
+                    <p className="text-sm font-bold text-ink">Dinarska uplata na račun firme</p>
+                    <p className="mt-1 text-xs text-ink-2">Otvori bankarski ekran da proveriš dostupnost. Dok firma ne unese potvrđen račun, uplata nije moguća. Budžet se dodaje tek posle provere izvoda.</p>
+                    <a className="mt-3 inline-block text-sm font-semibold text-blue-700 underline" href="/oglasivac/payments-v8">Proveri bankarsku uplatu</a>
+                  </div>
                 </Card>}
               </div>
             )}

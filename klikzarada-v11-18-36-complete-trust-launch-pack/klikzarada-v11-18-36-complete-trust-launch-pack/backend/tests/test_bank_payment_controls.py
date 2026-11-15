@@ -16,10 +16,11 @@ os.chdir(ROOT)
 sys.path.insert(0, str(ROOT))
 
 from app.database import Base, get_db  # noqa: E402
-from app import main  # noqa: E402
+from app import main, ui_api  # noqa: E402
+from app.bank_accounts import company_bank_config  # noqa: E402
 from app.models import (  # noqa: E402
     AdvertiserBudgetTransaction, BankPayoutSettlement, BankTransferConfirmation,
-    FraudSignalV11, PaymentIntentV8, PayoutBatchItem, PayoutMethodV11, User, Withdrawal,
+    FraudSignalV11, PaymentIntentV8, PayoutBatchItem, PayoutMethodV11, SystemSetting, User, Withdrawal,
 )
 
 
@@ -126,6 +127,73 @@ class BankPaymentControlsTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 400)
         with self.sessions() as db:
             self.assertEqual(db.query(PaymentIntentV8).count(), 2)
+
+    def test_company_bank_account_is_disabled_until_real_configuration(self):
+        with self.sessions() as db:
+            db.add(SystemSetting(key="advertiser_payment_account", value="Dodaj broj računa u adminu"))
+            db.commit()
+            self.assertFalse(company_bank_config(db)["bank_payments_ready"])
+            advertiser = db.query(User).filter_by(email="adv@example.test").one()
+        with patch.object(main, "require", return_value=advertiser), patch.object(main, "check_role"):
+            response = self.client.post("/oglasivac/payments-v8/create",
+                                        data={"amount_rsd": "1200", "method": "bank_transfer"})
+            self.assertEqual(response.status_code, 409)
+        with self.sessions() as db:
+            self.assertEqual(db.query(PaymentIntentV8).count(), 2)
+
+    def test_bank_payout_is_separate_from_paypal_and_requires_verified_method(self):
+        with self.sessions() as db:
+            user = db.get(User, self.earner_id)
+            user.balance_rsd = 1500
+            user.payment_method = "PayPal"
+            user.payment_details = "old@example.test"
+            db.commit()
+        with patch.object(ui_api, "_require_user", side_effect=lambda request, db, roles: db.get(User, self.earner_id)):
+            saved = self.client.put("/api/ui/user/bank-payout-method",
+                                    json={"account_number": "123-0000000000000-45"})
+            self.assertEqual(saved.status_code, 200)
+            self.assertEqual(saved.json()["method"], {"status": "pending", "last_four": "0045"})
+            first = self.client.post("/api/ui/user/withdrawals", json={
+                "amount_rsd": 1000, "payment_method": "bank_transfer", "payment_details": "verified",
+            })
+            self.assertEqual(first.status_code, 409)
+            with self.sessions() as db:
+                db.add_all([
+                    SystemSetting(key="user_payout_account", value="123000000000000045"),
+                    SystemSetting(key="user_payout_holder", value="AMIA"),
+                ])
+                method = db.query(PayoutMethodV11).filter_by(user_id=self.earner_id).one()
+                method.status = "verified"
+                db.commit()
+            second = self.client.post("/api/ui/user/withdrawals", json={
+                "amount_rsd": 1000, "payment_method": "bank_transfer", "payment_details": "verified",
+            })
+            self.assertEqual(second.status_code, 201)
+        with self.sessions() as db:
+            user = db.get(User, self.earner_id)
+            self.assertEqual(user.balance_rsd, 500)
+            self.assertEqual(user.payment_details, "old@example.test")
+            self.assertEqual(db.query(Withdrawal).filter_by(payment_method="bank_transfer").one().payment_details,
+                             "123000000000000045")
+
+    def test_mobile_bank_deposit_waits_for_company_account_and_bank_statement(self):
+        with patch.object(ui_api, "_require_user", side_effect=lambda request, db, roles: db.query(User).filter_by(email="adv@example.test").one()):
+            unavailable = self.client.post("/api/ui/advertiser/bank-payment", json={"amount_rsd": 1200})
+            self.assertEqual(unavailable.status_code, 409)
+            with self.sessions() as db:
+                db.add_all([
+                    SystemSetting(key="advertiser_payment_account", value="123000000000000045"),
+                    SystemSetting(key="advertiser_payment_holder", value="AMIA"),
+                ])
+                db.commit()
+            created = self.client.post("/api/ui/advertiser/bank-payment", json={"amount_rsd": 1200})
+            self.assertEqual(created.status_code, 201)
+            self.assertEqual(created.json()["intent"]["status"], "pending")
+            self.assertEqual(self.client.get("/api/ui/advertiser/bank-payment").json()["account"], "123000000000000045")
+        with self.sessions() as db:
+            advertiser = db.query(User).filter_by(email="adv@example.test").one()
+            self.assertEqual(advertiser.advertiser_budget_rsd, 0)
+            self.assertEqual(db.query(AdvertiserBudgetTransaction).count(), 0)
 
     def test_high_risk_user_excluded_from_bank_payout_queue(self):
         with self.sessions() as db:

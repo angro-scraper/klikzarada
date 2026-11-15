@@ -665,7 +665,11 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
             {page === 'fin-isplate' && (
               <div>
-                <SectionHeader title="Isplate korisnika" description="Odobri ili odbij zahteve za isplatu." />
+                <SectionHeader title="Isplate korisnika" description="Bankarsku isplatu označi plaćenom tek posle izvršenja u banci." />
+                <div className="mb-4 flex flex-wrap gap-4 text-sm font-semibold text-blue-700 underline">
+                  <a href="/admin/payouts-v11">Proveri račune korisnika i CSV</a>
+                  <a href="/admin/system-settings">Podesi račun firme kada bude dostupan</a>
+                </div>
                 <Card>
                   <Table
                     headers={['Korisnik', 'Iznos', 'Metoda', 'Traženo', 'Status', 'Akcija']}
@@ -704,6 +708,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
             {page === 'fin-uplate' && (
               <div>
                 <SectionHeader title="Uplate oglašivača" />
+                <a className="mb-4 inline-block text-sm font-semibold text-blue-700 underline" href="/admin/payments-v8">Proveri bankarske uplate prema izvodu</a>
                 <EmptyState icon="💳" title="Nema novih uplata" description="Sve uplate su obrađene." />
               </div>
             )}

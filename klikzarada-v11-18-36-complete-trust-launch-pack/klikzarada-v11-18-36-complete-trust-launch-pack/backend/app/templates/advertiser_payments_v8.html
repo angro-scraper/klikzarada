@@ -4,8 +4,8 @@
 <section class="premium-panel-hero advertiser">
   <div>
     <span>DIREKTNA UPLATA</span>
-    <h1>Pošalji budžet odmah na račun</h1>
-    <p>Ovde ne tražiš fakturu unapred. Unosiš iznos, sistem kreira referencu i oglašivački budžet se povezuje sa bankovnim računom koji je podešen u adminu.</p>
+    <h1>Bankarska uplata budžeta</h1>
+    <p>Zahtev i jedinstvena referenca ne potvrđuju uplatu. Budžet se knjiži tek posle provere stvarnog priliva na izvodu firme.</p>
   </div>
   <div class="premium-panel-actions">
     <a class="premium-btn blue" href="/oglasivac/budzet">Nazad na budžet</a>
@@ -15,6 +15,7 @@
 </section>
 
 <section class="premium-dashboard-grid">
+  {% if finance_accounts.bank_payments_ready %}
   <section class="premium-card gradient">
     <div class="premium-card-head">
       <h2>Račun za uplatu</h2>
@@ -39,20 +40,23 @@
       </article>
     </div>
   </section>
+  {% else %}
+  <section class="premium-card"><h2>Bankarska uplata još nije dostupna</h2><p>Firma još nije unela potvrđen račun za prijem uplata. Nemoj slati novac prema ranijim ili nezvaničnim podacima. Postojeći PayPal način plaćanja ostaje dostupan.</p></section>
+  {% endif %}
 
   <section class="premium-card">
     <div class="premium-card-head">
       <h2>Kreiraj uplatu</h2>
       <span>bez fakture unapred</span>
     </div>
-    <form class="premium-form" method="post" action="/oglasivac/payments-v8/create">
+    {% if finance_accounts.bank_payments_ready %}<form class="premium-form" method="post" action="/oglasivac/payments-v8/create">
       <input type="hidden" name="method" value="bank_transfer">
       <label>Iznos RSD</label>
       <input type="number" name="amount_rsd" min="500" step="1" value="5000" required>
       <label>Napomena / referenca</label>
       <textarea name="note" placeholder="Budžet za kampanju, banner slot ili direktna dopuna sa platforme"></textarea>
       <button class="premium-btn blue full">Kreiraj uplatu</button>
-    </form>
+    </form>{% else %}<p>Formular će se otvoriti kada admin unese račun firme i naziv primaoca.</p>{% endif %}
   </section>
 </section>
 

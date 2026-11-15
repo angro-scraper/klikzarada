@@ -159,6 +159,8 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
   const [payoutAmount, setPayoutAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('PayPal')
   const [paymentDetails, setPaymentDetails] = useState('')
+  const [bankAccount, setBankAccount] = useState('')
+  const [bankPayout, setBankPayout] = useState<{ company_ready: boolean; method: { status: string; last_four: string } | null }>({ company_ready: false, method: null })
   const [profileName, setProfileName] = useState('')
   const [profilePhone, setProfilePhone] = useState('')
   const [profileCity, setProfileCity] = useState('')
@@ -179,12 +181,13 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
 
   const refreshDashboard = async () => {
     try {
-      const [data, ticketData, notificationData, chatData] = await Promise.all([api.userDashboard(), api.tickets(), api.notifications(), api.userTaskChats().catch(() => ({ threads: [] }))])
+      const [data, ticketData, notificationData, chatData, bankData] = await Promise.all([api.userDashboard(), api.tickets(), api.notifications(), api.userTaskChats().catch(() => ({ threads: [] })), api.bankPayoutMethod().catch(() => ({ company_ready: false, method: null }))])
       const safeDashboard = normalizeDashboard(data)
       setDashboard(safeDashboard)
       setTickets(Array.isArray(ticketData?.tickets) ? ticketData.tickets : [])
       setNotifications(Array.isArray(notificationData?.notifications) ? notificationData.notifications : [])
       setChatThreads(Array.isArray(chatData?.threads) ? chatData.threads : [])
+      setBankPayout(bankData)
       setPaymentMethod('PayPal')
       setPaymentDetails(safeDashboard.user.payment_details || '')
       setProfileName(safeDashboard.user.full_name)
@@ -462,19 +465,23 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
       <ConfirmModal
         open={confirmPayout}
         title="Zatražiti isplatu?"
-        description={`Iznos od ${formatRsd(Number(payoutAmount) || balance)} biće rezervisan iz RSD salda i poslat na administrativnu proveru. Eventualna PayPal isplata obrađuje se u EUR; kurs nije zaključan pri slanju zahteva.`}
+        description={`Iznos od ${formatRsd(Number(payoutAmount) || balance)} biće rezervisan iz RSD salda i poslat na administrativnu proveru. ${paymentMethod === 'bank_transfer' ? 'Bankarski nalog firma izvršava naknadno; samo zahtev ne znači da je isplata poslata.' : 'PayPal isplata se obrađuje u EUR; kurs nije zaključan pri slanju zahteva.'}`}
         confirmLabel="Zatraži isplatu"
         cancelLabel="Otkaži"
         variant="success"
         onConfirm={async () => {
           const amount = Number(payoutAmount) || balance
-          if (!paymentDetails.trim()) {
+          if (paymentMethod === 'bank_transfer' && (!bankPayout.company_ready || bankPayout.method?.status !== 'verified')) {
+            showToast('Bankarska isplata još nije spremna ili račun nije potvrđen.', 'error')
+            return
+          }
+          if (paymentMethod === 'PayPal' && !paymentDetails.trim()) {
             showToast('Unesi PayPal e-mail adresu pre slanja zahteva.', 'error')
             return
           }
           setSaving(true)
           try {
-            await api.requestWithdrawal({ amount_rsd: amount, payment_method: paymentMethod, payment_details: paymentDetails })
+            await api.requestWithdrawal({ amount_rsd: amount, payment_method: paymentMethod, payment_details: paymentMethod === 'bank_transfer' ? 'verified' : paymentDetails })
             await refreshDashboard()
             setConfirmPayout(false)
             setPayoutAmount('')
@@ -939,22 +946,27 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                 <Alert type="warning">
                   Minimalni iznos za isplatu je <strong>{formatRsd(minWithdrawal)}</strong>. Tvoj balans: <strong className="font-mono">{formatRsd(balance)}</strong>. {payoutGap > 0 ? <>Nedostaje još <strong className="font-mono text-amber-700">{formatRsd(payoutGap)}</strong>.</> : 'Možeš poslati zahtev za isplatu.'}
                 </Alert>
-                <p className="text-sm text-ink-2">Saldo je u RSD. PayPal isplata se obrađuje u EUR po kursu utvrđenom pri obradi; za tačan iznos i moguće troškove konverzije kontaktiraj podršku pre zahteva.</p>
+                <p className="text-sm text-ink-2">Saldo je u RSD. PayPal isplata se obrađuje u EUR; dinarska bankarska isplata biće dostupna kada firma podesi račun i potvrdi tvoj račun primaoca.</p>
                 <Card className="p-5">
                   <h3 className="font-bold text-ink mb-4">Podaci za isplatu</h3>
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    <Btn size="sm" variant={paymentMethod === 'PayPal' ? 'primary' : 'secondary'} onClick={() => setPaymentMethod('PayPal')}>PayPal</Btn>
+                    <Btn size="sm" variant={paymentMethod === 'bank_transfer' ? 'primary' : 'secondary'} onClick={() => setPaymentMethod('bank_transfer')}>Dinarski račun</Btn>
+                  </div>
                   <div className="divide-y divide-frame">
-                    {[["Metoda", 'PayPal'], ['PayPal e-mail', user?.payment_details ? 'Sačuvan' : '—'], ['Primalac', user?.full_name || '—']].map(([k, v]) => (
+                    {[["Metoda", paymentMethod === 'bank_transfer' ? 'Dinarski račun' : 'PayPal'], [paymentMethod === 'bank_transfer' ? 'Račun' : 'PayPal e-mail', paymentMethod === 'bank_transfer' ? bankPayout.method ? `Završava se na ${bankPayout.method.last_four} (${bankPayout.method.status})` : 'Nije dodat' : user?.payment_details ? 'Sačuvan' : '—'], ['Primalac', user?.full_name || '—']].map(([k, v]) => (
                       <div key={k} className="flex justify-between py-3">
                         <span className="text-sm text-ink-2">{k}</span>
                         <span className="text-sm text-ink font-medium">{v}</span>
                       </div>
                     ))}
                   </div>
+                  {paymentMethod === 'bank_transfer' && !bankPayout.company_ready && <p className="mt-3 text-sm text-amber-700">Firma još nije unela račun za isplate. Račun primaoca možeš pripremiti, ali zahtev za bankarsku isplatu još nije dostupan.</p>}
                   <Btn onClick={() => goTo('podaci-isplata')} variant="secondary" size="sm" className="mt-4">Podesi podatke za isplatu</Btn>
                 </Card>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <input value={payoutAmount} onChange={event => setPayoutAmount(event.target.value)} type="number" min={minWithdrawal} max={balance} placeholder={`Iznos (${formatRsd(minWithdrawal)} min.)`} className="bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none flex-1" />
-                  <Btn disabled={balance < minWithdrawal || !user?.payment_details} onClick={() => setConfirmPayout(true)} className="justify-center">Zatraži isplatu</Btn>
+                  <Btn disabled={balance < minWithdrawal || (paymentMethod === 'bank_transfer' ? !bankPayout.company_ready || bankPayout.method?.status !== 'verified' : !user?.payment_details)} onClick={() => setConfirmPayout(true)} className="justify-center">Zatraži isplatu</Btn>
                 </div>
                 <p className="text-xs text-ink-3 text-center">Zahtev se šalje adminu tek kada su saldo i podaci za isplatu validni.</p>
               </div>
@@ -963,7 +975,7 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
             {/* ── PODACI ZA ISPLATU ── */}
             {page === 'podaci-isplata' && (
               <div className="space-y-4">
-                <SectionHeader title="Podaci za PayPal isplatu" description="Unesi PayPal e-mail adresu na koju primaš isplate." />
+                <SectionHeader title="Podaci za isplatu" description="PayPal i dinarski račun čuvaju se odvojeno." />
                 <Card className="p-5 space-y-4">
                   <Alert type="info">Podaci su zaštićeni i koriste se isključivo za isplatu zarade.</Alert>
                   <div className="flex flex-col gap-1.5">
@@ -982,6 +994,13 @@ export default function UserDashboard({ initialPage = 'pregled', onNavigate }: {
                     <Btn variant="success" disabled={saving || !profileName.trim() || !paymentDetails.trim()} onClick={async () => { setSaving(true); try { await api.saveProfile({ full_name: profileName, payment_method: 'PayPal', payment_details: paymentDetails }); await refreshDashboard(); showToast('PayPal podaci za isplatu su sačuvani.', 'success'); goTo('isplate') } catch (error) { showToast(error instanceof Error ? error.message : 'Podaci nisu sačuvani.', 'error') } finally { setSaving(false) } }}>{saving ? 'Čuvanje...' : 'Sačuvaj podatke'}</Btn>
                     <Btn variant="secondary" onClick={() => goTo('isplate')}>Otkaži</Btn>
                   </div>
+                </Card>
+                <Card className="p-5 space-y-3">
+                  <h3 className="font-bold text-ink">Dinarski račun</h3>
+                  <p className="text-sm text-ink-2">Račun mora imati 18 cifara. Novi ili promenjeni račun čeka proveru administratora. Ne menjamo tvoju PayPal adresu.</p>
+                  {bankPayout.method && <p className="text-sm text-ink-2">Sačuvan račun završava se na {bankPayout.method.last_four}. Status: {bankPayout.method.status}.</p>}
+                  <input value={bankAccount} onChange={event => setBankAccount(event.target.value)} inputMode="numeric" placeholder="Broj dinarskog računa (18 cifara)" className="w-full bg-white border border-frame text-ink rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                  <Btn variant="secondary" disabled={saving || bankAccount.replace(/[ -]/g, '').length !== 18} onClick={async () => { setSaving(true); try { await api.saveBankPayoutMethod(bankAccount); setBankAccount(''); await refreshDashboard(); showToast('Račun je poslat administratoru na proveru.', 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Račun nije sačuvan.', 'error') } finally { setSaving(false) } }}>Pošalji račun na proveru</Btn>
                 </Card>
               </div>
             )}

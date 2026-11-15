@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from urllib.request import Request as UrlRequest, urlopen
 from .database import Base, engine, get_db, SessionLocal
+from .bank_accounts import company_bank_config, normalize_rs_account
 from .analytics import PUBLIC_PAGEVIEW_PATHS, is_public_pageview_path, start_clean_pageview_measurement
 from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, SubmissionProofAsset, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, TaskSourceV11, SecurityEvent, KycDocument, KycDocumentAsset, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
 from .security import create_session_token, hash_password, is_legacy_session, make_referral_code, read_session_token, running_in_production, session_matches_user, verify_password
@@ -35,7 +36,7 @@ from .models import BankTransferConfirmation, BankPayoutSettlement
 from .login_guard import admin_identity_allowed, authenticate_login
 from .ui_api import REFERRAL_INVITER_BONUS_RSD, _banner_public_target, _grant_referral_bonus_if_eligible, _save_banner_asset, _start_approved_platform_banner, router as ui_api_router
 
-app = FastAPI(title="KlikZarada V11.18.75 Payment Controls", version="11.18.75")
+app = FastAPI(title="KlikZarada V11.18.76 Bank Setup", version="11.18.76")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 SPA_DIR = Path("app/static/app-ui")
 
@@ -511,7 +512,7 @@ def v11840_inventory_month_context(db: Session):
 
 
 def v11840_payout_ops_context(db: Session):
-    methods = db.query(PayoutMethodV11).order_by(PayoutMethodV11.created_at.desc()).all()
+    methods = db.query(PayoutMethodV11).order_by(PayoutMethodV11.created_at.desc(), PayoutMethodV11.id.desc()).all()
     holds = db.query(PayoutHoldV11).order_by(PayoutHoldV11.created_at.desc()).all()
     exports = db.query(PayoutExportV11).order_by(PayoutExportV11.created_at.desc()).all()
     pending_withdrawals = db.query(Withdrawal).filter(Withdrawal.status == "pending").order_by(Withdrawal.created_at.asc()).all()
@@ -3672,10 +3673,10 @@ def seed_v6_enterprise():
                 SystemSetting(key="moderation_sla_hours", value="24", description="Cilj za proveru dokaza"),
                 SystemSetting(key="withdrawal_sla_hours", value="72", description="Cilj za obradu isplata"),
                 SystemSetting(key="production_mode", value="false", description="Da li je sistem u produkciji"),
-                SystemSetting(key="advertiser_payment_account", value="Dodaj broj računa u adminu", description="Račun na koji oglašivači uplaćuju budžet"),
-                SystemSetting(key="advertiser_payment_holder", value="Dodaj naziv primaoca u adminu", description="Naziv primaoca za uplatu oglašivača"),
-                SystemSetting(key="user_payout_account", value="Dodaj račun za isplatu u adminu", description="Račun sa kog se isplaćuju korisnici"),
-                SystemSetting(key="user_payout_holder", value="Dodaj naziv primaoca u adminu", description="Naziv primaoca za isplatu korisnicima"),
+                SystemSetting(key="advertiser_payment_account", value="", description="Račun na koji oglašivači uplaćuju budžet"),
+                SystemSetting(key="advertiser_payment_holder", value="", description="Naziv primaoca za uplatu oglašivača"),
+                SystemSetting(key="user_payout_account", value="", description="Račun sa kog se isplaćuju korisnici"),
+                SystemSetting(key="user_payout_holder", value="", description="Naziv primaoca za isplatu korisnicima"),
                 SystemSetting(key="payment_reference", value="KlikZarada budžet", description="Poziv na broj ili svrha uplate oglašivača"),
                 SystemSetting(key="payout_reference", value="KlikZarada isplata", description="Poziv na broj ili svrha isplate korisnicima"),
                 SystemSetting(key="payment_provider_name", value="KlikZarada Pay", description="Naziv procesora plaćanja"),
@@ -4269,12 +4270,12 @@ def admin_system_setting_save(request: Request, key: str = Form(...), value: str
 @app.post("/admin/system-settings/finance-save")
 def admin_finance_accounts_save(
     request: Request,
-    advertiser_payment_account: str = Form(...),
-    advertiser_payment_holder: str = Form(...),
-    user_payout_account: str = Form(...),
-    user_payout_holder: str = Form(...),
-    payment_reference: str = Form(...),
-    payout_reference: str = Form(...),
+    advertiser_payment_account: str = Form(""),
+    advertiser_payment_holder: str = Form(""),
+    user_payout_account: str = Form(""),
+    user_payout_holder: str = Form(""),
+    payment_reference: str = Form(""),
+    payout_reference: str = Form(""),
     bank_note: str = Form(""),
     payment_provider_name: str = Form(""),
     payment_provider_checkout_base: str = Form(""),
@@ -4286,10 +4287,16 @@ def admin_finance_accounts_save(
 ):
     u = require(request, db)
     check_role(u, ["admin"])
+    for account, holder in ((advertiser_payment_account, advertiser_payment_holder),
+                            (user_payout_account, user_payout_holder)):
+        if bool(account.strip()) != bool(holder.strip()):
+            raise HTTPException(400, "Za bankarski tok unesi i račun i naziv firme ili ostavi oba prazna.")
+        if account.strip() and not normalize_rs_account(account):
+            raise HTTPException(400, "Dinarski račun firme mora imati 18 cifara.")
     payload = [
-        ("advertiser_payment_account", advertiser_payment_account, "Račun na koji oglašivači uplaćuju budžet"),
+        ("advertiser_payment_account", normalize_rs_account(advertiser_payment_account) or "", "Račun na koji oglašivači uplaćuju budžet"),
         ("advertiser_payment_holder", advertiser_payment_holder, "Naziv primaoca za uplatu oglašivača"),
-        ("user_payout_account", user_payout_account, "Račun sa kog se isplaćuju korisnici"),
+        ("user_payout_account", normalize_rs_account(user_payout_account) or "", "Račun sa kog se isplaćuju korisnici"),
         ("user_payout_holder", user_payout_holder, "Naziv primaoca za isplatu korisnicima"),
         ("payment_reference", payment_reference, "Poziv na broj ili svrha uplate oglašivača"),
         ("payout_reference", payout_reference, "Poziv na broj ili svrha isplate korisnicima"),
@@ -5303,6 +5310,8 @@ def advertiser_payment_create_v8(request: Request, amount_rsd: float = Form(...)
     method_value = (method or "bank_transfer").strip()
     if method_value not in {"bank_transfer", "card"}:
         raise HTTPException(400, "Nepodržan način plaćanja.")
+    if method_value == "bank_transfer" and not company_bank_config(db)["bank_payments_ready"]:
+        raise HTTPException(409, "Bankarski račun firme još nije podešen. Zahtev za uplatu nije kreiran.")
     ref = "KZ-" + uuid.uuid4().hex[:10].upper()
     admin_note = f"Direktna uplata sa platforme. {note.strip()}" if note.strip() else "Direktna uplata sa platforme."
     intent = PaymentIntentV8(advertiser_id=u.id, amount_rsd=float(amount), reference=ref, method=method_value, status="pending", admin_note=admin_note)
@@ -6610,7 +6619,12 @@ def user_payout_profile_v11(request: Request, msg: str | None = None, db: Sessio
 def user_payout_method_save_v11(request: Request, method_type: str = Form("bank"), account_holder: str = Form(""), account_data: str = Form(...), db: Session = Depends(get_db)):
     u = require(request, db)
     check_role(u, ["korisnik", "admin"])
-    db.add(PayoutMethodV11(user_id=u.id, method_type=method_type, account_holder=account_holder.strip() or u.full_name, account_data=account_data.strip(), status="pending"))
+    if method_type != "bank":
+        raise HTTPException(400, "Ovde se prijavljuje samo dinarski račun.")
+    account = normalize_rs_account(account_data)
+    if not account:
+        raise HTTPException(400, "Dinarski račun mora imati 18 cifara.")
+    db.add(PayoutMethodV11(user_id=u.id, method_type="bank", account_holder=u.full_name, account_data=account, status="pending"))
     notify(db, None, "admin", "Novi payout method", f"Korisnik {u.full_name} je dodao podatke za isplatu.")
     db.commit()
     return RedirectResponse("/korisnik/payout-profile-v11?msg=saved", 303)
@@ -6980,20 +6994,7 @@ def v111_price_percent(db: Session, key: str, default: float = 0):
 
 
 def v11836_public_accounts(db: Session):
-    def setting(key: str, default: str = "") -> str:
-        row = db.query(SystemSetting).filter(SystemSetting.key == key).first()
-        value = (row.value if row and row.value is not None else default) or default
-        return str(value).strip()
-
-    return {
-        "advertiser_payment_account": setting("advertiser_payment_account", "Dodaj broj računa u adminu"),
-        "advertiser_payment_holder": setting("advertiser_payment_holder", "Dodaj naziv primaoca u adminu"),
-        "user_payout_account": setting("user_payout_account", "Dodaj račun za isplatu u adminu"),
-        "user_payout_holder": setting("user_payout_holder", "Dodaj naziv primaoca u adminu"),
-        "payment_reference": setting("payment_reference", "KlikZarada budžet"),
-        "payout_reference": setting("payout_reference", "KlikZarada isplata"),
-        "bank_note": setting("bank_note", "Podaci se mogu menjati iz admin system settings."),
-    }
+    return company_bank_config(db)
 
 
 def v11847_payment_provider_config(db: Session):
