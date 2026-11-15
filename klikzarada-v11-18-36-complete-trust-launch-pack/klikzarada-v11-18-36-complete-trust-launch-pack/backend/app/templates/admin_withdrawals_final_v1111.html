@@ -41,14 +41,14 @@
     <article class="kz1111-proof-card">
       <div class="kz1111-card-top"><span class="status status-{{ w.status }}">{{ w.status }}</span><strong>{{ "%.0f"|format(w.amount_rsd) }} RSD</strong></div>
       <h3>{{ w.user.full_name if w.user else "Korisnik" }}</h3>
-      <p>{{ w.method }} · {{ w.payment_details }}</p>
+      <p>{{ w.payment_method }} · {{ w.payment_details }}</p>
       <div class="kz1111-proof-meta">
-        <div><small>Metod</small><b>{{ w.method }}</b></div>
+        <div><small>Metod</small><b>{{ w.payment_method }}</b></div>
         <div><small>Status</small><b>{{ w.status }}</b></div>
         <div><small>Datum</small><b>{{ w.created_at }}</b></div>
       </div>
       <div class="kz1111-actions">
-        <form method="post" action="/admin/withdrawals/{{ w.id }}/paid"><button class="btn btn-mini btn-primary">Označi plaćeno</button></form>
+        {% if w.payment_method == "bank_transfer" %}<form method="post" action="/admin/withdrawals/{{ w.id }}/paid"><input class="mini-input" name="note" minlength="4" maxlength="140" required placeholder="Referenca sa izvoda"><button class="btn btn-mini btn-primary">Potvrdi prema izvodu</button></form>{% else %}<span>Koristi PayPal isplatni tok.</span>{% endif %}
         <form method="post" action="/admin/withdrawals/{{ w.id }}/reject"><button class="btn btn-mini btn-danger">Odbij</button></form>
       </div>
     </article>

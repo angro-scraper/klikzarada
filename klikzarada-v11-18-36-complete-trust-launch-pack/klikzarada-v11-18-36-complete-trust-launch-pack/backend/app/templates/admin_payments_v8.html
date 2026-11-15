@@ -5,7 +5,7 @@
   <div>
     <span>TOP-UP INBOX</span>
     <h1>Potvrda dopuna budžeta</h1>
-    <p>Ovde admin vidi sve zahteve za dopunu budžeta oglašivača i brzo potvrđuje ili odbija uplatu bez lutanja kroz stare ekrane.</p>
+    <p>Bankovnu uplatu potvrdi tek kada je vidiš na izvodu. Kartične uplate potvrđuje isključivo povezani provajder.</p>
   </div>
   <div class="kz1111-hero-actions">
     <a class="btn btn-secondary" href="/admin/oglasivaci">Oglašivači</a>
@@ -39,7 +39,13 @@
           <td><span class="status status-{{ display_status }}">{{ display_status }}</span></td>
           <td class="actions">
             {% if i.status == "pending" %}
-            <form method="post" action="/admin/payments-v8/{{ i.id }}/confirm"><input class="mini-input" name="admin_note" placeholder="note"><button class="btn btn-mini btn-primary">Mark paid</button></form>
+            {% if i.method == "bank_transfer" %}
+            <form method="post" action="/admin/payments-v8/{{ i.id }}/confirm">
+              <input class="mini-input" name="bank_reference" maxlength="140" required placeholder="Referenca sa izvoda" aria-label="Referenca sa bankarskog izvoda">
+              <input class="mini-input" name="statement_amount_rsd" type="number" min="0.01" step="0.01" required placeholder="Iznos sa izvoda RSD" aria-label="Iznos sa bankarskog izvoda u dinarima">
+              <button class="btn btn-mini btn-primary">Potvrdi prema izvodu</button>
+            </form>
+            {% else %}<small>Čeka se potvrda provajdera</small>{% endif %}
             <form method="post" action="/admin/payments-v8/{{ i.id }}/reject"><input class="mini-input" name="admin_note" placeholder="reason"><button class="btn btn-mini btn-danger">Mark failed</button></form>
             {% else %}
             <small>{{ i.admin_note or "-" }}</small>

@@ -41,9 +41,9 @@
       <button class="btn btn-primary">Napravi batch od spremnih isplata</button>
     </form>
     <form class="form-panel kz1111-tech-form" method="post" action="/admin/payouts-v11/export">
-      <label>Naslov bank exporta</label>
-      <input name="title" value="Bank export">
-      <button class="btn btn-secondary">Kreiraj export</button>
+      <label>Pregled spremnih bankovnih isplata</label>
+      <p>CSV je za ručnu proveru, nije bankarski nalog i ne šalje novac.</p>
+      <button class="btn btn-secondary">Preuzmi CSV pregled</button>
     </form>
   </section>
   <section class="kz1111-section">
@@ -117,8 +117,8 @@
           <td>{{ item.withdrawal.created_at }}</td>
           <td class="actions">
             <form method="post" action="/admin/payouts-v11/withdrawal/{{ item.withdrawal.id }}/paid">
-              <input class="mini-input" name="note" placeholder="isplaćeno">
-              <button class="btn btn-mini btn-primary">Paid</button>
+              <input class="mini-input" name="note" minlength="4" maxlength="140" required placeholder="Referenca izvršene bankovne transakcije">
+              <button class="btn btn-mini btn-primary">Potvrdi prema izvodu</button>
             </form>
             <form method="post" action="/admin/payouts-v11/withdrawal/{{ item.withdrawal.id }}/hold">
               <input class="mini-input" name="note" placeholder="hold reason">

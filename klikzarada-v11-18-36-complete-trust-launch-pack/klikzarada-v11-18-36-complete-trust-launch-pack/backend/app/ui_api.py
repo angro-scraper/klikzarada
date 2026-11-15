@@ -30,6 +30,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from .database import get_db
@@ -40,6 +41,7 @@ from .models import (
     AppTesterDailyAttachment,
     AppTesterEnrollment,
     BannerImageAsset,
+    BankPayoutSettlement,
     AdvertiserBudgetTransaction,
     AntiFraudDeviceV1,
     AuditLog,
@@ -53,6 +55,8 @@ from .models import (
     PasswordResetTokenV11,
     PayPalCheckout,
     PayPalPayoutAttempt,
+    PayoutHoldV11,
+    PayoutMethodV11,
     PaidAdBannerV111,
     PaidPromotionRequestV111,
     PublicFunnelEventV12,
@@ -4402,25 +4406,42 @@ def update_admin_ticket(ticket_id: int, payload: AdminStatusPayload, request: Re
 @router.patch("/admin/withdrawals/{withdrawal_id}")
 def update_withdrawal(withdrawal_id: int, payload: AdminStatusPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     admin = _require_user(request, db, {"admin"})
-    item = db.query(Withdrawal).filter(Withdrawal.id == withdrawal_id).first()
+    item = db.query(Withdrawal).filter(Withdrawal.id == withdrawal_id).with_for_update().first()
     if not item:
         raise HTTPException(404, "Isplata nije pronađena.")
     if payload.status not in {"paid", "rejected"}:
         raise HTTPException(400, "Status isplate mora biti paid ili rejected.")
     if item.status not in {"pending", "payout_failed"}:
         raise HTTPException(409, "Ova isplata je već obrađena ili se još obrađuje preko PayPal-a.")
-    if payload.status == "paid" and item.status != "pending":
-        raise HTTPException(409, "Neuspelu PayPal isplatu možeš odbiti i vratiti saldo, ali je ne smeš ručno označiti kao plaćenu.")
-    if payload.status == "paid" and _open_risk_score(db, item.user_id) >= ANTI_FRAUD_HIGH_RISK_SCORE:
-        raise HTTPException(409, "Isplata ima otvoren visokorizični fraud signal. Prvo pregledaj signal ili odbij isplatu.")
+    if payload.status == "paid":
+        if item.status != "pending" or item.payment_method != "bank_transfer":
+            raise HTTPException(409, "PayPal isplatu potvrđuje samo PayPal tok; banka zahteva nalog na čekanju.")
+        bank_reference = (payload.note or "").strip()
+        if not 4 <= len(bank_reference) <= 140:
+            raise HTTPException(400, "Unesi referencu izvršene transakcije sa bankarskog izvoda.")
+        if _open_risk_score(db, item.user_id) >= ANTI_FRAUD_HIGH_RISK_SCORE:
+            raise HTTPException(409, "Isplata ima otvoren visokorizični fraud signal.")
+        method = db.query(PayoutMethodV11).filter(PayoutMethodV11.user_id == item.user_id).order_by(PayoutMethodV11.created_at.desc()).first()
+        if not method or method.method_type != "bank" or method.status != "verified" or method.account_data.strip() != item.payment_details.strip():
+            raise HTTPException(409, "Bankovni račun nije verifikovan ili je promenjen od podnošenja zahteva.")
+        if db.query(PayoutHoldV11).filter(PayoutHoldV11.user_id == item.user_id, PayoutHoldV11.status == "active").first():
+            raise HTTPException(409, "Isplata je na proveri.")
+        if db.query(BankPayoutSettlement).filter(BankPayoutSettlement.bank_reference == bank_reference).first():
+            raise HTTPException(409, "Ova bankarska transakcija je već evidentirana.")
+        db.add(BankPayoutSettlement(withdrawal_id=item.id, bank_reference=bank_reference,
+                                    amount_rsd=item.amount_rsd, confirmed_by_id=admin.id))
     item.status = payload.status
-    item.admin_note = payload.note
+    item.admin_note = f"Bankarska transakcija: {bank_reference}" if payload.status == "paid" else payload.note
     item.processed_at = datetime.utcnow()
     if payload.status == "rejected":
         item.user.balance_rsd = _money(item.user.balance_rsd + item.amount_rsd)
         db.add(WalletTransaction(user_id=item.user_id, amount_rsd=item.amount_rsd, tx_type="withdrawal_return", description="Vraćena odbijena isplata"))
     _audit(db, admin, "withdrawal_review", "Withdrawal", item.id, payload.status)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "Bankarska transakcija je već evidentirana.")
     return {"withdrawal": {"id": item.id, "status": _status(item.status)}}
 
 

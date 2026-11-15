@@ -7,6 +7,8 @@ import mimetypes
 from PIL import Image
 import time
 import hashlib
+import hmac
+from decimal import Decimal, InvalidOperation
 from app.models import AutoEngineLogV114, AutoNotificationQueueV114, TaskViewSessionV114
 from app.models import TaskReservationV115, UserScoreV115, UserBadgeV115, DailyRewardV115, UserMissionV115, AdvertiserSuggestionV115, AdminDailyReportV115
 from app.models import PlatformVisitV117, PublicFunnelEventV12, UserDirectoryV117, AdvertiserDirectoryV117
@@ -21,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.gzip import GZipMiddleware
 from sqlalchemy import func, inspect, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from urllib.request import Request as UrlRequest, urlopen
@@ -28,10 +31,11 @@ from .database import Base, engine, get_db, SessionLocal
 from .analytics import PUBLIC_PAGEVIEW_PATHS, is_public_pageview_path, start_clean_pageview_measurement
 from .models import AdvertiserBudgetTransaction, AuditLog, CampaignTemplate, Invoice, Notification, PromoCode, PromoCodeUse, SupportMessage, SupportTicket, Task, TaskSubmission, SubmissionProofAsset, User, WalletTransaction, Withdrawal, AdvertiserPlan, AdvertiserSubscription, AudienceSegment, Dispute, UserAchievement, ApiKey, AutomationRule, SavedReport, FeatureFlag, SystemSetting, TaskSourceV11, SecurityEvent, KycDocument, KycDocumentAsset, DataExportRequest, SalesLead, WebhookEndpoint, WebhookDelivery, TeamMember, OnboardingItem, AIReviewRule, AIReviewResult, TaskRecommendation, MarketplaceCategory, MarketplaceOffer, MarketplaceOrder, PayoutBatch, PayoutBatchItem, FraudCase, ContentPage, EmailTemplate, GrowthExperiment, AnalyticsSnapshot, CampaignFunnelEvent, InternalMessage, SavedView, PaymentIntentV8, CommandItemV8, HelpArticleV8, AnnouncementBannerV8, StatusIncidentV8, ReleaseChecklistV8, EmailOutboxV8, JobItemV8, LaunchCampaignV9, LaunchTaskV9, AffiliatePartnerV9, AffiliateDealV9, SalesScriptV9, OutreachContactV9, OutreachActivityV9, RevenueForecastV9, RevenueForecastLineV9, BackupSnapshotV9, GoLiveCheckV9, CompetitorNoteV9, RoadmapItemV9, CustomerSuccessNoteV9, PricingExperimentV9, PressKitAssetV9, WorkflowTemplateV10, WorkflowRunV10, WorkflowStepRunV10, SurveyV10, SurveyQuestionV10, SurveyResponseV10, UTMCampaignV10, ConversionGoalV10, ConversionEventV10, ClientPortalProjectV10, ClientPortalUpdateV10, ContractV10, ContractMilestoneV10, DataStudioDashboardV10, DataStudioWidgetV10, ModerationQueueV10, SmartSegmentRuleV10, QualityRuleV10, ApiUsageLogV10, RevenueGoalV10, ExperimentVariantV10, PartnerPayoutV10, OpsPlaybookV10, EmailVerificationTokenV11, PasswordResetTokenV11, LoginAttemptV11, AdminTwoFactorCodeV11, UserDeviceSessionV11, PayoutMethodV11, PayoutHoldV11, PayoutExportV11, ProofFileReviewV11, AdvertiserBudgetAlertV11, CampaignStatusLogV11, FraudSignalV11, LegalPageV11, UserConsentV11, ForbiddenTaskRuleV11, MarketingLandingPageV11, ProductionConfigCheckV11, SmokeTestRunV11, SmokeTestItemV11, BackupRunV11, DeployTargetV11, AdminDailyDeskNoteV11, LaunchReadinessScoreV11, SystemErrorLogV11, HomeBannerSlotV111, PaidAdBannerV111, PaidPromotionRequestV111, MonetizationPricingV111, PaidAdViewV111, PanelShortcutV111
 from .security import create_session_token, hash_password, is_legacy_session, make_referral_code, read_session_token, running_in_production, session_matches_user, verify_password
+from .models import BankTransferConfirmation, BankPayoutSettlement
 from .login_guard import admin_identity_allowed, authenticate_login
 from .ui_api import REFERRAL_INVITER_BONUS_RSD, _banner_public_target, _grant_referral_bonus_if_eligible, _save_banner_asset, _start_approved_platform_banner, router as ui_api_router
 
-app = FastAPI(title="KlikZarada V11.18.74 Durable Private Documents", version="11.18.74")
+app = FastAPI(title="KlikZarada V11.18.75 Payment Controls", version="11.18.75")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 SPA_DIR = Path("app/static/app-ui")
 
@@ -511,6 +515,9 @@ def v11840_payout_ops_context(db: Session):
     holds = db.query(PayoutHoldV11).order_by(PayoutHoldV11.created_at.desc()).all()
     exports = db.query(PayoutExportV11).order_by(PayoutExportV11.created_at.desc()).all()
     pending_withdrawals = db.query(Withdrawal).filter(Withdrawal.status == "pending").order_by(Withdrawal.created_at.asc()).all()
+    high_risk_users = {row.user_id for row in db.query(FraudSignalV11).filter(
+        FraudSignalV11.status == "open", FraudSignalV11.risk_score >= 70,
+    ).all() if row.user_id}
     batches = db.query(PayoutBatch).order_by(PayoutBatch.created_at.desc()).limit(12).all()
     audit_rows = db.query(AuditLog).filter(
         or_(
@@ -543,6 +550,15 @@ def v11840_payout_ops_context(db: Session):
         elif payout_method.status != "verified":
             readiness = "review"
             readiness_note = f"Metoda je {payout_method.status}."
+        elif withdrawal.user_id in high_risk_users:
+            readiness = "review"
+            readiness_note = "Otvoren signal visokog rizika."
+        elif withdrawal.payment_method == "bank_transfer" and (
+            payout_method.method_type != "bank"
+            or withdrawal.payment_details.strip() != payout_method.account_data.strip()
+        ):
+            readiness = "review"
+            readiness_note = "Bankovni račun nije potvrđen ili je promenjen."
         else:
             readiness = "ready"
             readiness_note = "Spremno za batch."
@@ -5281,12 +5297,15 @@ def advertiser_payments_v8(request: Request, msg: str | None = None, db: Session
 def advertiser_payment_create_v8(request: Request, amount_rsd: float = Form(...), method: str = Form("bank_transfer"), note: str = Form(""), db: Session = Depends(get_db)):
     u = require(request, db)
     check_role(u, ["oglasivac", "admin"])
-    if amount_rsd <= 0:
-        raise HTTPException(400)
+    amount = Decimal(str(amount_rsd))
+    if not amount.is_finite() or amount <= 0 or amount > Decimal("1000000000") or amount != amount.quantize(Decimal("0.01")):
+        raise HTTPException(400, "Unesi pozitivan iznos u RSD sa najviše dve decimale.")
+    method_value = (method or "bank_transfer").strip()
+    if method_value not in {"bank_transfer", "card"}:
+        raise HTTPException(400, "Nepodržan način plaćanja.")
     ref = "KZ-" + uuid.uuid4().hex[:10].upper()
     admin_note = f"Direktna uplata sa platforme. {note.strip()}" if note.strip() else "Direktna uplata sa platforme."
-    method_value = (method or "bank_transfer").strip() or "bank_transfer"
-    intent = PaymentIntentV8(advertiser_id=u.id, amount_rsd=amount_rsd, reference=ref, method=method_value, status="pending", admin_note=admin_note)
+    intent = PaymentIntentV8(advertiser_id=u.id, amount_rsd=float(amount), reference=ref, method=method_value, status="pending", admin_note=admin_note)
     db.add(intent)
     db.add(JobItemV8(job_type="payment_intent_created", payload=f"ref={ref}; amount={amount_rsd}; method={method_value}; note={note}", status="queued"))
     notify(db, None, "admin", "Nova direktna uplata budžeta", f"Oglašivač {u.full_name} je pokrenuo direktnu uplatu {amount_rsd:.0f} RSD. Ref: {ref}")
@@ -5318,37 +5337,51 @@ async def payment_provider_webhook(request: Request, db: Session = Depends(get_d
 
     provider = v11847_payment_provider_config(db)
     configured_secret = (provider.get("webhook_secret") or "").strip()
-    incoming_secret = (request.headers.get("x-kz-webhook-secret") or raw_body.get("secret") or raw_body.get("webhook_secret") or "").strip()
-    if configured_secret and configured_secret not in {"", "Dodaj webhook secret u adminu"} and incoming_secret != configured_secret:
+    incoming_secret = (request.headers.get("x-kz-webhook-secret") or "").strip()
+    if not configured_secret or configured_secret == "Dodaj webhook secret u adminu":
+        raise HTTPException(status_code=503, detail="payment_webhook_not_configured")
+    if not hmac.compare_digest(incoming_secret, configured_secret):
         raise HTTPException(status_code=401, detail="invalid_webhook_secret")
 
     reference = str(raw_body.get("reference") or raw_body.get("merchant_reference") or raw_body.get("order_reference") or raw_body.get("id") or "").strip()
     if not reference:
         raise HTTPException(status_code=400, detail="missing_reference")
-    intent = db.query(PaymentIntentV8).filter(PaymentIntentV8.reference == reference).first()
+    intent = db.query(PaymentIntentV8).filter(PaymentIntentV8.reference == reference).with_for_update().first()
     if not intent:
         raise HTTPException(status_code=404, detail="payment_intent_not_found")
+    if intent.method != "card":
+        raise HTTPException(status_code=409, detail="wrong_payment_method")
 
     status_raw = str(raw_body.get("status") or raw_body.get("event") or raw_body.get("payment_status") or "").strip().lower()
-    amount_value = v11837_money(raw_body.get("amount") or raw_body.get("amount_rsd") or intent.amount_rsd)
+    try:
+        amount_value = Decimal(str(raw_body.get("amount_rsd") or raw_body.get("amount")))
+        expected_amount = Decimal(str(intent.amount_rsd))
+    except (InvalidOperation, TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="invalid_payment_amount")
+    currency = str(raw_body.get("currency") or raw_body.get("currency_code") or "").upper().strip()
+    if not amount_value.is_finite() or amount_value != expected_amount or currency != "RSD":
+        raise HTTPException(status_code=400, detail="payment_amount_or_currency_mismatch")
     paid_markers = {"paid", "success", "succeeded", "confirmed", "captured", "completed", "complete"}
     failed_markers = {"failed", "fail", "rejected", "cancelled", "canceled", "declined", "expired"}
 
     if status_raw in paid_markers:
-        if intent.status != "confirmed":
+        if intent.status == "pending":
             intent.status = "confirmed"
             intent.confirmed_at = datetime.utcnow()
             intent.admin_note = (intent.admin_note or "").strip() or f"Webhook potvrđena uplata {intent.reference}"
-            intent.advertiser.advertiser_budget_rsd = round(v11837_money(intent.advertiser.advertiser_budget_rsd) + amount_value, 2)
-            add_budget_tx(db, intent.advertiser, amount_value, "provider_topup_v11847", f"Webhook potvrđena uplata budžeta: {intent.reference}")
+            intent.advertiser.advertiser_budget_rsd = round(v11837_money(intent.advertiser.advertiser_budget_rsd) + float(amount_value), 2)
+            add_budget_tx(db, intent.advertiser, float(amount_value), "provider_topup_v11847", f"Webhook potvrđena uplata budžeta: {intent.reference}")
             notify(db, intent.advertiser, None, "Budžet dopunjen", f"Vaš budžet je automatski dopunjen za {amount_value:.0f} RSD.")
             notify(db, None, "admin", "Webhook uplata uspešna", f"Uplata {reference} je potvrđena i budžet je automatski knjižen.")
+        elif intent.status != "confirmed":
+            raise HTTPException(status_code=409, detail="payment_intent_not_pending")
         db.commit()
         return {"ok": True, "reference": reference, "status": "paid"}
 
     if status_raw in failed_markers:
-        intent.status = "rejected"
-        intent.admin_note = (intent.admin_note or "").strip() or f"Webhook odbijena uplata {intent.reference}"
+        if intent.status == "pending":
+            intent.status = "rejected"
+            intent.admin_note = (intent.admin_note or "").strip() or f"Webhook odbijena uplata {intent.reference}"
         db.commit()
         return {"ok": True, "reference": reference, "status": "failed"}
 
@@ -5414,18 +5447,32 @@ def admin_payments_v8(request: Request, db: Session = Depends(get_db)):
 
 
 @app.post("/admin/payments-v8/{intent_id}/{action}")
-def admin_payment_action_v8(intent_id: int, action: str, request: Request, admin_note: str = Form(""), next_url: str = Form(""), db: Session = Depends(get_db)):
+def admin_payment_action_v8(intent_id: int, action: str, request: Request, admin_note: str = Form(""), bank_reference: str = Form(""), statement_amount_rsd: str = Form(""), next_url: str = Form(""), db: Session = Depends(get_db)):
     u = require(request, db)
     check_role(u, ["admin"])
-    intent = db.query(PaymentIntentV8).filter(PaymentIntentV8.id == intent_id).first()
+    intent = db.query(PaymentIntentV8).filter(PaymentIntentV8.id == intent_id).with_for_update().first()
     if not intent:
         raise HTTPException(404)
     if intent.status != "pending":
         return RedirectResponse("/admin/payments-v8", 303)
     if action == "confirm":
+        if intent.method != "bank_transfer":
+            raise HTTPException(409, "Kartične uplate potvrđuje isključivo provereni provajder.")
+        bank_reference = bank_reference.strip()
+        if len(bank_reference) < 4 or len(bank_reference) > 140:
+            raise HTTPException(400, "Unesi jedinstvenu referencu transakcije iz bankarskog izvoda.")
+        try:
+            statement_amount = Decimal(statement_amount_rsd.strip())
+        except InvalidOperation:
+            raise HTTPException(400, "Unesi iznos sa bankarskog izvoda.")
+        if not statement_amount.is_finite() or statement_amount != Decimal(str(intent.amount_rsd)):
+            raise HTTPException(400, "Iznos na izvodu mora tačno odgovarati zahtevu.")
+        if db.query(BankTransferConfirmation).filter(BankTransferConfirmation.bank_reference == bank_reference).first():
+            raise HTTPException(409, "Ova bankarska transakcija je već iskorišćena.")
+        db.add(BankTransferConfirmation(payment_intent_id=intent.id, bank_reference=bank_reference, amount_rsd=float(statement_amount), confirmed_by_id=u.id))
         intent.status = "confirmed"
         intent.confirmed_at = datetime.utcnow()
-        intent.admin_note = admin_note.strip() or "Potvrđeno"
+        intent.admin_note = f"Bankarski izvod: {bank_reference}. {admin_note.strip()}".strip()
         intent.advertiser.advertiser_budget_rsd += intent.amount_rsd
         add_budget_tx(db, intent.advertiser, intent.amount_rsd, "manual_topup", f"V8 payment confirmed: {intent.reference}")
         notify(db, intent.advertiser, None, "Budžet dopunjen", f"Budžet je dopunjen za {intent.amount_rsd:.0f} RSD.")
@@ -5435,8 +5482,12 @@ def admin_payment_action_v8(intent_id: int, action: str, request: Request, admin
         notify(db, intent.advertiser, None, "Dopuna odbijena", f"Dopuna {intent.reference} je odbijena.")
     else:
         raise HTTPException(400)
-    audit(db, u, f"v8_payment_{action}", "PaymentIntentV8", intent.id, admin_note)
-    db.commit()
+    audit(db, u, f"v8_payment_{action}", "PaymentIntentV8", intent.id, intent.admin_note)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "Bankarska transakcija je već obrađena.")
     target = next_url if next_url.startswith("/admin") else "/admin/payments-v8"
     separator = "&" if "?" in target else "?"
     return RedirectResponse(f"{target}{separator}msg=saved", 303)
@@ -6655,19 +6706,37 @@ def admin_payout_method_status_v11(method_id: int, status: str, request: Request
 @app.post("/admin/payouts-v11/export")
 def admin_payout_export_v11(request: Request, title: str = Form("Payout export"), db: Session = Depends(get_db)):
     u = require(request, db); check_role(u, ["admin"])
-    pending = db.query(Withdrawal).filter(Withdrawal.status == "pending").order_by(Withdrawal.created_at.asc()).all()
-    total = sum(w.amount_rsd for w in pending)
-    export = PayoutExportV11(title=title.strip(), status="created", csv_path="scripts/payout_export_demo.csv", total_amount_rsd=total, rows_count=len(pending))
-    db.add(export)
+    ready = [item for item in v11840_payout_ops_context(db)["queue"]
+             if item["readiness"] == "ready"
+             and item["withdrawal"].payment_method == "bank_transfer"
+             and item["method"].method_type == "bank"
+             and item["withdrawal"].payment_details.strip() == item["method"].account_data.strip()]
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["withdrawal_id", "user_id", "primalac", "racun", "iznos_rsd", "status"])
+    for item in ready:
+        withdrawal = item["withdrawal"]
+        holder = item["method"].account_holder or withdrawal.user.full_name
+        safe_holder = "'" + holder if holder.lstrip().startswith(("=", "+", "-", "@")) else holder
+        writer.writerow([withdrawal.id, withdrawal.user_id, safe_holder,
+                         withdrawal.payment_details, f"{withdrawal.amount_rsd:.2f}", "ZA_PROVERU"])
+    audit(db, u, "payout_review_csv_v11875", "Withdrawal", None, f"rows={len(ready)}")
     db.commit()
-    return RedirectResponse("/admin/payouts-v11?msg=saved", 303)
+    return Response(out.getvalue(), media_type="text/csv; charset=utf-8", headers={
+        "Content-Disposition": "attachment; filename=klikzarada-isplate-za-proveru.csv",
+        "Cache-Control": "no-store",
+    })
 
 
 @app.post("/admin/payouts-v11/batch-create")
 def admin_payout_batch_create_v11(request: Request, title: str = Form("Payout batch"), db: Session = Depends(get_db)):
     u = require(request, db); check_role(u, ["admin"])
     ops = v11840_payout_ops_context(db)
-    ready = [item["withdrawal"] for item in ops["queue"] if item["readiness"] == "ready"]
+    already_batched = {row.withdrawal_id for row in db.query(PayoutBatchItem).all()}
+    ready = [item["withdrawal"] for item in ops["queue"]
+             if item["readiness"] == "ready"
+             and item["withdrawal"].payment_method == "bank_transfer"
+             and item["withdrawal"].id not in already_batched]
     if not ready:
         return RedirectResponse("/admin/payouts-v11?msg=no_ready_items", 303)
     total = sum(v11837_money(w.amount_rsd) for w in ready)
@@ -11754,12 +11823,31 @@ def v11832_pay_withdrawal(db: Session, admin, withdrawal, note: str = ""):
         return "not_found"
     if withdrawal.status != "pending":
         return f"already_{withdrawal.status}"
+    if withdrawal.payment_method != "bank_transfer":
+        return "use_provider_payout"
+    bank_reference = note.strip()
+    if len(bank_reference) < 4 or len(bank_reference) > 140:
+        return "bank_reference_required"
+    if db.query(BankPayoutSettlement).filter(BankPayoutSettlement.bank_reference == bank_reference).first():
+        return "bank_reference_used"
+    queue_item = next((item for item in v11840_payout_ops_context(db)["queue"]
+                       if item["withdrawal"].id == withdrawal.id), None)
+    if not queue_item or queue_item["readiness"] != "ready" or queue_item["method"].method_type != "bank":
+        return "payout_method_not_ready"
+    if withdrawal.payment_details.strip() != queue_item["method"].account_data.strip():
+        return "payout_account_changed"
+    db.add(BankPayoutSettlement(withdrawal_id=withdrawal.id, bank_reference=bank_reference,
+                                amount_rsd=withdrawal.amount_rsd, confirmed_by_id=admin.id))
     withdrawal.status = "paid"
-    withdrawal.admin_note = note.strip() or "Isplaćeno"
+    withdrawal.admin_note = f"Bankarska transakcija: {bank_reference}"
     withdrawal.processed_at = datetime.utcnow()
     notify(db, withdrawal.user, None, "Isplata izvršena", f"Isplata {withdrawal.amount_rsd:.0f} RSD je označena kao isplaćena.")
     audit(db, admin, "withdrawal_paid_v11832", "Withdrawal", withdrawal.id, note)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return "bank_reference_used"
     return "paid"
 
 def v11832_reject_withdrawal(db: Session, admin, withdrawal, note: str = ""):
@@ -11860,19 +11948,9 @@ def v11833_topup_request(db: Session, advertiser, amount_rsd: float, note: str =
     return tx, "created"
 
 def v11833_admin_topup(db: Session, admin, advertiser, amount_rsd: float, reason: str = ""):
-    amount = v11833_money(amount_rsd)
-    if not advertiser:
-        return "not_found"
-    if advertiser.role != "oglasivac":
-        return "not_advertiser"
-    if amount <= 0:
-        return "bad_amount"
-    advertiser.advertiser_budget_rsd = round(v11833_money(advertiser.advertiser_budget_rsd) + amount, 2)
-    add_budget_tx(db, advertiser, amount, "manual_topup_v11833", reason or f"Admin dopuna budžeta: {amount:.0f} RSD")
-    notify(db, advertiser, None, "Budžet dopunjen", f"Vaš oglašivački budžet je dopunjen za {amount:.0f} RSD.")
-    audit(db, admin, "advertiser_topup_v11833", "User", advertiser.id, reason)
-    db.commit()
-    return "topup_done"
+    # Direct credits have no bank or provider evidence. Keep the legacy route
+    # callable but never let it mutate the advertiser balance.
+    return "use_payment_intent"
 
 def v11833_reserve_budget(db: Session, advertiser, amount_rsd: float, description: str = "Rezervacija budžeta"):
     amount = v11833_money(amount_rsd)
