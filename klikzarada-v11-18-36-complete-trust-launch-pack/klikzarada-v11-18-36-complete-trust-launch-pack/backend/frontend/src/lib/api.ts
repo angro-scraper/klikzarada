@@ -617,6 +617,10 @@ export const api = {
   requestWithdrawal: (payload: { amount_rsd: number; payment_method: string; payment_details: string }) => request<{ withdrawal: Withdrawal }>('/user/withdrawals', {
     method: 'POST', body: JSON.stringify(payload),
   }),
+  bankPayoutMethod: () => request<{ company_ready: boolean; method: { status: string; last_four: string } | null }>('/user/bank-payout-method'),
+  saveBankPayoutMethod: (account_number: string) => request<{ method: { status: string; last_four: string } }>('/user/bank-payout-method', {
+    method: 'PUT', body: JSON.stringify({ account_number }),
+  }),
   saveProfile: (payload: { full_name: string; phone?: string; city?: string; payment_method?: string; payment_details?: string; company_name?: string; company_pib?: string; company_website?: string; company_activity?: string }) => request<{ user: SessionUser }>('/user/profile', {
     method: 'PUT', body: JSON.stringify(payload),
   }),

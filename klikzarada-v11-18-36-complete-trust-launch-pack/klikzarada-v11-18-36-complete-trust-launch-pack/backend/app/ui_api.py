@@ -30,9 +30,11 @@ from fastapi.responses import FileResponse, RedirectResponse
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from .database import get_db
+from .bank_accounts import company_bank_config, normalize_rs_account
 from .login_guard import admin_identity_allowed, authenticate_login, throttle_public_action
 from .analytics import PUBLIC_PAGEVIEW_PATHS, start_clean_pageview_measurement
 from .models import (
@@ -40,6 +42,7 @@ from .models import (
     AppTesterDailyAttachment,
     AppTesterEnrollment,
     BannerImageAsset,
+    BankPayoutSettlement,
     AdvertiserBudgetTransaction,
     AntiFraudDeviceV1,
     AuditLog,
@@ -53,6 +56,9 @@ from .models import (
     PasswordResetTokenV11,
     PayPalCheckout,
     PayPalPayoutAttempt,
+    PaymentIntentV8,
+    PayoutHoldV11,
+    PayoutMethodV11,
     PaidAdBannerV111,
     PaidPromotionRequestV111,
     PublicFunnelEventV12,
@@ -156,6 +162,14 @@ class WithdrawalPayload(BaseModel):
     amount_rsd: float = Field(gt=0)
     payment_method: str = Field(min_length=2, max_length=80)
     payment_details: str = Field(min_length=3, max_length=2000)
+
+
+class BankPayoutMethodPayload(BaseModel):
+    account_number: str = Field(min_length=18, max_length=24)
+
+
+class BankDepositPayload(BaseModel):
+    amount_rsd: float = Field(gt=0, le=1000000000)
 
 
 class ProfilePayload(BaseModel):
@@ -2497,14 +2511,35 @@ def submit_proof(task_id: int, payload: ProofPayload, request: Request, db: Sess
 @router.post("/user/withdrawals", status_code=201)
 def request_withdrawal(payload: WithdrawalPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     user = _require_user(request, db, {"korisnik"})
+    db.refresh(user, with_for_update=True)
     if _open_risk_score(db, user.id) >= ANTI_FRAUD_HIGH_RISK_SCORE:
         raise HTTPException(403, "Isplata je privremeno na fraud proveri. Administrator će pregledati nalog.")
     if payload.amount_rsd < MIN_WITHDRAWAL_RSD:
         raise HTTPException(400, f"Minimalna isplata je {MIN_WITHDRAWAL_RSD:.0f} RSD.")
     if payload.amount_rsd > user.balance_rsd:
         raise HTTPException(400, "Nema dovoljno raspoloživog salda.")
+    amount = Decimal(str(payload.amount_rsd))
+    if not amount.is_finite() or amount != amount.quantize(Decimal("0.01")):
+        raise HTTPException(400, "Iznos isplate mora imati najviše dve decimale.")
+    if payload.payment_method.strip().lower() == "bank_transfer":
+        if not company_bank_config(db)["bank_payouts_ready"]:
+            raise HTTPException(409, "Isplata na dinarski račun još nije dostupna.")
+        method = db.query(PayoutMethodV11).filter(PayoutMethodV11.user_id == user.id).order_by(
+            PayoutMethodV11.created_at.desc(), PayoutMethodV11.id.desc()).first()
+        if not method or method.method_type != "bank" or method.status != "verified":
+            raise HTTPException(409, "Dinarski račun mora prvo da potvrdi administrator.")
+        if db.query(PayoutHoldV11).filter(PayoutHoldV11.user_id == user.id, PayoutHoldV11.status == "active").first():
+            raise HTTPException(409, "Isplata je na dodatnoj proveri.")
+        user.balance_rsd = _money(user.balance_rsd - payload.amount_rsd)
+        item = Withdrawal(user_id=user.id, amount_rsd=payload.amount_rsd,
+                          payment_method="bank_transfer", payment_details=method.account_data, status="pending")
+        db.add(item)
+        db.add(WalletTransaction(user_id=user.id, amount_rsd=-payload.amount_rsd,
+                                 tx_type="withdrawal_hold", description=f"Rezervisan zahtev za isplatu: {payload.amount_rsd:.0f} RSD"))
+        db.commit()
+        return {"withdrawal": {"id": item.id, "amount_rsd": _money(item.amount_rsd), "status": _status(item.status)}}
     if payload.payment_method.strip().lower() != "paypal":
-        raise HTTPException(400, "KlikZarada trenutno podržava isplate samo na PayPal email adresu.")
+        raise HTTPException(400, "Nepodržan način isplate.")
     recipient = _paypal_email(payload.payment_details)
     user.balance_rsd = _money(user.balance_rsd - payload.amount_rsd)
     user.payment_method = "PayPal"
@@ -2514,6 +2549,80 @@ def request_withdrawal(payload: WithdrawalPayload, request: Request, db: Session
     db.add(WalletTransaction(user_id=user.id, amount_rsd=-payload.amount_rsd, tx_type="withdrawal_hold", description=f"Rezervisan zahtev za isplatu: {payload.amount_rsd:.0f} RSD"))
     db.commit()
     return {"withdrawal": {"id": item.id, "amount_rsd": _money(item.amount_rsd), "status": _status(item.status)}}
+
+
+@router.get("/user/bank-payout-method")
+def get_bank_payout_method(request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db, {"korisnik"})
+    method = db.query(PayoutMethodV11).filter(PayoutMethodV11.user_id == user.id).order_by(
+        PayoutMethodV11.created_at.desc(), PayoutMethodV11.id.desc()).first()
+    return {
+        "company_ready": company_bank_config(db)["bank_payouts_ready"],
+        "method": {"status": method.status, "last_four": method.account_data[-4:]}
+        if method and method.method_type == "bank" else None,
+    }
+
+
+@router.put("/user/bank-payout-method")
+def save_bank_payout_method(payload: BankPayoutMethodPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    user = _require_user(request, db, {"korisnik"})
+    account = normalize_rs_account(payload.account_number)
+    if not account:
+        raise HTTPException(400, "Dinarski račun mora imati 18 cifara.")
+    previous = db.query(PayoutMethodV11).filter(PayoutMethodV11.user_id == user.id).order_by(
+        PayoutMethodV11.created_at.desc(), PayoutMethodV11.id.desc()).first()
+    if previous and previous.method_type == "bank" and previous.account_data == account:
+        return {"method": {"status": previous.status, "last_four": account[-4:]}}
+    method = PayoutMethodV11(user_id=user.id, method_type="bank", account_holder=user.full_name,
+                             account_data=account, status="pending")
+    db.add(method)
+    _audit(db, user, "bank_payout_method_submitted", "PayoutMethodV11", None, "Dinarski račun na proveri")
+    db.commit()
+    return {"method": {"status": "pending", "last_four": account[-4:]}}
+
+
+@router.get("/advertiser/bank-payment")
+def advertiser_bank_payment(request: Request, db: Session = Depends(get_db)) -> dict:
+    advertiser = _require_user(request, db, {"oglasivac", "admin"})
+    config = company_bank_config(db)
+    intents = db.query(PaymentIntentV8).filter(
+        PaymentIntentV8.advertiser_id == advertiser.id,
+        PaymentIntentV8.method == "bank_transfer",
+    ).order_by(PaymentIntentV8.created_at.desc()).limit(20).all()
+    return {
+        "ready": config["bank_payments_ready"],
+        "account": config["advertiser_payment_account"] if config["bank_payments_ready"] else None,
+        "holder": config["advertiser_payment_holder"] if config["bank_payments_ready"] else None,
+        "intents": [{"reference": row.reference, "amount_rsd": row.amount_rsd,
+                     "status": row.status} for row in intents],
+    }
+
+
+@router.post("/advertiser/bank-payment", status_code=201)
+def create_advertiser_bank_payment(payload: BankDepositPayload, request: Request, db: Session = Depends(get_db)) -> dict:
+    advertiser = _require_user(request, db, {"oglasivac", "admin"})
+    config = company_bank_config(db)
+    if not config["bank_payments_ready"]:
+        raise HTTPException(409, "Bankarska uplata još nije dostupna; račun firme nije podešen.")
+    amount = Decimal(str(payload.amount_rsd))
+    if not amount.is_finite() or amount != amount.quantize(Decimal("0.01")):
+        raise HTTPException(400, "Iznos mora imati najviše dve decimale.")
+    pending = db.query(PaymentIntentV8).filter(
+        PaymentIntentV8.advertiser_id == advertiser.id,
+        PaymentIntentV8.method == "bank_transfer",
+        PaymentIntentV8.status == "pending",
+    ).count()
+    if pending >= 10:
+        raise HTTPException(429, "Previše zahteva na čekanju. Sačekaj obradu postojećih uplata.")
+    intent = PaymentIntentV8(advertiser_id=advertiser.id, amount_rsd=float(amount),
+                             reference="KZ-" + uuid4().hex[:16].upper(),
+                             method="bank_transfer", status="pending")
+    db.add(intent)
+    _audit(db, advertiser, "bank_deposit_requested", "PaymentIntentV8", None, intent.reference)
+    db.commit()
+    return {"intent": {"reference": intent.reference, "amount_rsd": intent.amount_rsd,
+                       "status": intent.status}, "account": config["advertiser_payment_account"],
+            "holder": config["advertiser_payment_holder"]}
 
 
 @router.get("/advertiser/dashboard")
@@ -4402,25 +4511,42 @@ def update_admin_ticket(ticket_id: int, payload: AdminStatusPayload, request: Re
 @router.patch("/admin/withdrawals/{withdrawal_id}")
 def update_withdrawal(withdrawal_id: int, payload: AdminStatusPayload, request: Request, db: Session = Depends(get_db)) -> dict:
     admin = _require_user(request, db, {"admin"})
-    item = db.query(Withdrawal).filter(Withdrawal.id == withdrawal_id).first()
+    item = db.query(Withdrawal).filter(Withdrawal.id == withdrawal_id).with_for_update().first()
     if not item:
         raise HTTPException(404, "Isplata nije pronađena.")
     if payload.status not in {"paid", "rejected"}:
         raise HTTPException(400, "Status isplate mora biti paid ili rejected.")
     if item.status not in {"pending", "payout_failed"}:
         raise HTTPException(409, "Ova isplata je već obrađena ili se još obrađuje preko PayPal-a.")
-    if payload.status == "paid" and item.status != "pending":
-        raise HTTPException(409, "Neuspelu PayPal isplatu možeš odbiti i vratiti saldo, ali je ne smeš ručno označiti kao plaćenu.")
-    if payload.status == "paid" and _open_risk_score(db, item.user_id) >= ANTI_FRAUD_HIGH_RISK_SCORE:
-        raise HTTPException(409, "Isplata ima otvoren visokorizični fraud signal. Prvo pregledaj signal ili odbij isplatu.")
+    if payload.status == "paid":
+        if item.status != "pending" or item.payment_method != "bank_transfer":
+            raise HTTPException(409, "PayPal isplatu potvrđuje samo PayPal tok; banka zahteva nalog na čekanju.")
+        bank_reference = (payload.note or "").strip()
+        if not 4 <= len(bank_reference) <= 140:
+            raise HTTPException(400, "Unesi referencu izvršene transakcije sa bankarskog izvoda.")
+        if _open_risk_score(db, item.user_id) >= ANTI_FRAUD_HIGH_RISK_SCORE:
+            raise HTTPException(409, "Isplata ima otvoren visokorizični fraud signal.")
+        method = db.query(PayoutMethodV11).filter(PayoutMethodV11.user_id == item.user_id).order_by(PayoutMethodV11.created_at.desc(), PayoutMethodV11.id.desc()).first()
+        if not method or method.method_type != "bank" or method.status != "verified" or method.account_data.strip() != item.payment_details.strip():
+            raise HTTPException(409, "Bankovni račun nije verifikovan ili je promenjen od podnošenja zahteva.")
+        if db.query(PayoutHoldV11).filter(PayoutHoldV11.user_id == item.user_id, PayoutHoldV11.status == "active").first():
+            raise HTTPException(409, "Isplata je na proveri.")
+        if db.query(BankPayoutSettlement).filter(BankPayoutSettlement.bank_reference == bank_reference).first():
+            raise HTTPException(409, "Ova bankarska transakcija je već evidentirana.")
+        db.add(BankPayoutSettlement(withdrawal_id=item.id, bank_reference=bank_reference,
+                                    amount_rsd=item.amount_rsd, confirmed_by_id=admin.id))
     item.status = payload.status
-    item.admin_note = payload.note
+    item.admin_note = f"Bankarska transakcija: {bank_reference}" if payload.status == "paid" else payload.note
     item.processed_at = datetime.utcnow()
     if payload.status == "rejected":
         item.user.balance_rsd = _money(item.user.balance_rsd + item.amount_rsd)
         db.add(WalletTransaction(user_id=item.user_id, amount_rsd=item.amount_rsd, tx_type="withdrawal_return", description="Vraćena odbijena isplata"))
     _audit(db, admin, "withdrawal_review", "Withdrawal", item.id, payload.status)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "Bankarska transakcija je već evidentirana.")
     return {"withdrawal": {"id": item.id, "status": _status(item.status)}}
 
 

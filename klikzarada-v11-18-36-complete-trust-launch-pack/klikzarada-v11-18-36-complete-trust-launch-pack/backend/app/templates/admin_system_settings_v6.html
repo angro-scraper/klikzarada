@@ -88,10 +88,10 @@
   <form class="form-panel kz1111-tech-form" method="post" action="/admin/system-settings/finance-save">
     <input type="hidden" name="next_url" value="/admin/system-settings">
     <div class="form-grid">
-      <div><label>Račun za uplatu oglašivača</label><input name="advertiser_payment_account" value="{{ finance_accounts.advertiser_payment_account }}" required></div>
-      <div><label>Primaoc za uplatu oglašivača</label><input name="advertiser_payment_holder" value="{{ finance_accounts.advertiser_payment_holder }}" required></div>
-      <div><label>Račun za isplatu korisnika</label><input name="user_payout_account" value="{{ finance_accounts.user_payout_account }}" required></div>
-      <div><label>Primaoc za isplatu korisnika</label><input name="user_payout_holder" value="{{ finance_accounts.user_payout_holder }}" required></div>
+      <div><label>Račun za uplatu oglašivača (naknadno)</label><input name="advertiser_payment_account" value="{{ finance_accounts.advertiser_payment_account }}" placeholder="18 cifara"></div>
+      <div><label>Primaoc za uplatu oglašivača</label><input name="advertiser_payment_holder" value="{{ finance_accounts.advertiser_payment_holder }}"></div>
+      <div><label>Račun za isplatu korisnika (naknadno)</label><input name="user_payout_account" value="{{ finance_accounts.user_payout_account }}" placeholder="18 cifara"></div>
+      <div><label>Firma koja vrši isplate</label><input name="user_payout_holder" value="{{ finance_accounts.user_payout_holder }}"></div>
       <div><label>Namena za uplatu</label><input name="payment_reference" value="{{ finance_accounts.payment_reference }}" required></div>
       <div><label>Namena za isplatu</label><input name="payout_reference" value="{{ finance_accounts.payout_reference }}" required></div>
     </div>

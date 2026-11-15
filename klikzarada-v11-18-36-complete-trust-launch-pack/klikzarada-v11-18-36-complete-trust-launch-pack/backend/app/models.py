@@ -900,6 +900,26 @@ class PaymentIntentV8(Base):
     advertiser = relationship("User")
 
 
+class BankTransferConfirmation(Base):
+    __tablename__ = "bank_transfer_confirmations"
+    id = Column(Integer, primary_key=True, index=True)
+    payment_intent_id = Column(Integer, ForeignKey("payment_intents_v8.id"), unique=True, nullable=False)
+    bank_reference = Column(String(140), unique=True, nullable=False)
+    amount_rsd = Column(Float, nullable=False)
+    confirmed_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    confirmed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class BankPayoutSettlement(Base):
+    __tablename__ = "bank_payout_settlements"
+    id = Column(Integer, primary_key=True, index=True)
+    withdrawal_id = Column(Integer, ForeignKey("withdrawals.id"), unique=True, nullable=False)
+    bank_reference = Column(String(140), unique=True, nullable=False)
+    amount_rsd = Column(Float, nullable=False)
+    confirmed_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    confirmed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class CommandItemV8(Base):
     __tablename__ = "command_items_v8"
     id = Column(Integer, primary_key=True, index=True)

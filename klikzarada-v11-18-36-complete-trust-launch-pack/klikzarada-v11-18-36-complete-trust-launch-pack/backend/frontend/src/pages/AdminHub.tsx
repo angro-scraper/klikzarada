@@ -347,18 +347,22 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
       <ConfirmModal
         open={payoutAction !== null}
-        title={payoutAction?.type === 'approve' ? 'Odobri isplatu?' : 'Odbij isplatu?'}
+        title={payoutAction?.type === 'approve' ? 'Potvrdi izvršenu bankovnu isplatu?' : 'Odbij isplatu?'}
         description={payoutAction?.type === 'approve'
-          ? `Isplata od ${payoutAction?.iznos} za ${payoutAction?.korisnik} biće pokrenuta.`
+          ? `Ovo ne šalje novac. Označi ${payoutAction?.iznos} za ${payoutAction?.korisnik} kao isplaćeno tek posle potvrde na bankarskom izvodu.`
           : `Korisnik ${payoutAction?.korisnik} neće primiti isplatu od ${payoutAction?.iznos}.`}
-        confirmLabel={payoutAction?.type === 'approve' ? 'Odobri isplatu' : 'Odbij isplatu'}
+        confirmLabel={payoutAction?.type === 'approve' ? 'Unesi referencu sa izvoda' : 'Odbij isplatu'}
         cancelLabel="Otkaži"
         variant={payoutAction?.type === 'approve' ? 'success' : 'danger'}
         onConfirm={async () => {
           if (!payoutAction) return
+          const bankReference = payoutAction.type === 'approve'
+            ? window.prompt('Unesi jedinstvenu referencu izvršene transakcije sa bankarskog izvoda:')?.trim()
+            : undefined
+          if (payoutAction.type === 'approve' && (!bankReference || bankReference.length < 4)) return
           setSavingAction(true)
           try {
-            await api.updateAdminWithdrawal(payoutAction.id, payoutAction.type === 'approve' ? 'paid' : 'rejected')
+            await api.updateAdminWithdrawal(payoutAction.id, payoutAction.type === 'approve' ? 'paid' : 'rejected', bankReference)
             await refreshAdmin()
             showToast(payoutAction.type === 'approve' ? 'Isplata je označena kao plaćena.' : 'Isplata je odbijena i saldo je vraćen.', payoutAction.type === 'approve' ? 'success' : 'error')
             setPayoutAction(null)
@@ -661,7 +665,11 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
 
             {page === 'fin-isplate' && (
               <div>
-                <SectionHeader title="Isplate korisnika" description="Odobri ili odbij zahteve za isplatu." />
+                <SectionHeader title="Isplate korisnika" description="Bankarsku isplatu označi plaćenom tek posle izvršenja u banci." />
+                <div className="mb-4 flex flex-wrap gap-4 text-sm font-semibold text-blue-700 underline">
+                  <a href="/admin/payouts-v11">Proveri račune korisnika i CSV</a>
+                  <a href="/admin/system-settings">Podesi račun firme kada bude dostupan</a>
+                </div>
                 <Card>
                   <Table
                     headers={['Korisnik', 'Iznos', 'Metoda', 'Traženo', 'Status', 'Akcija']}
@@ -677,7 +685,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
                           ? <div className="flex gap-1.5">
                               {p.payment_method.toLowerCase().includes('paypal')
                                 ? <Btn size="sm" variant="success" disabled={savingAction} onClick={() => setPaypalPayoutAction({ id: p.id, korisnik: p.user_name, iznos: `${new Intl.NumberFormat('sr-RS').format(p.amount_rsd)} RSD` })}>Pošalji PayPal</Btn>
-                                : <Btn size="sm" variant="success" disabled={savingAction} onClick={() => setPayoutAction({ id: p.id, korisnik: p.user_name, iznos: `${new Intl.NumberFormat('sr-RS').format(p.amount_rsd)} RSD`, type: 'approve' })}>Označi plaćeno</Btn>}
+                                : <Btn size="sm" variant="success" disabled={savingAction} onClick={() => setPayoutAction({ id: p.id, korisnik: p.user_name, iznos: `${new Intl.NumberFormat('sr-RS').format(p.amount_rsd)} RSD`, type: 'approve' })}>Potvrdi prema izvodu</Btn>}
                               <Btn size="sm" variant="danger" disabled={savingAction} onClick={() => setPayoutAction({ id: p.id, korisnik: p.user_name, iznos: `${new Intl.NumberFormat('sr-RS').format(p.amount_rsd)} RSD`, type: 'reject' })}>Odbij</Btn>
                             </div>
                           : st === 'u_obradi' && p.paypal_payout
@@ -700,6 +708,7 @@ export default function AdminHub({ onNavigate }: { onNavigate: (id: string) => v
             {page === 'fin-uplate' && (
               <div>
                 <SectionHeader title="Uplate oglašivača" />
+                <a className="mb-4 inline-block text-sm font-semibold text-blue-700 underline" href="/admin/payments-v8">Proveri bankarske uplate prema izvodu</a>
                 <EmptyState icon="💳" title="Nema novih uplata" description="Sve uplate su obrađene." />
               </div>
             )}
